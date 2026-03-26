@@ -2,7 +2,7 @@ import { useState, useEffect, memo } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useBacklogStore } from "@/store/backlogStore";
 import type { BacklogItem, Phase, Priority } from "@/types/backlog";
-import { PHASES, PHASE_LABELS } from "@/types/backlog";
+import { PHASES } from "@/types/backlog";
 import { ThermoBadge, PriorityBadge, PhaseBadge } from "./Badges";
 import { HistoryTimeline } from "./detail/HistoryTimeline";
 import { PhaseTimeline } from "./detail/PhaseTimeline";
@@ -27,11 +27,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-interface Props {
-  item: BacklogItem | null;
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-}
+// --- COMPONENTES EXTRAÍDOS PARA FORA (EVITA PERDA DE FOCO) ---
 
 const PHASE_ICONS: Record<Phase, React.ReactNode> = {
   prioritization: <Settings2 className="w-3.5 h-3.5" />,
@@ -41,8 +37,6 @@ const PHASE_ICONS: Record<Phase, React.ReactNode> = {
   planned: <CalendarCheck className="w-3.5 h-3.5" />,
   finished: <Flag className="w-3.5 h-3.5" />,
 };
-
-type TabId = "details" | "history";
 
 function PhaseAccordion({
   title,
@@ -69,7 +63,6 @@ function PhaseAccordion({
     if (defaultOpen !== undefined) setIsOpen(defaultOpen);
   }, [defaultOpen]);
 
-  // Regra: Só mostra nome e data se a etapa estiver concluída
   const showStamp = completed && (updatedBy || updatedAt);
 
   return (
@@ -149,39 +142,7 @@ function MetaItem({ icon, label, children }: { icon: React.ReactNode; label: str
   );
 }
 
-function PriorityResultCard({ item }: { item: BacklogItem }) {
-  if (!item.prioritization) return null;
-  const { businessValue: bv, opportunityCost: oc, estimate: est } = item.prioritization;
-  // @ts-ignore
-  const urg = item.prioritization.urgency ?? 0;
-  const score = est > 0 ? (bv + oc + urg) / est : 0;
-  const totalValue = bv + oc + urg;
-
-  const getPriority = (): Priority | "none" => {
-    if (est === 0 || (bv === 0 && oc === 0 && urg === 0)) return "none";
-    if (score >= 0.6 && totalValue >= 4) return "high";
-    if (score >= 0.26) return "medium";
-    return "low";
-  };
-
-  const priority = getPriority();
-  const meta: Record<string, { label: string; color: string; bg: string; border: string }> = {
-    high: { label: "Alta", color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/20" },
-    medium: { label: "Média", color: "text-amber-500", bg: "bg-amber-500/10", border: "border-amber-500/20" },
-    low: { label: "Baixa", color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/20" },
-    none: { label: "Pendente", color: "text-muted-foreground", bg: "bg-secondary/50", border: "border-border" },
-  };
-  const m = meta[priority];
-
-  return (
-    <div className="pt-5 border-t border-border/30">
-      <div className={`flex items-center justify-between p-3.5 rounded-xl border ${m.border} ${m.bg} transition-all`}>
-        <span className="text-[10px] uppercase tracking-[0.15em] font-bold text-muted-foreground/80">Prioridade</span>
-        <span className={`text-[13px] font-bold uppercase tracking-tight ${m.color}`}>{m.label}</span>
-      </div>
-    </div>
-  );
-}
+// --- FIM DOS COMPONENTES EXTRAÍDOS ---
 
 const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx: number }) => {
   const handleSaved = () => {};
@@ -204,7 +165,12 @@ const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx
           updatedBy={(item.prioritization as any)?.updatedBy || item.createdBy}
           updatedAt={formatDate((item.prioritization as any)?.updatedAt || item.createdAt)}
         >
-          <PrioritizationForm item={item} onSaved={handleSaved} readOnly={item.phase !== "prioritization"} />
+          <PrioritizationForm
+            key={`prior-${item.id}`}
+            item={item}
+            onSaved={handleSaved}
+            readOnly={item.phase !== "prioritization"}
+          />
         </PhaseAccordion>
       )}
 
@@ -218,7 +184,12 @@ const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx
           updatedBy={(item.approval as any)?.updatedBy || item.createdBy}
           updatedAt={formatDate((item.approval as any)?.updatedAt || item.createdAt)}
         >
-          <ApprovalForm item={item} onSaved={handleSaved} readOnly={item.phase !== "approval"} />
+          <ApprovalForm
+            key={`appr-${item.id}`}
+            item={item}
+            onSaved={handleSaved}
+            readOnly={item.phase !== "approval"}
+          />
         </PhaseAccordion>
       )}
 
@@ -232,7 +203,12 @@ const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx
           updatedBy={(item.refinement as any)?.updatedBy || item.createdBy}
           updatedAt={formatDate((item.refinement as any)?.updatedAt || item.createdAt)}
         >
-          <RefinementForm item={item} onSaved={handleSaved} readOnly={item.phase !== "refinement"} />
+          <RefinementForm
+            key={`refi-${item.id}`}
+            item={item}
+            onSaved={handleSaved}
+            readOnly={item.phase !== "refinement"}
+          />
         </PhaseAccordion>
       )}
     </div>
@@ -241,7 +217,7 @@ const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx
 
 export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
   const { products, clients, backlogs } = useBacklogStore();
-  const [activeTab, setActiveTab] = useState<TabId>("details");
+  const [activeTab, setActiveTab] = useState<"details" | "history">("details");
 
   const liveItem = item ? (backlogs.find((b) => b.id === item.id) ?? item) : null;
 
@@ -254,11 +230,6 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
   const product = products.find((p) => p.id === liveItem.productId);
   const client = liveItem.clientId ? clients.find((c) => c.id === liveItem.clientId) : null;
   const phaseIdx = PHASES.indexOf(liveItem.phase);
-
-  const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
-    { id: "details", label: "Detalhes", icon: <FileText className="w-3.5 h-3.5" /> },
-    { id: "history", label: "Histórico", icon: <Clock className="w-3.5 h-3.5" /> },
-  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -275,10 +246,7 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
         </div>
 
         <div className="flex flex-col md:flex-row" style={{ height: "calc(88vh - 100px)", maxHeight: "640px" }}>
-          <div
-            className="md:w-[40%] shrink-0 flex flex-col overflow-hidden border-r border-border/30"
-            style={{ background: "hsl(var(--surface) / 0.6)", backdropFilter: "blur(12px)" }}
-          >
+          <div className="md:w-[40%] shrink-0 flex flex-col overflow-hidden border-r border-border/30 bg-surface/60 backdrop-blur-xl">
             <div className="px-5 pt-5 pb-3">
               <h2 className="text-base font-bold text-foreground leading-tight tracking-tight">{liveItem.title}</h2>
               <div className="flex items-center gap-1.5 mt-2 flex-wrap">
@@ -288,82 +256,61 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
               </div>
             </div>
 
+            {/* Tabs fixas para evitar re-render */}
             <div className="flex gap-0 px-5 border-b border-border/40">
-              {tabs.map((tab) => (
+              {(["details", "history"] as const).map((id) => (
                 <button
-                  key={tab.id}
+                  key={id}
                   type="button"
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => setActiveTab(id)}
                   className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold transition-colors relative ${
-                    activeTab === tab.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                    activeTab === id ? "text-primary" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {tab.icon}
-                  {tab.label}
-                  {activeTab === tab.id && (
+                  {id === "details" ? <FileText className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
+                  {id === "details" ? "Detalhes" : "Histórico"}
+                  {activeTab === id && (
                     <motion.div
                       layoutId="detail-tab-underline"
-                      className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full"
-                      style={{ background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary) / 0.4))" }}
+                      className="absolute bottom-0 left-0 right-0 h-[2px] bg-primary rounded-full"
                     />
                   )}
                 </button>
               ))}
             </div>
 
-            <div className={`flex-1 px-5 py-4 ${activeTab === "history" ? "overflow-y-auto" : "overflow-hidden"}`}>
-              <AnimatePresence mode="wait">
-                {activeTab === "details" ? (
-                  <motion.div
-                    key="details"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="space-y-3"
-                  >
-                    <div>
-                      <span className="text-[9px] text-muted-foreground/80 uppercase tracking-widest font-bold">
-                        Descrição
+            <div className="flex-1 px-5 py-4 overflow-y-auto">
+              {activeTab === "details" ? (
+                <div className="space-y-3">
+                  <div>
+                    <span className="text-[9px] text-muted-foreground/80 uppercase tracking-widest font-bold">
+                      Descrição
+                    </span>
+                    <p className="text-[13px] text-foreground/90 leading-relaxed mt-1.5">{liveItem.description}</p>
+                  </div>
+                  <div className="space-y-0">
+                    <MetaItem icon={<User className="w-3.5 h-3.5" />} label="Criado por">
+                      <span className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center text-[9px] font-bold text-primary shrink-0">
+                          {liveItem.createdBy[0]}
+                        </span>
+                        {liveItem.createdBy}
                       </span>
-                      <p className="text-[13px] text-foreground/90 leading-relaxed mt-1.5">{liveItem.description}</p>
-                    </div>
-                    <div className="space-y-0">
-                      <MetaItem icon={<User className="w-3.5 h-3.5" />} label="Criado por">
-                        <span className="flex items-center gap-2">
-                          <span className="w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center text-[9px] font-bold text-primary shrink-0">
-                            {liveItem.createdBy[0]}
-                          </span>
-                          {liveItem.createdBy}
-                        </span>
-                      </MetaItem>
-                      <MetaItem icon={<Calendar className="w-3.5 h-3.5" />} label="Data">
-                        {new Date(liveItem.createdAt).toLocaleDateString("pt-BR")}
-                      </MetaItem>
-                      <MetaItem icon={<Package className="w-3.5 h-3.5" />} label="Produto">
-                        <span className="flex items-center gap-1.5">
-                          {product && <span className="w-2 h-2 rounded-full" style={{ background: product.color }} />}
-                          {product?.name ?? "—"}
-                        </span>
-                      </MetaItem>
-                      <MetaItem icon={<Building2 className="w-3.5 h-3.5" />} label="Cliente">
-                        {client?.name ?? "—"}
-                      </MetaItem>
-                    </div>
-                    <PriorityResultCard item={liveItem} />
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="history"
-                    initial={{ opacity: 0, x: -8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 8 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <HistoryTimeline history={liveItem.phaseHistory} createdBy={liveItem.createdBy} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                    </MetaItem>
+                    <MetaItem icon={<Calendar className="w-3.5 h-3.5" />} label="Data">
+                      {new Date(liveItem.createdAt).toLocaleDateString("pt-BR")}
+                    </MetaItem>
+                    <MetaItem icon={<Package className="w-3.5 h-3.5" />} label="Produto">
+                      {product?.name ?? "—"}
+                    </MetaItem>
+                    <MetaItem icon={<Building2 className="w-3.5 h-3.5" />} label="Cliente">
+                      {client?.name ?? "—"}
+                    </MetaItem>
+                  </div>
+                </div>
+              ) : (
+                <HistoryTimeline history={liveItem.phaseHistory} createdBy={liveItem.createdBy} />
+              )}
             </div>
           </div>
 
