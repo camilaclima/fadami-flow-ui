@@ -2,12 +2,12 @@ import { useState, useMemo } from "react";
 import { useBacklogStore } from "@/store/backlogStore";
 import type { BacklogItem, Priority } from "@/types/backlog";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, CheckCircle2, Calculator } from "lucide-react";
+import { Loader2, CheckCircle2, Calculator, Info } from "lucide-react";
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
 
 // Escala linear até 10h + 16h (2 dias) e 24h (3 dias)
-const ESTIMATION_HOURS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16];
+const ESTIMATION_HOURS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 24];
 
 function calcPriority(bv: number, oc: number, urg: number, est: number): Priority {
   if (est === 0) return "low";
@@ -47,15 +47,13 @@ interface Props {
 export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
   const { savePrioritization } = useBacklogStore();
 
-  // Estados iniciando no valor mínimo (zerados visualmente)
   const [bv, setBv] = useState(item.prioritization?.businessValue ?? 0);
   const [oc, setOc] = useState(item.prioritization?.opportunityCost ?? 0);
-  // @ts-ignore - lidando com a falta do campo no tipo oficial por enquanto
+  // @ts-ignore
   const [urg, setUrg] = useState(item.prioritization?.urgency ?? 0);
   const [est, setEst] = useState(item.prioritization?.estimate ?? 0);
   const [saving, setSaving] = useState(false);
 
-  // Cálculos Automáticos com trava para divisão por zero
   const scoreNumber = useMemo(() => {
     if (est === 0) return 0;
     return (bv + oc + urg) / est;
@@ -81,24 +79,37 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
     onSaved?.();
   };
 
+  const fieldGuides = {
+    bv: "Impacto no cliente ou faturamento. O quanto isso resolve uma dor real ou gera receita.",
+    oc: "O que perdemos por não fazer isso agora (lucro cessante ou vantagem competitiva).",
+    urg: "Prazo regulatório, risco técnico crítico ou algo que pode quebrar se não agirmos.",
+  };
+
   return (
     <div className="space-y-6">
       {/* Sliders de Input */}
-      <div className="space-y-4">
+      <div className="space-y-5">
         {[
-          { id: "bv", label: "Valor de negócio", val: bv, set: setBv },
-          { id: "oc", label: "Custo de oportunidade", val: oc, set: setOc },
-          { id: "urg", label: "Urgência / Risco", val: urg, set: setUrg },
+          { id: "bv" as const, label: "Valor de negócio", val: bv, set: setBv },
+          { id: "oc" as const, label: "Custo de oportunidade", val: oc, set: setOc },
+          { id: "urg" as const, label: "Urgência / Risco", val: urg, set: setUrg },
         ].map((field) => (
           <div key={field.id} className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
-                {field.label}
+              <div className="flex flex-col">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
+                  {field.label}
+                </span>
+                <p className="text-[9px] text-muted-foreground/60 leading-tight max-w-[220px]">
+                  {fieldGuides[field.id]}
+                </p>
+              </div>
+              <span className="text-xs font-bold text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/10">
+                {field.val}
               </span>
-              <span className="text-xs font-bold text-primary">{field.val}</span>
             </div>
             <Slider
-              min={0} // Agora aceita 0 real
+              min={0}
               max={5}
               step={1}
               value={[field.val]}
@@ -111,7 +122,7 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
       </div>
 
       {/* Estimativa de Horas Linear */}
-      <div className="space-y-3">
+      <div className="space-y-3 pt-2">
         <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
           Estimativa (horas)
         </span>
@@ -123,7 +134,7 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
               onClick={() => !readOnly && setEst(v)}
               className={`h-8 min-w-[38px] px-2 rounded-lg text-[11px] font-bold transition-all ${
                 v === est
-                  ? "bg-primary text-primary-foreground shadow-sm"
+                  ? "bg-primary text-primary-foreground shadow-sm scale-105"
                   : "bg-secondary text-muted-foreground hover:bg-secondary/80"
               }`}
             >
@@ -144,12 +155,12 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
             <span className={`text-sm font-bold uppercase tracking-tight ${meta.color}`}>{meta.label}</span>
             <div className="flex items-center gap-1.5 mt-1 text-muted-foreground">
               <Calculator className="w-3 h-3" />
-              <span className="text-[10px]">(Valor + Custo + Urgência) / Estimativa</span>
+              <span className="text-[10px] italic">(Valor + Custo + Urgência) / Estimativa</span>
             </div>
           </div>
 
           <div className="text-right">
-            <span className="text-[10px] text-muted-foreground uppercase block font-medium">Score</span>
+            <span className="text-[10px] text-muted-foreground uppercase block font-medium">Score Final</span>
             <span className={`text-xl font-mono font-black ${meta.color}`}>{scoreNumber.toFixed(2)}</span>
           </div>
         </div>
