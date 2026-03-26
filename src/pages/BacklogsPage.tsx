@@ -51,7 +51,10 @@ export default function BacklogsPage() {
 
   return (
     /* AJUSTE: w-full e max-w-none para ocupar a tela toda. px-8 para respiro lateral */
-    <div className="fade-in space-y-4 w-full max-w-none px-4 md:px-8 pb-10">
+    <div
+      className="fade-in space-y-4 w-full pb-10"
+      style={{ maxWidth: "100vw", margin: "0", paddingLeft: "2rem", paddingRight: "2rem" }}
+    >
       {/* Header - Ajustado para w-full */}
       <div className="flex items-center justify-between w-full">
         <div>
