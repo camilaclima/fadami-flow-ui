@@ -254,7 +254,7 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>("details");
 
   const foundItem = item ? backlogs.find((b) => b.id === item.id) ?? item : null;
-  const liveItem = useMemo(() => foundItem, [foundItem?.id, foundItem?.phase, foundItem?.updatedAt]);
+  const liveItem = useMemo(() => foundItem, [foundItem?.id, foundItem?.phase]);
 
   useEffect(() => {
     if (open) setActiveTab("details");
