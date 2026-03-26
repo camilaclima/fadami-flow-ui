@@ -7,9 +7,10 @@ import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
 
 // Escala linear até 10h + 16h (2 dias) e 24h (3 dias)
-const ESTIMATION_HOURS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16];
+const ESTIMATION_HOURS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 24];
 
 function calcPriority(bv: number, oc: number, urg: number, est: number): Priority {
+  if (est === 0) return "low";
   const score = (bv + oc + urg) / est;
   if (score >= 0.7) return "high";
   if (score >= 0.3) return "medium";
@@ -44,28 +45,29 @@ interface Props {
 }
 
 export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
+  const { savePrioritization } = useBacklogStore();
+
   // Estados iniciando no valor mínimo (zerados visualmente)
   const [bv, setBv] = useState(item.prioritization?.businessValue ?? 1);
   const [oc, setOc] = useState(item.prioritization?.opportunityCost ?? 1);
+  // @ts-ignore - lidando com a falta do campo no tipo oficial por enquanto
   const [urg, setUrg] = useState(item.prioritization?.urgency ?? 1);
-  const [est, setEst] = useState(item.prioritization?.estimate ?? 0); // 0 para forçar a escolha da hora
+  const [est, setEst] = useState(item.prioritization?.estimate ?? 0);
+  const [saving, setSaving] = useState(false);
 
-  // Se a estimativa for 0, o score é 0 para evitar divisão por zero (Infinity)
+  // Cálculos Automáticos com trava para divisão por zero
   const scoreNumber = useMemo(() => {
     if (est === 0) return 0;
     return (bv + oc + urg) / est;
   }, [bv, oc, urg, est]);
 
-  const priority = useMemo(() => {
-    if (est === 0) return "low"; // Padrão enquanto não preenchido
-    return calcPriority(bv, oc, urg, est);
-  }, [bv, oc, urg, est]);
-
+  const priority = useMemo(() => calcPriority(bv, oc, urg, est), [bv, oc, urg, est]);
   const meta = priorityMeta[priority];
 
   const handleSave = async () => {
     setSaving(true);
     await new Promise((r) => setTimeout(r, 600));
+
     savePrioritization(item.id, {
       businessValue: bv,
       opportunityCost: oc,
@@ -73,6 +75,7 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
       // @ts-ignore
       urgency: urg,
     });
+
     toast.success("Prioridade salva com sucesso!");
     setSaving(false);
     onSaved?.();
@@ -156,7 +159,7 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
       {!readOnly && (
         <motion.button
           onClick={handleSave}
-          disabled={saving || est === 0} // Só habilita se est > 0
+          disabled={saving || est === 0}
           whileTap={{ scale: 0.98 }}
           className={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
             est === 0
