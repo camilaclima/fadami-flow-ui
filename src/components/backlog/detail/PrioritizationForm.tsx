@@ -44,11 +44,12 @@ interface Props {
 }
 
 export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
-  // Estados iniciando no valor mínimo (zerados visualmente)
-  const [bv, setBv] = useState(item.prioritization?.businessValue ?? 1);
-  const [oc, setOc] = useState(item.prioritization?.opportunityCost ?? 1);
-  const [urg, setUrg] = useState(item.prioritization?.urgency ?? 1);
-  const [est, setEst] = useState(item.prioritization?.estimate ?? 0); // 0 para forçar a escolha da hora
+  const { savePrioritization } = useBacklogStore();
+  const [bv, setBv] = useState(item.prioritization?.businessValue ?? 3);
+  const [oc, setOc] = useState(item.prioritization?.opportunityCost ?? 3);
+  const [urg, setUrg] = useState(3);
+  const [est, setEst] = useState(item.prioritization?.estimate ?? 8);
+  const [saving, setSaving] = useState(false);
 
   const scoreNumber = useMemo(() => (bv + oc + urg) / est, [bv, oc, urg, est]);
   const priority = useMemo(() => calcPriority(bv, oc, urg, est), [bv, oc, urg, est]);
