@@ -24,7 +24,7 @@ export function KanbanBoard() {
   const filteredItems = backlogs.filter((b) => b.phase === activePhase);
 
   return (
-    <div className="w-full space-y-8">
+    <div className="w-full space-y-3">
       {/* 3. BOTÕES DE FASE (Substituindo as colunas chatas) */}
       <div className="flex flex-wrap gap-3 w-full border-b border-border/40 pb-6">
         {PHASES.map((phase) => (
