@@ -48,10 +48,10 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
   const { savePrioritization } = useBacklogStore();
 
   // Estados iniciando no valor mínimo (zerados visualmente)
-  const [bv, setBv] = useState(item.prioritization?.businessValue ?? 1);
-  const [oc, setOc] = useState(item.prioritization?.opportunityCost ?? 1);
+  const [bv, setBv] = useState(item.prioritization?.businessValue ?? 0);
+  const [oc, setOc] = useState(item.prioritization?.opportunityCost ?? 0);
   // @ts-ignore - lidando com a falta do campo no tipo oficial por enquanto
-  const [urg, setUrg] = useState(item.prioritization?.urgency ?? 1);
+  const [urg, setUrg] = useState(item.prioritization?.urgency ?? 0);
   const [est, setEst] = useState(item.prioritization?.estimate ?? 0);
   const [saving, setSaving] = useState(false);
 
@@ -91,14 +91,9 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
           { label: "Urgência / Risco", val: urg, set: setUrg },
         ].map((field) => (
           <div key={field.label} className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
-                {field.label}
-              </span>
-              <span className="text-xs font-bold text-primary">{field.val}</span>
-            </div>
+            {/* ... resto do código ... */}
             <Slider
-              min={1}
+              min={0} // <--- Mudar de 1 para 0 aqui
               max={5}
               step={1}
               value={[field.val]}
