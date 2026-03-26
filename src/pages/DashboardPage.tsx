@@ -1,22 +1,37 @@
 import { useBacklogStore } from "@/store/backlogStore";
 import { PHASES, PHASE_LABELS, type Phase } from "@/types/backlog";
-import { BarChart3, ListTodo, TrendingUp, CheckCircle2 } from "lucide-react";
+import { BarChart3, ListTodo, TrendingUp, CheckCircle2, ArrowUpRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
-function StatCard({ label, value, icon: Icon, delay }: { label: string; value: number; icon: any; delay: number }) {
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  delay,
+  accent,
+}: {
+  label: string;
+  value: number;
+  icon: React.ElementType;
+  delay: number;
+  accent?: string;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.3 }}
-      className="bg-card border border-border rounded-2xl p-5 hover-lift"
+      className="neu-card neu-card-hover rounded-2xl p-5"
     >
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm text-muted-foreground">{label}</span>
-        <Icon className="w-5 h-5 text-muted-foreground" />
+        <div className={`w-9 h-9 rounded-xl ${accent ?? "bg-primary/10"} flex items-center justify-center`}>
+          <Icon className={`w-4 h-4 ${accent ? "text-foreground" : "text-primary"}`} />
+        </div>
+        <ArrowUpRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
       <p className="text-3xl font-bold text-foreground">{value}</p>
+      <p className="text-xs text-muted-foreground mt-1">{label}</p>
     </motion.div>
   );
 }
@@ -65,7 +80,7 @@ export default function DashboardPage() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="bg-card border border-border rounded-2xl p-6"
+        className="neu-card rounded-2xl p-6"
       >
         <h2 className="text-sm font-semibold text-foreground mb-4">Distribuição por Fase</h2>
         <div className="space-y-3">
@@ -92,15 +107,21 @@ export default function DashboardPage() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-card border border-border rounded-2xl p-6"
+        className="neu-card rounded-2xl p-6"
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-foreground">Backlogs Recentes</h2>
-          <button onClick={() => navigate("/backlogs")} className="text-xs text-primary hover:underline">Ver todos →</button>
+          <button onClick={() => navigate("/backlogs")} className="text-xs text-primary hover:underline">
+            Ver todos →
+          </button>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1">
           {backlogs.slice(0, 5).map((b) => (
-            <div key={b.id} className="flex items-center justify-between py-2 px-3 rounded-xl hover:bg-surface-hover transition-colors cursor-pointer" onClick={() => navigate("/backlogs")}>
+            <div
+              key={b.id}
+              className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-surface-hover transition-colors cursor-pointer"
+              onClick={() => navigate("/backlogs")}
+            >
               <div className="flex items-center gap-3">
                 <div className={`w-2 h-2 rounded-full ${PHASE_DOT[b.phase]}`} />
                 <span className="text-sm text-foreground">{b.title}</span>
