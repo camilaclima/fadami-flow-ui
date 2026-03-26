@@ -196,7 +196,7 @@ export const useBacklogStore = create<BacklogStore>((set) => ({
         return {
           ...b,
           phase: "approval" as Phase,
-          prioritization: { ...data, priority },
+          prioritization: { ...data, priority, updatedBy: b.createdBy, updatedAt: nowStr },
           phaseHistory: history,
         };
       }),
