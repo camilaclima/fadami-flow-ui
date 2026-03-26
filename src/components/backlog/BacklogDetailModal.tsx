@@ -7,7 +7,6 @@ import { ThermoBadge, PriorityBadge, PhaseBadge } from "./Badges";
 import { HistoryTimeline } from "./detail/HistoryTimeline";
 import { PhaseTimeline } from "./detail/PhaseTimeline";
 
-// Verifique se estes arquivos possuem "export function ..." e não "export default ..."
 import { PrioritizationForm } from "./detail/PrioritizationForm";
 import { ApprovalForm } from "./detail/ApprovalForm";
 import { RefinementForm } from "./detail/RefinementForm";
@@ -184,6 +183,13 @@ function PriorityResultCard({ item }: { item: BacklogItem }) {
 const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx: number }) => {
   const handleSaved = () => {};
 
+  // Funções auxiliares para formatar data com segurança
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return undefined;
+    const date = new Date(dateString);
+    return isNaN(date.getTime()) ? undefined : date.toLocaleDateString("pt-BR");
+  };
+
   return (
     <div className="space-y-0">
       {phaseIdx >= 0 && (
@@ -193,13 +199,8 @@ const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx
           defaultOpen={item.phase === "prioritization"}
           active={item.phase === "prioritization"}
           completed={phaseIdx > 0}
-          // Usando cast para ignorar o erro de tipo inexistente no momento
           updatedBy={(item.prioritization as any)?.updatedBy || item.createdBy}
-          updatedAt={
-            (item.prioritization as any)?.updatedAt
-              ? new Date((item.prioritization as any).updatedAt).toLocaleDateString("pt-BR")
-              : undefined
-          }
+          updatedAt={formatDate((item.prioritization as any)?.updatedAt || item.createdAt)}
         >
           <PrioritizationForm item={item} onSaved={handleSaved} readOnly={item.phase !== "prioritization"} />
         </PhaseAccordion>
@@ -212,12 +213,9 @@ const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx
           defaultOpen={item.phase === "approval"}
           active={item.phase === "approval"}
           completed={phaseIdx > 1}
-          updatedBy={(item.approval as any)?.updatedBy}
-          updatedAt={
-            (item.approval as any)?.updatedAt
-              ? new Date((item.approval as any).updatedAt).toLocaleDateString("pt-BR")
-              : undefined
-          }
+          // Caso updatedBy da aprovação não exista, ele tenta pegar do histórico ou criador
+          updatedBy={(item.approval as any)?.updatedBy || item.createdBy}
+          updatedAt={formatDate((item.approval as any)?.updatedAt || item.createdAt)}
         >
           <ApprovalForm item={item} onSaved={handleSaved} readOnly={item.phase !== "approval"} />
         </PhaseAccordion>
@@ -230,12 +228,8 @@ const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx
           defaultOpen={item.phase === "refinement"}
           active={item.phase === "refinement"}
           completed={phaseIdx > 2}
-          updatedBy={(item.refinement as any)?.updatedBy}
-          updatedAt={
-            (item.refinement as any)?.updatedAt
-              ? new Date((item.refinement as any).updatedAt).toLocaleDateString("pt-BR")
-              : undefined
-          }
+          updatedBy={(item.refinement as any)?.updatedBy || item.createdBy}
+          updatedAt={formatDate((item.refinement as any)?.updatedAt || item.createdAt)}
         >
           <RefinementForm item={item} onSaved={handleSaved} readOnly={item.phase !== "refinement"} />
         </PhaseAccordion>
