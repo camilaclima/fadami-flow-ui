@@ -8,7 +8,6 @@ import type {
   ApprovalData,
   RefinementData,
   Priority,
-  Thermometer,
 } from "@/types/backlog";
 
 function calculatePriority(bv: number, oc: number, est: number): Priority {
@@ -177,11 +176,11 @@ export const useBacklogStore = create<BacklogStore>((set) => ({
     set((state) => ({
       backlogs: state.backlogs.map((b) => {
         if (b.id !== id) return b;
-        const now = new Date().toISOString();
+        const nowStr = new Date().toISOString();
         const history = b.phaseHistory.map((h) =>
-          h.phase === b.phase && !h.completedAt ? { ...h, completedAt: now } : h
+          h.phase === b.phase && !h.completedAt ? { ...h, completedAt: nowStr } : h
         );
-        history.push({ phase, enteredAt: now });
+        history.push({ phase, enteredAt: nowStr });
         return { ...b, phase, phaseHistory: history };
       }),
     })),
@@ -191,11 +190,11 @@ export const useBacklogStore = create<BacklogStore>((set) => ({
       backlogs: state.backlogs.map((b) => {
         if (b.id !== id) return b;
         const priority = calculatePriority(data.businessValue, data.opportunityCost, data.estimate);
-        const now = new Date().toISOString();
+        const nowStr = new Date().toISOString();
         const history = b.phaseHistory.map((h) =>
-          h.phase === "prioritization" && !h.completedAt ? { ...h, completedAt: now } : h
+          h.phase === "prioritization" && !h.completedAt ? { ...h, completedAt: nowStr } : h
         );
-        history.push({ phase: "approval" as Phase, enteredAt: now });
+        history.push({ phase: "approval" as Phase, enteredAt: nowStr });
         return {
           ...b,
           phase: "approval" as Phase,
@@ -209,11 +208,11 @@ export const useBacklogStore = create<BacklogStore>((set) => ({
     set((state) => ({
       backlogs: state.backlogs.map((b) => {
         if (b.id !== id) return b;
-        const now = new Date().toISOString();
+        const nowStr = new Date().toISOString();
         const history = b.phaseHistory.map((h) =>
-          h.phase === "approval" && !h.completedAt ? { ...h, completedAt: now } : h
+          h.phase === "approval" && !h.completedAt ? { ...h, completedAt: nowStr } : h
         );
-        history.push({ phase: "refinement" as Phase, enteredAt: now });
+        history.push({ phase: "refinement" as Phase, enteredAt: nowStr });
         return { ...b, phase: "refinement" as Phase, approval: data, phaseHistory: history };
       }),
     })),
@@ -222,11 +221,11 @@ export const useBacklogStore = create<BacklogStore>((set) => ({
     set((state) => ({
       backlogs: state.backlogs.map((b) => {
         if (b.id !== id) return b;
-        const now = new Date().toISOString();
+        const nowStr = new Date().toISOString();
         const history = b.phaseHistory.map((h) =>
-          h.phase === "refinement" && !h.completedAt ? { ...h, completedAt: now } : h
+          h.phase === "refinement" && !h.completedAt ? { ...h, completedAt: nowStr } : h
         );
-        history.push({ phase: "available" as Phase, enteredAt: now });
+        history.push({ phase: "available" as Phase, enteredAt: nowStr });
         return { ...b, phase: "available" as Phase, refinement: data, phaseHistory: history };
       }),
     })),
