@@ -95,7 +95,7 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
             <div className="flex items-end justify-between gap-4">
               <div className="flex flex-col flex-1 min-w-0">
                 <span className="text-[11px] text-foreground uppercase tracking-wider font-black">{field.label}</span>
-                <p className="text-[10px] text-muted-foreground/70 truncate">{fieldGuides[field.id]}</p>
+                <p className="text-[10px] truncate text-[#bbc0c3]">{fieldGuides[field.id]}</p>
               </div>
               <span className="text-sm font-mono font-bold text-primary">{field.val}</span>
             </div>
