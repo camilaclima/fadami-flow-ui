@@ -247,7 +247,7 @@ const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx
       )}
     </div>
   );
-});
+}, (prev, next) => prev.item.id === next.item.id && prev.item.phase === next.item.phase && prev.phaseIdx === next.phaseIdx);
 
 export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
   const { products, clients, backlogs } = useBacklogStore();
