@@ -88,7 +88,7 @@ const MOCK_BACKLOGS: BacklogItem[] = [
       { phase: "prioritization", enteredAt: "2024-03-08T14:00:00Z", completedAt: "2024-03-11T16:00:00Z" },
       { phase: "approval", enteredAt: "2024-03-11T16:00:00Z" },
     ],
-    prioritization: { businessValue: 4, opportunityCost: 3, estimate: 24, priority: "medium" },
+    prioritization: { businessValue: 4, opportunityCost: 3, estimate: 24, priority: "medium", updatedBy: "Pedro Alves", updatedAt: "2024-03-11T16:00:00Z" },
   },
   {
     id: "b5",
