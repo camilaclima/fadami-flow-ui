@@ -22,7 +22,6 @@ const PHASE_ICONS: Record<Phase, React.ElementType> = {
 };
 
 const PHASE_ICON_COLORS: Record<Phase, string> = {
-  backlog: "text-phase-backlog",
   prioritization: "text-phase-prioritization",
   approval: "text-phase-approval",
   refinement: "text-phase-refinement",
