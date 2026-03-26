@@ -42,7 +42,7 @@ const PHASE_ICONS: Record<Phase, React.ReactNode> = {
 
 type TabId = "details" | "history";
 
-/* ── Accordion for phase sections (Ajustado para metadados) ── */
+/* ── Accordion for phase sections (Metadata à direita e visível) ── */
 function PhaseAccordion({
   title,
   icon,
@@ -72,44 +72,44 @@ function PhaseAccordion({
     <div className="group">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full flex items-start gap-2.5 py-3 transition-colors ${
+        className={`w-full flex items-center gap-2.5 py-4 transition-colors ${
           active ? "text-primary" : completed ? "text-foreground/70" : "text-foreground hover:text-primary"
         }`}
       >
         <div
-          className={`mt-0.5 flex items-center justify-center w-6 h-6 rounded-lg transition-colors shrink-0 ${
+          className={`flex items-center justify-center w-6 h-6 rounded-lg transition-colors shrink-0 ${
             active ? "bg-primary/15" : completed ? "bg-phase-finished/10" : "bg-secondary"
           }`}
         >
           {completed ? <CheckCircle className="w-3 h-3 text-phase-finished" /> : icon}
         </div>
 
-        <div className="flex-1 text-left">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold tracking-wide uppercase">{title}</span>
+        <div className="flex flex-1 items-center justify-between min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-xs font-semibold tracking-wide uppercase truncate">{title}</span>
             {active && (
               <motion.span
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                className="text-[8px] font-bold uppercase tracking-widest bg-primary/15 text-primary px-2 py-0.5 rounded-md"
+                className="text-[8px] font-bold uppercase tracking-widest bg-primary/15 text-primary px-2 py-0.5 rounded-md shrink-0"
               >
                 Atual
               </motion.span>
             )}
           </div>
 
-          {/* Metadata sutil abaixo do título da fase */}
+          {/* Metadata à direita - Mais visível e na mesma linha */}
           {(updatedBy || updatedAt) && (
-            <div className="flex items-center gap-1 opacity-40 text-[9px] font-medium text-muted-foreground mt-0.5 uppercase tracking-tighter">
-              <span>{updatedBy}</span>
-              {updatedBy && updatedAt && <span>•</span>}
+            <div className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground/80 shrink-0 ml-4">
+              <span className="max-w-[100px] truncate">{updatedBy}</span>
+              {updatedBy && updatedAt && <span className="opacity-40">•</span>}
               <span>{updatedAt}</span>
             </div>
           )}
         </div>
 
-        <motion.div className="mt-1" animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
-          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+        <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }} className="ml-2 shrink-0">
+          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground/60" />
         </motion.div>
       </button>
 
@@ -324,7 +324,7 @@ function PhaseActionPanel({ item, phaseIdx }: { item: BacklogItem; phaseIdx: num
   const handleSaved = () => {};
 
   return (
-    <div>
+    <div className="space-y-0">
       {phaseIdx >= 0 && (
         <PhaseAccordion
           title="Priorização"
