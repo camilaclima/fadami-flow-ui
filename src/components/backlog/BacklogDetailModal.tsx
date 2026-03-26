@@ -94,29 +94,21 @@ const PhaseAccordion = memo(({ title, icon, defaultOpen, active, completed, chil
           active ? "text-primary font-bold" : "text-foreground hover:text-primary"
         }`}
       >
-        {/* Ícone da Etapa */}
         <div
-          className={`flex items-center justify-center w-6 h-6 rounded-lg shrink-0 ${
-            active
-              ? "bg-primary/15 shadow-[0_0_10px_rgba(var(--primary),0.1)]"
-              : completed
-                ? "bg-emerald-500/10"
-                : "bg-secondary"
-          }`}
+          className={`flex items-center justify-center w-6 h-6 rounded-lg shrink-0 ${active ? "bg-primary/15" : completed ? "bg-emerald-500/10" : "bg-secondary"}`}
         >
           {completed ? <CheckCircle className="w-3 h-3 text-emerald-500" /> : icon}
         </div>
 
-        {/* Container do Título e Infos de Conclusão */}
-        <div className="flex-1 text-left flex items-center justify-between min-w-0">
+        <div className="flex-1 flex items-center justify-between min-w-0">
           <span className="text-xs font-semibold uppercase tracking-wide truncate">{title}</span>
 
-          {/* Informações de quem fez e quando (aparece apenas se estiver concluído) */}
+          {/* INFO DE QUEM FEZ À DIREITA */}
           {completed && (updatedBy || updatedAt) && (
-            <div className="flex items-center gap-2 mr-3 shrink-0">
-              <span className="text-[10px] text-muted-foreground/60 font-medium">{updatedBy}</span>
+            <div className="flex items-center gap-2 px-2 py-1 rounded bg-secondary/40 mr-2">
+              <span className="text-[10px] font-medium text-muted-foreground whitespace-nowrap">{updatedBy}</span>
               <span className="text-[10px] text-muted-foreground/30">•</span>
-              <span className="text-[10px] text-muted-foreground/60">{updatedAt}</span>
+              <span className="text-[10px] text-muted-foreground whitespace-nowrap">{updatedAt}</span>
             </div>
           )}
         </div>
