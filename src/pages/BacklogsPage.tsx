@@ -95,7 +95,7 @@ export default function BacklogsPage() {
       </div>
 
       {/* Cards grid - AJUSTE: justify-items-stretch para os cards ocuparem a largura total da coluna */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 w-full justify-items-stretch">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 w-full justify-items-stretch">
         <AnimatePresence mode="popLayout">
           {filtered.map((item, i) => (
             <BacklogListCard key={item.id} item={item} index={i} onClick={() => openDetail(item)} />

@@ -49,13 +49,13 @@ export function PhaseFilterBar({ selected, onSelect }: Props) {
   const total = backlogs.length;
 
   return (
-    <div className="flex gap-2 overflow-x-auto pb-0 scrollbar-none">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2 w-full">
       {/* Total button */}
       <motion.button
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         onClick={() => onSelect("all")}
-        className={`relative flex items-center gap-3 px-5 py-3.5 rounded-2xl transition-all duration-200 flex-shrink-0 neu-card-hover ${
+        className={`relative flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 neu-card-hover ${
           selected === "all"
             ? "glow-active bg-card"
             : "neu-card hover:border-primary/20"
@@ -81,7 +81,7 @@ export function PhaseFilterBar({ selected, onSelect }: Props) {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => onSelect(phase)}
-            className={`relative flex items-center gap-3 px-5 py-3.5 rounded-2xl transition-all duration-200 flex-shrink-0 neu-card-hover ${
+            className={`relative flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 neu-card-hover ${
               isActive
                 ? "glow-active bg-card"
                 : "neu-card hover:border-primary/20"
