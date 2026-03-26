@@ -132,7 +132,42 @@ function MetaItem({ icon, label, children }: { icon: React.ReactNode; label: str
 }
 
 /* ── Priority Result Card (Ajustado) ── */
+function PriorityResultCard({ item }: { item: BacklogItem }) {
+  if (!item.prioritization) return null;
 
+  const { businessValue: bv, opportunityCost: oc, estimate: est } = item.prioritization;
+
+  // @ts-ignore
+  const urg = item.prioritization.urgency ?? 0;
+
+  const score = est > 0 ? (bv + oc + urg) / est : 0;
+  const totalValue = bv + oc + urg;
+
+  const getPriority = (): Priority | "none" => {
+    if (est === 0 || (bv === 0 && oc === 0 && urg === 0)) return "none";
+    if (score >= 0.6 && totalValue >= 4) return "high";
+    if (score >= 0.26) return "medium";
+    return "low";
+  };
+
+  const priority = getPriority();
+
+  const meta: Record<string, { label: string; color: string; bg: string; border: string }> = {
+    high: { label: "Prioridade Alta", color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/30" },
+    medium: {
+      label: "Prioridade Média",
+      color: "text-amber-500",
+      bg: "bg-amber-500/10",
+      border: "border-amber-500/30",
+    },
+    low: { label: "Prioridade Baixa", color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/30" },
+    none: {
+      label: "Aguardando Análise",
+      color: "text-muted-foreground",
+      bg: "bg-secondary/50",
+      border: "border-border",
+    },
+  };
 
   const m = meta[priority];
 
