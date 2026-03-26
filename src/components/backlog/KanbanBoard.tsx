@@ -32,7 +32,7 @@ export function KanbanBoard() {
         {PHASES.map((phase) => {
           const items = backlogs.filter((b) => b.phase === phase);
           return (
-            <div key={phase} className="flex-shrink-0 w-72">
+            <div key={phase} className="flex-1 min-w-[300px] max-w-[500px] flex-shrink-0">
               {/* Column header */}
               <div className="flex items-center gap-2 mb-3 px-1">
                 <div className={`w-2.5 h-2.5 rounded-full ${PHASE_DOT_COLORS[phase]}`} />
@@ -43,7 +43,7 @@ export function KanbanBoard() {
               </div>
 
               {/* Cards */}
-              <div className="space-y-3 min-h-[200px]">
+              <div className="space-y-3 min-h-[200px] w-full">
                 <AnimatePresence>
                   {items.map((item) => (
                     <BacklogCard key={item.id} item={item} onClick={() => openDetail(item)} />
