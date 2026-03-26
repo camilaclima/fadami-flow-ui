@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { useBacklogStore } from "@/store/backlogStore";
-import type { BacklogItem } from "@/types/backlog";
+import type { BacklogItem, Priority } from "@/types/backlog";
 import { motion } from "framer-motion";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { Info, Calculator, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -11,120 +11,149 @@ interface Props {
   readOnly?: boolean;
 }
 
-const SCALE = [1, 2, 3, 4, 5];
-const FIBONACCI = [1, 2, 3, 5, 8, 13, 21, 34];
-
-function ScaleSelector({
-  label,
-  guide,
-  value,
-  onChange,
-  readOnly,
-}: {
-  label: string;
-  guide: string;
-  value: number;
-  onChange: (v: number) => void;
-  readOnly?: boolean;
-}) {
-  return (
-    <div className="space-y-2">
-      <div className="space-y-0.5">
-        <span className="text-[11px] text-foreground/60 uppercase tracking-widest font-semibold">{label}</span>
-        <p className="text-[10px] truncate text-[#bbc0c3]">{guide}</p>
+// --- COMPONENTE DE SLIDER EXTRAÍDO (Evita perda de foco e re-renders) ---
+const GUTSlider = memo(
+  ({
+    label,
+    value,
+    onChange,
+    color,
+    readOnly,
+  }: {
+    label: string;
+    value: number;
+    onChange: (v: number) => void;
+    color: string;
+    readOnly?: boolean;
+  }) => (
+    <div className="space-y-2.5">
+      <div className="flex justify-between items-center">
+        <span className="text-[11px] text-foreground/60 uppercase tracking-widest font-bold">{label}</span>
+        <span className="text-sm font-black px-2 py-0.5 rounded-md bg-secondary" style={{ color }}>
+          {value}
+        </span>
       </div>
-      <div className="flex flex-wrap gap-1.5">
-        {SCALE.map((v) => (
-          <motion.button
-            key={v}
-            type="button"
-            onClick={() => !readOnly && onChange(v)}
-            whileHover={!readOnly ? { scale: 1.08 } : {}}
-            whileTap={!readOnly ? { scale: 0.95 } : {}}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-              v === value
-                ? "bg-primary text-primary-foreground shadow-[0_0_10px_hsl(var(--primary)/0.4)]"
-                : "bg-secondary/60 text-foreground/60 hover:bg-surface-hover hover:text-foreground"
-            }`}
-          >
-            {v}
-          </motion.button>
-        ))}
+      <input
+        type="range"
+        min="1"
+        max="5"
+        step="1"
+        value={value}
+        disabled={readOnly}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-foreground/[0.05] accent-primary transition-all"
+        style={{
+          background: `linear-gradient(to right, ${color} ${(value - 1) * 25}%, rgba(0,0,0,0.05) ${(value - 1) * 25}%)`,
+        }}
+      />
+      <div className="flex justify-between px-1">
+        <span className="text-[9px] text-muted-foreground/40 uppercase font-medium">Baixo</span>
+        <span className="text-[9px] text-muted-foreground/40 uppercase font-medium">Crítico</span>
       </div>
     </div>
-  );
-}
+  ),
+);
 
 export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
   const { savePrioritization } = useBacklogStore();
 
-  const [bv, setBv] = useState(item.prioritization?.businessValue ?? 3);
-  const [oc, setOc] = useState(item.prioritization?.opportunityCost ?? 3);
-  const [est, setEst] = useState(item.prioritization?.estimate ?? 8);
+  // Estados locais baseados na Matriz GUT
+  const [g, setG] = useState(item.prioritization?.gravity || 1);
+  const [u, setU] = useState(item.prioritization?.urgency || 1);
+  const [t, setT] = useState(item.prioritization?.tendency || 1);
   const [saving, setSaving] = useState(false);
 
+  // Cálculo do Score e da Prioridade
+  const score = g * u * t;
+
+  const getPriorityClass = (s: number): Priority => {
+    if (s >= 60) return "high";
+    if (s >= 20) return "medium";
+    return "low";
+  };
+
+  // Sincroniza se o item mudar
   useEffect(() => {
-    setBv(item.prioritization?.businessValue ?? 3);
-    setOc(item.prioritization?.opportunityCost ?? 3);
-    setEst(item.prioritization?.estimate ?? 8);
+    setG(item.prioritization?.gravity || 1);
+    setU(item.prioritization?.urgency || 1);
+    setT(item.prioritization?.tendency || 1);
   }, [item.id]);
 
   const handleSave = async () => {
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 600));
+    await new Promise((r) => setTimeout(r, 600)); // Feedback visual
 
     savePrioritization(item.id, {
-      businessValue: bv,
-      opportunityCost: oc,
-      estimate: est,
+      gravity: g,
+      urgency: u,
+      tendency: t,
+      calculatedPriority: score,
+      priority: getPriorityClass(score),
     });
 
-    toast.success("Priorizado com sucesso!");
+    toast.success("Priorização aplicada!");
     setSaving(false);
     onSaved?.();
   };
 
-  return (
-    <div className="space-y-5">
-      <ScaleSelector
-        label="Valor de negócio"
-        guide="Impacto para o negócio (1=baixo, 5=alto)"
-        value={bv}
-        onChange={setBv}
-        readOnly={readOnly}
-      />
-      <ScaleSelector
-        label="Custo de oportunidade"
-        guide="Custo de não fazer (1=baixo, 5=alto)"
-        value={oc}
-        onChange={setOc}
-        readOnly={readOnly}
-      />
+  const priority = getPriorityClass(score);
 
-      <div className="space-y-2">
-        <span className="text-[11px] text-foreground/60 uppercase tracking-widest font-semibold">
-          Estimativa (horas)
-        </span>
-        <div className="flex flex-wrap gap-1.5">
-          {FIBONACCI.map((v) => (
-            <motion.button
-              key={v}
-              type="button"
-              onClick={() => !readOnly && setEst(v)}
-              whileHover={!readOnly ? { scale: 1.08 } : {}}
-              whileTap={!readOnly ? { scale: 0.95 } : {}}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                v === est
-                  ? "bg-primary text-primary-foreground shadow-[0_0_10px_hsl(var(--primary)/0.4)]"
-                  : "bg-secondary/60 text-foreground/60 hover:bg-surface-hover hover:text-foreground"
-              }`}
-            >
-              {v}h
-            </motion.button>
-          ))}
-        </div>
+  return (
+    <div className="space-y-8">
+      {/* SEÇÃO DE SLIDERS */}
+      <div className="space-y-6">
+        <GUTSlider label="Gravidade (Impacto)" value={g} onChange={setG} color="#ef4444" readOnly={readOnly} />
+        <GUTSlider label="Urgência (Prazo)" value={u} onChange={setU} color="#f59e0b" readOnly={readOnly} />
+        <GUTSlider label="Tendência (Evolução)" value={t} onChange={setT} color="#3b82f6" readOnly={readOnly} />
       </div>
 
+      {/* CARD DE RESULTADO (O Score que você queria) */}
+      <motion.div
+        layout
+        className="relative overflow-hidden p-6 rounded-2xl bg-foreground/[0.02] border border-border/50"
+      >
+        <div className="flex justify-between items-center relative z-10">
+          <div className="space-y-1">
+            <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest flex items-center gap-1.5">
+              <Calculator className="w-3 h-3" /> Score Calculado
+            </span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-4xl font-black text-foreground tracking-tighter">{score}</span>
+              <span className="text-[10px] text-muted-foreground font-bold uppercase">G × U × T</span>
+            </div>
+          </div>
+
+          <div className="text-right space-y-1">
+            <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Prioridade</span>
+            <div>
+              <span
+                className={`text-xs font-black uppercase px-3 py-1.5 rounded-xl border shadow-sm ${
+                  priority === "high"
+                    ? "bg-red-500/10 text-red-500 border-red-500/20 shadow-red-500/5"
+                    : priority === "medium"
+                      ? "bg-amber-500/10 text-amber-500 border-amber-500/20 shadow-amber-500/5"
+                      : "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 shadow-emerald-500/5"
+                }`}
+              >
+                {priority}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Barra de progresso visual do Score */}
+        <div className="mt-5 h-1.5 w-full bg-foreground/5 rounded-full overflow-hidden">
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${(score / 125) * 100}%` }}
+            className={`h-full transition-colors duration-500 ${
+              priority === "high" ? "bg-red-500" : priority === "medium" ? "bg-amber-500" : "bg-emerald-500"
+            }`}
+          />
+        </div>
+      </motion.div>
+
+      {/* BOTÃO DE AÇÃO */}
       {item.phase === "prioritization" && !readOnly && (
         <motion.button
           type="button"
@@ -132,15 +161,15 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
           disabled={saving}
           whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.98 }}
-          className="w-full py-2.5 rounded-xl font-semibold text-sm text-primary-foreground bg-gradient-to-r from-primary to-[hsl(262_83%_58%)] hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2 shadow-[var(--shadow-glow)]"
+          className="w-full py-3 rounded-xl font-bold text-sm text-primary-foreground bg-gradient-to-r from-primary to-[hsl(262_83%_58%)] hover:opacity-90 transition-all disabled:opacity-60 flex items-center justify-center gap-2 shadow-[0_10px_20px_-10px_rgba(var(--primary),0.3)]"
         >
           {saving ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" /> Priorizando...
+              <Loader2 className="w-4 h-4 animate-spin" /> Salvando...
             </>
           ) : (
             <>
-              <CheckCircle2 className="w-4 h-4" /> Salvar e Priorizar
+              <CheckCircle2 className="w-4 h-4" /> Aplicar Priorização
             </>
           )}
         </motion.button>
