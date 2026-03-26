@@ -333,12 +333,9 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
 
           {/* ═══ RIGHT — Action Panel (60%) ═══ */}
           <div
-            className="md:w-[60%] flex-1 overflow-y-auto p-5"
+            className="md:w-[60%] flex-1 overflow-y-auto px-5 pt-0 pb-5"
             style={{ scrollBehavior: "smooth" }}
           >
-            <div className="mb-3">
-              <span className="text-[10px] text-muted-foreground/60 uppercase tracking-widest font-bold">Painel de Ação</span>
-            </div>
             <PhaseActionPanel item={liveItem} phaseIdx={phaseIdx} />
           </div>
         </div>
