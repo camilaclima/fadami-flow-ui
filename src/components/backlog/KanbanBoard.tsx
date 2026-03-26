@@ -55,7 +55,8 @@ export function KanbanBoard() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 w-full"
+            // Mudança: Adicionado w-full e garantido que o grid se estenda
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 w-full justify-items-stretch"
           >
             {filteredItems.map((item) => (
               <BacklogCard key={item.id} item={item} onClick={() => openDetail(item)} />
