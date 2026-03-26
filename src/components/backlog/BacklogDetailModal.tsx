@@ -17,7 +17,6 @@ import {
   Package,
   Building2,
   ChevronDown,
-  FileText,
   Clock,
   Settings2,
   CheckCircle,
@@ -25,7 +24,6 @@ import {
   CalendarCheck,
   Flag,
   AlertCircle,
-  BarChart3,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -45,7 +43,7 @@ const PHASE_ICONS: Record<Phase, React.ReactNode> = {
   finished: <Flag className="w-3.5 h-3.5" />,
 };
 
-// --- COMPONENTES AUXILIARES ESTÁTICOS ---
+// --- COMPONENTES AUXILIARES ---
 
 const MetaItem = memo(
   ({
@@ -60,19 +58,21 @@ const MetaItem = memo(
     highlight?: boolean;
   }) => (
     <div
-      className={`flex items-center gap-3 py-2 ${highlight ? "bg-primary/[0.03] p-3 rounded-xl border border-primary/10 mt-3" : ""}`}
+      className={`flex items-center gap-3 py-2 ${
+        highlight ? "bg-primary/[0.03] p-3 rounded-xl border border-primary/10 mt-3" : ""
+      }`}
     >
       <div
-        className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${highlight ? "bg-primary/20 text-primary" : "bg-secondary/80 text-muted-foreground"}`}
+        className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
+          highlight ? "bg-primary/20 text-primary" : "bg-secondary/80 text-muted-foreground"
+        }`}
       >
         {icon}
       </div>
       <div className="flex-1 min-w-0">
         <span className="text-[9px] text-muted-foreground/80 uppercase tracking-widest font-bold">{label}</span>
-        <div className={`mt-0.5 ${highlight ? "scale-110 origin-left" : ""}`}>
-          <div className={`${highlight ? "text-sm" : "text-[13px]"} text-foreground font-medium truncate`}>
-            {children}
-          </div>
+        <div className="mt-0.5">
+          <div className="text-[13px] text-foreground font-medium truncate">{children}</div>
         </div>
       </div>
     </div>
@@ -90,10 +90,18 @@ const PhaseAccordion = memo(({ title, icon, defaultOpen, active, completed, chil
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full flex items-center gap-2.5 py-4 transition-colors ${active ? "text-primary font-bold" : "text-foreground hover:text-primary"}`}
+        className={`w-full flex items-center gap-2.5 py-4 transition-colors ${
+          active ? "text-primary font-bold" : "text-foreground hover:text-primary"
+        }`}
       >
         <div
-          className={`flex items-center justify-center w-6 h-6 rounded-lg shrink-0 ${active ? "bg-primary/15 shadow-[0_0_10px_rgba(var(--primary),0.1)]" : completed ? "bg-phase-finished/10" : "bg-secondary"}`}
+          className={`flex items-center justify-center w-6 h-6 rounded-lg shrink-0 ${
+            active
+              ? "bg-primary/15 shadow-[0_0_10px_rgba(var(--primary),0.1)]"
+              : completed
+                ? "bg-phase-finished/10"
+                : "bg-secondary"
+          }`}
         >
           {completed ? <CheckCircle className="w-3 h-3 text-phase-finished" /> : icon}
         </div>
@@ -141,9 +149,7 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
   const product = products.find((p) => p.id === liveItem.productId);
   const client = liveItem.clientId ? clients.find((c) => c.id === liveItem.clientId) : null;
   const phaseIdx = PHASES.indexOf(liveItem.phase);
-
-  // Cast para evitar erros de tipagem no build
-  const prioData = liveItem.prioritization as any;
+  const prioData = (liveItem.prioritization || {}) as any;
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return undefined;
@@ -176,7 +182,9 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
                   key={id}
                   type="button"
                   onClick={() => setActiveTab(id)}
-                  className={`px-3 py-2 text-xs font-semibold relative transition-colors ${activeTab === id ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                  className={`px-3 py-2 text-xs font-semibold relative transition-colors ${
+                    activeTab === id ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                  }`}
                 >
                   {id === "details" ? "Detalhes" : "Histórico"}
                   {activeTab === id && (
@@ -228,24 +236,17 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
                         children={client?.name ?? "—"}
                       />
 
-                      {/* BLOCO DE PRIORIDADE CALCULADA REESTRUTURADO */}
-                      <div className="mt-4 pt-4 border-t border-border/20 space-y-1">
-                        <MetaItem icon={<BarChart3 className="w-3.5 h-3.5" />} label="Prioridade Calculada">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xl font-black text-primary tracking-tighter">
-                              {prioData?.calculatedPriority ?? 0}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter bg-primary/5 px-1.5 py-0.5 rounded">
-                              Score Final
-                            </span>
-                          </div>
-                        </MetaItem>
-
-                        <MetaItem icon={<AlertCircle className="w-4 h-4" />} label="Business Priority" highlight>
+                      {/* APENAS O BUSINESS PRIORITY, SEM O SCORE CALCULADO */}
+                      <div className="pt-2">
+                        <MetaItem
+                          icon={<AlertCircle className="w-4 h-4" />}
+                          label="Business Priority"
+                          highlight={!!prioData?.priority}
+                        >
                           {prioData?.priority ? (
                             <PriorityBadge value={prioData.priority} />
                           ) : (
-                            <span className="text-muted-foreground italic text-xs">Aguardando priorização</span>
+                            <span className="text-muted-foreground italic text-[11px]">Aguardando priorização</span>
                           )}
                         </MetaItem>
                       </div>
