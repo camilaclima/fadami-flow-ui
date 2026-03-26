@@ -85,8 +85,7 @@ const MOCK_BACKLOGS: BacklogItem[] = [
     createdBy: "Pedro Alves",
     createdAt: "2024-03-08T14:00:00Z",
     phaseHistory: [
-      { phase: "backlog", enteredAt: "2024-03-08T14:00:00Z", completedAt: "2024-03-09T10:00:00Z" },
-      { phase: "prioritization", enteredAt: "2024-03-09T10:00:00Z", completedAt: "2024-03-11T16:00:00Z" },
+      { phase: "prioritization", enteredAt: "2024-03-08T14:00:00Z", completedAt: "2024-03-11T16:00:00Z" },
       { phase: "approval", enteredAt: "2024-03-11T16:00:00Z" },
     ],
     prioritization: { businessValue: 4, opportunityCost: 3, estimate: 24, priority: "medium" },
