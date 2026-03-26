@@ -120,14 +120,16 @@ const MOCK_BACKLOGS: BacklogItem[] = [
       { phase: "planned", enteredAt: "2024-02-12T10:00:00Z", completedAt: "2024-02-20T10:00:00Z" },
       { phase: "finished", enteredAt: "2024-02-20T10:00:00Z" },
     ],
-    prioritization: { businessValue: 3, opportunityCost: 2, estimate: 40, priority: "low" },
-    approval: { observation: "Aprovado com ressalvas sobre performance." },
+    prioritization: { businessValue: 3, opportunityCost: 2, estimate: 40, priority: "low", updatedBy: "Carlos Mendes", updatedAt: "2024-02-05T10:00:00Z" },
+    approval: { observation: "Aprovado com ressalvas sobre performance.", updatedBy: "Diretor TI", updatedAt: "2024-02-06T10:00:00Z" },
     refinement: {
       functionalRefinement: "Sincronizar ao reconectar",
       technicalRefinement: "IndexedDB + service worker",
       acceptanceCriteria: "Funcionar offline por até 72h",
       definitionOfDone: "Testes E2E passando, docs atualizados",
       estimate: 40,
+      updatedBy: "Marina Costa",
+      updatedAt: "2024-02-10T10:00:00Z",
     },
   },
 ];
