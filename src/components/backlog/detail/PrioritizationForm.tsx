@@ -5,113 +5,99 @@ import { motion } from "framer-motion";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
-const FIBONACCI = [1, 2, 3, 5, 8, 13, 21, 34];
-
 interface Props {
   item: BacklogItem;
   onSaved?: () => void;
   readOnly?: boolean;
 }
 
-/* Componente extraído para fora para evitar re-declaração e perda de foco durante re-renders */
-const PremiumTextArea = ({
+const SCALE = [1, 2, 3, 4, 5];
+const FIBONACCI = [1, 2, 3, 5, 8, 13, 21, 34];
+
+function ScaleSelector({
   label,
+  guide,
   value,
   onChange,
-  placeholder,
   readOnly,
 }: {
   label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
+  guide: string;
+  value: number;
+  onChange: (v: number) => void;
   readOnly?: boolean;
-}) => (
-  <div className="space-y-1.5">
-    <span className="text-[11px] text-foreground/60 uppercase tracking-widest font-semibold">{label}</span>
-    <textarea
-      value={value}
-      onChange={(e) => !readOnly && onChange(e.target.value)}
-      readOnly={readOnly}
-      rows={2}
-      placeholder={placeholder}
-      className="w-full px-4 py-3 rounded-xl bg-foreground/[0.04] text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:shadow-[0_0_12px_hsl(var(--primary)/0.1)] resize-none transition-all border-0"
-    />
-  </div>
-);
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="space-y-0.5">
+        <span className="text-[11px] text-foreground/60 uppercase tracking-widest font-semibold">{label}</span>
+        <p className="text-[10px] truncate text-[#bbc0c3]">{guide}</p>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {SCALE.map((v) => (
+          <motion.button
+            key={v}
+            type="button"
+            onClick={() => !readOnly && onChange(v)}
+            whileHover={!readOnly ? { scale: 1.08 } : {}}
+            whileTap={!readOnly ? { scale: 0.95 } : {}}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+              v === value
+                ? "bg-primary text-primary-foreground shadow-[0_0_10px_hsl(var(--primary)/0.4)]"
+                : "bg-secondary/60 text-foreground/60 hover:bg-surface-hover hover:text-foreground"
+            }`}
+          >
+            {v}
+          </motion.button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-export function RefinementForm({ item, onSaved, readOnly }: Props) {
-  const { saveRefinement } = useBacklogStore();
+export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
+  const { savePrioritization } = useBacklogStore();
 
-  // Estados locais para controle do formulário
-  const [fr, setFr] = useState(item.refinement?.functionalRefinement ?? "");
-  const [tr, setTr] = useState(item.refinement?.technicalRefinement ?? "");
-  const [ac, setAc] = useState(item.refinement?.acceptanceCriteria ?? "");
-  const [dod, setDod] = useState(item.refinement?.definitionOfDone ?? "");
-  const [est, setEst] = useState(item.refinement?.estimate ?? 8);
+  const [bv, setBv] = useState(item.prioritization?.businessValue ?? 3);
+  const [oc, setOc] = useState(item.prioritization?.opportunityCost ?? 3);
+  const [est, setEst] = useState(item.prioritization?.estimate ?? 8);
   const [saving, setSaving] = useState(false);
 
-  // Sincroniza os estados locais quando o item mudar (ex: trocar de item no modal)
   useEffect(() => {
-    setFr(item.refinement?.functionalRefinement ?? "");
-    setTr(item.refinement?.technicalRefinement ?? "");
-    setAc(item.refinement?.acceptanceCriteria ?? "");
-    setDod(item.refinement?.definitionOfDone ?? "");
-    setEst(item.refinement?.estimate ?? 8);
+    setBv(item.prioritization?.businessValue ?? 3);
+    setOc(item.prioritization?.opportunityCost ?? 3);
+    setEst(item.prioritization?.estimate ?? 8);
   }, [item.id]);
 
   const handleSave = async () => {
-    if (!fr || !tr || !ac || !dod) {
-      toast.error("Preencha todos os campos.");
-      return;
-    }
-
     setSaving(true);
-
-    // Simulação de delay para feedback visual
     await new Promise((r) => setTimeout(r, 600));
 
-    saveRefinement(item.id, {
-      functionalRefinement: fr,
-      technicalRefinement: tr,
-      acceptanceCriteria: ac,
-      definitionOfDone: dod,
+    savePrioritization(item.id, {
+      businessValue: bv,
+      opportunityCost: oc,
       estimate: est,
     });
 
-    toast.success("Refinado com sucesso!");
+    toast.success("Priorizado com sucesso!");
     setSaving(false);
     onSaved?.();
   };
 
   return (
     <div className="space-y-5">
-      <PremiumTextArea
-        label="Refinamento funcional"
-        value={fr}
-        onChange={setFr}
-        placeholder="Descreva o refinamento funcional..."
+      <ScaleSelector
+        label="Valor de negócio"
+        guide="Impacto para o negócio (1=baixo, 5=alto)"
+        value={bv}
+        onChange={setBv}
         readOnly={readOnly}
       />
-      <PremiumTextArea
-        label="Refinamento técnico"
-        value={tr}
-        onChange={setTr}
-        placeholder="Descreva o refinamento técnico..."
-        readOnly={readOnly}
-      />
-      <PremiumTextArea
-        label="Critérios de aceite"
-        value={ac}
-        onChange={setAc}
-        placeholder="Liste os critérios de aceite..."
-        readOnly={readOnly}
-      />
-      <PremiumTextArea
-        label="Definição de pronto (DoD)"
-        value={dod}
-        onChange={setDod}
-        placeholder="Defina quando estará pronto..."
+      <ScaleSelector
+        label="Custo de oportunidade"
+        guide="Custo de não fazer (1=baixo, 5=alto)"
+        value={oc}
+        onChange={setOc}
         readOnly={readOnly}
       />
 
@@ -139,7 +125,7 @@ export function RefinementForm({ item, onSaved, readOnly }: Props) {
         </div>
       </div>
 
-      {item.phase === "refinement" && !readOnly && (
+      {item.phase === "prioritization" && !readOnly && (
         <motion.button
           type="button"
           onClick={handleSave}
@@ -150,11 +136,11 @@ export function RefinementForm({ item, onSaved, readOnly }: Props) {
         >
           {saving ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" /> Refinando...
+              <Loader2 className="w-4 h-4 animate-spin" /> Priorizando...
             </>
           ) : (
             <>
-              <CheckCircle2 className="w-4 h-4" /> Salvar e Refinar
+              <CheckCircle2 className="w-4 h-4" /> Salvar e Priorizar
             </>
           )}
         </motion.button>
