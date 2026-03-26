@@ -69,6 +69,9 @@ function PhaseAccordion({
     if (defaultOpen !== undefined) setIsOpen(defaultOpen);
   }, [defaultOpen]);
 
+  // Regra: Só mostra nome e data se a etapa estiver concluída
+  const showStamp = completed && (updatedBy || updatedAt);
+
   return (
     <div className="group">
       <button
@@ -100,7 +103,7 @@ function PhaseAccordion({
             )}
           </div>
 
-          {(updatedBy || updatedAt) && (
+          {showStamp && (
             <div className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground/80 shrink-0 ml-4">
               <span className="max-w-[100px] truncate">{updatedBy}</span>
               {updatedBy && updatedAt && <span className="opacity-40">•</span>}
@@ -183,7 +186,6 @@ function PriorityResultCard({ item }: { item: BacklogItem }) {
 const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx: number }) => {
   const handleSaved = () => {};
 
-  // Funções auxiliares para formatar data com segurança
   const formatDate = (dateString?: string) => {
     if (!dateString) return undefined;
     const date = new Date(dateString);
@@ -213,7 +215,6 @@ const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx
           defaultOpen={item.phase === "approval"}
           active={item.phase === "approval"}
           completed={phaseIdx > 1}
-          // Caso updatedBy da aprovação não exista, ele tenta pegar do histórico ou criador
           updatedBy={(item.approval as any)?.updatedBy || item.createdBy}
           updatedAt={formatDate((item.approval as any)?.updatedAt || item.createdAt)}
         >
