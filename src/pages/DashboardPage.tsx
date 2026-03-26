@@ -1,0 +1,115 @@
+import { useBacklogStore } from "@/store/backlogStore";
+import { PHASES, PHASE_LABELS, type Phase } from "@/types/backlog";
+import { BarChart3, ListTodo, TrendingUp, CheckCircle2 } from "lucide-react";
+import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+
+function StatCard({ label, value, icon: Icon, delay }: { label: string; value: number; icon: any; delay: number }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.3 }}
+      className="bg-card border border-border rounded-2xl p-5 hover-lift"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-sm text-muted-foreground">{label}</span>
+        <Icon className="w-5 h-5 text-muted-foreground" />
+      </div>
+      <p className="text-3xl font-bold text-foreground">{value}</p>
+    </motion.div>
+  );
+}
+
+const PHASE_DOT: Record<Phase, string> = {
+  backlog: "bg-phase-backlog",
+  prioritization: "bg-phase-prioritization",
+  approval: "bg-phase-approval",
+  refinement: "bg-phase-refinement",
+  available: "bg-phase-available",
+  planned: "bg-phase-planned",
+  finished: "bg-phase-finished",
+};
+
+export default function DashboardPage() {
+  const backlogs = useBacklogStore((s) => s.backlogs);
+  const navigate = useNavigate();
+
+  const total = backlogs.length;
+  const highPriority = backlogs.filter((b) => b.prioritization?.priority === "high").length;
+  const finished = backlogs.filter((b) => b.phase === "finished").length;
+  const inProgress = total - finished;
+
+  const phaseCounts = PHASES.map((p) => ({
+    phase: p,
+    count: backlogs.filter((b) => b.phase === p).length,
+  }));
+  const maxCount = Math.max(...phaseCounts.map((p) => p.count), 1);
+
+  return (
+    <div className="fade-in space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+        <p className="text-sm text-muted-foreground mt-1">Visão geral do seu backlog de produto</p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard label="Total de Backlogs" value={total} icon={ListTodo} delay={0} />
+        <StatCard label="Em Andamento" value={inProgress} icon={TrendingUp} delay={0.05} />
+        <StatCard label="Alta Prioridade" value={highPriority} icon={BarChart3} delay={0.1} />
+        <StatCard label="Finalizados" value={finished} icon={CheckCircle2} delay={0.15} />
+      </div>
+
+      {/* Phase distribution */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="bg-card border border-border rounded-2xl p-6"
+      >
+        <h2 className="text-sm font-semibold text-foreground mb-4">Distribuição por Fase</h2>
+        <div className="space-y-3">
+          {phaseCounts.map(({ phase, count }) => (
+            <div key={phase} className="flex items-center gap-3">
+              <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${PHASE_DOT[phase]}`} />
+              <span className="text-sm text-muted-foreground w-28 flex-shrink-0">{PHASE_LABELS[phase]}</span>
+              <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(count / maxCount) * 100}%` }}
+                  transition={{ duration: 0.6, delay: 0.3 }}
+                  className={`h-full rounded-full ${PHASE_DOT[phase]}`}
+                />
+              </div>
+              <span className="text-sm font-medium text-foreground w-6 text-right">{count}</span>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Recent */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="bg-card border border-border rounded-2xl p-6"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-foreground">Backlogs Recentes</h2>
+          <button onClick={() => navigate("/backlogs")} className="text-xs text-primary hover:underline">Ver todos →</button>
+        </div>
+        <div className="space-y-2">
+          {backlogs.slice(0, 5).map((b) => (
+            <div key={b.id} className="flex items-center justify-between py-2 px-3 rounded-xl hover:bg-surface-hover transition-colors cursor-pointer" onClick={() => navigate("/backlogs")}>
+              <div className="flex items-center gap-3">
+                <div className={`w-2 h-2 rounded-full ${PHASE_DOT[b.phase]}`} />
+                <span className="text-sm text-foreground">{b.title}</span>
+              </div>
+              <span className="text-xs text-muted-foreground">{PHASE_LABELS[b.phase]}</span>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
