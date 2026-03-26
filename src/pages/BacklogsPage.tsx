@@ -39,11 +39,7 @@ export default function BacklogsPage() {
     }
     if (search.trim()) {
       const q = search.toLowerCase();
-      items = items.filter(
-        (b) =>
-          b.title.toLowerCase().includes(q) ||
-          b.description.toLowerCase().includes(q)
-      );
+      items = items.filter((b) => b.title.toLowerCase().includes(q) || b.description.toLowerCase().includes(q));
     }
     return items;
   }, [backlogs, selectedPhase, filters, search]);
@@ -54,14 +50,13 @@ export default function BacklogsPage() {
   };
 
   return (
-    <div className="fade-in space-y-3 w-full max-w-none">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    /* AJUSTE: w-full e max-w-none para ocupar a tela toda. px-8 para respiro lateral */
+    <div className="fade-in space-y-4 w-full max-w-none px-4 md:px-8 pb-10">
+      {/* Header - Ajustado para w-full */}
+      <div className="flex items-center justify-between w-full">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Backlogs</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Gerencie e acompanhe todos os itens do backlog
-          </p>
+          <p className="text-sm text-muted-foreground mt-1">Gerencie e acompanhe todos os itens do backlog</p>
         </div>
         <motion.button
           whileHover={{ scale: 1.03 }}
@@ -75,11 +70,13 @@ export default function BacklogsPage() {
         </motion.button>
       </div>
 
-      {/* Phase filter buttons */}
-      <PhaseFilterBar selected={selectedPhase} onSelect={setSelectedPhase} />
+      {/* Phase filter buttons - Ocupando a largura total */}
+      <div className="w-full">
+        <PhaseFilterBar selected={selectedPhase} onSelect={setSelectedPhase} />
+      </div>
 
       {/* Search + Filters row */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex items-center justify-between gap-4 flex-wrap w-full">
         <BacklogFilters filters={filters} onChange={setFilters} />
 
         <div className="relative">
@@ -89,21 +86,16 @@ export default function BacklogsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar backlogs..."
-            className="h-8 pl-8 pr-4 text-xs rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all w-56"
+            className="h-8 pl-8 pr-4 text-xs rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all w-56 md:w-72"
           />
         </div>
       </div>
 
-      {/* Cards grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 w-full">
+      {/* Cards grid - AJUSTE: justify-items-stretch para os cards ocuparem a largura total da coluna */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 w-full justify-items-stretch">
         <AnimatePresence mode="popLayout">
           {filtered.map((item, i) => (
-            <BacklogListCard
-              key={item.id}
-              item={item}
-              index={i}
-              onClick={() => openDetail(item)}
-            />
+            <BacklogListCard key={item.id} item={item} index={i} onClick={() => openDetail(item)} />
           ))}
         </AnimatePresence>
 
@@ -117,9 +109,7 @@ export default function BacklogsPage() {
               <Inbox className="w-7 h-7 opacity-50" />
             </div>
             <p className="text-sm font-medium">Nenhum backlog encontrado</p>
-            <p className="text-xs mt-1 opacity-70">
-              Tente ajustar os filtros ou crie um novo backlog
-            </p>
+            <p className="text-xs mt-1 opacity-70">Tente ajustar os filtros ou crie um novo backlog</p>
           </motion.div>
         )}
       </div>
@@ -132,9 +122,7 @@ export default function BacklogsPage() {
         onOpenChange={(v) => {
           setDetailOpen(v);
           if (!v && selectedItem) {
-            const updated = useBacklogStore
-              .getState()
-              .backlogs.find((b) => b.id === selectedItem.id);
+            const updated = useBacklogStore.getState().backlogs.find((b) => b.id === selectedItem.id);
             setSelectedItem(updated ?? null);
           }
         }}
