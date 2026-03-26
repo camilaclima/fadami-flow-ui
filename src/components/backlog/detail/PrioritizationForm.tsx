@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useBacklogStore } from "@/store/backlogStore";
 import type { BacklogItem } from "@/types/backlog";
 import { motion } from "framer-motion";
@@ -13,7 +13,7 @@ interface Props {
   readOnly?: boolean;
 }
 
-/* Componente extraído para fora para evitar re-declaração e perda de foco */
+/* Componente extraído para fora para evitar re-declaração e perda de foco durante re-renders */
 const PremiumTextArea = ({
   label,
   value,
@@ -42,6 +42,8 @@ const PremiumTextArea = ({
 
 export function RefinementForm({ item, onSaved, readOnly }: Props) {
   const { saveRefinement } = useBacklogStore();
+
+  // Estados locais para controle do formulário
   const [fr, setFr] = useState(item.refinement?.functionalRefinement ?? "");
   const [tr, setTr] = useState(item.refinement?.technicalRefinement ?? "");
   const [ac, setAc] = useState(item.refinement?.acceptanceCriteria ?? "");
@@ -49,13 +51,26 @@ export function RefinementForm({ item, onSaved, readOnly }: Props) {
   const [est, setEst] = useState(item.refinement?.estimate ?? 8);
   const [saving, setSaving] = useState(false);
 
+  // Sincroniza os estados locais quando o item mudar (ex: trocar de item no modal)
+  useEffect(() => {
+    setFr(item.refinement?.functionalRefinement ?? "");
+    setTr(item.refinement?.technicalRefinement ?? "");
+    setAc(item.refinement?.acceptanceCriteria ?? "");
+    setDod(item.refinement?.definitionOfDone ?? "");
+    setEst(item.refinement?.estimate ?? 8);
+  }, [item.id]);
+
   const handleSave = async () => {
     if (!fr || !tr || !ac || !dod) {
       toast.error("Preencha todos os campos.");
       return;
     }
+
     setSaving(true);
+
+    // Simulação de delay para feedback visual
     await new Promise((r) => setTimeout(r, 600));
+
     saveRefinement(item.id, {
       functionalRefinement: fr,
       technicalRefinement: tr,
@@ -63,6 +78,7 @@ export function RefinementForm({ item, onSaved, readOnly }: Props) {
       definitionOfDone: dod,
       estimate: est,
     });
+
     toast.success("Refinado com sucesso!");
     setSaving(false);
     onSaved?.();
@@ -107,6 +123,7 @@ export function RefinementForm({ item, onSaved, readOnly }: Props) {
           {FIBONACCI.map((v) => (
             <motion.button
               key={v}
+              type="button"
               onClick={() => !readOnly && setEst(v)}
               whileHover={!readOnly ? { scale: 1.08 } : {}}
               whileTap={!readOnly ? { scale: 0.95 } : {}}
@@ -124,6 +141,7 @@ export function RefinementForm({ item, onSaved, readOnly }: Props) {
 
       {item.phase === "refinement" && !readOnly && (
         <motion.button
+          type="button"
           onClick={handleSave}
           disabled={saving}
           whileHover={{ scale: 1.01 }}
