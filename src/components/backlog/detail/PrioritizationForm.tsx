@@ -12,19 +12,18 @@ type Priority = "high" | "medium" | "low" | "none";
 const ESTIMATION_HOURS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 24];
 
 function calcPriority(bv: number, oc: number, urg: number, est: number): Priority {
-  // Se não houver estimativa ou todos os valores forem zero, está pendente
   if (est === 0 || (bv === 0 && oc === 0 && urg === 0)) return "none";
 
   const score = (bv + oc + urg) / est;
   const totalValue = bv + oc + urg;
 
-  // REGRAS DE NEGÓCIO AJUSTADAS:
-  // Para ser ALTA: Score >= 0.8 E soma dos valores >= 4 (evita 1h/1v virar alta)
-  if (score >= 0.8 && totalValue >= 4) return "high";
+  // Alta: Precisa de impacto real (valor >= 4) e eficiência (score >= 0.6)
+  if (score >= 0.6 && totalValue >= 4) return "high";
 
-  // Para ser MÉDIA: Score >= 0.4 OU (Score alto mas valor bruto baixo)
-  if (score >= 0.4) return "medium";
+  // Média: Entre 0.26 e 0.6 ou se for valor alto mas demora muito
+  if (score >= 0.26) return "medium";
 
+  // Baixa: Tudo que performa abaixo de 0.26
   return "low";
 }
 
