@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Flame,
   TrendingUp,
-  Minus,
   Snowflake,
   Paperclip,
   CloudUpload,
@@ -50,7 +49,7 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
   const [description, setDescription] = useState("");
   const [productId, setProductId] = useState("");
   const [clientId, setClientId] = useState("");
-  const [thermometer, setThermometer] = useState<Thermometer>("medium");
+  const [thermometer, setThermometer] = useState<Thermometer | null>(null);
   const [files, setFiles] = useState<AttachedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -94,8 +93,8 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
   const removeFile = (id: string) => setFiles((prev) => prev.filter((f) => f.id !== id));
 
   const handleSubmit = async () => {
-    if (!title.trim() || !productId) {
-      toast.error("Preencha o título e selecione um produto.");
+    if (!title.trim() || !productId || !thermometer) {
+      toast.error("Preencha o título, selecione um produto e o termômetro.");
       return;
     }
     setIsSubmitting(true);
@@ -113,7 +112,7 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
     setDescription("");
     setProductId("");
     setClientId("");
-    setThermometer("medium");
+    setThermometer(null);
     setFiles([]);
     setIsSubmitting(false);
     onOpenChange(false);
@@ -122,59 +121,68 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
   const selectedProduct = products.find((p) => p.id === productId);
   const selectedClient = clients.find((c) => c.id === clientId);
 
+  // Determine glow color based on thermometer selection
+  const activeThermo = thermoOptions.find((t) => t.value === thermometer);
+  const modalGlow = activeThermo
+    ? `0 0 40px -8px ${activeThermo.glowColor}, var(--shadow-elevated)`
+    : "0 0 30px -8px hsl(var(--primary) / 0.2), var(--shadow-elevated)";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[560px] p-0 gap-0 overflow-hidden bg-card border-border/50 shadow-[var(--shadow-elevated)]">
-        {/* Header */}
-        <div className="px-6 pt-6 pb-4">
+      <DialogContent
+        className="sm:max-w-[540px] p-0 gap-0 overflow-hidden bg-card border-border/60"
+        style={{ boxShadow: modalGlow, transition: "box-shadow 0.4s ease" }}
+      >
+        {/* Header — compact */}
+        <div className="px-5 pt-5 pb-3">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold tracking-tight flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-primary" />
+            <DialogTitle className="text-base font-bold tracking-tight flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-primary/15 flex items-center justify-center">
+                <Sparkles className="w-3.5 h-3.5 text-primary" />
               </div>
               Novo Backlog
             </DialogTitle>
           </DialogHeader>
         </div>
 
-        <div className="px-6 pb-6 space-y-5 max-h-[70vh] overflow-y-auto">
+        <div className="px-5 pb-5 space-y-3.5 max-h-[75vh] overflow-y-auto">
           {/* Title */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Título</label>
+          <div className="space-y-1">
+            <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">Título</label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Nome do backlog..."
-              className="w-full px-0 py-2 bg-transparent border-0 border-b border-border/60 text-base font-medium text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
+              className="w-full px-3 py-2 rounded-lg bg-secondary text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow border-0"
             />
           </div>
 
           {/* Description */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Descrição</label>
+          <div className="space-y-1">
+            <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">Descrição</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows={3}
+              rows={2}
               placeholder="Descreva o objetivo deste backlog..."
-              className="w-full px-0 py-2 bg-transparent border-0 border-b border-border/60 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors resize-none"
+              className="w-full px-3 py-2 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow resize-none border-0"
             />
           </div>
 
-          {/* Product & Client tags */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Product selector */}
-            <div className="space-y-1.5 relative">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          {/* Product & Client — side by side */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* Product */}
+            <div className="space-y-1 relative">
+              <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
                 Produto <span className="text-primary">*</span>
               </label>
               <button
                 onClick={() => { setProductOpen(!productOpen); setClientOpen(false); }}
-                className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-secondary/50 border border-border/40 text-sm text-foreground hover:bg-secondary transition-all"
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-secondary text-sm text-foreground hover:bg-surface-hover transition-colors"
               >
-                <span className={selectedProduct ? "text-foreground" : "text-muted-foreground/60"}>
+                <span className={selectedProduct ? "text-foreground" : "text-muted-foreground"}>
                   {selectedProduct ? (
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full" style={{ backgroundColor: selectedProduct.color }} />
                       {selectedProduct.name}
                     </span>
@@ -189,13 +197,13 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -4, scale: 0.98 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute z-50 top-full mt-1 w-full rounded-xl bg-card border border-border/60 shadow-[var(--shadow-elevated)] overflow-hidden"
+                    className="absolute z-50 top-full mt-1 w-full rounded-lg bg-card border border-border shadow-[var(--shadow-elevated)] overflow-hidden"
                   >
                     {products.map((p) => (
                       <button
                         key={p.id}
                         onClick={() => { setProductId(p.id); setProductOpen(false); }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-foreground hover:bg-secondary/60 transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-secondary transition-colors"
                       >
                         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.color }} />
                         {p.name}
@@ -207,14 +215,14 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
               </AnimatePresence>
             </div>
 
-            {/* Client selector */}
-            <div className="space-y-1.5 relative">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cliente</label>
+            {/* Client */}
+            <div className="space-y-1 relative">
+              <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">Cliente</label>
               <button
                 onClick={() => { setClientOpen(!clientOpen); setProductOpen(false); }}
-                className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-secondary/50 border border-border/40 text-sm text-foreground hover:bg-secondary transition-all"
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-secondary text-sm text-foreground hover:bg-surface-hover transition-colors"
               >
-                <span className={selectedClient ? "text-foreground" : "text-muted-foreground/60"}>
+                <span className={selectedClient ? "text-foreground" : "text-muted-foreground"}>
                   {selectedClient?.name || "Opcional"}
                 </span>
                 <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${clientOpen ? "rotate-180" : ""}`} />
@@ -226,11 +234,11 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -4, scale: 0.98 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute z-50 top-full mt-1 w-full rounded-xl bg-card border border-border/60 shadow-[var(--shadow-elevated)] overflow-hidden"
+                    className="absolute z-50 top-full mt-1 w-full rounded-lg bg-card border border-border shadow-[var(--shadow-elevated)] overflow-hidden"
                   >
                     <button
                       onClick={() => { setClientId(""); setClientOpen(false); }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-muted-foreground hover:bg-secondary/60 transition-colors"
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-secondary transition-colors"
                     >
                       Nenhum
                       {!clientId && <Check className="w-3.5 h-3.5 ml-auto text-primary" />}
@@ -239,10 +247,10 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
                       <button
                         key={c.id}
                         onClick={() => { setClientId(c.id); setClientOpen(false); }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-foreground hover:bg-secondary/60 transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-secondary transition-colors"
                       >
-                        <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
-                          <span className="text-[10px] font-semibold text-primary">{c.name[0]}</span>
+                        <div className="w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center">
+                          <span className="text-[10px] font-bold text-primary">{c.name[0]}</span>
                         </div>
                         {c.name}
                         {clientId === c.id && <Check className="w-3.5 h-3.5 ml-auto text-primary" />}
@@ -254,9 +262,9 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
             </div>
           </div>
 
-          {/* Thermometer */}
-          <div className="space-y-2.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          {/* Thermometer — no pre-selection */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
               Termômetro de Impacto
             </label>
             <div className="flex gap-2">
@@ -267,34 +275,33 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
                   <motion.button
                     key={opt.value}
                     onClick={() => setThermometer(opt.value)}
-                    whileHover={{ scale: 1.02 }}
+                    whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.97 }}
-                    className="flex-1 relative overflow-hidden rounded-xl border transition-all duration-300"
+                    className="flex-1 relative overflow-hidden rounded-xl transition-all duration-300"
                     style={{
-                      borderColor: isActive ? opt.color : "hsl(var(--border) / 0.5)",
-                      backgroundColor: isActive ? `${opt.glowColor.replace("0.3", "0.08")}` : "hsl(var(--secondary) / 0.5)",
-                      boxShadow: isActive ? `0 0 20px -4px ${opt.glowColor}` : "none",
+                      border: `1.5px solid ${isActive ? opt.color : "hsl(var(--border))"}`,
+                      backgroundColor: isActive ? `${opt.glowColor.replace("0.3", "0.1")}` : "hsl(var(--secondary))",
+                      boxShadow: isActive ? `0 0 16px -4px ${opt.glowColor}` : "none",
                     }}
                   >
-                    <div className="flex flex-col items-center gap-1.5 py-3 px-2">
+                    <div className="flex flex-col items-center gap-1 py-2.5 px-2">
                       <motion.div
                         animate={isActive ? { scale: [1, 1.15, 1] } : {}}
                         transition={{ duration: 0.5, ease: "easeInOut" }}
                       >
                         <Icon
-                          className="w-5 h-5 transition-colors duration-300"
-                          style={{ color: isActive ? opt.color : "hsl(var(--muted-foreground))" }}
-                          strokeWidth={isActive ? 2.2 : 1.5}
+                          className="w-4.5 h-4.5 transition-colors duration-300"
+                          style={{ color: isActive ? opt.color : "hsl(var(--foreground) / 0.45)" }}
+                          strokeWidth={isActive ? 2.5 : 2}
                         />
                       </motion.div>
                       <span
-                        className="text-xs font-medium transition-colors duration-300"
-                        style={{ color: isActive ? opt.color : "hsl(var(--muted-foreground))" }}
+                        className="text-[11px] font-semibold transition-colors duration-300"
+                        style={{ color: isActive ? opt.color : "hsl(var(--foreground) / 0.5)" }}
                       >
                         {opt.label}
                       </span>
                     </div>
-                    {/* Glow bar at bottom */}
                     <motion.div
                       className="absolute bottom-0 left-0 right-0 h-0.5"
                       style={{ backgroundColor: opt.color }}
@@ -308,9 +315,9 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
             </div>
           </div>
 
-          {/* File Drop Zone */}
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+          {/* Attachments — compact */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider flex items-center gap-1">
               <Paperclip className="w-3 h-3" />
               Anexos
             </label>
@@ -319,10 +326,10 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`relative cursor-pointer rounded-xl border border-dashed transition-all duration-300 ${
+              className={`relative cursor-pointer rounded-lg border border-dashed transition-all duration-300 ${
                 isDragging
                   ? "border-primary bg-primary/5 shadow-[var(--shadow-glow)]"
-                  : "border-border/50 hover:border-primary/40 hover:bg-secondary/30"
+                  : "border-border hover:border-primary/40 hover:bg-secondary/50"
               }`}
             >
               <input
@@ -332,22 +339,21 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
                 className="hidden"
                 onChange={(e) => handleFiles(e.target.files)}
               />
-              <div className="flex flex-col items-center gap-1.5 py-5">
+              <div className="flex items-center justify-center gap-2 py-2.5">
                 <motion.div
-                  animate={isDragging ? { scale: 1.1, y: -2 } : { scale: 1, y: 0 }}
+                  animate={isDragging ? { scale: 1.1, y: -1 } : { scale: 1, y: 0 }}
                   transition={{ duration: 0.2 }}
                 >
                   <CloudUpload
-                    className={`w-6 h-6 transition-colors ${isDragging ? "text-primary" : "text-muted-foreground/40"}`}
+                    className={`w-4 h-4 transition-colors ${isDragging ? "text-primary" : "text-muted-foreground"}`}
                   />
                 </motion.div>
-                <p className="text-xs text-muted-foreground/60">
-                  Solte arquivos aqui ou <span className="text-primary/80 font-medium">clique para explorar</span>
+                <p className="text-xs text-muted-foreground">
+                  Solte arquivos aqui ou <span className="text-primary font-medium">clique para explorar</span>
                 </p>
               </div>
             </div>
 
-            {/* File chips */}
             <AnimatePresence>
               {files.length > 0 && (
                 <motion.div
@@ -364,11 +370,11 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.9 }}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-secondary/60 border border-border/30 text-xs"
+                        className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-secondary border border-border text-xs"
                       >
-                        <FileIcon className="w-3 h-3 text-muted-foreground" />
+                        <FileIcon className="w-3 h-3 text-foreground/60" />
                         <span className="text-foreground font-medium max-w-[100px] truncate">{file.name}</span>
-                        <span className="text-muted-foreground/60">{formatFileSize(file.size)}</span>
+                        <span className="text-muted-foreground">{formatFileSize(file.size)}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); removeFile(file.id); }}
                           className="ml-0.5 p-0.5 rounded hover:bg-destructive/10 transition-colors"
@@ -389,7 +395,7 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
             disabled={isSubmitting}
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.98 }}
-            className="w-full py-3 rounded-xl font-medium text-sm text-primary-foreground bg-gradient-to-r from-primary to-[hsl(262_83%_58%)] hover:opacity-95 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2 shadow-[var(--shadow-glow)]"
+            className="w-full py-2.5 rounded-xl font-semibold text-sm text-primary-foreground bg-gradient-to-r from-primary to-[hsl(262_83%_58%)] hover:opacity-95 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2 shadow-[var(--shadow-glow)]"
           >
             <AnimatePresence mode="wait">
               {isSubmitting ? (
