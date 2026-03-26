@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useBacklogStore } from "@/store/backlogStore";
-import type { BacklogItem, Phase } from "@/types/backlog";
+import type { BacklogItem, Phase, Priority } from "@/types/backlog";
 import { PHASES, PHASE_LABELS } from "@/types/backlog";
 import { ThermoBadge, PriorityBadge, PhaseBadge } from "./Badges";
 import { HistoryTimeline } from "./detail/HistoryTimeline";
@@ -22,6 +22,10 @@ import {
   Wrench,
   CalendarCheck,
   Flag,
+  Calculator,
+  Zap,
+  Target,
+  Timer,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -69,20 +73,14 @@ function PhaseAccordion({
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full flex items-center gap-2.5 py-3 transition-colors ${
-          active
-            ? "text-primary"
-            : completed
-            ? "text-foreground/70"
-            : "text-foreground hover:text-primary"
+          active ? "text-primary" : completed ? "text-foreground/70" : "text-foreground hover:text-primary"
         }`}
       >
-        <div className={`flex items-center justify-center w-6 h-6 rounded-lg transition-colors ${
-          active
-            ? "bg-primary/15"
-            : completed
-            ? "bg-phase-finished/10"
-            : "bg-secondary"
-        }`}>
+        <div
+          className={`flex items-center justify-center w-6 h-6 rounded-lg transition-colors ${
+            active ? "bg-primary/15" : completed ? "bg-phase-finished/10" : "bg-secondary"
+          }`}
+        >
           {completed ? <CheckCircle className="w-3 h-3 text-phase-finished" /> : icon}
         </div>
         <span className="text-xs font-semibold flex-1 text-left tracking-wide uppercase">{title}</span>
@@ -95,10 +93,7 @@ function PhaseAccordion({
             Atual
           </motion.span>
         )}
-        <motion.div
-          animate={{ rotate: isOpen ? 180 : 0 }}
-          transition={{ duration: 0.2 }}
-        >
+        <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
           <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
         </motion.div>
       </button>
@@ -116,7 +111,6 @@ function PhaseAccordion({
           </motion.div>
         )}
       </AnimatePresence>
-
       <div className="h-px bg-border/40" />
     </div>
   );
@@ -137,50 +131,77 @@ function MetaItem({ icon, label, children }: { icon: React.ReactNode; label: str
   );
 }
 
-/* ── Priority Result Card (left column) ── */
+/* ── Priority Result Card (Ajustado) ── */
 function PriorityResultCard({ item }: { item: BacklogItem }) {
   if (!item.prioritization) return null;
 
-  const { businessValue: bv, opportunityCost: oc, estimate: est, priority } = item.prioritization;
-  const score = ((bv + oc) / 2 - est / 20).toFixed(1);
+  const { businessValue: bv, opportunityCost: oc, urgency: urg, estimate: est } = item.prioritization;
 
-  const meta: Record<string, { label: string; gradient: string; glow: string }> = {
-    high: { label: "Alta", gradient: "from-[hsl(0_72%_51%)] to-[hsl(330_70%_45%)]", glow: "shadow-[0_0_16px_hsl(0_72%_51%/0.3)]" },
-    medium: { label: "Média", gradient: "from-[hsl(220_70%_55%)] to-[hsl(240_60%_50%)]", glow: "shadow-[0_0_16px_hsl(220_70%_55%/0.3)]" },
-    low: { label: "Baixa", gradient: "from-primary to-[hsl(262_60%_50%)]", glow: "shadow-[0_0_16px_hsl(var(--primary)/0.3)]" },
+  const score = est > 0 ? (bv + oc + urg) / est : 0;
+  const totalValue = bv + oc + urg;
+
+  // Lógica de prioridade síncrona com o Form
+  const getPriority = (): Priority | "none" => {
+    if (est === 0 || totalValue === 0) return "none";
+    if (score >= 0.6 && totalValue >= 4) return "high";
+    if (score >= 0.26) return "medium";
+    return "low";
+  };
+
+  const priority = getPriority();
+
+  const meta: Record<string, { label: string; color: string; bg: string; border: string }> = {
+    high: { label: "Prioridade Alta", color: "text-red-500", bg: "bg-red-500/5", border: "border-red-500/20" },
+    medium: { label: "Prioridade Média", color: "text-amber-500", bg: "bg-amber-500/5", border: "border-amber-500/20" },
+    low: { label: "Prioridade Baixa", color: "text-blue-500", bg: "bg-blue-500/5", border: "border-blue-500/20" },
+    none: { label: "Pendente", color: "text-muted-foreground", bg: "bg-secondary/50", border: "border-border" },
   };
 
   const m = meta[priority];
 
   return (
-    <div className="pt-3 border-t border-border/30 space-y-2">
-      <span className="text-[9px] text-muted-foreground/80 uppercase tracking-widest font-bold">Resultado da Priorização</span>
-
-      {/* Badge */}
-      <div className={`rounded-xl p-3 bg-gradient-to-br ${m.gradient} ${m.glow}`}>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-extrabold text-white tracking-tight">Prioridade: {m.label}</span>
-          <span className="text-[9px] font-mono text-white/70 bg-white/10 px-1.5 py-0.5 rounded">
-            Score: {score}
-          </span>
+    <div className="pt-5 border-t border-border/30 space-y-4">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] text-muted-foreground uppercase tracking-[0.1em] font-black">
+          Análise de Priorização
+        </span>
+        <div
+          className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border ${m.border} ${m.bg} ${m.color}`}
+        >
+          {m.label}
         </div>
       </div>
 
-      {/* Formula */}
-      <p className="text-[10px] font-mono text-muted-foreground leading-relaxed">
-        ({bv} + {oc}) / 2 − {est} / 20 = {score}
-      </p>
+      {/* Main Score Display */}
+      <div className={`relative overflow-hidden rounded-2xl border p-4 ${m.bg} ${m.border}`}>
+        <div className="flex justify-between items-end relative z-10">
+          <div>
+            <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+              <Calculator className="w-3 h-3" />
+              <span className="text-[10px] font-bold uppercase tracking-tighter">Score Estratégico</span>
+            </div>
+            <div className={`text-3xl font-mono font-black tracking-tighter ${m.color}`}>{score.toFixed(2)}</div>
+          </div>
+          <div className="text-right">
+            <span className="text-[9px] text-muted-foreground/60 font-mono italic block">(BV+OC+URG) / Est</span>
+            <span className="text-[10px] font-bold text-foreground/70">Valor Bruto: {totalValue}</span>
+          </div>
+        </div>
+      </div>
 
-      {/* Mini stats */}
-      <div className="flex gap-4">
+      {/* Attributes Grid */}
+      <div className="grid grid-cols-3 gap-2">
         {[
-          { label: "Valor", value: bv },
-          { label: "Custo", value: oc },
-          { label: "Est.", value: `${est}h` },
-        ].map((s) => (
-          <div key={s.label} className="text-center">
-            <div className="text-base font-bold text-foreground">{s.value}</div>
-            <div className="text-[8px] text-muted-foreground uppercase tracking-wider">{s.label}</div>
+          { label: "Negócio", val: bv, icon: <Target className="w-3 h-3" />, color: "text-emerald-500" },
+          { label: "Urgência", val: urg, icon: <Zap className="w-3 h-3" />, color: "text-amber-500" },
+          { label: "Esforço", val: `${est}h`, icon: <Timer className="w-3 h-3" />, color: "text-blue-500" },
+        ].map((stat) => (
+          <div key={stat.label} className="bg-secondary/40 rounded-xl p-2.5 border border-border/20">
+            <div className={`flex items-center gap-1.5 mb-1 ${stat.color}`}>
+              {stat.icon}
+              <span className="text-[8px] font-black uppercase tracking-wider">{stat.label}</span>
+            </div>
+            <div className="text-sm font-bold text-foreground">{stat.val}</div>
           </div>
         ))}
       </div>
@@ -193,7 +214,7 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
   const { products, clients, backlogs } = useBacklogStore();
   const [activeTab, setActiveTab] = useState<TabId>("details");
 
-  const liveItem = item ? backlogs.find((b) => b.id === item.id) ?? item : null;
+  const liveItem = item ? (backlogs.find((b) => b.id === item.id) ?? item) : null;
 
   useEffect(() => {
     if (open) setActiveTab("details");
@@ -220,22 +241,16 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
           maxHeight: "88vh",
         }}
       >
-        {/* ── Full-width Phase Timeline ── */}
         <div className="px-6 pt-5 pb-3 border-b border-border/30">
           <PhaseTimeline currentPhase={liveItem.phase} />
         </div>
 
-        {/* ── Split View ── */}
-        <div
-          className="flex flex-col md:flex-row"
-          style={{ height: "calc(88vh - 100px)", maxHeight: "640px" }}
-        >
-          {/* ═══ LEFT — Info Panel (40%) — STATIC, no scroll ═══ */}
+        <div className="flex flex-col md:flex-row" style={{ height: "calc(88vh - 100px)", maxHeight: "640px" }}>
+          {/* LEFT — Info Panel (40%) */}
           <div
             className="md:w-[40%] shrink-0 flex flex-col overflow-hidden border-r border-border/30"
             style={{ background: "hsl(var(--surface) / 0.6)", backdropFilter: "blur(12px)" }}
           >
-            {/* Title + Badges */}
             <div className="px-5 pt-5 pb-3">
               <h2 className="text-base font-bold text-foreground leading-tight tracking-tight">{liveItem.title}</h2>
               <div className="flex items-center gap-1.5 mt-2 flex-wrap">
@@ -245,7 +260,6 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
               </div>
             </div>
 
-            {/* Tab bar */}
             <div className="flex gap-0 px-5 border-b border-border/40">
               {tabs.map((tab) => (
                 <button
@@ -268,11 +282,7 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
               ))}
             </div>
 
-            {/* Tab content — static for details, scrollable for history */}
-            <div
-              className={`flex-1 px-5 py-4 ${activeTab === "history" ? "overflow-y-auto" : "overflow-hidden"}`}
-              style={{ scrollBehavior: "smooth" }}
-            >
+            <div className={`flex-1 px-5 py-4 ${activeTab === "history" ? "overflow-y-auto" : "overflow-hidden"}`}>
               <AnimatePresence mode="wait">
                 {activeTab === "details" ? (
                   <motion.div
@@ -283,13 +293,13 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
                     transition={{ duration: 0.15 }}
                     className="space-y-3"
                   >
-                    {/* Description */}
                     <div>
-                      <span className="text-[9px] text-muted-foreground/80 uppercase tracking-widest font-bold">Descrição</span>
+                      <span className="text-[9px] text-muted-foreground/80 uppercase tracking-widest font-bold">
+                        Descrição
+                      </span>
                       <p className="text-[13px] text-foreground/90 leading-relaxed mt-1.5">{liveItem.description}</p>
                     </div>
 
-                    {/* Meta */}
                     <div className="space-y-0">
                       <MetaItem icon={<User className="w-3.5 h-3.5" />} label="Criado por">
                         <span className="flex items-center gap-2">
@@ -313,7 +323,6 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
                       </MetaItem>
                     </div>
 
-                    {/* Prioritization result (read-only, left column) */}
                     <PriorityResultCard item={liveItem} />
                   </motion.div>
                 ) : (
@@ -331,11 +340,8 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
             </div>
           </div>
 
-          {/* ═══ RIGHT — Action Panel (60%) ═══ */}
-          <div
-            className="md:w-[60%] flex-1 overflow-y-auto px-5 pt-0 pb-5"
-            style={{ scrollBehavior: "smooth" }}
-          >
+          {/* RIGHT — Action Panel (60%) */}
+          <div className="md:w-[60%] flex-1 overflow-y-auto px-5 pt-0 pb-5">
             <PhaseActionPanel item={liveItem} phaseIdx={phaseIdx} />
           </div>
         </div>
@@ -344,7 +350,6 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
   );
 }
 
-/* ── Phase Action Panel (right column) ── */
 function PhaseActionPanel({ item, phaseIdx }: { item: BacklogItem; phaseIdx: number }) {
   const handleSaved = () => {};
 
@@ -387,12 +392,7 @@ function PhaseActionPanel({ item, phaseIdx }: { item: BacklogItem; phaseIdx: num
       )}
 
       {(item.phase === "available" || item.phase === "planned" || item.phase === "finished") && (
-        <PhaseAccordion
-          title={PHASE_LABELS[item.phase]}
-          icon={PHASE_ICONS[item.phase]}
-          defaultOpen
-          active
-        >
+        <PhaseAccordion title={PHASE_LABELS[item.phase]} icon={PHASE_ICONS[item.phase]} defaultOpen active>
           <p className="text-xs text-muted-foreground">Placeholder para feature futura.</p>
         </PhaseAccordion>
       )}
