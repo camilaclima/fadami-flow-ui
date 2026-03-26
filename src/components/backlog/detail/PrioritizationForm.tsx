@@ -6,8 +6,8 @@ import { Loader2, CheckCircle2, Calculator } from "lucide-react";
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
 
-// Escala linear de 1 a 10 + saltos maiores
-const ESTIMATION_HOURS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 24, 40];
+// Escala linear até 10h + 16h (2 dias) e 24h (3 dias)
+const ESTIMATION_HOURS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 24];
 
 function calcPriority(bv: number, oc: number, urg: number, est: number): Priority {
   const score = (bv + oc + urg) / est;
@@ -99,7 +99,7 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
         ))}
       </div>
 
-      {/* Estimativa de Horas Linear - AGORA FORA DO MAP */}
+      {/* Estimativa de Horas Linear */}
       <div className="space-y-3">
         <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
           Estimativa (horas)
@@ -116,7 +116,7 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
                   : "bg-secondary text-muted-foreground hover:bg-secondary/80"
               }`}
             >
-              {v > 10 ? `+${v}h` : `${v}h`}
+              {v}h
             </button>
           ))}
         </div>
