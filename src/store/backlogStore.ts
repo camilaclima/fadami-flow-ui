@@ -60,8 +60,7 @@ const MOCK_BACKLOGS: BacklogItem[] = [
     createdBy: "Carlos Mendes",
     createdAt: "2024-03-15T08:30:00Z",
     phaseHistory: [
-      { phase: "backlog", enteredAt: "2024-03-15T08:30:00Z", completedAt: "2024-03-17T10:00:00Z" },
-      { phase: "prioritization", enteredAt: "2024-03-17T10:00:00Z" },
+      { phase: "prioritization", enteredAt: "2024-03-15T08:30:00Z" },
     ],
   },
   {
