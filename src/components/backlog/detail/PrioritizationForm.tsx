@@ -6,7 +6,8 @@ import { Loader2, CheckCircle2, Calculator } from "lucide-react";
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
 
-const LINEAR_HOURS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 24];
+// Escala linear de 1 a 10 + saltos maiores
+const ESTIMATION_HOURS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 24, 40];
 
 function calcPriority(bv: number, oc: number, urg: number, est: number): Priority {
   const score = (bv + oc + urg) / est;
@@ -78,22 +79,44 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
           { label: "Custo de oportunidade", val: oc, set: setOc },
           { label: "Urgência / Risco", val: urg, set: setUrg },
         ].map((field) => (
-          {/* Estimativa de Horas Linear */}
+          <div key={field.label} className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
+                {field.label}
+              </span>
+              <span className="text-xs font-bold text-primary">{field.val}</span>
+            </div>
+            <Slider
+              min={1}
+              max={5}
+              step={1}
+              value={[field.val]}
+              onValueChange={([v]) => !readOnly && field.set(v)}
+              disabled={readOnly}
+              className="py-2"
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Estimativa de Horas Linear - AGORA FORA DO MAP */}
       <div className="space-y-3">
-        <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Estimativa (horas)</span>
-        <div className="flex flex-wrap gap-1.5">
-          {LINEAR_HOURS.map((v) => (
+        <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
+          Estimativa (horas)
+        </span>
+        <div className="flex flex-wrap gap-2">
+          {ESTIMATION_HOURS.map((v) => (
             <button
               key={v}
               type="button"
               onClick={() => !readOnly && setEst(v)}
-              className={`h-8 min-w-[36px] px-2 rounded-lg text-[11px] font-bold transition-all ${
+              className={`h-8 min-w-[38px] px-2 rounded-lg text-[11px] font-bold transition-all ${
                 v === est
-                  ? "bg-primary text-primary-foreground shadow-md"
+                  ? "bg-primary text-primary-foreground shadow-sm"
                   : "bg-secondary text-muted-foreground hover:bg-secondary/80"
               }`}
             >
-              {v === 24 ? "+10h" : `${v}h`} 
+              {v > 10 ? `+${v}h` : `${v}h`}
             </button>
           ))}
         </div>
