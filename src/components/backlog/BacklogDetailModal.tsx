@@ -22,10 +22,6 @@ import {
   Wrench,
   CalendarCheck,
   Flag,
-  Calculator,
-  Zap,
-  Target,
-  Timer,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -131,7 +127,7 @@ function MetaItem({ icon, label, children }: { icon: React.ReactNode; label: str
   );
 }
 
-/* ── Priority Result Card (Ajustado) ── */
+/* ── Priority Result Card (Sutil e Compacto) ── */
 function PriorityResultCard({ item }: { item: BacklogItem }) {
   if (!item.prioritization) return null;
 
@@ -153,33 +149,19 @@ function PriorityResultCard({ item }: { item: BacklogItem }) {
   const priority = getPriority();
 
   const meta: Record<string, { label: string; color: string; bg: string; border: string }> = {
-    high: { label: "Prioridade Alta", color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/30" },
-    medium: {
-      label: "Prioridade Média",
-      color: "text-amber-500",
-      bg: "bg-amber-500/10",
-      border: "border-amber-500/30",
-    },
-    low: { label: "Prioridade Baixa", color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/30" },
-    none: {
-      label: "Aguardando Análise",
-      color: "text-muted-foreground",
-      bg: "bg-secondary/50",
-      border: "border-border",
-    },
+    high: { label: "Alta", color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/20" },
+    medium: { label: "Média", color: "text-amber-500", bg: "bg-amber-500/10", border: "border-amber-500/20" },
+    low: { label: "Baixa", color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/20" },
+    none: { label: "Pendente", color: "text-muted-foreground", bg: "bg-secondary/50", border: "border-border" },
   };
 
   const m = meta[priority];
 
   return (
     <div className="pt-5 border-t border-border/30">
-      <div className={`flex items-center justify-center p-6 rounded-2xl border-2 ${m.border} ${m.bg} transition-all`}>
-        <div className="text-center">
-          <span className={`text-[10px] uppercase tracking-[0.2em] font-black opacity-70 ${m.color}`}>
-            Resultado da Análise
-          </span>
-          <h3 className={`text-2xl font-black uppercase tracking-tight mt-1 ${m.color}`}>{m.label}</h3>
-        </div>
+      <div className={`flex items-center justify-between p-3.5 rounded-xl border ${m.border} ${m.bg} transition-all`}>
+        <span className="text-[10px] uppercase tracking-[0.15em] font-bold text-muted-foreground/80">Prioridade</span>
+        <span className={`text-[13px] font-bold uppercase tracking-tight ${m.color}`}>{m.label}</span>
       </div>
     </div>
   );
