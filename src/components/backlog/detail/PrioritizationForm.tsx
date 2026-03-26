@@ -6,7 +6,8 @@ import { Loader2, CheckCircle2, Calculator } from "lucide-react";
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
 
-const FIBONACCI = [1, 2, 3, 5, 8, 13, 21, 34];
+// Escala linear de 1 a 10 + saltos maiores
+const ESTIMATION_HOURS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 24, 40];
 
 function calcPriority(bv: number, oc: number, urg: number, est: number): Priority {
   const score = (bv + oc + urg) / est;
@@ -98,23 +99,24 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
         ))}
       </div>
 
-      {/* Fibonacci */}
+      {/* Estimativa de Horas Linear - AGORA FORA DO MAP */}
       <div className="space-y-3">
         <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
           Estimativa (horas)
         </span>
         <div className="flex flex-wrap gap-2">
-          {FIBONACCI.map((v) => (
+          {ESTIMATION_HOURS.map((v) => (
             <button
               key={v}
+              type="button"
               onClick={() => !readOnly && setEst(v)}
-              className={`h-8 px-3 rounded-lg text-xs font-medium transition-all ${
+              className={`h-8 min-w-[38px] px-2 rounded-lg text-[11px] font-bold transition-all ${
                 v === est
                   ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-secondary text-muted-foreground hover:text-foreground"
+                  : "bg-secondary text-muted-foreground hover:bg-secondary/80"
               }`}
             >
-              {v}h
+              {v > 10 ? `+${v}h` : `${v}h`}
             </button>
           ))}
         </div>
