@@ -108,15 +108,15 @@ const PhaseAccordion = memo(({ title, icon, defaultOpen, active, completed, chil
         </div>
 
         {/* Container do Título e Infos de Conclusão */}
-        <div className="flex-1 text-left flex items-center justify-between min-w-0">
+        <div className="flex-1 text-left flex items-center min-w-0">
           <span className="text-xs font-semibold uppercase tracking-wide truncate">{title}</span>
 
-          {/* Informações de quem fez e quando (aparece apenas se estiver concluído) */}
+          {/* Informações de quem fez e quando - EMPURRADAS PARA A DIREITA */}
           {completed && (updatedBy || updatedAt) && (
-            <div className="flex items-center gap-2 mr-3 shrink-0">
-              <span className="text-[10px] text-muted-foreground/60 font-medium">{updatedBy}</span>
-              <span className="text-[10px] text-muted-foreground/30">•</span>
-              <span className="text-[10px] text-muted-foreground/60">{updatedAt}</span>
+            <div className="ml-auto flex items-center gap-2 mr-3 bg-secondary/50 px-2 py-0.5 rounded text-[10px] shrink-0">
+              <span className="text-muted-foreground font-medium">{updatedBy}</span>
+              <span className="text-muted-foreground/30">•</span>
+              <span className="text-muted-foreground">{updatedAt}</span>
             </div>
           )}
         </div>
