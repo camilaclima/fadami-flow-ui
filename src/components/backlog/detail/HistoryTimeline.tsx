@@ -19,15 +19,16 @@ interface Props {
 }
 
 export function HistoryTimeline({ history, createdBy }: Props) {
-  const entries = history.flatMap((h) => {
-    const items = [
-      { action: `Entrou em ${PHASE_LABELS[h.phase]}`, date: h.enteredAt, type: "enter" as const },
+  type EntryType = "enter" | "complete";
+  const entries: { action: string; date: string; type: EntryType }[] = history.flatMap((h) => {
+    const items: { action: string; date: string; type: EntryType }[] = [
+      { action: `Entrou em ${PHASE_LABELS[h.phase]}`, date: h.enteredAt, type: "enter" },
     ];
     if (h.completedAt) {
       items.push({
         action: `Concluiu ${PHASE_LABELS[h.phase]}`,
         date: h.completedAt,
-        type: "complete" as const,
+        type: "complete",
       });
     }
     return items;
