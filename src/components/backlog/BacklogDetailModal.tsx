@@ -24,6 +24,7 @@ import {
   Wrench,
   CalendarCheck,
   Flag,
+  AlertCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -126,99 +127,10 @@ const PhaseAccordion = memo(
           />
         </button>
 
-        <AnimatePresence>
-          {isOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
-            >
-              <div className="pb-5 pl-8">{children}</div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {isOpen && <div className="pb-5 pl-8">{children}</div>}
         <div className="h-px bg-border/40" />
       </div>
     );
-  },
-);
-
-// --- PAINEL DE AÇÕES (Onde o foco costuma fugir) ---
-const PhaseActionPanel = memo(
-  ({ item, phaseIdx }: { item: BacklogItem; phaseIdx: number }) => {
-    const formatDate = (dateString?: string) => {
-      if (!dateString) return undefined;
-      const date = new Date(dateString);
-      return isNaN(date.getTime()) ? undefined : date.toLocaleDateString("pt-BR");
-    };
-
-    return (
-      <div className="space-y-0">
-        {phaseIdx >= 0 && (
-          <PhaseAccordion
-            title="Priorização"
-            icon={PHASE_ICONS.prioritization}
-            defaultOpen={item.phase === "prioritization"}
-            active={item.phase === "prioritization"}
-            completed={phaseIdx > 0}
-            updatedBy={(item.prioritization as any)?.updatedBy || item.createdBy}
-            updatedAt={formatDate((item.prioritization as any)?.updatedAt || item.createdAt)}
-          >
-            <PrioritizationForm
-              key={`form-prior-${item.id}`}
-              item={item}
-              onSaved={() => {}}
-              readOnly={item.phase !== "prioritization"}
-            />
-          </PhaseAccordion>
-        )}
-
-        {phaseIdx >= 1 && (
-          <PhaseAccordion
-            title="Aprovação"
-            icon={PHASE_ICONS.approval}
-            defaultOpen={item.phase === "approval"}
-            active={item.phase === "approval"}
-            completed={phaseIdx > 1}
-            updatedBy={(item.approval as any)?.updatedBy || item.createdBy}
-            updatedAt={formatDate((item.approval as any)?.updatedAt || item.createdAt)}
-          >
-            <ApprovalForm
-              key={`form-appr-${item.id}`}
-              item={item}
-              onSaved={() => {}}
-              readOnly={item.phase !== "approval"}
-            />
-          </PhaseAccordion>
-        )}
-
-        {phaseIdx >= 2 && (
-          <PhaseAccordion
-            title="Refinamento"
-            icon={PHASE_ICONS.refinement}
-            defaultOpen={item.phase === "refinement"}
-            active={item.phase === "refinement"}
-            completed={phaseIdx > 2}
-            updatedBy={(item.refinement as any)?.updatedBy || item.createdBy}
-            updatedAt={formatDate((item.refinement as any)?.updatedAt || item.createdAt)}
-          >
-            <RefinementForm
-              key={`form-refi-${item.id}`}
-              item={item}
-              onSaved={() => {}}
-              readOnly={item.phase !== "refinement"}
-            />
-          </PhaseAccordion>
-        )}
-      </div>
-    );
-  },
-  (prev, next) => {
-    // ESSA É A CHAVE: O painel só re-renderiza se mudar a FASE ou o ID.
-    // Mudanças de texto dentro do objeto 'item' são ignoradas aqui para não matar o foco.
-    return prev.item.id === next.item.id && prev.item.phase === next.item.phase;
   },
 );
 
@@ -239,6 +151,12 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
   const client = liveItem.clientId ? clients.find((c) => c.id === liveItem.clientId) : null;
   const phaseIdx = PHASES.indexOf(liveItem.phase);
 
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return undefined;
+    const date = new Date(dateString);
+    return isNaN(date.getTime()) ? undefined : date.toLocaleDateString("pt-BR");
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[1000px] p-0 gap-0 overflow-hidden border-border/50 shadow-2xl bg-card max-h-[88vh]">
@@ -257,7 +175,6 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
               </div>
             </div>
 
-            {/* Abas Restauradas */}
             <div className="flex gap-0 px-5 border-b border-border/40">
               {(["details", "history"] as const).map((id) => (
                 <button
@@ -292,24 +209,26 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
 
                   <div className="space-y-0.5 pt-2">
                     <MetaItem icon={<User className="w-3.5 h-3.5" />} label="Criado por">
-                      <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center text-[10px] text-primary font-bold">
-                          {liveItem.createdBy[0]}
-                        </div>
-                        {liveItem.createdBy}
-                      </div>
+                      {liveItem.createdBy}
                     </MetaItem>
                     <MetaItem icon={<Calendar className="w-3.5 h-3.5" />} label="Data">
                       {new Date(liveItem.createdAt).toLocaleDateString("pt-BR")}
                     </MetaItem>
                     <MetaItem icon={<Package className="w-3.5 h-3.5" />} label="Produto">
-                      <div className="flex items-center gap-1.5">
-                        {product && <div className="w-2 h-2 rounded-full" style={{ background: product.color }} />}
-                        {product?.name ?? "—"}
-                      </div>
+                      {product?.name ?? "—"}
                     </MetaItem>
                     <MetaItem icon={<Building2 className="w-3.5 h-3.5" />} label="Cliente">
                       {client?.name ?? "—"}
+                    </MetaItem>
+                    {/* Prioridade Restaurada aqui abaixo do Cliente */}
+                    <MetaItem icon={<AlertCircle className="w-3.5 h-3.5" />} label="Prioridade">
+                      <div className="flex items-center gap-1.5">
+                        {liveItem.prioritization?.priority ? (
+                          <PriorityBadge value={liveItem.prioritization.priority} />
+                        ) : (
+                          "Pendente"
+                        )}
+                      </div>
                     </MetaItem>
                   </div>
                 </div>
@@ -320,7 +239,64 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
           </div>
 
           <div className="md:w-[60%] flex-1 overflow-y-auto px-5 pt-0 pb-5">
-            <PhaseActionPanel item={liveItem} phaseIdx={phaseIdx} />
+            <div className="space-y-0">
+              {phaseIdx >= 0 && (
+                <PhaseAccordion
+                  title="Priorização"
+                  icon={PHASE_ICONS.prioritization}
+                  defaultOpen={liveItem.phase === "prioritization"}
+                  active={liveItem.phase === "prioritization"}
+                  completed={phaseIdx > 0}
+                  updatedBy={(liveItem.prioritization as any)?.updatedBy || liveItem.createdBy}
+                  updatedAt={formatDate((liveItem.prioritization as any)?.updatedAt || liveItem.createdAt)}
+                >
+                  <PrioritizationForm
+                    key="form-prior"
+                    item={liveItem}
+                    onSaved={() => {}}
+                    readOnly={liveItem.phase !== "prioritization"}
+                  />
+                </PhaseAccordion>
+              )}
+
+              {phaseIdx >= 1 && (
+                <PhaseAccordion
+                  title="Aprovação"
+                  icon={PHASE_ICONS.approval}
+                  defaultOpen={liveItem.phase === "approval"}
+                  active={liveItem.phase === "approval"}
+                  completed={phaseIdx > 1}
+                  updatedBy={(liveItem.approval as any)?.updatedBy || liveItem.createdBy}
+                  updatedAt={formatDate((liveItem.approval as any)?.updatedAt || liveItem.createdAt)}
+                >
+                  <ApprovalForm
+                    key="form-appr"
+                    item={liveItem}
+                    onSaved={() => {}}
+                    readOnly={liveItem.phase !== "approval"}
+                  />
+                </PhaseAccordion>
+              )}
+
+              {phaseIdx >= 2 && (
+                <PhaseAccordion
+                  title="Refinamento"
+                  icon={PHASE_ICONS.refinement}
+                  defaultOpen={liveItem.phase === "refinement"}
+                  active={liveItem.phase === "refinement"}
+                  completed={phaseIdx > 2}
+                  updatedBy={(liveItem.refinement as any)?.updatedBy || liveItem.createdBy}
+                  updatedAt={formatDate((liveItem.refinement as any)?.updatedAt || liveItem.createdAt)}
+                >
+                  <RefinementForm
+                    key="form-refi"
+                    item={liveItem}
+                    onSaved={() => {}}
+                    readOnly={liveItem.phase !== "refinement"}
+                  />
+                </PhaseAccordion>
+              )}
+            </div>
           </div>
         </div>
       </DialogContent>
