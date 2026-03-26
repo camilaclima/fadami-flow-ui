@@ -20,7 +20,7 @@ import {
   Settings2,
   CheckCircle,
   Wrench,
-  LayoutList,
+  
   CalendarCheck,
   Flag,
 } from "lucide-react";
@@ -33,7 +33,6 @@ interface Props {
 }
 
 const PHASE_ICONS: Record<Phase, React.ReactNode> = {
-  backlog: <LayoutList className="w-3.5 h-3.5" />,
   prioritization: <Settings2 className="w-3.5 h-3.5" />,
   approval: <CheckCircle className="w-3.5 h-3.5" />,
   refinement: <Wrench className="w-3.5 h-3.5" />,
@@ -338,37 +337,37 @@ function PhaseActionPanel({ item, phaseIdx }: { item: BacklogItem; phaseIdx: num
 
   return (
     <div>
-      {phaseIdx >= 1 && (
+      {phaseIdx >= 0 && (
         <PhaseAccordion
           title="Priorização"
           icon={PHASE_ICONS.prioritization}
           defaultOpen={item.phase === "prioritization"}
           active={item.phase === "prioritization"}
-          completed={phaseIdx > 1}
+          completed={phaseIdx > 0}
         >
           <PrioritizationForm item={item} onSaved={handleSaved} readOnly={item.phase !== "prioritization"} />
         </PhaseAccordion>
       )}
 
-      {phaseIdx >= 2 && (
+      {phaseIdx >= 1 && (
         <PhaseAccordion
           title="Aprovação"
           icon={PHASE_ICONS.approval}
           defaultOpen={item.phase === "approval"}
           active={item.phase === "approval"}
-          completed={phaseIdx > 2}
+          completed={phaseIdx > 1}
         >
           <ApprovalForm item={item} onSaved={handleSaved} readOnly={item.phase !== "approval"} />
         </PhaseAccordion>
       )}
 
-      {phaseIdx >= 3 && (
+      {phaseIdx >= 2 && (
         <PhaseAccordion
           title="Refinamento"
           icon={PHASE_ICONS.refinement}
           defaultOpen={item.phase === "refinement"}
           active={item.phase === "refinement"}
-          completed={phaseIdx > 3}
+          completed={phaseIdx > 2}
         >
           <RefinementForm item={item} onSaved={handleSaved} readOnly={item.phase !== "refinement"} />
         </PhaseAccordion>
@@ -383,17 +382,6 @@ function PhaseActionPanel({ item, phaseIdx }: { item: BacklogItem; phaseIdx: num
         >
           <p className="text-xs text-muted-foreground">Placeholder para feature futura.</p>
         </PhaseAccordion>
-      )}
-
-      {phaseIdx === 0 && (
-        <div className="flex flex-col items-center justify-center py-12 gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-secondary flex items-center justify-center">
-            <LayoutList className="w-5 h-5 text-muted-foreground" />
-          </div>
-          <p className="text-sm text-muted-foreground text-center max-w-[240px]">
-            Este backlog está na fila inicial. Mova para Priorização para começar o fluxo.
-          </p>
-        </div>
       )}
     </div>
   );

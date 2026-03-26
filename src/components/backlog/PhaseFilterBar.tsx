@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 
 const PHASE_ICONS: Record<Phase, React.ElementType> = {
-  backlog: Layers,
   prioritization: Scale,
   approval: Eye,
   refinement: Wrench,
@@ -23,7 +22,6 @@ const PHASE_ICONS: Record<Phase, React.ElementType> = {
 };
 
 const PHASE_ICON_COLORS: Record<Phase, string> = {
-  backlog: "text-phase-backlog",
   prioritization: "text-phase-prioritization",
   approval: "text-phase-approval",
   refinement: "text-phase-refinement",
@@ -33,7 +31,6 @@ const PHASE_ICON_COLORS: Record<Phase, string> = {
 };
 
 const PHASE_BG_COLORS: Record<Phase, string> = {
-  backlog: "bg-phase-backlog/10",
   prioritization: "bg-phase-prioritization/10",
   approval: "bg-phase-approval/10",
   refinement: "bg-phase-refinement/10",

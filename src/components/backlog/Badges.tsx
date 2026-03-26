@@ -14,7 +14,6 @@ const priorityConfig: Record<Priority, { label: string; className: string }> = {
 };
 
 const phaseConfig: Record<Phase, string> = {
-  backlog: "bg-phase-backlog/15 text-phase-backlog",
   prioritization: "bg-phase-prioritization/15 text-phase-prioritization",
   approval: "bg-phase-approval/15 text-phase-approval",
   refinement: "bg-phase-refinement/15 text-phase-refinement",

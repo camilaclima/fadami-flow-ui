@@ -43,8 +43,7 @@ const MOCK_BACKLOGS: BacklogItem[] = [
     createdBy: "Ana Silva",
     createdAt: "2024-03-10T10:00:00Z",
     phaseHistory: [
-      { phase: "backlog", enteredAt: "2024-03-10T10:00:00Z", completedAt: "2024-03-12T14:00:00Z" },
-      { phase: "prioritization", enteredAt: "2024-03-12T14:00:00Z", completedAt: "2024-03-14T09:00:00Z" },
+      { phase: "prioritization", enteredAt: "2024-03-10T10:00:00Z", completedAt: "2024-03-14T09:00:00Z" },
       { phase: "approval", enteredAt: "2024-03-14T09:00:00Z", completedAt: "2024-03-15T11:00:00Z" },
       { phase: "refinement", enteredAt: "2024-03-15T11:00:00Z" },
     ],
@@ -61,8 +60,7 @@ const MOCK_BACKLOGS: BacklogItem[] = [
     createdBy: "Carlos Mendes",
     createdAt: "2024-03-15T08:30:00Z",
     phaseHistory: [
-      { phase: "backlog", enteredAt: "2024-03-15T08:30:00Z", completedAt: "2024-03-17T10:00:00Z" },
-      { phase: "prioritization", enteredAt: "2024-03-17T10:00:00Z" },
+      { phase: "prioritization", enteredAt: "2024-03-15T08:30:00Z" },
     ],
   },
   {
@@ -72,10 +70,10 @@ const MOCK_BACKLOGS: BacklogItem[] = [
     productId: "p3",
     clientId: "c2",
     thermometer: "low",
-    phase: "backlog",
+    phase: "prioritization",
     createdBy: "Marina Costa",
     createdAt: now,
-    phaseHistory: [{ phase: "backlog", enteredAt: now }],
+    phaseHistory: [{ phase: "prioritization", enteredAt: now }],
   },
   {
     id: "b4",
@@ -87,8 +85,7 @@ const MOCK_BACKLOGS: BacklogItem[] = [
     createdBy: "Pedro Alves",
     createdAt: "2024-03-08T14:00:00Z",
     phaseHistory: [
-      { phase: "backlog", enteredAt: "2024-03-08T14:00:00Z", completedAt: "2024-03-09T10:00:00Z" },
-      { phase: "prioritization", enteredAt: "2024-03-09T10:00:00Z", completedAt: "2024-03-11T16:00:00Z" },
+      { phase: "prioritization", enteredAt: "2024-03-08T14:00:00Z", completedAt: "2024-03-11T16:00:00Z" },
       { phase: "approval", enteredAt: "2024-03-11T16:00:00Z" },
     ],
     prioritization: { businessValue: 4, opportunityCost: 3, estimate: 24, priority: "medium" },
@@ -100,10 +97,10 @@ const MOCK_BACKLOGS: BacklogItem[] = [
     productId: "p1",
     clientId: "c3",
     thermometer: "medium",
-    phase: "backlog",
+    phase: "prioritization",
     createdBy: "Ana Silva",
     createdAt: "2024-03-20T09:00:00Z",
-    phaseHistory: [{ phase: "backlog", enteredAt: "2024-03-20T09:00:00Z" }],
+    phaseHistory: [{ phase: "prioritization", enteredAt: "2024-03-20T09:00:00Z" }],
   },
   {
     id: "b6",
@@ -116,8 +113,7 @@ const MOCK_BACKLOGS: BacklogItem[] = [
     createdBy: "Carlos Mendes",
     createdAt: "2024-02-01T10:00:00Z",
     phaseHistory: [
-      { phase: "backlog", enteredAt: "2024-02-01T10:00:00Z", completedAt: "2024-02-03T10:00:00Z" },
-      { phase: "prioritization", enteredAt: "2024-02-03T10:00:00Z", completedAt: "2024-02-05T10:00:00Z" },
+      { phase: "prioritization", enteredAt: "2024-02-01T10:00:00Z", completedAt: "2024-02-05T10:00:00Z" },
       { phase: "approval", enteredAt: "2024-02-05T10:00:00Z", completedAt: "2024-02-06T10:00:00Z" },
       { phase: "refinement", enteredAt: "2024-02-06T10:00:00Z", completedAt: "2024-02-10T10:00:00Z" },
       { phase: "available", enteredAt: "2024-02-10T10:00:00Z", completedAt: "2024-02-12T10:00:00Z" },
@@ -160,9 +156,9 @@ export const useBacklogStore = create<BacklogStore>((set) => ({
         {
           ...item,
           id: `b${Date.now()}`,
-          phase: "backlog" as Phase,
+          phase: "prioritization" as Phase,
           createdAt: new Date().toISOString(),
-          phaseHistory: [{ phase: "backlog" as Phase, enteredAt: new Date().toISOString() }],
+          phaseHistory: [{ phase: "prioritization" as Phase, enteredAt: new Date().toISOString() }],
         },
       ],
     })),

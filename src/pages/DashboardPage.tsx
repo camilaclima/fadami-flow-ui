@@ -37,7 +37,6 @@ function StatCard({
 }
 
 const PHASE_DOT: Record<Phase, string> = {
-  backlog: "bg-phase-backlog",
   prioritization: "bg-phase-prioritization",
   approval: "bg-phase-approval",
   refinement: "bg-phase-refinement",
