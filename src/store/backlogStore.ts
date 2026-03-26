@@ -156,9 +156,9 @@ export const useBacklogStore = create<BacklogStore>((set) => ({
         {
           ...item,
           id: `b${Date.now()}`,
-          phase: "backlog" as Phase,
+          phase: "prioritization" as Phase,
           createdAt: new Date().toISOString(),
-          phaseHistory: [{ phase: "backlog" as Phase, enteredAt: new Date().toISOString() }],
+          phaseHistory: [{ phase: "prioritization" as Phase, enteredAt: new Date().toISOString() }],
         },
       ],
     })),

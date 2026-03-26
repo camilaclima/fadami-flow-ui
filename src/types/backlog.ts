@@ -1,5 +1,4 @@
 export type Phase =
-  | "backlog"
   | "prioritization"
   | "approval"
   | "refinement"
@@ -8,7 +7,6 @@ export type Phase =
   | "finished";
 
 export const PHASES: Phase[] = [
-  "backlog",
   "prioritization",
   "approval",
   "refinement",
@@ -18,7 +16,6 @@ export const PHASES: Phase[] = [
 ];
 
 export const PHASE_LABELS: Record<Phase, string> = {
-  backlog: "Backlog",
   prioritization: "Priorização",
   approval: "Aprovação",
   refinement: "Refinamento",
