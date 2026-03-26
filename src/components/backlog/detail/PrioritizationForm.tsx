@@ -44,15 +44,23 @@ interface Props {
 }
 
 export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
-  const { savePrioritization } = useBacklogStore();
-  const [bv, setBv] = useState(item.prioritization?.businessValue ?? 3);
-  const [oc, setOc] = useState(item.prioritization?.opportunityCost ?? 3);
-  const [urg, setUrg] = useState(3);
-  const [est, setEst] = useState(item.prioritization?.estimate ?? 8);
-  const [saving, setSaving] = useState(false);
+  // Estados iniciando no valor mínimo (zerados visualmente)
+  const [bv, setBv] = useState(item.prioritization?.businessValue ?? 1);
+  const [oc, setOc] = useState(item.prioritization?.opportunityCost ?? 1);
+  const [urg, setUrg] = useState(item.prioritization?.urgency ?? 1);
+  const [est, setEst] = useState(item.prioritization?.estimate ?? 0); // 0 para forçar a escolha da hora
 
-  const scoreNumber = useMemo(() => (bv + oc + urg) / est, [bv, oc, urg, est]);
-  const priority = useMemo(() => calcPriority(bv, oc, urg, est), [bv, oc, urg, est]);
+  // Se a estimativa for 0, o score é 0 para evitar divisão por zero (Infinity)
+  const scoreNumber = useMemo(() => {
+    if (est === 0) return 0;
+    return (bv + oc + urg) / est;
+  }, [bv, oc, urg, est]);
+
+  const priority = useMemo(() => {
+    if (est === 0) return "low"; // Padrão enquanto não preenchido
+    return calcPriority(bv, oc, urg, est);
+  }, [bv, oc, urg, est]);
+
   const meta = priorityMeta[priority];
 
   const handleSave = async () => {
@@ -144,16 +152,28 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
         </div>
       </div>
 
-      {/* Botão de Ação */}
+      {/* Botão de Ação com trava de segurança */}
       {!readOnly && (
         <motion.button
           onClick={handleSave}
-          disabled={saving}
+          disabled={saving || est === 0} // Só habilita se est > 0
           whileTap={{ scale: 0.98 }}
-          className="w-full py-3 rounded-xl font-bold text-xs uppercase tracking-widest text-primary-foreground bg-primary hover:opacity-90 transition-all flex items-center justify-center gap-2"
+          className={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+            est === 0
+              ? "bg-secondary text-muted-foreground cursor-not-allowed"
+              : "bg-primary text-primary-foreground hover:opacity-90 shadow-lg shadow-primary/20"
+          }`}
         >
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-          Salvar Priorização
+          {saving ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : est === 0 ? (
+            "Selecione a Estimativa"
+          ) : (
+            <>
+              <CheckCircle2 className="w-4 h-4" />
+              Salvar Priorização
+            </>
+          )}
         </motion.button>
       )}
     </div>
