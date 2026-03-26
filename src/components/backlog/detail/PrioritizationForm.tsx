@@ -15,24 +15,21 @@ function calcPriority(bv: number, oc: number, est: number): Priority {
   return "low";
 }
 
-const priorityMeta: Record<Priority, { label: string; scoreLabel: string; gradient: string; solidBg: string }> = {
+const priorityMeta: Record<Priority, { label: string; scoreLabel: string; gradient: string }> = {
   high: {
     label: "Alta",
     scoreLabel: "High Priority",
-    gradient: "from-priority-high to-[hsl(0_72%_45%)]",
-    solidBg: "bg-priority-high",
+    gradient: "from-[hsl(0_72%_51%)] to-[hsl(330_70%_45%)]",
   },
   medium: {
     label: "Média",
     scoreLabel: "Medium Priority",
-    gradient: "from-priority-medium to-[hsl(220_70%_50%)]",
-    solidBg: "bg-priority-medium",
+    gradient: "from-[hsl(220_70%_55%)] to-[hsl(240_60%_50%)]",
   },
   low: {
     label: "Baixa",
     scoreLabel: "Low Priority",
     gradient: "from-primary to-[hsl(262_60%_50%)]",
-    solidBg: "bg-primary",
   },
 };
 
