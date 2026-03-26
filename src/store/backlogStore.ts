@@ -211,7 +211,7 @@ export const useBacklogStore = create<BacklogStore>((set) => ({
           h.phase === "approval" && !h.completedAt ? { ...h, completedAt: nowStr } : h
         );
         history.push({ phase: "refinement" as Phase, enteredAt: nowStr });
-        return { ...b, phase: "refinement" as Phase, approval: data, phaseHistory: history };
+        return { ...b, phase: "refinement" as Phase, approval: { ...data, updatedBy: b.createdBy, updatedAt: nowStr }, phaseHistory: history };
       }),
     })),
 
