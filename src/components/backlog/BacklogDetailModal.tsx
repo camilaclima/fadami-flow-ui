@@ -131,7 +131,12 @@ function MetaItem({ icon, label, children }: { icon: React.ReactNode; label: str
 function PriorityResultCard({ item }: { item: BacklogItem }) {
   if (!item.prioritization) return null;
 
-  const { businessValue: bv, opportunityCost: oc, estimate: est, updatedBy, updatedAt } = item.prioritization;
+  const { businessValue: bv, opportunityCost: oc, estimate: est } = item.prioritization;
+
+  // Acessando de forma segura para evitar erro de tipagem no TS
+  const prioritization = item.prioritization as any;
+  const updatedBy = prioritization.updatedBy;
+  const updatedAt = prioritization.updatedAt;
 
   // @ts-ignore
   const urg = item.prioritization.urgency ?? 0;
@@ -165,7 +170,6 @@ function PriorityResultCard({ item }: { item: BacklogItem }) {
           <span className={`text-[13px] font-bold uppercase tracking-tight ${m.color}`}>{m.label}</span>
         </div>
 
-        {/* Informação sutil de quem e quando */}
         <div className="flex items-center justify-end gap-1.5 opacity-40 text-[9px] font-medium text-muted-foreground uppercase tracking-tighter">
           <span>{updatedBy || item.createdBy}</span>
           <span>•</span>
