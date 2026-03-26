@@ -51,7 +51,7 @@
 
     /* Phase colors */
     --phase-backlog: 228 8% 52%;
-    --phase-prioritization: 38 92% 50%;
+    --phase-prioritization: 252 56% 57%;
     --phase-approval: 262 83% 58%;
     --phase-refinement: 199 89% 48%;
     --phase-available: 160 84% 39%;
@@ -60,12 +60,12 @@
 
     /* Thermometer */
     --thermo-low: 217 91% 60%;
-    --thermo-medium: 45 93% 47%;
+    --thermo-medium: 38 80% 50%;
     --thermo-high: 0 72% 51%;
 
     /* Priority */
     --priority-high: 0 72% 51%;
-    --priority-medium: 45 93% 47%;
+    --priority-medium: 220 70% 55%;
     --priority-low: 217 91% 60%;
 
     --sidebar-background: 0 0% 100%;
@@ -119,7 +119,7 @@
     --shadow-glow: 0 0 24px -4px hsl(252 56% 60% / 0.3);
 
     --phase-backlog: 220 14% 50%;
-    --phase-prioritization: 38 92% 50%;
+    --phase-prioritization: 252 56% 60%;
     --phase-approval: 262 83% 58%;
     --phase-refinement: 199 89% 48%;
     --phase-available: 160 84% 39%;
@@ -127,11 +127,11 @@
     --phase-finished: 152 69% 45%;
 
     --thermo-low: 217 91% 60%;
-    --thermo-medium: 45 93% 47%;
+    --thermo-medium: 38 80% 50%;
     --thermo-high: 0 72% 55%;
 
     --priority-high: 0 72% 55%;
-    --priority-medium: 45 93% 47%;
+    --priority-medium: 220 70% 55%;
     --priority-low: 217 91% 60%;
 
     --sidebar-background: 228 18% 7%;

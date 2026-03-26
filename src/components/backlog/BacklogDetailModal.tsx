@@ -137,6 +137,57 @@ function MetaItem({ icon, label, children }: { icon: React.ReactNode; label: str
   );
 }
 
+/* ── Priority Result Card (left column) ── */
+function PriorityResultCard({ item }: { item: BacklogItem }) {
+  if (!item.prioritization) return null;
+
+  const { businessValue: bv, opportunityCost: oc, estimate: est, priority } = item.prioritization;
+  const score = ((bv + oc) / 2 - est / 20).toFixed(1);
+
+  const meta: Record<string, { label: string; gradient: string; glow: string }> = {
+    high: { label: "Alta", gradient: "from-[hsl(0_72%_51%)] to-[hsl(330_70%_45%)]", glow: "shadow-[0_0_16px_hsl(0_72%_51%/0.3)]" },
+    medium: { label: "Média", gradient: "from-[hsl(220_70%_55%)] to-[hsl(240_60%_50%)]", glow: "shadow-[0_0_16px_hsl(220_70%_55%/0.3)]" },
+    low: { label: "Baixa", gradient: "from-primary to-[hsl(262_60%_50%)]", glow: "shadow-[0_0_16px_hsl(var(--primary)/0.3)]" },
+  };
+
+  const m = meta[priority];
+
+  return (
+    <div className="pt-3 border-t border-border/30 space-y-2">
+      <span className="text-[9px] text-muted-foreground/80 uppercase tracking-widest font-bold">Resultado da Priorização</span>
+
+      {/* Badge */}
+      <div className={`rounded-xl p-3 bg-gradient-to-br ${m.gradient} ${m.glow}`}>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-extrabold text-white tracking-tight">Prioridade: {m.label}</span>
+          <span className="text-[9px] font-mono text-white/70 bg-white/10 px-1.5 py-0.5 rounded">
+            Score: {score}
+          </span>
+        </div>
+      </div>
+
+      {/* Formula */}
+      <p className="text-[10px] font-mono text-muted-foreground leading-relaxed">
+        ({bv} + {oc}) / 2 − {est} / 20 = {score}
+      </p>
+
+      {/* Mini stats */}
+      <div className="flex gap-4">
+        {[
+          { label: "Valor", value: bv },
+          { label: "Custo", value: oc },
+          { label: "Est.", value: `${est}h` },
+        ].map((s) => (
+          <div key={s.label} className="text-center">
+            <div className="text-base font-bold text-foreground">{s.value}</div>
+            <div className="text-[8px] text-muted-foreground uppercase tracking-wider">{s.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ── Main Modal ── */
 export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
   const { products, clients, backlogs } = useBacklogStore();
@@ -179,7 +230,7 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
           className="flex flex-col md:flex-row"
           style={{ height: "calc(88vh - 100px)", maxHeight: "640px" }}
         >
-          {/* ═══ LEFT — Info Panel (40%) ═══ */}
+          {/* ═══ LEFT — Info Panel (40%) — STATIC, no scroll ═══ */}
           <div
             className="md:w-[40%] shrink-0 flex flex-col overflow-hidden border-r border-border/30"
             style={{ background: "hsl(var(--surface) / 0.6)", backdropFilter: "blur(12px)" }}
@@ -217,8 +268,11 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
               ))}
             </div>
 
-            {/* Tab content */}
-            <div className="flex-1 overflow-y-auto px-5 py-4" style={{ scrollBehavior: "smooth" }}>
+            {/* Tab content — static for details, scrollable for history */}
+            <div
+              className={`flex-1 px-5 py-4 ${activeTab === "history" ? "overflow-y-auto" : "overflow-hidden"}`}
+              style={{ scrollBehavior: "smooth" }}
+            >
               <AnimatePresence mode="wait">
                 {activeTab === "details" ? (
                   <motion.div
@@ -227,7 +281,7 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.15 }}
-                    className="space-y-4"
+                    className="space-y-3"
                   >
                     {/* Description */}
                     <div>
@@ -259,31 +313,8 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
                       </MetaItem>
                     </div>
 
-                    {/* Completed phase summaries */}
-                    {liveItem.prioritization && phaseIdx > 0 && (
-                      <div className="pt-3 border-t border-border/30">
-                        <span className="text-[9px] text-muted-foreground/80 uppercase tracking-widest font-bold">Priorização</span>
-                        <div className="flex gap-4 mt-2">
-                          {[
-                            { label: "Valor", value: liveItem.prioritization.businessValue },
-                            { label: "Custo", value: liveItem.prioritization.opportunityCost },
-                            { label: "Est.", value: `${liveItem.prioritization.estimate}h` },
-                          ].map((s) => (
-                            <div key={s.label} className="text-center">
-                              <div className="text-lg font-bold text-foreground">{s.value}</div>
-                              <div className="text-[9px] text-muted-foreground uppercase tracking-wider">{s.label}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {liveItem.approval && phaseIdx > 1 && (
-                      <div className="pt-3 border-t border-border/30">
-                        <span className="text-[9px] text-muted-foreground/80 uppercase tracking-widest font-bold">Aprovação</span>
-                        <p className="text-xs text-foreground/80 mt-1.5 italic leading-relaxed">"{liveItem.approval.observation || "—"}"</p>
-                      </div>
-                    )}
+                    {/* Prioritization result (read-only, left column) */}
+                    <PriorityResultCard item={liveItem} />
                   </motion.div>
                 ) : (
                   <motion.div
