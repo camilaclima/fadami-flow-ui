@@ -86,14 +86,19 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
       {/* Sliders de Input */}
       <div className="space-y-4">
         {[
-          { label: "Valor de negócio", val: bv, set: setBv },
-          { label: "Custo de oportunidade", val: oc, set: setOc },
-          { label: "Urgência / Risco", val: urg, set: setUrg },
+          { id: "bv", label: "Valor de negócio", val: bv, set: setBv },
+          { id: "oc", label: "Custo de oportunidade", val: oc, set: setOc },
+          { id: "urg", label: "Urgência / Risco", val: urg, set: setUrg },
         ].map((field) => (
-          <div key={field.label} className="space-y-2">
-            {/* ... resto do código ... */}
+          <div key={field.id} className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
+                {field.label}
+              </span>
+              <span className="text-xs font-bold text-primary">{field.val}</span>
+            </div>
             <Slider
-              min={0} // <--- Mudar de 1 para 0 aqui
+              min={0} // Agora aceita 0 real
               max={5}
               step={1}
               value={[field.val]}
