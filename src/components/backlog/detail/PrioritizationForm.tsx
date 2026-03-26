@@ -4,6 +4,7 @@ import type { BacklogItem, Priority } from "@/types/backlog";
 import { motion, AnimatePresence } from "framer-motion";
 import { Info, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { Slider } from "@/components/ui/slider";
 
 const FIBONACCI = [1, 2, 3, 5, 8, 13, 21, 34];
 
@@ -14,10 +15,28 @@ function calcPriority(bv: number, oc: number, est: number): Priority {
   return "low";
 }
 
-const priorityMeta: Record<Priority, { label: string; color: string; glow: string }> = {
-  high: { label: "Alta", color: "bg-priority-high/15 text-priority-high", glow: "shadow-[0_0_12px_hsl(var(--priority-high)/0.4)]" },
-  medium: { label: "Média", color: "bg-priority-medium/15 text-priority-medium", glow: "shadow-[0_0_12px_hsl(var(--priority-medium)/0.4)]" },
-  low: { label: "Baixa", color: "bg-priority-low/15 text-priority-low", glow: "shadow-[0_0_12px_hsl(var(--priority-low)/0.4)]" },
+const priorityMeta: Record<Priority, { label: string; scoreLabel: string; bg: string; text: string; glow: string }> = {
+  high: {
+    label: "Alta",
+    scoreLabel: "High Priority",
+    bg: "bg-priority-high/10",
+    text: "text-priority-high",
+    glow: "shadow-[0_0_16px_hsl(var(--priority-high)/0.3)]",
+  },
+  medium: {
+    label: "Média",
+    scoreLabel: "Medium Priority",
+    bg: "bg-priority-medium/10",
+    text: "text-priority-medium",
+    glow: "shadow-[0_0_16px_hsl(var(--priority-medium)/0.3)]",
+  },
+  low: {
+    label: "Baixa",
+    scoreLabel: "Low Priority",
+    bg: "bg-priority-low/10",
+    text: "text-priority-low",
+    glow: "shadow-[0_0_16px_hsl(var(--priority-low)/0.3)]",
+  },
 };
 
 interface Props {
@@ -35,6 +54,7 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
   const [showFormula, setShowFormula] = useState(false);
 
   const priority = useMemo(() => calcPriority(bv, oc, est), [bv, oc, est]);
+  const score = useMemo(() => ((bv + oc) / 2 - est / 20).toFixed(1), [bv, oc, est]);
   const meta = priorityMeta[priority];
 
   const handleSave = async () => {
@@ -46,49 +66,45 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
     onSaved?.();
   };
 
-  const SegmentControl = ({
-    label,
-    value,
-    onChange,
-    max,
-  }: {
-    label: string;
-    value: number;
-    onChange: (v: number) => void;
-    max: number;
-  }) => (
-    <div className="space-y-2">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <div className="flex gap-1.5">
-        {Array.from({ length: max }, (_, i) => i + 1).map((v) => (
-          <motion.button
-            key={v}
-            onClick={() => !readOnly && onChange(v)}
-            whileHover={!readOnly ? { scale: 1.1 } : {}}
-            whileTap={!readOnly ? { scale: 0.95 } : {}}
-            className={`w-9 h-9 rounded-xl text-xs font-semibold transition-all ${
-              v === value
-                ? "bg-primary text-primary-foreground shadow-[0_0_10px_hsl(var(--primary)/0.4)]"
-                : v <= value
-                ? "bg-primary/20 text-primary"
-                : "bg-secondary text-muted-foreground hover:bg-surface-hover"
-            }`}
-          >
-            {v}
-          </motion.button>
-        ))}
-      </div>
-    </div>
-  );
-
   return (
-    <div className="space-y-5">
-      <SegmentControl label="Valor de negócio" value={bv} onChange={setBv} max={5} />
-      <SegmentControl label="Custo de oportunidade" value={oc} onChange={setOc} max={5} />
-
-      {/* Fibonacci estimation chips */}
+    <div className="space-y-6">
+      {/* Slider: Business Value */}
       <div className="space-y-2">
-        <span className="text-xs text-muted-foreground">Estimativa (horas)</span>
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-foreground/60 uppercase tracking-widest font-semibold">Valor de negócio</span>
+          <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">{bv}</span>
+        </div>
+        <Slider
+          min={1}
+          max={5}
+          step={1}
+          value={[bv]}
+          onValueChange={([v]) => !readOnly && setBv(v)}
+          disabled={readOnly}
+          className="[&_[role=slider]]:shadow-[0_0_8px_hsl(var(--primary)/0.4)] [&_[role=slider]]:border-primary"
+        />
+      </div>
+
+      {/* Slider: Opportunity Cost */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-foreground/60 uppercase tracking-widest font-semibold">Custo de oportunidade</span>
+          <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">{oc}</span>
+        </div>
+        <Slider
+          min={1}
+          max={5}
+          step={1}
+          value={[oc]}
+          onValueChange={([v]) => !readOnly && setOc(v)}
+          disabled={readOnly}
+          className="[&_[role=slider]]:shadow-[0_0_8px_hsl(var(--primary)/0.4)] [&_[role=slider]]:border-primary"
+        />
+      </div>
+
+      {/* Fibonacci Estimation */}
+      <div className="space-y-2">
+        <span className="text-[11px] text-foreground/60 uppercase tracking-widest font-semibold">Estimativa (horas)</span>
         <div className="flex flex-wrap gap-1.5">
           {FIBONACCI.map((v) => (
             <motion.button
@@ -96,10 +112,10 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
               onClick={() => !readOnly && setEst(v)}
               whileHover={!readOnly ? { scale: 1.08 } : {}}
               whileTap={!readOnly ? { scale: 0.95 } : {}}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                 v === est
                   ? "bg-primary text-primary-foreground shadow-[0_0_10px_hsl(var(--primary)/0.4)]"
-                  : "bg-secondary text-muted-foreground hover:bg-surface-hover"
+                  : "bg-secondary/60 text-foreground/60 hover:bg-surface-hover hover:text-foreground"
               }`}
             >
               {v}h
@@ -108,57 +124,56 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
         </div>
       </div>
 
-      {/* Live priority badge */}
-      <div className="flex items-center gap-3">
-        <span className="text-xs text-muted-foreground">Prioridade calculada:</span>
-        <motion.span
-          key={priority}
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className={`inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold ${meta.color} ${meta.glow}`}
-        >
-          {meta.label}
-        </motion.span>
-        <button onClick={() => setShowFormula(!showFormula)} className="text-muted-foreground hover:text-foreground transition-colors">
-          <Info className="w-3.5 h-3.5" />
-        </button>
-      </div>
-
-      <AnimatePresence>
-        {showFormula && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
+      {/* Priority result — floating card */}
+      <motion.div
+        key={priority}
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className={`rounded-2xl p-4 ${meta.bg} ${meta.glow} transition-shadow`}
+        style={{ background: `linear-gradient(135deg, hsl(var(--card)), hsl(var(--secondary) / 0.6))` }}
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <span className={`text-sm font-bold ${meta.text}`}>{meta.label}</span>
+            <p className="text-[10px] text-muted-foreground mt-0.5 font-mono">
+              Score: {score} — {meta.scoreLabel}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowFormula(!showFormula)}
+            className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg hover:bg-secondary"
           >
-            <div className="px-3 py-2 rounded-xl bg-secondary/50 text-[10px] text-muted-foreground font-mono">
-              Score = (Valor + Custo) / 2 − Estimativa / 20 → ≥3.5 Alta, ≥2 Média, &lt;2 Baixa
-              <br />
-              Atual: ({bv} + {oc}) / 2 − {est} / 20 = {((bv + oc) / 2 - est / 20).toFixed(2)}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <Info className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <AnimatePresence>
+          {showFormula && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden"
+            >
+              <p className="text-[9px] text-muted-foreground font-mono mt-2 pt-2 border-t border-border/30">
+                (Valor + Custo) / 2 − Estimativa / 20 → ≥3.5 Alta, ≥2 Média, &lt;2 Baixa
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
 
       {item.phase === "prioritization" && !readOnly && (
         <motion.button
           onClick={handleSave}
           disabled={saving}
-          whileHover={{ scale: 1.02 }}
+          whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.98 }}
-          className="w-full py-2.5 rounded-xl bg-gradient-to-r from-primary to-purple-600 text-primary-foreground text-sm font-semibold shadow-[var(--shadow-glow)] hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
+          className="w-full py-2.5 rounded-xl font-semibold text-sm text-primary-foreground bg-gradient-to-r from-primary to-[hsl(262_83%_58%)] hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2 shadow-[var(--shadow-glow)]"
         >
           {saving ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Salvando...
-            </>
+            <><Loader2 className="w-4 h-4 animate-spin" /> Salvando...</>
           ) : (
-            <>
-              <CheckCircle2 className="w-4 h-4" />
-              Salvar e Priorizar
-            </>
+            <><CheckCircle2 className="w-4 h-4" /> Salvar e Priorizar</>
           )}
         </motion.button>
       )}

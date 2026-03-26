@@ -35,42 +35,51 @@ export function HistoryTimeline({ history, createdBy }: Props) {
   });
 
   return (
-    <div className="relative pl-6 space-y-0">
-      {/* Vertical line */}
-      <div className="absolute left-[9px] top-2 bottom-2 w-px bg-border" />
+    <div className="relative pl-8">
+      {/* Thin connecting line */}
+      <div className="absolute left-[11px] top-3 bottom-3 w-px bg-gradient-to-b from-primary/30 via-border/40 to-transparent" />
+
+      {entries.length === 0 && (
+        <p className="text-xs text-muted-foreground py-6 pl-2">Nenhum histórico ainda.</p>
+      )}
 
       {entries.map((entry, i) => (
         <motion.div
           key={i}
-          initial={{ opacity: 0, x: -8 }}
+          initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: i * 0.05, duration: 0.3 }}
-          className="relative flex items-start gap-3 py-2.5"
+          transition={{ delay: i * 0.04, duration: 0.3 }}
+          className="relative flex items-start gap-4 py-3"
         >
-          {/* Dot */}
-          <div
-            className={`absolute -left-6 top-3 w-[7px] h-[7px] rounded-full border-2 ${
-              entry.type === "complete"
-                ? "bg-phase-finished border-phase-finished"
-                : "bg-card border-primary"
-            }`}
-          />
+          {/* Node */}
+          <div className="absolute -left-8 top-3.5 flex items-center justify-center">
+            {entry.type === "complete" ? (
+              <div className="w-[9px] h-[9px] rounded-full bg-phase-finished shadow-[0_0_6px_hsl(var(--phase-finished)/0.4)]" />
+            ) : (
+              <div className="w-[9px] h-[9px] rounded-full border-2 border-primary bg-card shadow-[0_0_6px_hsl(var(--primary)/0.3)]" />
+            )}
+          </div>
 
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-foreground leading-tight">{entry.action}</p>
-            <div className="flex items-center gap-2 mt-0.5">
-              <User className="w-2.5 h-2.5 text-muted-foreground" />
-              <span className="text-[10px] text-muted-foreground">{createdBy}</span>
-              <Clock className="w-2.5 h-2.5 text-muted-foreground ml-1" />
-              <span className="text-[10px] text-muted-foreground">{formatRelative(entry.date)}</span>
+            <div className="flex items-center gap-2">
+              {/* Avatar */}
+              <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <span className="text-[8px] font-bold text-primary">{createdBy[0]}</span>
+              </div>
+              <p className="text-xs text-foreground font-medium">{entry.action}</p>
+              {entry.type === "complete" && (
+                <span className="text-[8px] font-bold uppercase tracking-widest bg-phase-finished/10 text-phase-finished px-1.5 py-0.5 rounded">
+                  Done
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 mt-1 ml-7">
+              <Clock className="w-2.5 h-2.5 text-muted-foreground/50" />
+              <span className="text-[10px] text-muted-foreground/60 font-mono">{formatRelative(entry.date)}</span>
             </div>
           </div>
         </motion.div>
       ))}
-
-      {entries.length === 0 && (
-        <p className="text-xs text-muted-foreground py-4">Nenhum histórico ainda.</p>
-      )}
     </div>
   );
 }
