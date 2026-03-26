@@ -28,7 +28,7 @@ export function KanbanBoard() {
 
   return (
     <>
-      <div className="flex gap-4 overflow-x-auto pb-4 min-h-[calc(100vh-180px)]">
+      <div className="flex gap-6 pb-4 min-h-[calc(100vh-180px)] w-full items-start justify-start">
         {PHASES.map((phase) => {
           const items = backlogs.filter((b) => b.phase === phase);
           return (
