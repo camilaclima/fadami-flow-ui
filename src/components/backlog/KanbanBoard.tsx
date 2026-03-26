@@ -13,7 +13,7 @@ export function KanbanBoard() {
 
   // 1. Estado para saber qual fase está selecionada no botão lá em cima
   // (Inicia na fase de priorização já que removemos o backlog)
-  const [activePhase, setActivePhase] = useState("prioritization");
+  const [activePhase, setActivePhase] = useState<Phase>("prioritization");
 
   const openDetail = (item: BacklogItem) => {
     setSelectedItem(item);
@@ -27,7 +27,7 @@ export function KanbanBoard() {
     <div className="w-full space-y-8">
       {/* 3. BOTÕES DE FASE (Substituindo as colunas chatas) */}
       <div className="flex flex-wrap gap-3 w-full border-b border-border/40 pb-6">
-        {PHASES.filter((p) => p !== "backlog").map((phase) => (
+        {PHASES.map((phase) => (
           <button
             key={phase}
             onClick={() => setActivePhase(phase)}
