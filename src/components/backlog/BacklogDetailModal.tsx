@@ -127,11 +127,11 @@ function MetaItem({ icon, label, children }: { icon: React.ReactNode; label: str
   );
 }
 
-/* ── Priority Result Card (Sutil e Compacto) ── */
+/* ── Priority Result Card (Sutil e Compacto com Metadata) ── */
 function PriorityResultCard({ item }: { item: BacklogItem }) {
   if (!item.prioritization) return null;
 
-  const { businessValue: bv, opportunityCost: oc, estimate: est } = item.prioritization;
+  const { businessValue: bv, opportunityCost: oc, estimate: est, updatedBy, updatedAt } = item.prioritization;
 
   // @ts-ignore
   const urg = item.prioritization.urgency ?? 0;
@@ -159,9 +159,18 @@ function PriorityResultCard({ item }: { item: BacklogItem }) {
 
   return (
     <div className="pt-5 border-t border-border/30">
-      <div className={`flex items-center justify-between p-3.5 rounded-xl border ${m.border} ${m.bg} transition-all`}>
-        <span className="text-[10px] uppercase tracking-[0.15em] font-bold text-muted-foreground/80">Prioridade</span>
-        <span className={`text-[13px] font-bold uppercase tracking-tight ${m.color}`}>{m.label}</span>
+      <div className={`p-3.5 rounded-xl border ${m.border} ${m.bg} transition-all`}>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[10px] uppercase tracking-[0.15em] font-bold text-muted-foreground/80">Prioridade</span>
+          <span className={`text-[13px] font-bold uppercase tracking-tight ${m.color}`}>{m.label}</span>
+        </div>
+
+        {/* Informação sutil de quem e quando */}
+        <div className="flex items-center justify-end gap-1.5 opacity-40 text-[9px] font-medium text-muted-foreground uppercase tracking-tighter">
+          <span>{updatedBy || item.createdBy}</span>
+          <span>•</span>
+          <span>{new Date(updatedAt || item.createdAt).toLocaleDateString("pt-BR")}</span>
+        </div>
       </div>
     </div>
   );
