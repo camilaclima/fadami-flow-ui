@@ -6,9 +6,12 @@ import { PHASES, PHASE_LABELS } from "@/types/backlog";
 import { ThermoBadge, PriorityBadge, PhaseBadge } from "./Badges";
 import { HistoryTimeline } from "./detail/HistoryTimeline";
 import { PhaseTimeline } from "./detail/PhaseTimeline";
+
+// Verifique se estes arquivos possuem "export function ..." e não "export default ..."
 import { PrioritizationForm } from "./detail/PrioritizationForm";
 import { ApprovalForm } from "./detail/ApprovalForm";
 import { RefinementForm } from "./detail/RefinementForm";
+
 import {
   User,
   Calendar,
@@ -70,6 +73,7 @@ function PhaseAccordion({
   return (
     <div className="group">
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full flex items-center gap-2.5 py-4 transition-colors ${
           active ? "text-primary" : completed ? "text-foreground/70" : "text-foreground hover:text-primary"
@@ -177,6 +181,74 @@ function PriorityResultCard({ item }: { item: BacklogItem }) {
   );
 }
 
+const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx: number }) => {
+  const handleSaved = () => {};
+
+  return (
+    <div className="space-y-0">
+      {phaseIdx >= 0 && (
+        <PhaseAccordion
+          title="Priorização"
+          icon={PHASE_ICONS.prioritization}
+          defaultOpen={item.phase === "prioritization"}
+          active={item.phase === "prioritization"}
+          completed={phaseIdx > 0}
+          updatedBy={(item.prioritization as any)?.updatedBy || item.createdBy}
+          updatedAt={
+            item.prioritization
+              ? new Date((item.prioritization as any).updatedAt || item.createdAt).toLocaleDateString("pt-BR")
+              : undefined
+          }
+        >
+          <PrioritizationForm item={item} onSaved={handleSaved} readOnly={item.phase !== "prioritization"} />
+        </PhaseAccordion>
+      )}
+
+      {phaseIdx >= 1 && (
+        <PhaseAccordion
+          title="Aprovação"
+          icon={PHASE_ICONS.approval}
+          defaultOpen={item.phase === "approval"}
+          active={item.phase === "approval"}
+          completed={phaseIdx > 1}
+          updatedBy={(item.approval as any)?.updatedBy}
+          updatedAt={
+            (item.approval as any)?.updatedAt
+              ? new Date((item.approval as any).updatedAt).toLocaleDateString("pt-BR")
+              : undefined
+          }
+        >
+          <ApprovalForm item={item} onSaved={handleSaved} readOnly={item.phase !== "approval"} />
+        </PhaseAccordion>
+      )}
+
+      {phaseIdx >= 2 && (
+        <PhaseAccordion
+          title="Refinamento"
+          icon={PHASE_ICONS.refinement}
+          defaultOpen={item.phase === "refinement"}
+          active={item.phase === "refinement"}
+          completed={phaseIdx > 2}
+          updatedBy={(item.refinement as any)?.updatedBy}
+          updatedAt={
+            (item.refinement as any)?.updatedAt
+              ? new Date((item.refinement as any).updatedAt).toLocaleDateString("pt-BR")
+              : undefined
+          }
+        >
+          <RefinementForm item={item} onSaved={handleSaved} readOnly={item.phase !== "refinement"} />
+        </PhaseAccordion>
+      )}
+
+      {(item.phase === "available" || item.phase === "planned" || item.phase === "finished") && (
+        <PhaseAccordion title={PHASE_LABELS[item.phase]} icon={PHASE_ICONS[item.phase]} defaultOpen active>
+          <p className="text-xs text-muted-foreground">Placeholder para feature futura.</p>
+        </PhaseAccordion>
+      )}
+    </div>
+  );
+});
+
 export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
   const { products, clients, backlogs } = useBacklogStore();
   const [activeTab, setActiveTab] = useState<TabId>("details");
@@ -230,6 +302,7 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
+                  type="button"
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold transition-colors relative ${
                     activeTab === tab.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
@@ -312,71 +385,3 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
     </Dialog>
   );
 }
-
-const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx: number }) => {
-  const handleSaved = () => {};
-
-  return (
-    <div className="space-y-0">
-      {phaseIdx >= 0 && (
-        <PhaseAccordion
-          title="Priorização"
-          icon={PHASE_ICONS.prioritization}
-          defaultOpen={item.phase === "prioritization"}
-          active={item.phase === "prioritization"}
-          completed={phaseIdx > 0}
-          updatedBy={(item.prioritization as any)?.updatedBy || item.createdBy}
-          updatedAt={
-            item.prioritization
-              ? new Date((item.prioritization as any).updatedAt || item.createdAt).toLocaleDateString("pt-BR")
-              : undefined
-          }
-        >
-          <PrioritizationForm item={item} onSaved={handleSaved} readOnly={item.phase !== "prioritization"} />
-        </PhaseAccordion>
-      )}
-
-      {phaseIdx >= 1 && (
-        <PhaseAccordion
-          title="Aprovação"
-          icon={PHASE_ICONS.approval}
-          defaultOpen={item.phase === "approval"}
-          active={item.phase === "approval"}
-          completed={phaseIdx > 1}
-          updatedBy={(item.approval as any)?.updatedBy}
-          updatedAt={
-            (item.approval as any)?.updatedAt
-              ? new Date((item.approval as any).updatedAt).toLocaleDateString("pt-BR")
-              : undefined
-          }
-        >
-          <ApprovalForm item={item} onSaved={handleSaved} readOnly={item.phase !== "approval"} />
-        </PhaseAccordion>
-      )}
-
-      {phaseIdx >= 2 && (
-        <PhaseAccordion
-          title="Refinamento"
-          icon={PHASE_ICONS.refinement}
-          defaultOpen={item.phase === "refinement"}
-          active={item.phase === "refinement"}
-          completed={phaseIdx > 2}
-          updatedBy={(item.refinement as any)?.updatedBy}
-          updatedAt={
-            (item.refinement as any)?.updatedAt
-              ? new Date((item.refinement as any).updatedAt).toLocaleDateString("pt-BR")
-              : undefined
-          }
-        >
-          <RefinementForm item={item} onSaved={handleSaved} readOnly={item.phase !== "refinement"} />
-        </PhaseAccordion>
-      )}
-
-      {(item.phase === "available" || item.phase === "planned" || item.phase === "finished") && (
-        <PhaseAccordion title={PHASE_LABELS[item.phase]} icon={PHASE_ICONS[item.phase]} defaultOpen active>
-          <p className="text-xs text-muted-foreground">Placeholder para feature futura.</p>
-        </PhaseAccordion>
-      )}
-    </div>
-  );
-});
