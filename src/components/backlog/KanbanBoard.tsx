@@ -3,63 +3,72 @@ import { useBacklogStore } from "@/store/backlogStore";
 import { PHASES, PHASE_LABELS, type BacklogItem } from "@/types/backlog";
 import { BacklogCard } from "./BacklogCard";
 import { BacklogDetailModal } from "./BacklogDetailModal";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { Inbox } from "lucide-react";
-
-const PHASE_DOT_COLORS: Record<string, string> = {
-  backlog: "bg-phase-backlog",
-  prioritization: "bg-phase-prioritization",
-  approval: "bg-phase-approval",
-  refinement: "bg-phase-refinement",
-  available: "bg-phase-available",
-  planned: "bg-phase-planned",
-  finished: "bg-phase-finished",
-};
 
 export function KanbanBoard() {
   const backlogs = useBacklogStore((s) => s.backlogs);
   const [selectedItem, setSelectedItem] = useState<BacklogItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
+  // 1. Estado para saber qual fase está selecionada no botão lá em cima
+  // (Inicia na fase de priorização já que removemos o backlog)
+  const [activePhase, setActivePhase] = useState("prioritization");
+
   const openDetail = (item: BacklogItem) => {
     setSelectedItem(item);
     setDetailOpen(true);
   };
 
+  // 2. Filtra os itens apenas da fase ativa para mostrar no grid
+  const filteredItems = backlogs.filter((b) => b.phase === activePhase);
+
   return (
-    <>
-      <div className="flex gap-4 overflow-x-auto pb-4 min-h-[calc(100vh-180px)]">
-        {PHASES.map((phase) => {
-          const items = backlogs.filter((b) => b.phase === phase);
-          return (
-            <div key={phase} className="flex-1 min-w-[300px] max-w-[500px] flex-shrink-0">
-              {/* Column header */}
-              <div className="flex items-center gap-2 mb-3 px-1">
-                <div className={`w-2.5 h-2.5 rounded-full ${PHASE_DOT_COLORS[phase]}`} />
-                <h3 className="text-sm font-semibold text-foreground">{PHASE_LABELS[phase]}</h3>
-                <span className="text-xs text-muted-foreground bg-secondary px-1.5 py-0.5 rounded-md">
-                  {items.length}
-                </span>
-              </div>
+    <div className="w-full space-y-8">
+      {/* 3. BOTÕES DE FASE (Substituindo as colunas chatas) */}
+      <div className="flex flex-wrap gap-3 w-full border-b border-border/40 pb-6">
+        {PHASES.filter((p) => p !== "backlog").map((phase) => (
+          <button
+            key={phase}
+            onClick={() => setActivePhase(phase)}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-medium text-sm ${
+              activePhase === phase
+                ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105"
+                : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
+            }`}
+          >
+            <span>{PHASE_LABELS[phase]}</span>
+            <span
+              className={`px-2 py-0.5 rounded-lg text-xs ${activePhase === phase ? "bg-white/20" : "bg-secondary"}`}
+            >
+              {backlogs.filter((b) => b.phase === phase).length}
+            </span>
+          </button>
+        ))}
+      </div>
 
-              {/* Cards */}
-              <div className="space-y-3 min-h-[200px] w-full">
-                <AnimatePresence>
-                  {items.map((item) => (
-                    <BacklogCard key={item.id} item={item} onClick={() => openDetail(item)} />
-                  ))}
-                </AnimatePresence>
+      {/* 4. O GRID QUE OCUPA A TELA TODA */}
+      <div className="w-full">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activePhase}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 w-full"
+          >
+            {filteredItems.map((item) => (
+              <BacklogCard key={item.id} item={item} onClick={() => openDetail(item)} />
+            ))}
+          </motion.div>
+        </AnimatePresence>
 
-                {items.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                    <Inbox className="w-8 h-8 mb-2 opacity-40" />
-                    <span className="text-xs">Nenhum item</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+        {filteredItems.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-32 text-muted-foreground bg-secondary/20 rounded-3xl border-2 border-dashed border-border/50">
+            <Inbox className="w-12 h-12 mb-4 opacity-20" />
+            <p className="text-sm">Nenhum backlog em {PHASE_LABELS[activePhase]}</p>
+          </div>
+        )}
       </div>
 
       <BacklogDetailModal
@@ -68,14 +77,11 @@ export function KanbanBoard() {
         onOpenChange={(v) => {
           setDetailOpen(v);
           if (!v) {
-            // Refresh selected item from store
-            if (selectedItem) {
-              const updated = useBacklogStore.getState().backlogs.find((b) => b.id === selectedItem.id);
-              setSelectedItem(updated ?? null);
-            }
+            const updated = useBacklogStore.getState().backlogs.find((b) => b.id === selectedItem?.id);
+            setSelectedItem(updated ?? null);
           }
         }}
       />
-    </>
+    </div>
   );
 }
