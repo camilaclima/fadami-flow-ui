@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useBacklogStore } from "@/store/backlogStore";
-import { PHASES, PHASE_LABELS, type BacklogItem } from "@/types/backlog";
+import { PHASES, PHASE_LABELS, type BacklogItem, type Phase } from "@/types/backlog";
 import { BacklogCard } from "./BacklogCard";
 import { BacklogDetailModal } from "./BacklogDetailModal";
 import { AnimatePresence, motion } from "framer-motion";
