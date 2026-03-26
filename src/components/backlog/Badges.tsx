@@ -25,17 +25,17 @@ const phaseConfig: Record<Phase, string> = {
 
 export function ThermoBadge({ value }: { value: Thermometer }) {
   const c = thermoConfig[value];
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${c.className}`}>{c.label}</span>;
+  return <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-semibold ${c.className}`}>{c.label}</span>;
 }
 
 export function PriorityBadge({ value }: { value: Priority }) {
   const c = priorityConfig[value];
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${c.className}`}>{c.label}</span>;
+  return <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-semibold ${c.className}`}>{c.label}</span>;
 }
 
 export function PhaseBadge({ value }: { value: Phase }) {
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${phaseConfig[value]}`}>
+    <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-semibold ${phaseConfig[value]}`}>
       {PHASE_LABELS[value]}
     </span>
   );
