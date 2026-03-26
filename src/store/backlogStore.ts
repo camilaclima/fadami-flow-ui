@@ -47,8 +47,8 @@ const MOCK_BACKLOGS: BacklogItem[] = [
       { phase: "approval", enteredAt: "2024-03-14T09:00:00Z", completedAt: "2024-03-15T11:00:00Z" },
       { phase: "refinement", enteredAt: "2024-03-15T11:00:00Z" },
     ],
-    prioritization: { businessValue: 5, opportunityCost: 4, estimate: 16, priority: "high" },
-    approval: { observation: "Aprovado. Essencial para o lançamento." },
+    prioritization: { businessValue: 5, opportunityCost: 4, estimate: 16, priority: "high", updatedBy: "Ana Silva", updatedAt: "2024-03-14T09:00:00Z" },
+    approval: { observation: "Aprovado. Essencial para o lançamento.", updatedBy: "João Diretor", updatedAt: "2024-03-15T11:00:00Z" },
   },
   {
     id: "b2",
@@ -88,7 +88,7 @@ const MOCK_BACKLOGS: BacklogItem[] = [
       { phase: "prioritization", enteredAt: "2024-03-08T14:00:00Z", completedAt: "2024-03-11T16:00:00Z" },
       { phase: "approval", enteredAt: "2024-03-11T16:00:00Z" },
     ],
-    prioritization: { businessValue: 4, opportunityCost: 3, estimate: 24, priority: "medium" },
+    prioritization: { businessValue: 4, opportunityCost: 3, estimate: 24, priority: "medium", updatedBy: "Pedro Alves", updatedAt: "2024-03-11T16:00:00Z" },
   },
   {
     id: "b5",
@@ -120,14 +120,16 @@ const MOCK_BACKLOGS: BacklogItem[] = [
       { phase: "planned", enteredAt: "2024-02-12T10:00:00Z", completedAt: "2024-02-20T10:00:00Z" },
       { phase: "finished", enteredAt: "2024-02-20T10:00:00Z" },
     ],
-    prioritization: { businessValue: 3, opportunityCost: 2, estimate: 40, priority: "low" },
-    approval: { observation: "Aprovado com ressalvas sobre performance." },
+    prioritization: { businessValue: 3, opportunityCost: 2, estimate: 40, priority: "low", updatedBy: "Carlos Mendes", updatedAt: "2024-02-05T10:00:00Z" },
+    approval: { observation: "Aprovado com ressalvas sobre performance.", updatedBy: "Diretor TI", updatedAt: "2024-02-06T10:00:00Z" },
     refinement: {
       functionalRefinement: "Sincronizar ao reconectar",
       technicalRefinement: "IndexedDB + service worker",
       acceptanceCriteria: "Funcionar offline por até 72h",
       definitionOfDone: "Testes E2E passando, docs atualizados",
       estimate: 40,
+      updatedBy: "Marina Costa",
+      updatedAt: "2024-02-10T10:00:00Z",
     },
   },
 ];
@@ -194,7 +196,7 @@ export const useBacklogStore = create<BacklogStore>((set) => ({
         return {
           ...b,
           phase: "approval" as Phase,
-          prioritization: { ...data, priority },
+          prioritization: { ...data, priority, updatedBy: b.createdBy, updatedAt: nowStr },
           phaseHistory: history,
         };
       }),
@@ -209,7 +211,7 @@ export const useBacklogStore = create<BacklogStore>((set) => ({
           h.phase === "approval" && !h.completedAt ? { ...h, completedAt: nowStr } : h
         );
         history.push({ phase: "refinement" as Phase, enteredAt: nowStr });
-        return { ...b, phase: "refinement" as Phase, approval: data, phaseHistory: history };
+        return { ...b, phase: "refinement" as Phase, approval: { ...data, updatedBy: b.createdBy, updatedAt: nowStr }, phaseHistory: history };
       }),
     })),
 
@@ -222,7 +224,7 @@ export const useBacklogStore = create<BacklogStore>((set) => ({
           h.phase === "refinement" && !h.completedAt ? { ...h, completedAt: nowStr } : h
         );
         history.push({ phase: "available" as Phase, enteredAt: nowStr });
-        return { ...b, phase: "available" as Phase, refinement: data, phaseHistory: history };
+        return { ...b, phase: "available" as Phase, refinement: { ...data, updatedBy: b.createdBy, updatedAt: nowStr }, phaseHistory: history };
       }),
     })),
 }));

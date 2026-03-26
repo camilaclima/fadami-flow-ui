@@ -38,10 +38,14 @@ export interface PrioritizationData {
   opportunityCost: number; // 1-5
   estimate: number; // hours
   priority: Priority;
+  updatedBy?: string;
+  updatedAt?: string;
 }
 
 export interface ApprovalData {
   observation: string;
+  updatedBy?: string;
+  updatedAt?: string;
 }
 
 export interface RefinementData {
@@ -50,6 +54,8 @@ export interface RefinementData {
   acceptanceCriteria: string;
   definitionOfDone: string;
   estimate: number; // hours
+  updatedBy?: string;
+  updatedAt?: string;
 }
 
 export interface BacklogItem {
