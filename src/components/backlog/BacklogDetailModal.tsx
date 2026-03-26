@@ -243,7 +243,7 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
                       <div className="pt-2">
                         <MetaItem
                           icon={<AlertCircle className="w-4 h-4" />}
-                          label="Business Priority"
+                          label="Prioridade"
                           highlight={!!prioData?.priority}
                         >
                           {prioData?.priority ? (
