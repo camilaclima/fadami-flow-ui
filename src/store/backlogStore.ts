@@ -47,8 +47,8 @@ const MOCK_BACKLOGS: BacklogItem[] = [
       { phase: "approval", enteredAt: "2024-03-14T09:00:00Z", completedAt: "2024-03-15T11:00:00Z" },
       { phase: "refinement", enteredAt: "2024-03-15T11:00:00Z" },
     ],
-    prioritization: { businessValue: 5, opportunityCost: 4, estimate: 16, priority: "high" },
-    approval: { observation: "Aprovado. Essencial para o lançamento." },
+    prioritization: { businessValue: 5, opportunityCost: 4, estimate: 16, priority: "high", updatedBy: "Ana Silva", updatedAt: "2024-03-14T09:00:00Z" },
+    approval: { observation: "Aprovado. Essencial para o lançamento.", updatedBy: "João Diretor", updatedAt: "2024-03-15T11:00:00Z" },
   },
   {
     id: "b2",
