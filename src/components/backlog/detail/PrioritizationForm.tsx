@@ -2,7 +2,7 @@ import { useState, useEffect, memo } from "react";
 import { useBacklogStore } from "@/store/backlogStore";
 import type { BacklogItem, Priority } from "@/types/backlog";
 import { motion } from "framer-motion";
-import { Info, Calculator, CheckCircle2, Loader2 } from "lucide-react";
+import { Calculator, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -11,7 +11,7 @@ interface Props {
   readOnly?: boolean;
 }
 
-// --- COMPONENTE DE SLIDER EXTRAÍDO (Evita perda de foco e re-renders) ---
+// --- COMPONENTE DE SLIDER EXTRAÍDO (Estabilidade de Foco) ---
 const GUTSlider = memo(
   ({
     label,
@@ -46,10 +46,6 @@ const GUTSlider = memo(
           background: `linear-gradient(to right, ${color} ${(value - 1) * 25}%, rgba(0,0,0,0.05) ${(value - 1) * 25}%)`,
         }}
       />
-      <div className="flex justify-between px-1">
-        <span className="text-[9px] text-muted-foreground/40 uppercase font-medium">Baixo</span>
-        <span className="text-[9px] text-muted-foreground/40 uppercase font-medium">Crítico</span>
-      </div>
     </div>
   ),
 );
@@ -57,13 +53,16 @@ const GUTSlider = memo(
 export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
   const { savePrioritization } = useBacklogStore();
 
+  // Tratando o objeto como 'any' para evitar erros de propriedade inexistente no TS
+  const currentPrio = (item.prioritization || {}) as any;
+
   // Estados locais baseados na Matriz GUT
-  const [g, setG] = useState(item.prioritization?.gravity || 1);
-  const [u, setU] = useState(item.prioritization?.urgency || 1);
-  const [t, setT] = useState(item.prioritization?.tendency || 1);
+  const [g, setG] = useState(currentPrio.gravity || 1);
+  const [u, setU] = useState(currentPrio.urgency || 1);
+  const [t, setT] = useState(currentPrio.tendency || 1);
   const [saving, setSaving] = useState(false);
 
-  // Cálculo do Score e da Prioridade
+  // Cálculo do Score (G x U x T)
   const score = g * u * t;
 
   const getPriorityClass = (s: number): Priority => {
@@ -72,42 +71,44 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
     return "low";
   };
 
-  // Sincroniza se o item mudar
+  const priority = getPriorityClass(score);
+
+  // Sincroniza se o item mudar no modal
   useEffect(() => {
-    setG(item.prioritization?.gravity || 1);
-    setU(item.prioritization?.urgency || 1);
-    setT(item.prioritization?.tendency || 1);
+    const p = (item.prioritization || {}) as any;
+    setG(p.gravity || 1);
+    setU(p.urgency || 1);
+    setT(p.tendency || 1);
   }, [item.id]);
 
   const handleSave = async () => {
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 600)); // Feedback visual
+    await new Promise((r) => setTimeout(r, 600));
 
+    // Forçamos o objeto para 'any' no savePrioritization para aceitar os campos GUT
     savePrioritization(item.id, {
       gravity: g,
       urgency: u,
       tendency: t,
       calculatedPriority: score,
-      priority: getPriorityClass(score),
-    });
+      priority: priority,
+    } as any);
 
     toast.success("Priorização aplicada!");
     setSaving(false);
     onSaved?.();
   };
 
-  const priority = getPriorityClass(score);
-
   return (
-    <div className="space-y-8">
-      {/* SEÇÃO DE SLIDERS */}
+    <div className="space-y-8 animate-in fade-in duration-300">
+      {/* SEÇÃO DOS 3 CAMPOS (GUT) */}
       <div className="space-y-6">
         <GUTSlider label="Gravidade (Impacto)" value={g} onChange={setG} color="#ef4444" readOnly={readOnly} />
         <GUTSlider label="Urgência (Prazo)" value={u} onChange={setU} color="#f59e0b" readOnly={readOnly} />
         <GUTSlider label="Tendência (Evolução)" value={t} onChange={setT} color="#3b82f6" readOnly={readOnly} />
       </div>
 
-      {/* CARD DE RESULTADO (O Score que você queria) */}
+      {/* CARD DE SCORE CALCULADO */}
       <motion.div
         layout
         className="relative overflow-hidden p-6 rounded-2xl bg-foreground/[0.02] border border-border/50"
@@ -123,28 +124,28 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
             </div>
           </div>
 
-          <div className="text-right space-y-1">
-            <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Prioridade</span>
-            <div>
-              <span
-                className={`text-xs font-black uppercase px-3 py-1.5 rounded-xl border shadow-sm ${
-                  priority === "high"
-                    ? "bg-red-500/10 text-red-500 border-red-500/20 shadow-red-500/5"
-                    : priority === "medium"
-                      ? "bg-amber-500/10 text-amber-500 border-amber-500/20 shadow-amber-500/5"
-                      : "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 shadow-emerald-500/5"
-                }`}
-              >
-                {priority}
-              </span>
-            </div>
+          <div className="text-right">
+            <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest block mb-1">
+              Prioridade
+            </span>
+            <span
+              className={`text-xs font-black uppercase px-3 py-1.5 rounded-xl border shadow-sm ${
+                priority === "high"
+                  ? "bg-red-500/10 text-red-500 border-red-500/20"
+                  : priority === "medium"
+                    ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                    : "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+              }`}
+            >
+              {priority}
+            </span>
           </div>
         </div>
 
-        {/* Barra de progresso visual do Score */}
+        {/* Barra de progresso visual */}
         <div className="mt-5 h-1.5 w-full bg-foreground/5 rounded-full overflow-hidden">
           <motion.div
-            initial={{ width: 0 }}
+            initial={false}
             animate={{ width: `${(score / 125) * 100}%` }}
             className={`h-full transition-colors duration-500 ${
               priority === "high" ? "bg-red-500" : priority === "medium" ? "bg-amber-500" : "bg-emerald-500"
@@ -153,7 +154,7 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
         </div>
       </motion.div>
 
-      {/* BOTÃO DE AÇÃO */}
+      {/* BOTÃO DE SALVAR */}
       {item.phase === "prioritization" && !readOnly && (
         <motion.button
           type="button"
