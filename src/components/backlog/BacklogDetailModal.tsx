@@ -1,12 +1,31 @@
-import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useBacklogStore } from "@/store/backlogStore";
 import type { BacklogItem, Phase } from "@/types/backlog";
 import { PHASES, PHASE_LABELS } from "@/types/backlog";
 import { ThermoBadge, PriorityBadge, PhaseBadge } from "./Badges";
-import { Check, Circle, Clock, ChevronDown, ChevronRight, User, Calendar } from "lucide-react";
+import { ProgressBar } from "./detail/ProgressBar";
+import { HistoryTimeline } from "./detail/HistoryTimeline";
+import { PrioritizationForm } from "./detail/PrioritizationForm";
+import { ApprovalForm } from "./detail/ApprovalForm";
+import { RefinementForm } from "./detail/RefinementForm";
+import {
+  User,
+  Calendar,
+  Package,
+  Building2,
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  Clock,
+  Settings2,
+  CheckSquare,
+  Wrench,
+  LayoutList,
+  CalendarCheck,
+  Flag,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { toast } from "sonner";
 
 interface Props {
   item: BacklogItem | null;
@@ -14,60 +33,53 @@ interface Props {
   onOpenChange: (v: boolean) => void;
 }
 
-function PhaseTimeline({ item }: { item: BacklogItem }) {
-  const currentIdx = PHASES.indexOf(item.phase);
-  return (
-    <div className="flex items-center gap-1 py-4 overflow-x-auto">
-      {PHASES.map((phase, i) => {
-        const completed = i < currentIdx;
-        const active = phase === item.phase;
-        const future = i > currentIdx;
-        return (
-          <div key={phase} className="flex items-center">
-            <div className="flex flex-col items-center gap-1">
-              <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium transition-colors ${
-                  completed
-                    ? "bg-phase-finished text-card"
-                    : active
-                    ? "bg-primary text-primary-foreground ring-2 ring-primary/30"
-                    : "bg-secondary text-muted-foreground"
-                }`}
-              >
-                {completed ? <Check className="w-3.5 h-3.5" /> : active ? <Circle className="w-3 h-3 fill-current" /> : i + 1}
-              </div>
-              <span className={`text-[10px] whitespace-nowrap ${active ? "text-primary font-semibold" : "text-muted-foreground"}`}>
-                {PHASE_LABELS[phase]}
-              </span>
-            </div>
-            {i < PHASES.length - 1 && (
-              <div className={`w-6 h-0.5 mx-0.5 mt-[-14px] ${i < currentIdx ? "bg-phase-finished" : "bg-border"}`} />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+const PHASE_ICONS: Record<Phase, React.ReactNode> = {
+  backlog: <LayoutList className="w-3.5 h-3.5" />,
+  prioritization: <Settings2 className="w-3.5 h-3.5" />,
+  approval: <CheckSquare className="w-3.5 h-3.5" />,
+  refinement: <Wrench className="w-3.5 h-3.5" />,
+  available: <Clock className="w-3.5 h-3.5" />,
+  planned: <CalendarCheck className="w-3.5 h-3.5" />,
+  finished: <Flag className="w-3.5 h-3.5" />,
+};
+
+type TabId = "details" | "history";
 
 function AccordionSection({
   title,
+  icon,
   defaultOpen,
+  active,
   children,
 }: {
   title: string;
+  icon: React.ReactNode;
   defaultOpen?: boolean;
+  active?: boolean;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen ?? false);
+
+  useEffect(() => {
+    if (defaultOpen !== undefined) setOpen(defaultOpen);
+  }, [defaultOpen]);
+
   return (
-    <div className="border border-border rounded-xl overflow-hidden">
+    <div className={`rounded-xl overflow-hidden transition-all ${active ? "ring-1 ring-primary/30" : ""}`}>
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-secondary/50 hover:bg-surface-hover transition-colors"
+        className={`w-full flex items-center gap-2 px-4 py-2.5 transition-colors ${
+          active ? "bg-primary/10 text-primary" : "bg-secondary/30 text-foreground hover:bg-surface-hover"
+        }`}
       >
-        <span className="text-sm font-medium text-foreground">{title}</span>
-        {open ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+        {icon}
+        <span className="text-xs font-semibold flex-1 text-left">{title}</span>
+        {active && (
+          <span className="text-[9px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-2 py-0.5 rounded-md">
+            Atual
+          </span>
+        )}
+        {open ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
       </button>
       <AnimatePresence>
         {open && (
@@ -75,10 +87,10 @@ function AccordionSection({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
             className="overflow-hidden"
           >
-            <div className="p-4 space-y-3">{children}</div>
+            <div className="p-4">{children}</div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -86,205 +98,218 @@ function AccordionSection({
   );
 }
 
-function FieldDisplay({ label, value }: { label: string; value: React.ReactNode }) {
+function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
-    <div>
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <div className="text-sm text-foreground mt-0.5">{value}</div>
-    </div>
-  );
-}
-
-function PrioritizationForm({ item }: { item: BacklogItem }) {
-  const { savePrioritization } = useBacklogStore();
-  const [bv, setBv] = useState(item.prioritization?.businessValue ?? 3);
-  const [oc, setOc] = useState(item.prioritization?.opportunityCost ?? 3);
-  const [est, setEst] = useState(item.prioritization?.estimate ?? 8);
-
-  const handleSave = () => {
-    savePrioritization(item.id, { businessValue: bv, opportunityCost: oc, estimate: est });
-    toast.success("Priorizado e movido para Aprovação!");
-  };
-
-  return (
-    <div className="space-y-3">
-      <div>
-        <label className="text-xs text-muted-foreground">Valor de negócio (1-5)</label>
-        <input
-          type="range" min={1} max={5} value={bv} onChange={(e) => setBv(+e.target.value)}
-          className="w-full accent-primary"
-        />
-        <span className="text-sm font-medium text-foreground">{bv}</span>
+    <div className="flex items-center gap-2.5 py-2">
+      <div className="text-muted-foreground">{icon}</div>
+      <div className="flex-1 min-w-0">
+        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</span>
+        <div className="text-sm text-foreground mt-0.5 truncate">{value}</div>
       </div>
-      <div>
-        <label className="text-xs text-muted-foreground">Custo de oportunidade (1-5)</label>
-        <input
-          type="range" min={1} max={5} value={oc} onChange={(e) => setOc(+e.target.value)}
-          className="w-full accent-primary"
-        />
-        <span className="text-sm font-medium text-foreground">{oc}</span>
-      </div>
-      <div>
-        <label className="text-xs text-muted-foreground">Estimativa (horas)</label>
-        <input
-          type="number" min={1} value={est} onChange={(e) => setEst(+e.target.value)}
-          className="w-24 px-3 py-2 rounded-xl bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-        />
-      </div>
-      {item.phase === "prioritization" && (
-        <button onClick={handleSave} className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">
-          Salvar e Priorizar
-        </button>
-      )}
-    </div>
-  );
-}
-
-function ApprovalForm({ item }: { item: BacklogItem }) {
-  const { saveApproval } = useBacklogStore();
-  const [obs, setObs] = useState(item.approval?.observation ?? "");
-
-  return (
-    <div className="space-y-3">
-      <div>
-        <label className="text-xs text-muted-foreground">Observação</label>
-        <textarea
-          value={obs} onChange={(e) => setObs(e.target.value)} rows={3}
-          className="w-full px-3 py-2 rounded-xl bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
-        />
-      </div>
-      {item.phase === "approval" && (
-        <button
-          onClick={() => { saveApproval(item.id, { observation: obs }); toast.success("Aprovado e movido para Refinamento!"); }}
-          className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
-        >
-          Salvar e Aprovar
-        </button>
-      )}
-    </div>
-  );
-}
-
-function RefinementForm({ item }: { item: BacklogItem }) {
-  const { saveRefinement } = useBacklogStore();
-  const [fr, setFr] = useState(item.refinement?.functionalRefinement ?? "");
-  const [tr, setTr] = useState(item.refinement?.technicalRefinement ?? "");
-  const [ac, setAc] = useState(item.refinement?.acceptanceCriteria ?? "");
-  const [dod, setDod] = useState(item.refinement?.definitionOfDone ?? "");
-  const [est, setEst] = useState(item.refinement?.estimate ?? 8);
-
-  const textarea = (label: string, value: string, onChange: (v: string) => void) => (
-    <div>
-      <label className="text-xs text-muted-foreground">{label}</label>
-      <textarea
-        value={value} onChange={(e) => onChange(e.target.value)} rows={2}
-        className="w-full px-3 py-2 rounded-xl bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
-      />
-    </div>
-  );
-
-  return (
-    <div className="space-y-3">
-      {textarea("Refinamento funcional", fr, setFr)}
-      {textarea("Refinamento técnico", tr, setTr)}
-      {textarea("Critérios de aceite", ac, setAc)}
-      {textarea("Definição de pronto (DoD)", dod, setDod)}
-      <div>
-        <label className="text-xs text-muted-foreground">Estimativa (horas)</label>
-        <input
-          type="number" min={1} value={est} onChange={(e) => setEst(+e.target.value)}
-          className="w-24 px-3 py-2 rounded-xl bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-        />
-      </div>
-      {item.phase === "refinement" && (
-        <button
-          onClick={() => {
-            if (!fr || !tr || !ac || !dod) { toast.error("Preencha todos os campos."); return; }
-            saveRefinement(item.id, { functionalRefinement: fr, technicalRefinement: tr, acceptanceCriteria: ac, definitionOfDone: dod, estimate: est });
-            toast.success("Refinado e movido para Disponível!");
-          }}
-          className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
-        >
-          Salvar e Refinar
-        </button>
-      )}
     </div>
   );
 }
 
 export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
-  const { products, clients } = useBacklogStore();
-  if (!item) return null;
+  const { products, clients, backlogs } = useBacklogStore();
+  const [activeTab, setActiveTab] = useState<TabId>("details");
 
-  const product = products.find((p) => p.id === item.productId);
-  const client = clients.find((c) => c.id === item.clientId);
-  const phaseIdx = PHASES.indexOf(item.phase);
+  // Get the live version of the item from the store
+  const liveItem = item ? backlogs.find((b) => b.id === item.id) ?? item : null;
+
+  // Reset tab when opening
+  useEffect(() => {
+    if (open) setActiveTab("details");
+  }, [open]);
+
+  if (!liveItem) return null;
+
+  const product = products.find((p) => p.id === liveItem.productId);
+  const client = liveItem.clientId ? clients.find((c) => c.id === liveItem.clientId) : null;
+  const phaseIdx = PHASES.indexOf(liveItem.phase);
+
+  const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
+    { id: "details", label: "Detalhes", icon: <FileText className="w-3.5 h-3.5" /> },
+    { id: "history", label: "Histórico", icon: <Clock className="w-3.5 h-3.5" /> },
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl bg-card border-border max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-lg font-semibold">{item.title}</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 pt-1">
-          {/* Meta info */}
-          <div className="flex flex-wrap gap-2 items-center">
-            <PhaseBadge value={item.phase} />
-            <ThermoBadge value={item.thermometer} />
-            {item.prioritization && <PriorityBadge value={item.prioritization.priority} />}
+      <DialogContent className="sm:max-w-4xl p-0 bg-card border-border max-h-[88vh] overflow-hidden gap-0">
+        {/* Header */}
+        <div className="px-6 pt-5 pb-4 border-b border-border space-y-3">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg font-bold text-foreground leading-tight truncate">{liveItem.title}</h2>
+              <div className="flex items-center gap-2 mt-2">
+                <PhaseBadge value={liveItem.phase} />
+                <ThermoBadge value={liveItem.thermometer} />
+                {liveItem.prioritization && <PriorityBadge value={liveItem.prioritization.priority} />}
+              </div>
+            </div>
           </div>
+          <ProgressBar currentPhase={liveItem.phase} />
+        </div>
 
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <FieldDisplay label="Criado por" value={<span className="flex items-center gap-1"><User className="w-3 h-3" />{item.createdBy}</span>} />
-            <FieldDisplay label="Data" value={<span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{new Date(item.createdAt).toLocaleDateString("pt-BR")}</span>} />
-            <FieldDisplay label="Produto" value={product?.name ?? "—"} />
-            <FieldDisplay label="Cliente" value={client?.name ?? "—"} />
-          </div>
+        {/* Tabs */}
+        <div className="flex gap-0 border-b border-border px-6">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium transition-colors relative ${
+                activeTab === tab.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+              {activeTab === tab.id && (
+                <motion.div
+                  layoutId="detail-tab-indicator"
+                  className="absolute bottom-0 left-0 right-0 h-[2px] bg-primary rounded-full"
+                />
+              )}
+            </button>
+          ))}
+        </div>
 
-          <FieldDisplay label="Descrição" value={item.description} />
+        {/* Content */}
+        <div className="overflow-y-auto flex-1" style={{ maxHeight: "calc(88vh - 180px)" }}>
+          <AnimatePresence mode="wait">
+            {activeTab === "details" ? (
+              <motion.div
+                key="details"
+                initial={{ opacity: 0, x: -12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 12 }}
+                transition={{ duration: 0.2 }}
+                className="grid grid-cols-1 md:grid-cols-5 divide-y md:divide-y-0 md:divide-x divide-border"
+              >
+                {/* LEFT — Reference Panel */}
+                <div className="md:col-span-2 p-5 space-y-4">
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Descrição</span>
+                    <p className="text-sm text-foreground leading-relaxed">{liveItem.description}</p>
+                  </div>
 
-          {/* Timeline */}
-          <PhaseTimeline item={item} />
+                  <div className="border-t border-border pt-3 space-y-0">
+                    <InfoRow icon={<User className="w-3.5 h-3.5" />} label="Criado por" value={liveItem.createdBy} />
+                    <InfoRow
+                      icon={<Calendar className="w-3.5 h-3.5" />}
+                      label="Data de criação"
+                      value={new Date(liveItem.createdAt).toLocaleDateString("pt-BR")}
+                    />
+                    <InfoRow icon={<Package className="w-3.5 h-3.5" />} label="Produto" value={
+                      <span className="flex items-center gap-1.5">
+                        {product && <span className="w-2 h-2 rounded-full" style={{ background: product.color }} />}
+                        {product?.name ?? "—"}
+                      </span>
+                    } />
+                    <InfoRow icon={<Building2 className="w-3.5 h-3.5" />} label="Cliente" value={client?.name ?? "—"} />
+                  </div>
 
-          {/* Phase sections */}
-          {phaseIdx >= 1 && (
-            <AccordionSection title="⚙️ Priorização" defaultOpen={item.phase === "prioritization"}>
-              <PrioritizationForm item={item} />
-            </AccordionSection>
-          )}
+                  {/* Quick summary of completed data */}
+                  {liveItem.prioritization && phaseIdx > 1 && (
+                    <div className="border-t border-border pt-3">
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Resumo da Priorização</span>
+                      <div className="flex gap-3 mt-2 text-xs text-foreground">
+                        <span>Valor: <strong>{liveItem.prioritization.businessValue}</strong></span>
+                        <span>Custo: <strong>{liveItem.prioritization.opportunityCost}</strong></span>
+                        <span>Est: <strong>{liveItem.prioritization.estimate}h</strong></span>
+                      </div>
+                    </div>
+                  )}
 
-          {phaseIdx >= 2 && (
-            <AccordionSection title="✅ Aprovação" defaultOpen={item.phase === "approval"}>
-              <ApprovalForm item={item} />
-            </AccordionSection>
-          )}
+                  {liveItem.approval && phaseIdx > 2 && (
+                    <div className="border-t border-border pt-3">
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Observação da Aprovação</span>
+                      <p className="text-xs text-foreground mt-1">{liveItem.approval.observation || "—"}</p>
+                    </div>
+                  )}
+                </div>
 
-          {phaseIdx >= 3 && (
-            <AccordionSection title="🔧 Refinamento" defaultOpen={item.phase === "refinement"}>
-              <RefinementForm item={item} />
-            </AccordionSection>
-          )}
-
-          {item.phase === "available" && (
-            <AccordionSection title="⏳ Disponível" defaultOpen>
-              <p className="text-sm text-muted-foreground">Placeholder para feature futura.</p>
-            </AccordionSection>
-          )}
-
-          {item.phase === "planned" && (
-            <AccordionSection title="📅 Planejado" defaultOpen>
-              <p className="text-sm text-muted-foreground">Placeholder para feature futura.</p>
-            </AccordionSection>
-          )}
-
-          {item.phase === "finished" && (
-            <AccordionSection title="🏁 Finalizado" defaultOpen>
-              <p className="text-sm text-muted-foreground">Placeholder para feature futura.</p>
-            </AccordionSection>
-          )}
+                {/* RIGHT — Action Panel */}
+                <div className="md:col-span-3 p-5 space-y-3">
+                  <PhaseActionPanel item={liveItem} phaseIdx={phaseIdx} />
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="history"
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={{ duration: 0.2 }}
+                className="p-5"
+              >
+                <HistoryTimeline history={liveItem.phaseHistory} createdBy={liveItem.createdBy} />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function PhaseActionPanel({ item, phaseIdx }: { item: BacklogItem; phaseIdx: number }) {
+  // Continuous flow: after saving, the store updates the item phase, and we re-render the next phase form
+  const handleSaved = () => {
+    // No-op — the store updates the item and we re-render automatically via liveItem
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* Current phase gets active styling, past phases are collapsed accordions */}
+      {phaseIdx >= 1 && (
+        <AccordionSection
+          title="Priorização"
+          icon={PHASE_ICONS.prioritization}
+          defaultOpen={item.phase === "prioritization"}
+          active={item.phase === "prioritization"}
+        >
+          <PrioritizationForm item={item} onSaved={handleSaved} readOnly={item.phase !== "prioritization"} />
+        </AccordionSection>
+      )}
+
+      {phaseIdx >= 2 && (
+        <AccordionSection
+          title="Aprovação"
+          icon={PHASE_ICONS.approval}
+          defaultOpen={item.phase === "approval"}
+          active={item.phase === "approval"}
+        >
+          <ApprovalForm item={item} onSaved={handleSaved} readOnly={item.phase !== "approval"} />
+        </AccordionSection>
+      )}
+
+      {phaseIdx >= 3 && (
+        <AccordionSection
+          title="Refinamento"
+          icon={PHASE_ICONS.refinement}
+          defaultOpen={item.phase === "refinement"}
+          active={item.phase === "refinement"}
+        >
+          <RefinementForm item={item} onSaved={handleSaved} readOnly={item.phase !== "refinement"} />
+        </AccordionSection>
+      )}
+
+      {(item.phase === "available" || item.phase === "planned" || item.phase === "finished") && (
+        <AccordionSection
+          title={PHASE_LABELS[item.phase]}
+          icon={PHASE_ICONS[item.phase]}
+          defaultOpen
+          active
+        >
+          <p className="text-xs text-muted-foreground">Placeholder para feature futura.</p>
+        </AccordionSection>
+      )}
+
+      {phaseIdx === 0 && (
+        <div className="flex items-center justify-center py-8">
+          <p className="text-sm text-muted-foreground">Este backlog está na fila inicial. Mova para Priorização para começar.</p>
+        </div>
+      )}
+    </div>
   );
 }
