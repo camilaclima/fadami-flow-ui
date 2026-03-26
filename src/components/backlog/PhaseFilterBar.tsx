@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 
 const PHASE_ICONS: Record<Phase, React.ElementType> = {
-  backlog: Layers,
   prioritization: Scale,
   approval: Eye,
   refinement: Wrench,
