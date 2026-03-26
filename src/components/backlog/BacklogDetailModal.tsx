@@ -1,4 +1,4 @@
-import { useState, useEffect, memo, useMemo } from "react";
+import { useState, useEffect, memo } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useBacklogStore } from "@/store/backlogStore";
 import type { BacklogItem, Phase, Priority } from "@/types/backlog";
@@ -186,6 +186,7 @@ const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx
 
   return (
     <div className="space-y-0">
+      {/* 1. ETAPA DE PRIORIZAÇÃO (Já deve estar assim) */}
       {phaseIdx >= 0 && (
         <PhaseAccordion
           title="Priorização"
@@ -193,10 +194,11 @@ const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx
           defaultOpen={item.phase === "prioritization"}
           active={item.phase === "prioritization"}
           completed={phaseIdx > 0}
-          updatedBy={(item.prioritization as any)?.updatedBy || item.createdBy}
+          // Pega do objeto prioritization
+          updatedBy={item.prioritization?.updatedBy || item.createdBy}
           updatedAt={
-            item.prioritization
-              ? new Date((item.prioritization as any).updatedAt || item.createdAt).toLocaleDateString("pt-BR")
+            item.prioritization?.updatedAt
+              ? new Date(item.prioritization.updatedAt).toLocaleDateString("pt-BR")
               : undefined
           }
         >
@@ -204,6 +206,7 @@ const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx
         </PhaseAccordion>
       )}
 
+      {/* 2. ETAPA DE APROVAÇÃO (Adicione updatedBy e updatedAt aqui) */}
       {phaseIdx >= 1 && (
         <PhaseAccordion
           title="Aprovação"
@@ -211,17 +214,17 @@ const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx
           defaultOpen={item.phase === "approval"}
           active={item.phase === "approval"}
           completed={phaseIdx > 1}
-          updatedBy={(item.approval as any)?.updatedBy}
+          // AJUSTE AQUI:
+          updatedBy={item.approval?.updatedBy}
           updatedAt={
-            (item.approval as any)?.updatedAt
-              ? new Date((item.approval as any).updatedAt).toLocaleDateString("pt-BR")
-              : undefined
+            item.approval?.updatedAt ? new Date(item.approval.updatedAt).toLocaleDateString("pt-BR") : undefined
           }
         >
           <ApprovalForm item={item} onSaved={handleSaved} readOnly={item.phase !== "approval"} />
         </PhaseAccordion>
       )}
 
+      {/* 3. ETAPA DE REFINAMENTO (Adicione updatedBy e updatedAt aqui) */}
       {phaseIdx >= 2 && (
         <PhaseAccordion
           title="Refinamento"
@@ -229,32 +232,26 @@ const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx
           defaultOpen={item.phase === "refinement"}
           active={item.phase === "refinement"}
           completed={phaseIdx > 2}
-          updatedBy={(item.refinement as any)?.updatedBy}
+          // AJUSTE AQUI:
+          updatedBy={item.refinement?.updatedBy}
           updatedAt={
-            (item.refinement as any)?.updatedAt
-              ? new Date((item.refinement as any).updatedAt).toLocaleDateString("pt-BR")
-              : undefined
+            item.refinement?.updatedAt ? new Date(item.refinement.updatedAt).toLocaleDateString("pt-BR") : undefined
           }
         >
           <RefinementForm item={item} onSaved={handleSaved} readOnly={item.phase !== "refinement"} />
         </PhaseAccordion>
       )}
 
-      {(item.phase === "available" || item.phase === "planned" || item.phase === "finished") && (
-        <PhaseAccordion title={PHASE_LABELS[item.phase]} icon={PHASE_ICONS[item.phase]} defaultOpen active>
-          <p className="text-xs text-muted-foreground">Placeholder para feature futura.</p>
-        </PhaseAccordion>
-      )}
+      {/* ...restante do código */}
     </div>
   );
-}, (prev, next) => prev.item.id === next.item.id && prev.item.phase === next.item.phase && prev.phaseIdx === next.phaseIdx);
+});
 
 export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
   const { products, clients, backlogs } = useBacklogStore();
   const [activeTab, setActiveTab] = useState<TabId>("details");
 
-  const foundItem = item ? backlogs.find((b) => b.id === item.id) ?? item : null;
-  const liveItem = useMemo(() => foundItem, [foundItem?.id, foundItem?.phase]);
+  const liveItem = item ? (backlogs.find((b) => b.id === item.id) ?? item) : null;
 
   useEffect(() => {
     if (open) setActiveTab("details");
