@@ -135,19 +135,16 @@ function MetaItem({ icon, label, children }: { icon: React.ReactNode; label: str
 function PriorityResultCard({ item }: { item: BacklogItem }) {
   if (!item.prioritization) return null;
 
-  // Adicionada a desestruturação segura para evitar o erro TS2339
   const { businessValue: bv, opportunityCost: oc, estimate: est } = item.prioritization;
 
-  // Acessando urgency de forma segura já que o tipo PrioritizationData pode estar desatualizado
   // @ts-ignore
   const urg = item.prioritization.urgency ?? 0;
 
   const score = est > 0 ? (bv + oc + urg) / est : 0;
   const totalValue = bv + oc + urg;
 
-  // Lógica de prioridade síncrona com o Form
   const getPriority = (): Priority | "none" => {
-    if (est === 0 || totalValue === 0) return "none";
+    if (est === 0 || (bv === 0 && oc === 0 && urg === 0)) return "none";
     if (score >= 0.6 && totalValue >= 4) return "high";
     if (score >= 0.26) return "medium";
     return "low";
@@ -156,59 +153,33 @@ function PriorityResultCard({ item }: { item: BacklogItem }) {
   const priority = getPriority();
 
   const meta: Record<string, { label: string; color: string; bg: string; border: string }> = {
-    high: { label: "Prioridade Alta", color: "text-red-500", bg: "bg-red-500/5", border: "border-red-500/20" },
-    medium: { label: "Prioridade Média", color: "text-amber-500", bg: "bg-amber-500/5", border: "border-amber-500/20" },
-    low: { label: "Prioridade Baixa", color: "text-blue-500", bg: "bg-blue-500/5", border: "border-blue-500/20" },
-    none: { label: "Pendente", color: "text-muted-foreground", bg: "bg-secondary/50", border: "border-border" },
+    high: { label: "Prioridade Alta", color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/30" },
+    medium: {
+      label: "Prioridade Média",
+      color: "text-amber-500",
+      bg: "bg-amber-500/10",
+      border: "border-amber-500/30",
+    },
+    low: { label: "Prioridade Baixa", color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/30" },
+    none: {
+      label: "Aguardando Análise",
+      color: "text-muted-foreground",
+      bg: "bg-secondary/50",
+      border: "border-border",
+    },
   };
 
   const m = meta[priority];
 
   return (
-    <div className="pt-5 border-t border-border/30 space-y-4">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] text-muted-foreground uppercase tracking-[0.1em] font-black">
-          Análise de Priorização
-        </span>
-        <div
-          className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border ${m.border} ${m.bg} ${m.color}`}
-        >
-          {m.label}
+    <div className="pt-5 border-t border-border/30">
+      <div className={`flex items-center justify-center p-6 rounded-2xl border-2 ${m.border} ${m.bg} transition-all`}>
+        <div className="text-center">
+          <span className={`text-[10px] uppercase tracking-[0.2em] font-black opacity-70 ${m.color}`}>
+            Resultado da Análise
+          </span>
+          <h3 className={`text-2xl font-black uppercase tracking-tight mt-1 ${m.color}`}>{m.label}</h3>
         </div>
-      </div>
-
-      {/* Main Score Display */}
-      <div className={`relative overflow-hidden rounded-2xl border p-4 ${m.bg} ${m.border}`}>
-        <div className="flex justify-between items-end relative z-10">
-          <div>
-            <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
-              <Calculator className="w-3 h-3" />
-              <span className="text-[10px] font-bold uppercase tracking-tighter">Score Estratégico</span>
-            </div>
-            <div className={`text-3xl font-mono font-black tracking-tighter ${m.color}`}>{score.toFixed(2)}</div>
-          </div>
-          <div className="text-right">
-            <span className="text-[9px] text-muted-foreground/60 font-mono italic block">(BV+OC+URG) / Est</span>
-            <span className="text-[10px] font-bold text-foreground/70">Valor Bruto: {totalValue}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Attributes Grid */}
-      <div className="grid grid-cols-3 gap-2">
-        {[
-          { label: "Negócio", val: bv, icon: <Target className="w-3 h-3" />, color: "text-emerald-500" },
-          { label: "Urgência", val: urg, icon: <Zap className="w-3 h-3" />, color: "text-amber-500" },
-          { label: "Esforço", val: `${est}h`, icon: <Timer className="w-3 h-3" />, color: "text-blue-500" },
-        ].map((stat) => (
-          <div key={stat.label} className="bg-secondary/40 rounded-xl p-2.5 border border-border/20">
-            <div className={`flex items-center gap-1.5 mb-1 ${stat.color}`}>
-              {stat.icon}
-              <span className="text-[8px] font-black uppercase tracking-wider">{stat.label}</span>
-            </div>
-            <div className="text-sm font-bold text-foreground">{stat.val}</div>
-          </div>
-        ))}
       </div>
     </div>
   );
