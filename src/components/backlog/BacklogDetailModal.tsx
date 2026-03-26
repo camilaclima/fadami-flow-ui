@@ -1,4 +1,4 @@
-import { useState, useEffect, memo } from "react";
+import { useState, useEffect, memo, useMemo } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useBacklogStore } from "@/store/backlogStore";
 import type { BacklogItem, Phase, Priority } from "@/types/backlog";
@@ -247,13 +247,14 @@ const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx
       )}
     </div>
   );
-});
+}, (prev, next) => prev.item.id === next.item.id && prev.item.phase === next.item.phase && prev.phaseIdx === next.phaseIdx);
 
 export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
   const { products, clients, backlogs } = useBacklogStore();
   const [activeTab, setActiveTab] = useState<TabId>("details");
 
-  const liveItem = item ? (backlogs.find((b) => b.id === item.id) ?? item) : null;
+  const foundItem = item ? backlogs.find((b) => b.id === item.id) ?? item : null;
+  const liveItem = useMemo(() => foundItem, [foundItem?.id, foundItem?.phase]);
 
   useEffect(() => {
     if (open) setActiveTab("details");
