@@ -1,18 +1,30 @@
 import { useState, useMemo } from "react";
 import { useBacklogStore } from "@/store/backlogStore";
-import type { BacklogItem, Priority } from "@/types/backlog";
-import { motion, AnimatePresence } from "framer-motion";
+import type { BacklogItem } from "@/types/backlog";
+import { motion } from "framer-motion";
 import { Loader2, CheckCircle2, Calculator } from "lucide-react";
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
 
+// Adicionando 'none' para o estado inicial/pendente
+type Priority = "high" | "medium" | "low" | "none";
+
 const ESTIMATION_HOURS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 24];
 
 function calcPriority(bv: number, oc: number, urg: number, est: number): Priority {
-  if (est === 0) return "low";
+  // Se não houver estimativa ou todos os valores forem zero, está pendente
+  if (est === 0 || (bv === 0 && oc === 0 && urg === 0)) return "none";
+
   const score = (bv + oc + urg) / est;
-  if (score >= 0.7) return "high";
-  if (score >= 0.3) return "medium";
+  const totalValue = bv + oc + urg;
+
+  // REGRAS DE NEGÓCIO AJUSTADAS:
+  // Para ser ALTA: Score >= 0.8 E soma dos valores >= 4 (evita 1h/1v virar alta)
+  if (score >= 0.8 && totalValue >= 4) return "high";
+
+  // Para ser MÉDIA: Score >= 0.4 OU (Score alto mas valor bruto baixo)
+  if (score >= 0.4) return "medium";
+
   return "low";
 }
 
@@ -34,6 +46,12 @@ const priorityMeta: Record<Priority, { label: string; color: string; border: str
     color: "text-blue-500",
     border: "border-blue-500/30",
     bg: "bg-blue-500/5",
+  },
+  none: {
+    label: "Aguardando Análise",
+    color: "text-muted-foreground",
+    border: "border-border",
+    bg: "bg-secondary/20",
   },
 };
 
@@ -95,7 +113,7 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
             <div className="flex items-end justify-between gap-4">
               <div className="flex flex-col flex-1 min-w-0">
                 <span className="text-[11px] text-foreground uppercase tracking-wider font-black">{field.label}</span>
-                <p className="text-[10px] truncate text-[#bbc0c3]">{fieldGuides[field.id]}</p>
+                <p className="text-[10px] text-muted-foreground/70 truncate">{fieldGuides[field.id]}</p>
               </div>
               <span className="text-sm font-mono font-bold text-primary">{field.val}</span>
             </div>
@@ -112,7 +130,7 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
         ))}
       </div>
 
-      {/* Estimativa de Horas Linear */}
+      {/* Estimativa de Horas */}
       <div className="space-y-3 pt-2">
         <span className="text-[11px] text-foreground uppercase tracking-wider font-black">Estimativa (horas)</span>
         <div className="flex flex-wrap gap-2">
@@ -135,7 +153,7 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
 
       <hr className="border-border/40" />
 
-      {/* RESULTADO DISCRETO */}
+      {/* RESULTADO DINÂMICO */}
       <div className="space-y-3">
         <div
           className={`flex items-center justify-between p-4 rounded-xl border ${meta.border} ${meta.bg} transition-colors shadow-sm`}
@@ -151,7 +169,7 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
           <div className="text-right">
             <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Score Final</span>
             <span className={`text-2xl font-mono font-black block leading-none ${meta.color}`}>
-              {scoreNumber.toFixed(2)}
+              {scoreNumber > 0 ? scoreNumber.toFixed(2) : "0.00"}
             </span>
           </div>
         </div>
