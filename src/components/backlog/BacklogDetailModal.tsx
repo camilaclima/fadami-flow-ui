@@ -195,7 +195,11 @@ const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx
           completed={phaseIdx > 0}
           // Usando cast para ignorar o erro de tipo inexistente no momento
           updatedBy={(item.prioritization as any)?.updatedBy || item.createdBy}
-          updatedAt={(item.prioritization as any)?.updatedAt ? new Date((item.prioritization as any).updatedAt).toLocaleDateString("pt-BR") : undefined}
+          updatedAt={
+            (item.prioritization as any)?.updatedAt
+              ? new Date((item.prioritization as any).updatedAt).toLocaleDateString("pt-BR")
+              : undefined
+          }
         >
           <PrioritizationForm item={item} onSaved={handleSaved} readOnly={item.phase !== "prioritization"} />
         </PhaseAccordion>
@@ -209,7 +213,11 @@ const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx
           active={item.phase === "approval"}
           completed={phaseIdx > 1}
           updatedBy={(item.approval as any)?.updatedBy}
-          updatedAt={(item.approval as any)?.updatedAt ? new Date((item.approval as any).updatedAt).toLocaleDateString("pt-BR") : undefined}
+          updatedAt={
+            (item.approval as any)?.updatedAt
+              ? new Date((item.approval as any).updatedAt).toLocaleDateString("pt-BR")
+              : undefined
+          }
         >
           <ApprovalForm item={item} onSaved={handleSaved} readOnly={item.phase !== "approval"} />
         </PhaseAccordion>
@@ -223,18 +231,15 @@ const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx
           active={item.phase === "refinement"}
           completed={phaseIdx > 2}
           updatedBy={(item.refinement as any)?.updatedBy}
-          updatedAt={(item.refinement as any)?.updatedAt ? new Date((item.refinement as any).updatedAt).toLocaleDateString("pt-BR") : undefined}
+          updatedAt={
+            (item.refinement as any)?.updatedAt
+              ? new Date((item.refinement as any).updatedAt).toLocaleDateString("pt-BR")
+              : undefined
+          }
         >
           <RefinementForm item={item} onSaved={handleSaved} readOnly={item.phase !== "refinement"} />
         </PhaseAccordion>
       )}
-
-      {/* ...restante do código */}
-    </div>
-  );
-});
-
-      {/* ...restante do código */}
     </div>
   );
 });
