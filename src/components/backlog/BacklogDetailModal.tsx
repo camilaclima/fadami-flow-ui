@@ -27,7 +27,14 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// --- COMPONENTES EXTRAÍDOS PARA FORA (EVITA PERDA DE FOCO) ---
+// --- INTERFACES ---
+interface Props {
+  item: BacklogItem | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}
+
+// --- COMPONENTES EXTRAÍDOS PARA FORA (ESTABILIDADE DE FOCO) ---
 
 const PHASE_ICONS: Record<Phase, React.ReactNode> = {
   prioritization: <Settings2 className="w-3.5 h-3.5" />,
@@ -142,8 +149,6 @@ function MetaItem({ icon, label, children }: { icon: React.ReactNode; label: str
   );
 }
 
-// --- FIM DOS COMPONENTES EXTRAÍDOS ---
-
 const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx: number }) => {
   const handleSaved = () => {};
 
@@ -215,6 +220,8 @@ const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx
   );
 });
 
+// --- COMPONENTE PRINCIPAL ---
+
 export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
   const { products, clients, backlogs } = useBacklogStore();
   const [activeTab, setActiveTab] = useState<"details" | "history">("details");
@@ -256,7 +263,6 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
               </div>
             </div>
 
-            {/* Tabs fixas para evitar re-render */}
             <div className="flex gap-0 px-5 border-b border-border/40">
               {(["details", "history"] as const).map((id) => (
                 <button
