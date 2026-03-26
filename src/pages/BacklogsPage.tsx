@@ -54,7 +54,7 @@ export default function BacklogsPage() {
   };
 
   return (
-    <div className="fade-in space-y-4 w-full max-w-none">
+    <div className="fade-in space-y-3 w-full max-w-none">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
