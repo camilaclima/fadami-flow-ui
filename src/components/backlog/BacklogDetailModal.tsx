@@ -47,32 +47,14 @@ const PHASE_ICONS: Record<Phase, React.ReactNode> = {
 // --- COMPONENTES AUXILIARES ---
 
 const MetaItem = memo(
-  ({
-    icon,
-    label,
-    children,
-    highlight = false,
-  }: {
-    icon: React.ReactNode;
-    label: string;
-    children: React.ReactNode;
-    highlight?: boolean;
-  }) => (
-    <div className={`flex items-center gap-3 ${highlight ? "py-3" : "py-2"}`}>
-      <div
-        className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
-          highlight ? "bg-primary/10 text-primary" : "bg-secondary/80 text-muted-foreground"
-        }`}
-      >
+  ({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) => (
+    <div className="flex items-center gap-3 py-2">
+      <div className="w-6 h-6 rounded-lg bg-secondary/80 flex items-center justify-center text-muted-foreground shrink-0">
         {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <span className="text-[9px] text-muted-foreground/80 uppercase tracking-widest font-bold">{label}</span>
-        <div className={`mt-0.5 ${highlight ? "scale-110 origin-left transition-transform" : ""}`}>
-          <div className={`${highlight ? "text-sm" : "text-[13px]"} text-foreground font-medium truncate`}>
-            {children}
-          </div>
-        </div>
+        <span className="text-[9px] text-muted-foreground/80 uppercase tracking-widest font-semibold">{label}</span>
+        <div className="text-[13px] text-foreground font-medium mt-0.5 truncate">{children}</div>
       </div>
     </div>
   ),
@@ -240,12 +222,11 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
                     </MetaItem>
                     {/* Prioridade Restaurada aqui abaixo do Cliente */}
                     <MetaItem icon={<AlertCircle className="w-3.5 h-3.5" />} label="Prioridade">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         {liveItem.prioritization?.priority ? (
-                          // O PriorityBadge deve herdar o aumento de escala do highlight
                           <PriorityBadge value={liveItem.prioritization.priority} />
                         ) : (
-                          <span className="text-muted-foreground italic text-xs">Não definida</span>
+                          "Pendente"
                         )}
                       </div>
                     </MetaItem>
