@@ -15,27 +15,24 @@ function calcPriority(bv: number, oc: number, est: number): Priority {
   return "low";
 }
 
-const priorityMeta: Record<Priority, { label: string; scoreLabel: string; bg: string; text: string; glow: string }> = {
+const priorityMeta: Record<Priority, { label: string; scoreLabel: string; gradient: string; solidBg: string }> = {
   high: {
     label: "Alta",
     scoreLabel: "High Priority",
-    bg: "bg-priority-high/10",
-    text: "text-priority-high",
-    glow: "shadow-[0_0_16px_hsl(var(--priority-high)/0.3)]",
+    gradient: "from-priority-high to-[hsl(0_72%_45%)]",
+    solidBg: "bg-priority-high",
   },
   medium: {
     label: "Média",
     scoreLabel: "Medium Priority",
-    bg: "bg-priority-medium/10",
-    text: "text-priority-medium",
-    glow: "shadow-[0_0_16px_hsl(var(--priority-medium)/0.3)]",
+    gradient: "from-priority-medium to-[hsl(220_70%_50%)]",
+    solidBg: "bg-priority-medium",
   },
   low: {
     label: "Baixa",
     scoreLabel: "Low Priority",
-    bg: "bg-priority-low/10",
-    text: "text-priority-low",
-    glow: "shadow-[0_0_16px_hsl(var(--priority-low)/0.3)]",
+    gradient: "from-primary to-[hsl(262_60%_50%)]",
+    solidBg: "bg-primary",
   },
 };
 
@@ -51,7 +48,6 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
   const [oc, setOc] = useState(item.prioritization?.opportunityCost ?? 3);
   const [est, setEst] = useState(item.prioritization?.estimate ?? 8);
   const [saving, setSaving] = useState(false);
-  const [showFormula, setShowFormula] = useState(false);
 
   const priority = useMemo(() => calcPriority(bv, oc, est), [bv, oc, est]);
   const score = useMemo(() => ((bv + oc) / 2 - est / 20).toFixed(1), [bv, oc, est]);
@@ -67,17 +63,15 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Slider: Business Value */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] text-foreground/60 uppercase tracking-widest font-semibold">Valor de negócio</span>
+          <span className="text-[11px] text-foreground/70 uppercase tracking-widest font-semibold">Valor de negócio</span>
           <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">{bv}</span>
         </div>
         <Slider
-          min={1}
-          max={5}
-          step={1}
+          min={1} max={5} step={1}
           value={[bv]}
           onValueChange={([v]) => !readOnly && setBv(v)}
           disabled={readOnly}
@@ -88,13 +82,11 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
       {/* Slider: Opportunity Cost */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] text-foreground/60 uppercase tracking-widest font-semibold">Custo de oportunidade</span>
+          <span className="text-[11px] text-foreground/70 uppercase tracking-widest font-semibold">Custo de oportunidade</span>
           <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">{oc}</span>
         </div>
         <Slider
-          min={1}
-          max={5}
-          step={1}
+          min={1} max={5} step={1}
           value={[oc]}
           onValueChange={([v]) => !readOnly && setOc(v)}
           disabled={readOnly}
@@ -104,7 +96,7 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
 
       {/* Fibonacci Estimation */}
       <div className="space-y-2">
-        <span className="text-[11px] text-foreground/60 uppercase tracking-widest font-semibold">Estimativa (horas)</span>
+        <span className="text-[11px] text-foreground/70 uppercase tracking-widest font-semibold">Estimativa (horas)</span>
         <div className="flex flex-wrap gap-1.5">
           {FIBONACCI.map((v) => (
             <motion.button
@@ -115,7 +107,7 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                 v === est
                   ? "bg-primary text-primary-foreground shadow-[0_0_10px_hsl(var(--primary)/0.4)]"
-                  : "bg-secondary/60 text-foreground/60 hover:bg-surface-hover hover:text-foreground"
+                  : "bg-secondary/60 text-foreground/70 hover:bg-secondary hover:text-foreground"
               }`}
             >
               {v}h
@@ -124,42 +116,22 @@ export function PrioritizationForm({ item, onSaved, readOnly }: Props) {
         </div>
       </div>
 
-      {/* Priority result — floating card */}
+      {/* Priority result — high contrast solid badge */}
       <motion.div
         key={priority}
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className={`rounded-2xl p-4 ${meta.bg} ${meta.glow} transition-shadow`}
-        style={{ background: `linear-gradient(135deg, hsl(var(--card)), hsl(var(--secondary) / 0.6))` }}
+        className={`rounded-2xl p-4 bg-gradient-to-br ${meta.gradient} shadow-lg`}
       >
-        <div className="flex items-center justify-between">
-          <div>
-            <span className={`text-sm font-bold ${meta.text}`}>{meta.label}</span>
-            <p className="text-[10px] text-muted-foreground mt-0.5 font-mono">
-              Score: {score} — {meta.scoreLabel}
-            </p>
-          </div>
-          <button
-            onClick={() => setShowFormula(!showFormula)}
-            className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg hover:bg-secondary"
-          >
-            <Info className="w-3.5 h-3.5" />
-          </button>
+        <div className="flex items-center gap-3">
+          <span className="text-lg font-extrabold text-white tracking-tight">{meta.label}</span>
+          <span className="text-[10px] font-mono text-white/70 bg-white/10 px-2 py-0.5 rounded-md">
+            Score: {score}
+          </span>
         </div>
-        <AnimatePresence>
-          {showFormula && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
-              <p className="text-[9px] text-muted-foreground font-mono mt-2 pt-2 border-t border-border/30">
-                (Valor + Custo) / 2 − Estimativa / 20 → ≥3.5 Alta, ≥2 Média, &lt;2 Baixa
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <p className="text-[10px] text-white/60 font-mono mt-1">
+          ({bv} + {oc}) / 2 − {est} / 20 = {score} → {meta.scoreLabel}
+        </p>
       </motion.div>
 
       {item.phase === "prioritization" && !readOnly && (
