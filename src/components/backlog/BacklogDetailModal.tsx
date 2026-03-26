@@ -94,27 +94,35 @@ const PhaseAccordion = memo(({ title, icon, defaultOpen, active, completed, chil
           active ? "text-primary font-bold" : "text-foreground hover:text-primary"
         }`}
       >
+        {/* Ícone da Etapa */}
         <div
           className={`flex items-center justify-center w-6 h-6 rounded-lg shrink-0 ${
             active
               ? "bg-primary/15 shadow-[0_0_10px_rgba(var(--primary),0.1)]"
               : completed
-                ? "bg-phase-finished/10"
+                ? "bg-emerald-500/10"
                 : "bg-secondary"
           }`}
         >
-          {completed ? <CheckCircle className="w-3 h-3 text-phase-finished" /> : icon}
+          {completed ? <CheckCircle className="w-3 h-3 text-emerald-500" /> : icon}
         </div>
+
+        {/* Container do Título e Infos de Conclusão */}
         <div className="flex-1 text-left flex items-center justify-between min-w-0">
           <span className="text-xs font-semibold uppercase tracking-wide truncate">{title}</span>
-          {(updatedBy || updatedAt) && completed && (
-            <span className="text-[9px] text-muted-foreground/50 mr-2 truncate max-w-[120px]">
-              {updatedBy} • {updatedAt}
-            </span>
+
+          {/* Informações de quem fez e quando (aparece apenas se estiver concluído) */}
+          {completed && (updatedBy || updatedAt) && (
+            <div className="flex items-center gap-2 mr-3 shrink-0">
+              <span className="text-[10px] text-muted-foreground/60 font-medium">{updatedBy}</span>
+              <span className="text-[10px] text-muted-foreground/30">•</span>
+              <span className="text-[10px] text-muted-foreground/60">{updatedAt}</span>
+            </div>
           )}
         </div>
+
         <ChevronDown
-          className={`w-3.5 h-3.5 text-muted-foreground/50 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`w-3.5 h-3.5 text-muted-foreground/40 transition-transform ${isOpen ? "rotate-180" : ""}`}
         />
       </button>
       <AnimatePresence>
@@ -149,7 +157,11 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
   const product = products.find((p) => p.id === liveItem.productId);
   const client = liveItem.clientId ? clients.find((c) => c.id === liveItem.clientId) : null;
   const phaseIdx = PHASES.indexOf(liveItem.phase);
+
+  // Casts para acessar propriedades dinâmicas das fases
   const prioData = (liveItem.prioritization || {}) as any;
+  const approvalData = (liveItem.approval || {}) as any;
+  const refinementData = (liveItem.refinement || {}) as any;
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return undefined;
@@ -236,7 +248,6 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
                         children={client?.name ?? "—"}
                       />
 
-                      {/* APENAS O BUSINESS PRIORITY, SEM O SCORE CALCULADO */}
                       <div className="pt-2">
                         <MetaItem
                           icon={<AlertCircle className="w-4 h-4" />}
@@ -266,7 +277,7 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
             </div>
           </div>
 
-          {/* LADO DIREITO: FLUXO DE TRABALHO */}
+          {/* LADO DIREITO: FLUXO DE TRABALHO COM INFOS DE CONCLUSÃO */}
           <div className="md:w-[60%] flex-1 overflow-y-auto px-5 pt-0 pb-5">
             <div className="max-w-xl mx-auto">
               <PhaseAccordion
@@ -292,8 +303,8 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
                   defaultOpen={liveItem.phase === "approval"}
                   active={liveItem.phase === "approval"}
                   completed={phaseIdx > 1}
-                  updatedBy={(liveItem.approval as any)?.updatedBy}
-                  updatedAt={formatDate((liveItem.approval as any)?.updatedAt)}
+                  updatedBy={approvalData?.updatedBy}
+                  updatedAt={formatDate(approvalData?.updatedAt)}
                 >
                   <ApprovalForm
                     key={`form-appr-${liveItem.id}`}
@@ -310,8 +321,8 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
                   defaultOpen={liveItem.phase === "refinement"}
                   active={liveItem.phase === "refinement"}
                   completed={phaseIdx > 2}
-                  updatedBy={(liveItem.refinement as any)?.updatedBy}
-                  updatedAt={formatDate((liveItem.refinement as any)?.updatedAt)}
+                  updatedBy={refinementData?.updatedBy}
+                  updatedAt={formatDate(refinementData?.updatedAt)}
                 >
                   <RefinementForm
                     key={`form-refi-${liveItem.id}`}
