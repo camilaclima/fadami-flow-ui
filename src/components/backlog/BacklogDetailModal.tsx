@@ -42,7 +42,7 @@ const PHASE_ICONS: Record<Phase, React.ReactNode> = {
 
 type TabId = "details" | "history";
 
-/* ── Accordion for phase sections ── */
+/* ── Accordion for phase sections (Ajustado para metadados) ── */
 function PhaseAccordion({
   title,
   icon,
@@ -50,6 +50,8 @@ function PhaseAccordion({
   active,
   completed,
   children,
+  updatedBy,
+  updatedAt,
 }: {
   title: string;
   icon: React.ReactNode;
@@ -57,6 +59,8 @@ function PhaseAccordion({
   active?: boolean;
   completed?: boolean;
   children: React.ReactNode;
+  updatedBy?: string;
+  updatedAt?: string;
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen ?? false);
 
@@ -68,28 +72,43 @@ function PhaseAccordion({
     <div className="group">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full flex items-center gap-2.5 py-3 transition-colors ${
+        className={`w-full flex items-start gap-2.5 py-3 transition-colors ${
           active ? "text-primary" : completed ? "text-foreground/70" : "text-foreground hover:text-primary"
         }`}
       >
         <div
-          className={`flex items-center justify-center w-6 h-6 rounded-lg transition-colors ${
+          className={`mt-0.5 flex items-center justify-center w-6 h-6 rounded-lg transition-colors shrink-0 ${
             active ? "bg-primary/15" : completed ? "bg-phase-finished/10" : "bg-secondary"
           }`}
         >
           {completed ? <CheckCircle className="w-3 h-3 text-phase-finished" /> : icon}
         </div>
-        <span className="text-xs font-semibold flex-1 text-left tracking-wide uppercase">{title}</span>
-        {active && (
-          <motion.span
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="text-[8px] font-bold uppercase tracking-widest bg-primary/15 text-primary px-2 py-0.5 rounded-md"
-          >
-            Atual
-          </motion.span>
-        )}
-        <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
+
+        <div className="flex-1 text-left">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold tracking-wide uppercase">{title}</span>
+            {active && (
+              <motion.span
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="text-[8px] font-bold uppercase tracking-widest bg-primary/15 text-primary px-2 py-0.5 rounded-md"
+              >
+                Atual
+              </motion.span>
+            )}
+          </div>
+
+          {/* Metadata sutil abaixo do título da fase */}
+          {(updatedBy || updatedAt) && (
+            <div className="flex items-center gap-1 opacity-40 text-[9px] font-medium text-muted-foreground mt-0.5 uppercase tracking-tighter">
+              <span>{updatedBy}</span>
+              {updatedBy && updatedAt && <span>•</span>}
+              <span>{updatedAt}</span>
+            </div>
+          )}
+        </div>
+
+        <motion.div className="mt-1" animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
           <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
         </motion.div>
       </button>
@@ -127,20 +146,12 @@ function MetaItem({ icon, label, children }: { icon: React.ReactNode; label: str
   );
 }
 
-/* ── Priority Result Card (Sutil e Compacto com Metadata) ── */
+/* ── Priority Result Card (Compacto) ── */
 function PriorityResultCard({ item }: { item: BacklogItem }) {
   if (!item.prioritization) return null;
-
   const { businessValue: bv, opportunityCost: oc, estimate: est } = item.prioritization;
-
-  // Acessando de forma segura para evitar erro de tipagem no TS
-  const prioritization = item.prioritization as any;
-  const updatedBy = prioritization.updatedBy;
-  const updatedAt = prioritization.updatedAt;
-
   // @ts-ignore
   const urg = item.prioritization.urgency ?? 0;
-
   const score = est > 0 ? (bv + oc + urg) / est : 0;
   const totalValue = bv + oc + urg;
 
@@ -152,29 +163,19 @@ function PriorityResultCard({ item }: { item: BacklogItem }) {
   };
 
   const priority = getPriority();
-
   const meta: Record<string, { label: string; color: string; bg: string; border: string }> = {
     high: { label: "Alta", color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/20" },
     medium: { label: "Média", color: "text-amber-500", bg: "bg-amber-500/10", border: "border-amber-500/20" },
     low: { label: "Baixa", color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/20" },
     none: { label: "Pendente", color: "text-muted-foreground", bg: "bg-secondary/50", border: "border-border" },
   };
-
   const m = meta[priority];
 
   return (
     <div className="pt-5 border-t border-border/30">
-      <div className={`p-3.5 rounded-xl border ${m.border} ${m.bg} transition-all`}>
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[10px] uppercase tracking-[0.15em] font-bold text-muted-foreground/80">Prioridade</span>
-          <span className={`text-[13px] font-bold uppercase tracking-tight ${m.color}`}>{m.label}</span>
-        </div>
-
-        <div className="flex items-center justify-end gap-1.5 opacity-40 text-[9px] font-medium text-muted-foreground uppercase tracking-tighter">
-          <span>{updatedBy || item.createdBy}</span>
-          <span>•</span>
-          <span>{new Date(updatedAt || item.createdAt).toLocaleDateString("pt-BR")}</span>
-        </div>
+      <div className={`flex items-center justify-between p-3.5 rounded-xl border ${m.border} ${m.bg} transition-all`}>
+        <span className="text-[10px] uppercase tracking-[0.15em] font-bold text-muted-foreground/80">Prioridade</span>
+        <span className={`text-[13px] font-bold uppercase tracking-tight ${m.color}`}>{m.label}</span>
       </div>
     </div>
   );
@@ -270,7 +271,6 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
                       </span>
                       <p className="text-[13px] text-foreground/90 leading-relaxed mt-1.5">{liveItem.description}</p>
                     </div>
-
                     <div className="space-y-0">
                       <MetaItem icon={<User className="w-3.5 h-3.5" />} label="Criado por">
                         <span className="flex items-center gap-2">
@@ -293,7 +293,6 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
                         {client?.name ?? "—"}
                       </MetaItem>
                     </div>
-
                     <PriorityResultCard item={liveItem} />
                   </motion.div>
                 ) : (
@@ -333,6 +332,12 @@ function PhaseActionPanel({ item, phaseIdx }: { item: BacklogItem; phaseIdx: num
           defaultOpen={item.phase === "prioritization"}
           active={item.phase === "prioritization"}
           completed={phaseIdx > 0}
+          updatedBy={(item.prioritization as any)?.updatedBy || item.createdBy}
+          updatedAt={
+            item.prioritization
+              ? new Date((item.prioritization as any).updatedAt || item.createdAt).toLocaleDateString("pt-BR")
+              : undefined
+          }
         >
           <PrioritizationForm item={item} onSaved={handleSaved} readOnly={item.phase !== "prioritization"} />
         </PhaseAccordion>
@@ -345,6 +350,12 @@ function PhaseActionPanel({ item, phaseIdx }: { item: BacklogItem; phaseIdx: num
           defaultOpen={item.phase === "approval"}
           active={item.phase === "approval"}
           completed={phaseIdx > 1}
+          updatedBy={(item.approval as any)?.updatedBy}
+          updatedAt={
+            (item.approval as any)?.updatedAt
+              ? new Date((item.approval as any).updatedAt).toLocaleDateString("pt-BR")
+              : undefined
+          }
         >
           <ApprovalForm item={item} onSaved={handleSaved} readOnly={item.phase !== "approval"} />
         </PhaseAccordion>
@@ -357,6 +368,12 @@ function PhaseActionPanel({ item, phaseIdx }: { item: BacklogItem; phaseIdx: num
           defaultOpen={item.phase === "refinement"}
           active={item.phase === "refinement"}
           completed={phaseIdx > 2}
+          updatedBy={(item.refinement as any)?.updatedBy}
+          updatedAt={
+            (item.refinement as any)?.updatedAt
+              ? new Date((item.refinement as any).updatedAt).toLocaleDateString("pt-BR")
+              : undefined
+          }
         >
           <RefinementForm item={item} onSaved={handleSaved} readOnly={item.phase !== "refinement"} />
         </PhaseAccordion>
