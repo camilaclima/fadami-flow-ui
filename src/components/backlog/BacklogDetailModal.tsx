@@ -33,7 +33,6 @@ interface Props {
 }
 
 const PHASE_ICONS: Record<Phase, React.ReactNode> = {
-  backlog: <LayoutList className="w-3.5 h-3.5" />,
   prioritization: <Settings2 className="w-3.5 h-3.5" />,
   approval: <CheckCircle className="w-3.5 h-3.5" />,
   refinement: <Wrench className="w-3.5 h-3.5" />,

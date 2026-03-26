@@ -17,8 +17,8 @@ export function BacklogListCard({ item, onClick, index }: Props) {
   const product = products.find((p) => p.id === item.productId);
   const client = item.clientId ? clients.find((c) => c.id === item.clientId) : null;
 
-  const showThermo = item.phase === "backlog" || item.phase === "prioritization";
-  const showPriority = !!item.prioritization && item.phase !== "backlog";
+  const showThermo = item.phase === "prioritization";
+  const showPriority = !!item.prioritization;
   const showEstimate =
     item.refinement?.estimate &&
     ["refinement", "available", "planned", "finished"].includes(item.phase);

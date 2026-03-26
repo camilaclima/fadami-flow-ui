@@ -12,8 +12,8 @@ interface Props {
 export function BacklogCard({ item, onClick }: Props) {
   const products = useBacklogStore((s) => s.products);
   const product = products.find((p) => p.id === item.productId);
-  const showThermo = item.phase === "backlog" || item.phase === "prioritization";
-  const showPriority = item.prioritization && item.phase !== "backlog";
+  const showThermo = item.phase === "prioritization";
+  const showPriority = !!item.prioritization;
   const showEstimate =
     item.refinement?.estimate &&
     ["refinement", "available", "planned", "finished"].includes(item.phase);
