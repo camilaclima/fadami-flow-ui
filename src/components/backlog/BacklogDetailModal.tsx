@@ -213,10 +213,10 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="sm:max-w-[1000px] p-0 gap-0 overflow-hidden border-border/40"
+        className="sm:max-w-[1000px] p-0 gap-0 overflow-hidden border-border/50 shadow-2xl"
         style={{
           background: "hsl(var(--card))",
-          boxShadow: "0 25px 80px -12px hsl(var(--primary) / 0.12), 0 8px 32px -8px hsl(0 0% 0% / 0.3), 0 0 0 1px hsl(var(--border) / 0.3)",
+          boxShadow: "0 25px 60px -12px hsl(0 0% 0% / 0.35), 0 0 0 1px hsl(var(--border) / 0.4)",
           maxHeight: "88vh",
         }}
       >
@@ -333,12 +333,9 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
 
           {/* ═══ RIGHT — Action Panel (60%) ═══ */}
           <div
-            className="md:w-[60%] flex-1 overflow-y-auto p-5"
+            className="md:w-[60%] flex-1 overflow-y-auto px-5 pt-0 pb-5"
             style={{ scrollBehavior: "smooth" }}
           >
-            <div className="mb-3">
-              <span className="text-[10px] text-muted-foreground/60 uppercase tracking-widest font-bold">Painel de Ação</span>
-            </div>
             <PhaseActionPanel item={liveItem} phaseIdx={phaseIdx} />
           </div>
         </div>
