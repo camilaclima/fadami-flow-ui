@@ -5,6 +5,7 @@ import type { BacklogItem, Phase } from "@/types/backlog";
 import { PHASES, PHASE_LABELS } from "@/types/backlog";
 import { ThermoBadge, PriorityBadge, PhaseBadge } from "./Badges";
 import { HistoryTimeline } from "./detail/HistoryTimeline";
+import { PhaseTimeline } from "./detail/PhaseTimeline";
 import { PrioritizationForm } from "./detail/PrioritizationForm";
 import { ApprovalForm } from "./detail/ApprovalForm";
 import { RefinementForm } from "./detail/RefinementForm";
@@ -14,13 +15,11 @@ import {
   Package,
   Building2,
   ChevronDown,
-  ChevronRight,
   FileText,
   Clock,
   Settings2,
   CheckCircle,
   Wrench,
-  
   CalendarCheck,
   Flag,
 } from "lucide-react";
@@ -73,7 +72,7 @@ function PhaseAccordion({
           active
             ? "text-primary"
             : completed
-            ? "text-foreground/60"
+            ? "text-foreground/70"
             : "text-foreground hover:text-primary"
         }`}
       >
@@ -118,7 +117,6 @@ function PhaseAccordion({
         )}
       </AnimatePresence>
 
-      {/* Separator line */}
       <div className="h-px bg-border/40" />
     </div>
   );
@@ -127,40 +125,14 @@ function PhaseAccordion({
 /* ── Left column info item ── */
 function MetaItem({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-3 py-2.5">
-      <div className="w-7 h-7 rounded-lg bg-secondary/80 flex items-center justify-center text-muted-foreground">
+    <div className="flex items-center gap-3 py-2">
+      <div className="w-6 h-6 rounded-lg bg-secondary/80 flex items-center justify-center text-muted-foreground">
         {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold">{label}</span>
-        <div className="text-[13px] text-foreground mt-0.5">{children}</div>
+        <span className="text-[9px] text-muted-foreground/80 uppercase tracking-widest font-semibold">{label}</span>
+        <div className="text-[13px] text-foreground font-medium mt-0.5">{children}</div>
       </div>
-    </div>
-  );
-}
-
-/* ── Progress bar (2px, gradient, glow tip) ── */
-function ThinProgressBar({ phase }: { phase: Phase }) {
-  const idx = PHASES.indexOf(phase);
-  const pct = ((idx + 1) / PHASES.length) * 100;
-
-  return (
-    <div className="relative w-full h-[2px] bg-border/30 rounded-full overflow-visible">
-      <motion.div
-        className="absolute inset-y-0 left-0 rounded-full"
-        style={{ background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--phase-finished)))" }}
-        initial={{ width: 0 }}
-        animate={{ width: `${pct}%` }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-      />
-      {/* Glow tip */}
-      <motion.div
-        className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-primary"
-        style={{ boxShadow: "0 0 8px 2px hsl(var(--primary) / 0.5)" }}
-        initial={{ left: 0 }}
-        animate={{ left: `${pct}%` }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-      />
     </div>
   );
 }
@@ -190,142 +162,155 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="sm:max-w-[960px] p-0 gap-0 overflow-hidden border-border/40"
+        className="sm:max-w-[1000px] p-0 gap-0 overflow-hidden border-border/40"
         style={{
           background: "hsl(var(--card))",
           boxShadow: "0 25px 80px -12px hsl(var(--primary) / 0.12), 0 8px 32px -8px hsl(0 0% 0% / 0.3), 0 0 0 1px hsl(var(--border) / 0.3)",
           maxHeight: "88vh",
         }}
       >
-        {/* ── Top progress bar ── */}
-        <div className="px-6 pt-4">
-          <ThinProgressBar phase={liveItem.phase} />
+        {/* ── Full-width Phase Timeline ── */}
+        <div className="px-6 pt-5 pb-3 border-b border-border/30">
+          <PhaseTimeline currentPhase={liveItem.phase} />
         </div>
 
-        {/* ── Header ── */}
-        <div className="px-6 pt-4 pb-3">
-          <h2 className="text-lg font-bold text-foreground leading-tight tracking-tight">{liveItem.title}</h2>
-          <div className="flex items-center gap-2 mt-2">
-            <PhaseBadge value={liveItem.phase} />
-            <ThermoBadge value={liveItem.thermometer} />
-            {liveItem.prioritization && <PriorityBadge value={liveItem.prioritization.priority} />}
+        {/* ── Split View ── */}
+        <div
+          className="flex flex-col md:flex-row"
+          style={{ height: "calc(88vh - 100px)", maxHeight: "640px" }}
+        >
+          {/* ═══ LEFT — Info Panel (40%) ═══ */}
+          <div
+            className="md:w-[40%] shrink-0 flex flex-col overflow-hidden border-r border-border/30"
+            style={{ background: "hsl(var(--surface) / 0.6)", backdropFilter: "blur(12px)" }}
+          >
+            {/* Title + Badges */}
+            <div className="px-5 pt-5 pb-3">
+              <h2 className="text-base font-bold text-foreground leading-tight tracking-tight">{liveItem.title}</h2>
+              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                <PhaseBadge value={liveItem.phase} />
+                <ThermoBadge value={liveItem.thermometer} />
+                {liveItem.prioritization && <PriorityBadge value={liveItem.prioritization.priority} />}
+              </div>
+            </div>
+
+            {/* Tab bar */}
+            <div className="flex gap-0 px-5 border-b border-border/40">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold transition-colors relative ${
+                    activeTab === tab.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {tab.icon}
+                  {tab.label}
+                  {activeTab === tab.id && (
+                    <motion.div
+                      layoutId="detail-tab-underline"
+                      className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full"
+                      style={{ background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary) / 0.4))" }}
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab content */}
+            <div className="flex-1 overflow-y-auto px-5 py-4" style={{ scrollBehavior: "smooth" }}>
+              <AnimatePresence mode="wait">
+                {activeTab === "details" ? (
+                  <motion.div
+                    key="details"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="space-y-4"
+                  >
+                    {/* Description */}
+                    <div>
+                      <span className="text-[9px] text-muted-foreground/80 uppercase tracking-widest font-bold">Descrição</span>
+                      <p className="text-[13px] text-foreground/90 leading-relaxed mt-1.5">{liveItem.description}</p>
+                    </div>
+
+                    {/* Meta */}
+                    <div className="space-y-0">
+                      <MetaItem icon={<User className="w-3.5 h-3.5" />} label="Criado por">
+                        <span className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center text-[9px] font-bold text-primary shrink-0">
+                            {liveItem.createdBy[0]}
+                          </span>
+                          {liveItem.createdBy}
+                        </span>
+                      </MetaItem>
+                      <MetaItem icon={<Calendar className="w-3.5 h-3.5" />} label="Data">
+                        {new Date(liveItem.createdAt).toLocaleDateString("pt-BR")}
+                      </MetaItem>
+                      <MetaItem icon={<Package className="w-3.5 h-3.5" />} label="Produto">
+                        <span className="flex items-center gap-1.5">
+                          {product && <span className="w-2 h-2 rounded-full" style={{ background: product.color }} />}
+                          {product?.name ?? "—"}
+                        </span>
+                      </MetaItem>
+                      <MetaItem icon={<Building2 className="w-3.5 h-3.5" />} label="Cliente">
+                        {client?.name ?? "—"}
+                      </MetaItem>
+                    </div>
+
+                    {/* Completed phase summaries */}
+                    {liveItem.prioritization && phaseIdx > 0 && (
+                      <div className="pt-3 border-t border-border/30">
+                        <span className="text-[9px] text-muted-foreground/80 uppercase tracking-widest font-bold">Priorização</span>
+                        <div className="flex gap-4 mt-2">
+                          {[
+                            { label: "Valor", value: liveItem.prioritization.businessValue },
+                            { label: "Custo", value: liveItem.prioritization.opportunityCost },
+                            { label: "Est.", value: `${liveItem.prioritization.estimate}h` },
+                          ].map((s) => (
+                            <div key={s.label} className="text-center">
+                              <div className="text-lg font-bold text-foreground">{s.value}</div>
+                              <div className="text-[9px] text-muted-foreground uppercase tracking-wider">{s.label}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {liveItem.approval && phaseIdx > 1 && (
+                      <div className="pt-3 border-t border-border/30">
+                        <span className="text-[9px] text-muted-foreground/80 uppercase tracking-widest font-bold">Aprovação</span>
+                        <p className="text-xs text-foreground/80 mt-1.5 italic leading-relaxed">"{liveItem.approval.observation || "—"}"</p>
+                      </div>
+                    )}
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="history"
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 8 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <HistoryTimeline history={liveItem.phaseHistory} createdBy={liveItem.createdBy} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          {/* ═══ RIGHT — Action Panel (60%) ═══ */}
+          <div
+            className="md:w-[60%] flex-1 overflow-y-auto p-5"
+            style={{ scrollBehavior: "smooth" }}
+          >
+            <div className="mb-3">
+              <span className="text-[10px] text-muted-foreground/60 uppercase tracking-widest font-bold">Painel de Ação</span>
+            </div>
+            <PhaseActionPanel item={liveItem} phaseIdx={phaseIdx} />
           </div>
         </div>
-
-        {/* ── Tab bar ── */}
-        <div className="flex gap-0 px-6 border-b border-border/40">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold transition-colors relative ${
-                activeTab === tab.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {tab.icon}
-              {tab.label}
-              {activeTab === tab.id && (
-                <motion.div
-                  layoutId="detail-tab-underline"
-                  className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full"
-                  style={{ background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary) / 0.4))" }}
-                />
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* ── Content ── */}
-        <AnimatePresence mode="wait">
-          {activeTab === "details" ? (
-            <motion.div
-              key="details"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="flex flex-col md:flex-row"
-              style={{ height: "calc(88vh - 160px)", maxHeight: "600px" }}
-            >
-              {/* ═══ LEFT — Reference (40%) ═══ */}
-              <div
-                className="md:w-[40%] shrink-0 p-6 space-y-5 overflow-hidden border-r border-border/30"
-                style={{ background: "hsl(var(--surface) / 0.6)", backdropFilter: "blur(12px)" }}
-              >
-                {/* Description */}
-                <div>
-                  <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold">Descrição</span>
-                  <p className="text-[13px] text-foreground/90 leading-relaxed mt-2">{liveItem.description}</p>
-                </div>
-
-                {/* Meta grid */}
-                <div className="space-y-0.5">
-                  <MetaItem icon={<User className="w-3.5 h-3.5" />} label="Criado por">
-                    {liveItem.createdBy}
-                  </MetaItem>
-                  <MetaItem icon={<Calendar className="w-3.5 h-3.5" />} label="Data">
-                    {new Date(liveItem.createdAt).toLocaleDateString("pt-BR")}
-                  </MetaItem>
-                  <MetaItem icon={<Package className="w-3.5 h-3.5" />} label="Produto">
-                    <span className="flex items-center gap-1.5">
-                      {product && <span className="w-2 h-2 rounded-full" style={{ background: product.color }} />}
-                      {product?.name ?? "—"}
-                    </span>
-                  </MetaItem>
-                  <MetaItem icon={<Building2 className="w-3.5 h-3.5" />} label="Cliente">
-                    {client?.name ?? "—"}
-                  </MetaItem>
-                </div>
-
-                {/* Completed phase summaries */}
-                {liveItem.prioritization && phaseIdx > 1 && (
-                  <div className="pt-3 border-t border-border/30">
-                    <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold">Priorização</span>
-                    <div className="flex gap-4 mt-2">
-                      {[
-                        { label: "Valor", value: liveItem.prioritization.businessValue },
-                        { label: "Custo", value: liveItem.prioritization.opportunityCost },
-                        { label: "Est.", value: `${liveItem.prioritization.estimate}h` },
-                      ].map((s) => (
-                        <div key={s.label} className="text-center">
-                          <div className="text-lg font-bold text-foreground">{s.value}</div>
-                          <div className="text-[9px] text-muted-foreground uppercase tracking-wider">{s.label}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {liveItem.approval && phaseIdx > 2 && (
-                  <div className="pt-3 border-t border-border/30">
-                    <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold">Aprovação</span>
-                    <p className="text-xs text-foreground/80 mt-1.5 italic leading-relaxed">"{liveItem.approval.observation || "—"}"</p>
-                  </div>
-                )}
-              </div>
-
-              {/* ═══ RIGHT — Action (60%) ═══ */}
-              <div
-                className="md:w-[60%] flex-1 overflow-y-auto p-6"
-                style={{ scrollBehavior: "smooth" }}
-              >
-                <PhaseActionPanel item={liveItem} phaseIdx={phaseIdx} />
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="history"
-              initial={{ opacity: 0, x: 16 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -16 }}
-              transition={{ duration: 0.25 }}
-              className="p-6 overflow-y-auto"
-              style={{ height: "calc(88vh - 160px)", maxHeight: "600px", scrollBehavior: "smooth" }}
-            >
-              <HistoryTimeline history={liveItem.phaseHistory} createdBy={liveItem.createdBy} />
-            </motion.div>
-          )}
-        </AnimatePresence>
       </DialogContent>
     </Dialog>
   );
