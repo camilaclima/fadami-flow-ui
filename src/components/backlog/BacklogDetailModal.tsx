@@ -4,7 +4,6 @@ import { useBacklogStore } from "@/store/backlogStore";
 import type { BacklogItem, Phase } from "@/types/backlog";
 import { PHASES, PHASE_LABELS } from "@/types/backlog";
 import { ThermoBadge, PriorityBadge, PhaseBadge } from "./Badges";
-import { ProgressBar } from "./detail/ProgressBar";
 import { HistoryTimeline } from "./detail/HistoryTimeline";
 import { PrioritizationForm } from "./detail/PrioritizationForm";
 import { ApprovalForm } from "./detail/ApprovalForm";
@@ -19,7 +18,7 @@ import {
   FileText,
   Clock,
   Settings2,
-  CheckSquare,
+  CheckCircle,
   Wrench,
   LayoutList,
   CalendarCheck,
@@ -36,7 +35,7 @@ interface Props {
 const PHASE_ICONS: Record<Phase, React.ReactNode> = {
   backlog: <LayoutList className="w-3.5 h-3.5" />,
   prioritization: <Settings2 className="w-3.5 h-3.5" />,
-  approval: <CheckSquare className="w-3.5 h-3.5" />,
+  approval: <CheckCircle className="w-3.5 h-3.5" />,
   refinement: <Wrench className="w-3.5 h-3.5" />,
   available: <Clock className="w-3.5 h-3.5" />,
   planned: <CalendarCheck className="w-3.5 h-3.5" />,
@@ -45,79 +44,135 @@ const PHASE_ICONS: Record<Phase, React.ReactNode> = {
 
 type TabId = "details" | "history";
 
-function AccordionSection({
+/* ── Accordion for phase sections ── */
+function PhaseAccordion({
   title,
   icon,
   defaultOpen,
   active,
+  completed,
   children,
 }: {
   title: string;
   icon: React.ReactNode;
   defaultOpen?: boolean;
   active?: boolean;
+  completed?: boolean;
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(defaultOpen ?? false);
+  const [isOpen, setIsOpen] = useState(defaultOpen ?? false);
 
   useEffect(() => {
-    if (defaultOpen !== undefined) setOpen(defaultOpen);
+    if (defaultOpen !== undefined) setIsOpen(defaultOpen);
   }, [defaultOpen]);
 
   return (
-    <div className={`rounded-xl overflow-hidden transition-all ${active ? "ring-1 ring-primary/30" : ""}`}>
+    <div className="group">
       <button
-        onClick={() => setOpen(!open)}
-        className={`w-full flex items-center gap-2 px-4 py-2.5 transition-colors ${
-          active ? "bg-primary/10 text-primary" : "bg-secondary/30 text-foreground hover:bg-surface-hover"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full flex items-center gap-2.5 py-3 transition-colors ${
+          active
+            ? "text-primary"
+            : completed
+            ? "text-foreground/60"
+            : "text-foreground hover:text-primary"
         }`}
       >
-        {icon}
-        <span className="text-xs font-semibold flex-1 text-left">{title}</span>
+        <div className={`flex items-center justify-center w-6 h-6 rounded-lg transition-colors ${
+          active
+            ? "bg-primary/15"
+            : completed
+            ? "bg-phase-finished/10"
+            : "bg-secondary"
+        }`}>
+          {completed ? <CheckCircle className="w-3 h-3 text-phase-finished" /> : icon}
+        </div>
+        <span className="text-xs font-semibold flex-1 text-left tracking-wide uppercase">{title}</span>
         {active && (
-          <span className="text-[9px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-2 py-0.5 rounded-md">
+          <motion.span
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="text-[8px] font-bold uppercase tracking-widest bg-primary/15 text-primary px-2 py-0.5 rounded-md"
+          >
             Atual
-          </span>
+          </motion.span>
         )}
-        {open ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
+        <motion.div
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+        </motion.div>
       </button>
+
       <AnimatePresence>
-        {open && (
+        {isOpen && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
+            transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
             className="overflow-hidden"
           >
-            <div className="p-4">{children}</div>
+            <div className="pb-5 pl-8">{children}</div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Separator line */}
+      <div className="h-px bg-border/40" />
     </div>
   );
 }
 
-function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
+/* ── Left column info item ── */
+function MetaItem({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2.5 py-2">
-      <div className="text-muted-foreground">{icon}</div>
+    <div className="flex items-center gap-3 py-2.5">
+      <div className="w-7 h-7 rounded-lg bg-secondary/80 flex items-center justify-center text-muted-foreground">
+        {icon}
+      </div>
       <div className="flex-1 min-w-0">
-        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</span>
-        <div className="text-sm text-foreground mt-0.5 truncate">{value}</div>
+        <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold">{label}</span>
+        <div className="text-[13px] text-foreground mt-0.5">{children}</div>
       </div>
     </div>
   );
 }
 
+/* ── Progress bar (2px, gradient, glow tip) ── */
+function ThinProgressBar({ phase }: { phase: Phase }) {
+  const idx = PHASES.indexOf(phase);
+  const pct = ((idx + 1) / PHASES.length) * 100;
+
+  return (
+    <div className="relative w-full h-[2px] bg-border/30 rounded-full overflow-visible">
+      <motion.div
+        className="absolute inset-y-0 left-0 rounded-full"
+        style={{ background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--phase-finished)))" }}
+        initial={{ width: 0 }}
+        animate={{ width: `${pct}%` }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+      />
+      {/* Glow tip */}
+      <motion.div
+        className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-primary"
+        style={{ boxShadow: "0 0 8px 2px hsl(var(--primary) / 0.5)" }}
+        initial={{ left: 0 }}
+        animate={{ left: `${pct}%` }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+      />
+    </div>
+  );
+}
+
+/* ── Main Modal ── */
 export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
   const { products, clients, backlogs } = useBacklogStore();
   const [activeTab, setActiveTab] = useState<TabId>("details");
 
-  // Get the live version of the item from the store
   const liveItem = item ? backlogs.find((b) => b.id === item.id) ?? item : null;
 
-  // Reset tab when opening
   useEffect(() => {
     if (open) setActiveTab("details");
   }, [open]);
@@ -135,29 +190,36 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl p-0 bg-card border-border max-h-[88vh] overflow-hidden gap-0">
-        {/* Header */}
-        <div className="px-6 pt-5 pb-4 border-b border-border space-y-3">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-bold text-foreground leading-tight truncate">{liveItem.title}</h2>
-              <div className="flex items-center gap-2 mt-2">
-                <PhaseBadge value={liveItem.phase} />
-                <ThermoBadge value={liveItem.thermometer} />
-                {liveItem.prioritization && <PriorityBadge value={liveItem.prioritization.priority} />}
-              </div>
-            </div>
-          </div>
-          <ProgressBar currentPhase={liveItem.phase} />
+      <DialogContent
+        className="sm:max-w-[960px] p-0 gap-0 overflow-hidden border-border/40"
+        style={{
+          background: "hsl(var(--card))",
+          boxShadow: "0 25px 80px -12px hsl(var(--primary) / 0.12), 0 8px 32px -8px hsl(0 0% 0% / 0.3), 0 0 0 1px hsl(var(--border) / 0.3)",
+          maxHeight: "88vh",
+        }}
+      >
+        {/* ── Top progress bar ── */}
+        <div className="px-6 pt-4">
+          <ThinProgressBar phase={liveItem.phase} />
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-0 border-b border-border px-6">
+        {/* ── Header ── */}
+        <div className="px-6 pt-4 pb-3">
+          <h2 className="text-lg font-bold text-foreground leading-tight tracking-tight">{liveItem.title}</h2>
+          <div className="flex items-center gap-2 mt-2">
+            <PhaseBadge value={liveItem.phase} />
+            <ThermoBadge value={liveItem.thermometer} />
+            {liveItem.prioritization && <PriorityBadge value={liveItem.prioritization.priority} />}
+          </div>
+        </div>
+
+        {/* ── Tab bar ── */}
+        <div className="flex gap-0 px-6 border-b border-border/40">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium transition-colors relative ${
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold transition-colors relative ${
                 activeTab === tab.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -165,149 +227,172 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
               {tab.label}
               {activeTab === tab.id && (
                 <motion.div
-                  layoutId="detail-tab-indicator"
-                  className="absolute bottom-0 left-0 right-0 h-[2px] bg-primary rounded-full"
+                  layoutId="detail-tab-underline"
+                  className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full"
+                  style={{ background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary) / 0.4))" }}
                 />
               )}
             </button>
           ))}
         </div>
 
-        {/* Content */}
-        <div className="overflow-y-auto flex-1" style={{ maxHeight: "calc(88vh - 180px)" }}>
-          <AnimatePresence mode="wait">
-            {activeTab === "details" ? (
-              <motion.div
-                key="details"
-                initial={{ opacity: 0, x: -12 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 12 }}
-                transition={{ duration: 0.2 }}
-                className="grid grid-cols-1 md:grid-cols-5 divide-y md:divide-y-0 md:divide-x divide-border"
+        {/* ── Content ── */}
+        <AnimatePresence mode="wait">
+          {activeTab === "details" ? (
+            <motion.div
+              key="details"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="flex flex-col md:flex-row"
+              style={{ height: "calc(88vh - 160px)", maxHeight: "600px" }}
+            >
+              {/* ═══ LEFT — Reference (40%) ═══ */}
+              <div
+                className="md:w-[40%] shrink-0 p-6 space-y-5 overflow-hidden border-r border-border/30"
+                style={{ background: "hsl(var(--surface) / 0.6)", backdropFilter: "blur(12px)" }}
               >
-                {/* LEFT — Reference Panel */}
-                <div className="md:col-span-2 p-5 space-y-4">
-                  <div className="space-y-1">
-                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Descrição</span>
-                    <p className="text-sm text-foreground leading-relaxed">{liveItem.description}</p>
-                  </div>
-
-                  <div className="border-t border-border pt-3 space-y-0">
-                    <InfoRow icon={<User className="w-3.5 h-3.5" />} label="Criado por" value={liveItem.createdBy} />
-                    <InfoRow
-                      icon={<Calendar className="w-3.5 h-3.5" />}
-                      label="Data de criação"
-                      value={new Date(liveItem.createdAt).toLocaleDateString("pt-BR")}
-                    />
-                    <InfoRow icon={<Package className="w-3.5 h-3.5" />} label="Produto" value={
-                      <span className="flex items-center gap-1.5">
-                        {product && <span className="w-2 h-2 rounded-full" style={{ background: product.color }} />}
-                        {product?.name ?? "—"}
-                      </span>
-                    } />
-                    <InfoRow icon={<Building2 className="w-3.5 h-3.5" />} label="Cliente" value={client?.name ?? "—"} />
-                  </div>
-
-                  {/* Quick summary of completed data */}
-                  {liveItem.prioritization && phaseIdx > 1 && (
-                    <div className="border-t border-border pt-3">
-                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Resumo da Priorização</span>
-                      <div className="flex gap-3 mt-2 text-xs text-foreground">
-                        <span>Valor: <strong>{liveItem.prioritization.businessValue}</strong></span>
-                        <span>Custo: <strong>{liveItem.prioritization.opportunityCost}</strong></span>
-                        <span>Est: <strong>{liveItem.prioritization.estimate}h</strong></span>
-                      </div>
-                    </div>
-                  )}
-
-                  {liveItem.approval && phaseIdx > 2 && (
-                    <div className="border-t border-border pt-3">
-                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Observação da Aprovação</span>
-                      <p className="text-xs text-foreground mt-1">{liveItem.approval.observation || "—"}</p>
-                    </div>
-                  )}
+                {/* Description */}
+                <div>
+                  <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold">Descrição</span>
+                  <p className="text-[13px] text-foreground/90 leading-relaxed mt-2">{liveItem.description}</p>
                 </div>
 
-                {/* RIGHT — Action Panel */}
-                <div className="md:col-span-3 p-5 space-y-3">
-                  <PhaseActionPanel item={liveItem} phaseIdx={phaseIdx} />
+                {/* Meta grid */}
+                <div className="space-y-0.5">
+                  <MetaItem icon={<User className="w-3.5 h-3.5" />} label="Criado por">
+                    {liveItem.createdBy}
+                  </MetaItem>
+                  <MetaItem icon={<Calendar className="w-3.5 h-3.5" />} label="Data">
+                    {new Date(liveItem.createdAt).toLocaleDateString("pt-BR")}
+                  </MetaItem>
+                  <MetaItem icon={<Package className="w-3.5 h-3.5" />} label="Produto">
+                    <span className="flex items-center gap-1.5">
+                      {product && <span className="w-2 h-2 rounded-full" style={{ background: product.color }} />}
+                      {product?.name ?? "—"}
+                    </span>
+                  </MetaItem>
+                  <MetaItem icon={<Building2 className="w-3.5 h-3.5" />} label="Cliente">
+                    {client?.name ?? "—"}
+                  </MetaItem>
                 </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="history"
-                initial={{ opacity: 0, x: 12 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -12 }}
-                transition={{ duration: 0.2 }}
-                className="p-5"
+
+                {/* Completed phase summaries */}
+                {liveItem.prioritization && phaseIdx > 1 && (
+                  <div className="pt-3 border-t border-border/30">
+                    <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold">Priorização</span>
+                    <div className="flex gap-4 mt-2">
+                      {[
+                        { label: "Valor", value: liveItem.prioritization.businessValue },
+                        { label: "Custo", value: liveItem.prioritization.opportunityCost },
+                        { label: "Est.", value: `${liveItem.prioritization.estimate}h` },
+                      ].map((s) => (
+                        <div key={s.label} className="text-center">
+                          <div className="text-lg font-bold text-foreground">{s.value}</div>
+                          <div className="text-[9px] text-muted-foreground uppercase tracking-wider">{s.label}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {liveItem.approval && phaseIdx > 2 && (
+                  <div className="pt-3 border-t border-border/30">
+                    <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold">Aprovação</span>
+                    <p className="text-xs text-foreground/80 mt-1.5 italic leading-relaxed">"{liveItem.approval.observation || "—"}"</p>
+                  </div>
+                )}
+              </div>
+
+              {/* ═══ RIGHT — Action (60%) ═══ */}
+              <div
+                className="md:w-[60%] flex-1 overflow-y-auto p-6"
+                style={{ scrollBehavior: "smooth" }}
               >
-                <HistoryTimeline history={liveItem.phaseHistory} createdBy={liveItem.createdBy} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+                <PhaseActionPanel item={liveItem} phaseIdx={phaseIdx} />
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="history"
+              initial={{ opacity: 0, x: 16 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -16 }}
+              transition={{ duration: 0.25 }}
+              className="p-6 overflow-y-auto"
+              style={{ height: "calc(88vh - 160px)", maxHeight: "600px", scrollBehavior: "smooth" }}
+            >
+              <HistoryTimeline history={liveItem.phaseHistory} createdBy={liveItem.createdBy} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </DialogContent>
     </Dialog>
   );
 }
 
+/* ── Phase Action Panel (right column) ── */
 function PhaseActionPanel({ item, phaseIdx }: { item: BacklogItem; phaseIdx: number }) {
-  // Continuous flow: after saving, the store updates the item phase, and we re-render the next phase form
-  const handleSaved = () => {
-    // No-op — the store updates the item and we re-render automatically via liveItem
-  };
+  const handleSaved = () => {};
 
   return (
-    <div className="space-y-3">
-      {/* Current phase gets active styling, past phases are collapsed accordions */}
+    <div>
       {phaseIdx >= 1 && (
-        <AccordionSection
+        <PhaseAccordion
           title="Priorização"
           icon={PHASE_ICONS.prioritization}
           defaultOpen={item.phase === "prioritization"}
           active={item.phase === "prioritization"}
+          completed={phaseIdx > 1}
         >
           <PrioritizationForm item={item} onSaved={handleSaved} readOnly={item.phase !== "prioritization"} />
-        </AccordionSection>
+        </PhaseAccordion>
       )}
 
       {phaseIdx >= 2 && (
-        <AccordionSection
+        <PhaseAccordion
           title="Aprovação"
           icon={PHASE_ICONS.approval}
           defaultOpen={item.phase === "approval"}
           active={item.phase === "approval"}
+          completed={phaseIdx > 2}
         >
           <ApprovalForm item={item} onSaved={handleSaved} readOnly={item.phase !== "approval"} />
-        </AccordionSection>
+        </PhaseAccordion>
       )}
 
       {phaseIdx >= 3 && (
-        <AccordionSection
+        <PhaseAccordion
           title="Refinamento"
           icon={PHASE_ICONS.refinement}
           defaultOpen={item.phase === "refinement"}
           active={item.phase === "refinement"}
+          completed={phaseIdx > 3}
         >
           <RefinementForm item={item} onSaved={handleSaved} readOnly={item.phase !== "refinement"} />
-        </AccordionSection>
+        </PhaseAccordion>
       )}
 
       {(item.phase === "available" || item.phase === "planned" || item.phase === "finished") && (
-        <AccordionSection
+        <PhaseAccordion
           title={PHASE_LABELS[item.phase]}
           icon={PHASE_ICONS[item.phase]}
           defaultOpen
           active
         >
           <p className="text-xs text-muted-foreground">Placeholder para feature futura.</p>
-        </AccordionSection>
+        </PhaseAccordion>
       )}
 
       {phaseIdx === 0 && (
-        <div className="flex items-center justify-center py-8">
-          <p className="text-sm text-muted-foreground">Este backlog está na fila inicial. Mova para Priorização para começar.</p>
+        <div className="flex flex-col items-center justify-center py-12 gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-secondary flex items-center justify-center">
+            <LayoutList className="w-5 h-5 text-muted-foreground" />
+          </div>
+          <p className="text-sm text-muted-foreground text-center max-w-[240px]">
+            Este backlog está na fila inicial. Mova para Priorização para começar o fluxo.
+          </p>
         </div>
       )}
     </div>

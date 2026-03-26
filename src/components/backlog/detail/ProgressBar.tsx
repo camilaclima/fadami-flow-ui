@@ -6,42 +6,26 @@ export function ProgressBar({ currentPhase }: { currentPhase: Phase }) {
   const progress = ((currentIdx + 1) / PHASES.length) * 100;
 
   return (
-    <div className="w-full space-y-2">
-      <div className="flex justify-between items-center">
-        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Progresso</span>
-        <span className="text-[10px] font-semibold text-primary">{Math.round(progress)}%</span>
-      </div>
-      <div className="relative h-1 w-full rounded-full bg-secondary overflow-hidden">
-        <motion.div
-          className="absolute inset-y-0 left-0 rounded-full"
-          style={{
-            background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--phase-finished)))",
-          }}
-          initial={{ width: 0 }}
-          animate={{ width: `${progress}%` }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-        />
-      </div>
-      <div className="flex justify-between">
-        {PHASES.map((phase, i) => {
-          const done = i < currentIdx;
-          const active = i === currentIdx;
-          return (
-            <div key={phase} className="flex flex-col items-center gap-1" style={{ width: `${100 / PHASES.length}%` }}>
-              <motion.div
-                className={`w-2 h-2 rounded-full transition-colors ${
-                  done ? "bg-phase-finished" : active ? "bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.5)]" : "bg-secondary"
-                }`}
-                animate={active ? { scale: [1, 1.3, 1] } : {}}
-                transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-              />
-              <span className={`text-[8px] whitespace-nowrap ${active ? "text-primary font-semibold" : "text-muted-foreground"}`}>
-                {PHASE_LABELS[phase]}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+    <div className="flex items-center gap-3">
+      {PHASES.map((phase, i) => {
+        const done = i < currentIdx;
+        const active = i === currentIdx;
+        return (
+          <div key={phase} className="flex items-center gap-1" style={{ flex: 1 }}>
+            <motion.div
+              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                done ? "bg-phase-finished" : active ? "bg-primary" : "bg-border/60"
+              }`}
+              animate={active ? { scale: [1, 1.4, 1] } : {}}
+              transition={{ repeat: Infinity, duration: 2 }}
+              style={active ? { boxShadow: "0 0 6px hsl(var(--primary) / 0.5)" } : {}}
+            />
+            {i < PHASES.length - 1 && (
+              <div className={`flex-1 h-px ${done ? "bg-phase-finished/60" : "bg-border/30"}`} />
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
