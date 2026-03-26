@@ -55,7 +55,7 @@ export function PhaseFilterBar({ selected, onSelect }: Props) {
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         onClick={() => onSelect("all")}
-        className={`relative flex items-center gap-3 px-5 py-3.5 rounded-2xl transition-all duration-200 flex-shrink-0 neu-card-hover ${
+        className={`relative flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 neu-card-hover ${
           selected === "all"
             ? "glow-active bg-card"
             : "neu-card hover:border-primary/20"
