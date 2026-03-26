@@ -49,7 +49,7 @@ export function PhaseFilterBar({ selected, onSelect }: Props) {
   const total = backlogs.length;
 
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+    <div className="flex gap-2 overflow-x-auto pb-0 scrollbar-none">
       {/* Total button */}
       <motion.button
         whileHover={{ scale: 1.02 }}

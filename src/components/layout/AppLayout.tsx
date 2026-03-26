@@ -23,7 +23,7 @@ export function AppLayout() {
             </div>
           </div>
         </header>
-        <main className="p-6">
+        <main className="px-6 py-4">
           <Outlet />
         </main>
       </div>
