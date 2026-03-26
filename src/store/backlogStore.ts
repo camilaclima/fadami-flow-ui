@@ -97,10 +97,10 @@ const MOCK_BACKLOGS: BacklogItem[] = [
     productId: "p1",
     clientId: "c3",
     thermometer: "medium",
-    phase: "backlog",
+    phase: "prioritization",
     createdBy: "Ana Silva",
     createdAt: "2024-03-20T09:00:00Z",
-    phaseHistory: [{ phase: "backlog", enteredAt: "2024-03-20T09:00:00Z" }],
+    phaseHistory: [{ phase: "prioritization", enteredAt: "2024-03-20T09:00:00Z" }],
   },
   {
     id: "b6",
