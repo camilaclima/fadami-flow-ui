@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
 
 // Escala linear até 10h + 16h (2 dias) e 24h (3 dias)
-const ESTIMATION_HOURS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 24];
+const ESTIMATION_HOURS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16];
 
 function calcPriority(bv: number, oc: number, urg: number, est: number): Priority {
   const score = (bv + oc + urg) / est;
