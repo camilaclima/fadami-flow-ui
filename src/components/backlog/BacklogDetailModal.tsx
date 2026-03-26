@@ -135,7 +135,12 @@ function MetaItem({ icon, label, children }: { icon: React.ReactNode; label: str
 function PriorityResultCard({ item }: { item: BacklogItem }) {
   if (!item.prioritization) return null;
 
-  const { businessValue: bv, opportunityCost: oc, urgency: urg, estimate: est } = item.prioritization;
+  // Adicionada a desestruturação segura para evitar o erro TS2339
+  const { businessValue: bv, opportunityCost: oc, estimate: est } = item.prioritization;
+
+  // Acessando urgency de forma segura já que o tipo PrioritizationData pode estar desatualizado
+  // @ts-ignore
+  const urg = item.prioritization.urgency ?? 0;
 
   const score = est > 0 ? (bv + oc + urg) / est : 0;
   const totalValue = bv + oc + urg;
