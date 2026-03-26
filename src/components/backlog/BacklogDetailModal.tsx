@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useBacklogStore } from "@/store/backlogStore";
 import type { BacklogItem, Phase, Priority } from "@/types/backlog";
@@ -42,7 +42,6 @@ const PHASE_ICONS: Record<Phase, React.ReactNode> = {
 
 type TabId = "details" | "history";
 
-/* ── Accordion for phase sections (Metadata à direita e visível) ── */
 function PhaseAccordion({
   title,
   icon,
@@ -98,7 +97,6 @@ function PhaseAccordion({
             )}
           </div>
 
-          {/* Metadata à direita - Mais visível e na mesma linha */}
           {(updatedBy || updatedAt) && (
             <div className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground/80 shrink-0 ml-4">
               <span className="max-w-[100px] truncate">{updatedBy}</span>
@@ -131,7 +129,6 @@ function PhaseAccordion({
   );
 }
 
-/* ── Left column info item ── */
 function MetaItem({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-3 py-2">
@@ -146,7 +143,6 @@ function MetaItem({ icon, label, children }: { icon: React.ReactNode; label: str
   );
 }
 
-/* ── Priority Result Card (Compacto) ── */
 function PriorityResultCard({ item }: { item: BacklogItem }) {
   if (!item.prioritization) return null;
   const { businessValue: bv, opportunityCost: oc, estimate: est } = item.prioritization;
@@ -181,7 +177,6 @@ function PriorityResultCard({ item }: { item: BacklogItem }) {
   );
 }
 
-/* ── Main Modal ── */
 export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
   const { products, clients, backlogs } = useBacklogStore();
   const [activeTab, setActiveTab] = useState<TabId>("details");
@@ -218,7 +213,6 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
         </div>
 
         <div className="flex flex-col md:flex-row" style={{ height: "calc(88vh - 100px)", maxHeight: "640px" }}>
-          {/* LEFT — Info Panel (40%) */}
           <div
             className="md:w-[40%] shrink-0 flex flex-col overflow-hidden border-r border-border/30"
             style={{ background: "hsl(var(--surface) / 0.6)", backdropFilter: "blur(12px)" }}
@@ -310,7 +304,6 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
             </div>
           </div>
 
-          {/* RIGHT — Action Panel (60%) */}
           <div className="md:w-[60%] flex-1 overflow-y-auto px-5 pt-0 pb-5">
             <PhaseActionPanel item={liveItem} phaseIdx={phaseIdx} />
           </div>
@@ -320,7 +313,7 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
   );
 }
 
-function PhaseActionPanel({ item, phaseIdx }: { item: BacklogItem; phaseIdx: number }) {
+const PhaseActionPanel = memo(({ item, phaseIdx }: { item: BacklogItem; phaseIdx: number }) => {
   const handleSaved = () => {};
 
   return (
@@ -386,4 +379,4 @@ function PhaseActionPanel({ item, phaseIdx }: { item: BacklogItem; phaseIdx: num
       )}
     </div>
   );
-}
+});
