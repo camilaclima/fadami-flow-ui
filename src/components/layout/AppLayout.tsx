@@ -1,5 +1,6 @@
 import { AppSidebar } from "./AppSidebar";
 import { ThemeToggle } from "../ThemeToggle";
+import { FadamiFlowLogo } from "@/components/FadamiFlowLogo";
 import { Outlet, useNavigate } from "react-router-dom";
 import { Bell, LogOut } from "lucide-react";
 import { useAdminStore } from "@/store/adminStore";
