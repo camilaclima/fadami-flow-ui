@@ -238,4 +238,76 @@ export const useBacklogStore = create<BacklogStore>((set) => ({
         return { ...b, phase: "available" as Phase, refinement: { ...data, updatedBy: b.createdBy, updatedAt: nowStr }, phaseHistory: history };
       }),
     })),
+
+  addSubItem: (backlogId, data) =>
+    set((state) => ({
+      backlogs: state.backlogs.map((b) => {
+        if (b.id !== backlogId) return b;
+        const existing = b.refinement?.subItems ?? [];
+        const newItem: SubItem = {
+          ...data,
+          id: `si-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          order: existing.length,
+        };
+        return {
+          ...b,
+          refinement: { ...b.refinement, subItems: [...existing, newItem] },
+        };
+      }),
+    })),
+
+  updateSubItem: (backlogId, subItemId, data) =>
+    set((state) => ({
+      backlogs: state.backlogs.map((b) => {
+        if (b.id !== backlogId) return b;
+        const items = (b.refinement?.subItems ?? []).map((si) =>
+          si.id === subItemId ? { ...si, ...data, id: si.id, order: si.order } : si
+        );
+        return { ...b, refinement: { ...b.refinement, subItems: items } };
+      }),
+    })),
+
+  deleteSubItem: (backlogId, subItemId) =>
+    set((state) => ({
+      backlogs: state.backlogs.map((b) => {
+        if (b.id !== backlogId) return b;
+        const items = (b.refinement?.subItems ?? [])
+          .filter((si) => si.id !== subItemId)
+          .map((si, i) => ({ ...si, order: i }));
+        return { ...b, refinement: { ...b.refinement, subItems: items } };
+      }),
+    })),
+
+  reorderSubItems: (backlogId, orderedIds) =>
+    set((state) => ({
+      backlogs: state.backlogs.map((b) => {
+        if (b.id !== backlogId) return b;
+        const existing = b.refinement?.subItems ?? [];
+        const reordered = orderedIds
+          .map((id, i) => {
+            const item = existing.find((si) => si.id === id);
+            return item ? { ...item, order: i } : null;
+          })
+          .filter(Boolean) as SubItem[];
+        return { ...b, refinement: { ...b.refinement, subItems: reordered } };
+      }),
+    })),
+
+  completeRefinement: (backlogId) =>
+    set((state) => ({
+      backlogs: state.backlogs.map((b) => {
+        if (b.id !== backlogId) return b;
+        const nowStr = new Date().toISOString();
+        const history = b.phaseHistory.map((h) =>
+          h.phase === "refinement" && !h.completedAt ? { ...h, completedAt: nowStr } : h
+        );
+        history.push({ phase: "available" as Phase, enteredAt: nowStr });
+        return {
+          ...b,
+          phase: "available" as Phase,
+          refinement: { ...b.refinement, updatedBy: b.createdBy, updatedAt: nowStr },
+          phaseHistory: history,
+        };
+      }),
+    })),
 }));
