@@ -60,6 +60,10 @@ interface AdminStore {
   toggleUserActive: (id: string) => void;
   getCloneData: (id: string) => Partial<AppUser> | null;
 
+  // Auth
+  login: (email: string, password: string) => { success: boolean; message: string };
+  logout: () => void;
+
   // Permissions
   getCurrentUserPermissions: () => SystemPage[];
 }
