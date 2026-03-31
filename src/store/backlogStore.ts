@@ -148,6 +148,11 @@ interface BacklogStore {
   savePrioritization: (id: string, data: Omit<PrioritizationData, "priority">) => void;
   saveApproval: (id: string, data: ApprovalData) => void;
   saveRefinement: (id: string, data: RefinementData) => void;
+  addSubItem: (backlogId: string, data: Omit<SubItem, "id" | "order">) => void;
+  updateSubItem: (backlogId: string, subItemId: string, data: Omit<SubItem, "id" | "order">) => void;
+  deleteSubItem: (backlogId: string, subItemId: string) => void;
+  reorderSubItems: (backlogId: string, orderedIds: string[]) => void;
+  completeRefinement: (backlogId: string) => void;
 }
 
 export const useBacklogStore = create<BacklogStore>((set) => ({
