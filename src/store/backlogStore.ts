@@ -205,7 +205,7 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
 
     await supabase.from("backlogs").update({
       phase: "available",
-      refinement: data,
+      refinement: data as any,
     }).eq("id", id);
 
     await supabase.from("backlog_phase_history").update({ completed_at: now })
