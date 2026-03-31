@@ -14,7 +14,353 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      access_groups: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          permissions: Json
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          permissions?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          permissions?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      backlog_phase_history: {
+        Row: {
+          backlog_id: string
+          completed_at: string | null
+          created_at: string
+          entered_at: string
+          id: string
+          phase: string
+        }
+        Insert: {
+          backlog_id: string
+          completed_at?: string | null
+          created_at?: string
+          entered_at?: string
+          id?: string
+          phase: string
+        }
+        Update: {
+          backlog_id?: string
+          completed_at?: string | null
+          created_at?: string
+          entered_at?: string
+          id?: string
+          phase?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backlog_phase_history_backlog_id_fkey"
+            columns: ["backlog_id"]
+            isOneToOne: false
+            referencedRelation: "backlogs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      backlog_sub_items: {
+        Row: {
+          attachment: string | null
+          backlog_id: string
+          created_at: string
+          estimate: number
+          functional_detail: string
+          id: string
+          sort_order: number
+          technical_detail: string
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          attachment?: string | null
+          backlog_id: string
+          created_at?: string
+          estimate?: number
+          functional_detail?: string
+          id?: string
+          sort_order?: number
+          technical_detail?: string
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          attachment?: string | null
+          backlog_id?: string
+          created_at?: string
+          estimate?: number
+          functional_detail?: string
+          id?: string
+          sort_order?: number
+          technical_detail?: string
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backlog_sub_items_backlog_id_fkey"
+            columns: ["backlog_id"]
+            isOneToOne: false
+            referencedRelation: "backlogs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      backlogs: {
+        Row: {
+          approval: Json | null
+          attachment: string | null
+          client_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          phase: string
+          prioritization: Json | null
+          product_id: string | null
+          refinement: Json | null
+          thermometer: string
+          title: string
+          type: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          approval?: Json | null
+          attachment?: string | null
+          client_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          phase?: string
+          prioritization?: Json | null
+          product_id?: string | null
+          refinement?: Json | null
+          thermometer?: string
+          title: string
+          type?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          approval?: Json | null
+          attachment?: string | null
+          client_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          phase?: string
+          prioritization?: Json | null
+          product_id?: string | null
+          refinement?: Json | null
+          thermometer?: string
+          title?: string
+          type?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backlogs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "backlogs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          contact_email: string
+          contact_name: string
+          created_at: string
+          email: string
+          id: string
+          name: string
+          phone: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          contact_email?: string
+          contact_name?: string
+          created_at?: string
+          email?: string
+          id?: string
+          name: string
+          phone?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          contact_email?: string
+          contact_name?: string
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          phone?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          color: string
+          created_at: string
+          description: string
+          id: string
+          name: string
+          status: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          description?: string
+          id?: string
+          name: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          active: boolean
+          created_at: string
+          email: string
+          first_access: boolean
+          first_name: string
+          group_id: string | null
+          id: string
+          last_name: string
+          product_id: string | null
+          role_id: string | null
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          email: string
+          first_access?: boolean
+          first_name?: string
+          group_id?: string | null
+          id?: string
+          last_name?: string
+          product_id?: string | null
+          role_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          email?: string
+          first_access?: boolean
+          first_name?: string
+          group_id?: string | null
+          id?: string
+          last_name?: string
+          product_id?: string | null
+          role_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "access_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roles: {
+        Row: {
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
