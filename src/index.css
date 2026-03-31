@@ -186,24 +186,31 @@
   }
 }
 
-/* FadamiFlow glow effect */
+/* FadamiFlow logo colors */
+.fadamiflow-fadami {
+  color: hsl(220, 9%, 35%);
+}
+.dark .fadamiflow-fadami {
+  color: hsl(0, 0%, 100%);
+}
+
+/* Golden amber glow – matching GuardiON reference */
 .fadamiflow-glow {
-  color: hsl(24, 95%, 53%);
-  text-shadow: 0 0 8px hsl(24 95% 53% / 0.6), 0 0 20px hsl(24 95% 53% / 0.3);
+  color: hsl(38, 92%, 50%);
   animation: fadamiGlow 3s ease-in-out infinite;
 }
 
 :root .fadamiflow-glow {
-  text-shadow: 0 0 6px hsl(24 95% 53% / 0.35), 0 0 14px hsl(24 95% 53% / 0.15);
+  text-shadow: 0 0 6px hsl(38 92% 50% / 0.3), 0 0 12px hsl(38 92% 50% / 0.12);
 }
 
 .dark .fadamiflow-glow {
-  text-shadow: 0 0 8px hsl(24 95% 53% / 0.6), 0 0 20px hsl(24 95% 53% / 0.3);
+  text-shadow: 0 0 8px hsl(38 92% 50% / 0.55), 0 0 20px hsl(38 92% 50% / 0.25);
 }
 
 @keyframes fadamiGlow {
   0%, 100% { opacity: 1; filter: brightness(1); }
-  50% { opacity: 0.85; filter: brightness(1.15); }
+  50% { opacity: 0.88; filter: brightness(1.12); }
 }
 
 @keyframes fadeIn {
