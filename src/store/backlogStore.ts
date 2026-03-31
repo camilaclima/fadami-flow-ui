@@ -110,6 +110,7 @@ const MOCK_BACKLOGS: BacklogItem[] = [
   {
     id: "b6",
     title: "Modo offline para mobile",
+    type: "functional",
     description: "Permitir que usuários acessem e editem backlogs sem conexão à internet.",
     productId: "p2",
     clientId: "c1",
