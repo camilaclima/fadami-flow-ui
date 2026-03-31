@@ -1,6 +1,7 @@
 import { LayoutDashboard, ListTodo, Package, Users, Settings, ChevronLeft, ChevronDown, Briefcase, Shield, UserCog, ClipboardList, ShieldCheck } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { FadamiFlowLogo } from "@/components/FadamiFlowLogo";
+import menuIcon from "@/assets/menu-icon.png";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useMemo } from "react";
 import { useAdminStore } from "@/store/adminStore";
@@ -88,8 +89,12 @@ export function AppSidebar() {
       onMouseLeave={() => setExpanded(false)}
     >
       {/* Logo */}
-      <div className="h-14 flex items-center px-4 border-b border-border/60 overflow-hidden">
-        <FadamiFlowLogo compact={!expanded} />
+      <div className="h-14 flex items-center justify-center px-4 border-b border-border/60 overflow-hidden">
+        {expanded ? (
+          <FadamiFlowLogo />
+        ) : (
+          <img src={menuIcon} alt="Menu" className="w-5 h-5 opacity-60 dark:invert dark:opacity-50" />
+        )}
       </div>
 
       {/* Nav */}
