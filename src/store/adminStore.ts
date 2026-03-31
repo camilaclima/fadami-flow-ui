@@ -129,6 +129,20 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
     return { productId: user.productId, roleId: user.roleId, groupId: user.groupId };
   },
 
+  // Auth
+  login: (email, password) => {
+    const state = get();
+    const user = state.users.find((u) => u.email === email);
+    if (!user) return { success: false, message: "Credenciais inválidas." };
+    if (!user.active) return { success: false, message: "Usuário inativo. Contate o administrador." };
+    if (user.firstAccess) {
+      if (password !== user.tempPassword) return { success: false, message: "Senha incorreta." };
+    }
+    set({ currentUserId: user.id, isAuthenticated: true });
+    return { success: true, message: "" };
+  },
+  logout: () => set({ currentUserId: "", isAuthenticated: false }),
+
   // Permissions
   getCurrentUserPermissions: () => {
     const state = get();
