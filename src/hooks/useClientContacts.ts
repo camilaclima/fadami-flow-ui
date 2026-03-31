@@ -49,16 +49,14 @@ export function useAddClient() {
   return useMutation({
     mutationFn: async ({
       name,
-      email,
       contacts,
     }: {
       name: string;
-      email: string;
       contacts: Omit<ClientContact, "id" | "client_id">[];
     }) => {
       const { data: client, error: clientError } = await supabase
         .from("clients")
-        .insert({ name, email })
+        .insert({ name })
         .select("id")
         .single();
       if (clientError) throw clientError;
@@ -76,7 +74,7 @@ export function useAddClient() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["client_contacts_all"] });
-      toast.success("Cliente criado!");
+      toast.success("Cliente criado com sucesso!");
     },
   });
 }
@@ -87,17 +85,15 @@ export function useUpdateClient() {
     mutationFn: async ({
       id,
       name,
-      email,
       contacts,
     }: {
       id: string;
       name: string;
-      email: string;
       contacts: Omit<ClientContact, "id" | "client_id">[];
     }) => {
       const { error: clientError } = await supabase
         .from("clients")
-        .update({ name, email })
+        .update({ name })
         .eq("id", id);
       if (clientError) throw clientError;
 
@@ -115,7 +111,54 @@ export function useUpdateClient() {
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["client_contacts_all"] });
       qc.invalidateQueries({ queryKey: ["client_contacts"] });
-      toast.success("Cliente atualizado!");
+      toast.success("Cliente atualizado com sucesso!");
+    },
+  });
+}
+
+export function useToggleClientActive() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
+      const { error } = await supabase.from("clients").update({ active }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_, { active }) => {
+      qc.invalidateQueries({ queryKey: ["clients"] });
+      toast.success(active ? "Cliente reativado!" : "Cliente desativado!");
+    },
+  });
+}
+
+export function useDeleteContact() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("client_contacts").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["client_contacts_all"] });
+      qc.invalidateQueries({ queryKey: ["client_contacts"] });
+      toast.success("Contato removido!");
+    },
+  });
+}
+
+export function useUpdateContact() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...data }: Partial<ClientContact> & { id: string }) => {
+      const { error } = await supabase
+        .from("client_contacts")
+        .update(data)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["client_contacts_all"] });
+      qc.invalidateQueries({ queryKey: ["client_contacts"] });
+      toast.success("Contato atualizado!");
     },
   });
 }

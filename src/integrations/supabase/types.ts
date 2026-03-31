@@ -250,6 +250,7 @@ export type Database = {
       }
       clients: {
         Row: {
+          active: boolean
           contact_email: string
           contact_name: string
           created_at: string
@@ -261,6 +262,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          active?: boolean
           contact_email?: string
           contact_name?: string
           created_at?: string
@@ -272,6 +274,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          active?: boolean
           contact_email?: string
           contact_name?: string
           created_at?: string
