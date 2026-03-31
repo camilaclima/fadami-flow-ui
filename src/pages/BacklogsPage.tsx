@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useBacklogStore } from "@/store/backlogStore";
 import type { Phase } from "@/types/backlog";
 import { PhaseFilterBar } from "@/components/backlog/PhaseFilterBar";
