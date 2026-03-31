@@ -3,22 +3,18 @@ import { ThemeToggle } from "../ThemeToggle";
 import { FadamiFlowLogo } from "@/components/FadamiFlowLogo";
 import { Outlet, useNavigate } from "react-router-dom";
 import { Bell, LogOut } from "lucide-react";
-import { useAdminStore } from "@/store/adminStore";
-import { useMemo } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function AppLayout() {
   const navigate = useNavigate();
-  const logout = useAdminStore((s) => s.logout);
-  const currentUserId = useAdminStore((s) => s.currentUserId);
-  const users = useAdminStore((s) => s.users);
+  const { profile, signOut } = useAuth();
 
-  const initials = useMemo(() => {
-    const user = users.find((u) => u.id === currentUserId);
-    return user ? `${user.firstName[0]}${user.lastName[0]}` : "U";
-  }, [currentUserId, users]);
+  const initials = profile
+    ? `${profile.first_name?.[0] ?? ""}${profile.last_name?.[0] ?? ""}`.toUpperCase() || "U"
+    : "U";
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await signOut();
     navigate("/login", { replace: true });
   };
 

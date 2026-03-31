@@ -4,7 +4,7 @@ import { FadamiFlowLogo } from "@/components/FadamiFlowLogo";
 import menuIcon from "@/assets/menu-icon.png";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useMemo } from "react";
-import { useAdminStore } from "@/store/adminStore";
+import { useAuth } from "@/contexts/AuthContext";
 import type { SystemPage } from "@/types/admin";
 
 interface NavItem {
@@ -54,16 +54,7 @@ export function AppSidebar() {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(NAV_GROUPS.map((g) => [g.label, false]))
   );
-  const currentUserId = useAdminStore((s) => s.currentUserId);
-  const users = useAdminStore((s) => s.users);
-  const accessGroups = useAdminStore((s) => s.accessGroups);
-
-  const permissions = useMemo(() => {
-    const user = users.find((u) => u.id === currentUserId);
-    if (!user) return [] as SystemPage[];
-    const group = accessGroups.find((g) => g.id === user.groupId);
-    return group?.permissions ?? [];
-  }, [currentUserId, users, accessGroups]);
+  const { permissions } = useAuth();
 
   const visibleGroups = useMemo(() => {
     return NAV_GROUPS
@@ -88,7 +79,6 @@ export function AppSidebar() {
       onMouseEnter={() => setExpanded(true)}
       onMouseLeave={() => setExpanded(false)}
     >
-      {/* Logo */}
       <div className="h-14 flex items-center justify-center px-4 border-b border-border/60 overflow-hidden">
         {expanded ? (
           <FadamiFlowLogo showIcon />
@@ -97,13 +87,11 @@ export function AppSidebar() {
         )}
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 py-3 px-2 overflow-y-auto overflow-x-hidden">
         {visibleGroups.map((group, gi) => {
           const isOpen = openGroups[group.label] !== false;
           return (
             <div key={group.label} className={gi > 0 ? "mt-4" : ""}>
-              {/* Group header - clickable accordion */}
               <button
                 onClick={() => toggleGroup(group.label)}
                 className={`w-full flex items-center gap-2.5 rounded-lg text-foreground/80 hover:text-foreground transition-colors duration-150 ${expanded ? "px-3 py-2" : "px-3 py-2 justify-center"}`}
@@ -132,7 +120,6 @@ export function AppSidebar() {
                 )}
               </button>
 
-              {/* Group children - collapsible */}
               <AnimatePresence initial={false}>
                 {isOpen && (
                   <motion.div
@@ -176,7 +163,6 @@ export function AppSidebar() {
         })}
       </nav>
 
-      {/* Collapse indicator */}
       <div className="p-3 border-t border-border/60 flex justify-center">
         <motion.div animate={{ rotate: expanded ? 0 : 180 }} transition={{ duration: 0.2 }}>
           <ChevronLeft className="w-4 h-4 text-muted-foreground" />

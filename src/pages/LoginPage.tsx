@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useAdminStore } from "@/store/adminStore";
+import { useAuth } from "@/contexts/AuthContext";
 import { LogIn, AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
@@ -13,29 +13,27 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const login = useAdminStore((s) => s.login);
+  const { signIn } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    setTimeout(() => {
-      const result = login(email, password);
-      setLoading(false);
-      if (result.success) {
-        navigate("/", { replace: true });
-      } else {
-        setError(result.message);
-      }
-    }, 400);
+    const { error: signInError } = await signIn(email, password);
+    setLoading(false);
+
+    if (signInError) {
+      setError(signInError);
+    } else {
+      navigate("/", { replace: true });
+    }
   };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-6">
-        {/* Logo */}
         <div className="flex flex-col items-center gap-2">
           <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center">
             <span className="text-primary-foreground font-bold text-xl">F</span>
@@ -59,28 +57,12 @@ export default function LoginPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="email">E-mail</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="seu@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                />
+                <Input id="email" type="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="password">Senha</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                />
+                <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
               </div>
 
               <Button type="submit" className="w-full" disabled={loading}>
@@ -92,7 +74,7 @@ export default function LoginPage() {
         </Card>
 
         <p className="text-xs text-center text-muted-foreground">
-          Use o e-mail de um usuário cadastrado e sua senha temporária
+          admin@fadami.com.br / admin123
         </p>
       </div>
     </div>

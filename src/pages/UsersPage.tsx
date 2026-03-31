@@ -1,48 +1,44 @@
+import { useProfiles, type Profile } from "@/hooks/useProfiles";
+import { useProducts } from "@/hooks/useProducts";
+import { useRoles } from "@/hooks/useRoles";
+import { useAccessGroups } from "@/hooks/useAccessGroups";
 import { useState } from "react";
-import { useAdminStore } from "@/store/adminStore";
-import { UserFormModal } from "@/components/admin/UserFormModal";
 import { UserPlus, Pencil, Copy, UserX, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import type { AppUser } from "@/types/admin";
 import { motion } from "framer-motion";
+import { useUpdateProfile, useToggleProfileActive } from "@/hooks/useProfiles";
+import { UserFormModalSupabase } from "@/components/admin/UserFormModalSupabase";
 
 export default function UsersPage() {
-  const { users, products, roles, accessGroups, addUser, updateUser, toggleUserActive, getCloneData } = useAdminStore();
+  const { data: profiles = [] } = useProfiles();
+  const { data: products = [] } = useProducts();
+  const { data: roles = [] } = useRoles();
+  const { data: accessGroups = [] } = useAccessGroups();
+  const updateProfile = useUpdateProfile();
+  const toggleActive = useToggleProfileActive();
+
   const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<AppUser | null>(null);
-  const [cloneData, setCloneData] = useState<Partial<AppUser> | null>(null);
+  const [editing, setEditing] = useState<Profile | null>(null);
+  const [cloneData, setCloneData] = useState<Partial<Profile> | null>(null);
 
   const handleNew = () => { setEditing(null); setCloneData(null); setModalOpen(true); };
-  const handleEdit = (u: AppUser) => { setEditing(u); setCloneData(null); setModalOpen(true); };
-  const handleClone = (u: AppUser) => {
-    const data = getCloneData(u.id);
+  const handleEdit = (u: Profile) => { setEditing(u); setCloneData(null); setModalOpen(true); };
+  const handleClone = (u: Profile) => {
     setEditing(null);
-    setCloneData(data);
+    setCloneData({ product_id: u.product_id, role_id: u.role_id, group_id: u.group_id });
     setModalOpen(true);
   };
 
-  const handleSave = (data: { firstName: string; lastName: string; email: string; productId: string; roleId: string; groupId: string }): string | void => {
-    if (editing) {
-      updateUser(editing.id, data);
-      toast.success("Usuário atualizado!");
-      return;
-    }
-    const pwd = addUser(data);
-    toast.success("Usuário criado!");
-    return pwd;
+  const handleToggle = (u: Profile) => {
+    toggleActive.mutate({ id: u.id, active: u.active });
   };
 
-  const handleToggle = (u: AppUser) => {
-    toggleUserActive(u.id);
-    toast.success(u.active ? "Usuário inativado" : "Usuário reativado");
-  };
-
-  const getProductName = (id: string) => products.find((p) => p.id === id)?.name ?? "-";
-  const getRoleName = (id: string) => roles.find((r) => r.id === id)?.title ?? "-";
-  const getGroupName = (id: string) => accessGroups.find((g) => g.id === id)?.name ?? "-";
+  const getProductName = (id: string | null) => products.find((p) => p.id === id)?.name ?? "-";
+  const getRoleName = (id: string | null) => roles.find((r) => r.id === id)?.title ?? "-";
+  const getGroupName = (id: string | null) => accessGroups.find((g) => g.id === id)?.name ?? "-";
 
   return (
     <div className="fade-in space-y-6">
@@ -70,13 +66,13 @@ export default function UsersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map((u) => (
+            {profiles.map((u) => (
               <TableRow key={u.id} className={!u.active ? "opacity-50" : ""}>
-                <TableCell className="font-medium text-foreground">{u.firstName} {u.lastName}</TableCell>
+                <TableCell className="font-medium text-foreground">{u.first_name} {u.last_name}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">{u.email}</TableCell>
-                <TableCell className="text-sm">{getProductName(u.productId)}</TableCell>
-                <TableCell className="text-sm">{getRoleName(u.roleId)}</TableCell>
-                <TableCell className="text-sm">{getGroupName(u.groupId)}</TableCell>
+                <TableCell className="text-sm">{getProductName(u.product_id)}</TableCell>
+                <TableCell className="text-sm">{getRoleName(u.role_id)}</TableCell>
+                <TableCell className="text-sm">{getGroupName(u.group_id)}</TableCell>
                 <TableCell>
                   <Badge variant={u.active ? "default" : "secondary"} className={u.active ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/20" : "bg-destructive/10 text-destructive border-destructive/20"}>
                     {u.active ? "Ativo" : "Inativo"}
@@ -101,7 +97,12 @@ export default function UsersPage() {
         </Table>
       </motion.div>
 
-      <UserFormModal open={modalOpen} onOpenChange={setModalOpen} user={editing} cloneData={cloneData} onSave={handleSave} />
+      <UserFormModalSupabase
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        profile={editing}
+        cloneData={cloneData}
+      />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useBacklogStore } from "@/store/backlogStore";
+import { useBacklogs } from "@/hooks/useBacklogs";
 import { PHASES, PHASE_LABELS, type Phase } from "@/types/backlog";
 import { BarChart3, ListTodo, TrendingUp, CheckCircle2, ArrowUpRight } from "lucide-react";
 import { motion } from "framer-motion";
@@ -46,7 +46,7 @@ const PHASE_DOT: Record<Phase, string> = {
 };
 
 export default function DashboardPage() {
-  const backlogs = useBacklogStore((s) => s.backlogs);
+  const { data: backlogs = [] } = useBacklogs();
   const navigate = useNavigate();
 
   const total = backlogs.length;
@@ -74,7 +74,6 @@ export default function DashboardPage() {
         <StatCard label="Finalizados" value={finished} icon={CheckCircle2} delay={0.15} />
       </div>
 
-      {/* Phase distribution */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -101,7 +100,6 @@ export default function DashboardPage() {
         </div>
       </motion.div>
 
-      {/* Recent */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -122,10 +120,10 @@ export default function DashboardPage() {
               onClick={() => navigate("/backlogs")}
             >
               <div className="flex items-center gap-3">
-                <div className={`w-2 h-2 rounded-full ${PHASE_DOT[b.phase]}`} />
+                <div className={`w-2 h-2 rounded-full ${PHASE_DOT[b.phase as Phase]}`} />
                 <span className="text-sm text-foreground">{b.title}</span>
               </div>
-              <span className="text-xs text-muted-foreground">{PHASE_LABELS[b.phase]}</span>
+              <span className="text-xs text-muted-foreground">{PHASE_LABELS[b.phase as Phase]}</span>
             </div>
           ))}
         </div>
