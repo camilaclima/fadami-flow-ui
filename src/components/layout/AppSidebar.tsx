@@ -1,187 +1,119 @@
-import { LayoutDashboard, ListTodo, Package, Users, Settings, ChevronLeft, ChevronDown, Briefcase, Shield, UserCog, ClipboardList, ShieldCheck } from "lucide-react";
-import { NavLink } from "@/components/NavLink";
-import { FadamiFlowLogo } from "@/components/FadamiFlowLogo";
-import menuIcon from "@/assets/menu-icon.png";
-import { motion, AnimatePresence } from "framer-motion";
-import { useState, useMemo } from "react";
-import { useAdminStore } from "@/store/adminStore";
-import type { SystemPage } from "@/types/admin";
+import React, { useState } from "react";
+import { ChevronDown, ChevronRight, LayoutDashboard, ShieldCheck, ListTodo } from "lucide-react";
 
-interface NavItem {
-  title: string;
-  url: string;
-  icon: typeof LayoutDashboard;
-  permission: SystemPage;
-}
+// Exemplo de componente Sidebar ajustado
+const Sidebar = ({ isCollapsed }) => {
+  // Estado para controlar os menus pais vindo fechados por padrão
+  const [openMenus, setOpenMenus] = useState({});
 
-interface NavGroup {
-  label: string;
-  icon: typeof LayoutDashboard;
-  items: NavItem[];
-}
-
-const NAV_GROUPS: NavGroup[] = [
-  {
-    label: "BACKLOG",
-    icon: ClipboardList,
-    items: [
-      { title: "Dashboard", url: "/", icon: LayoutDashboard, permission: "dashboard" },
-      { title: "Backlogs", url: "/backlogs", icon: ListTodo, permission: "backlogs" },
-    ],
-  },
-  {
-    label: "CADASTROS E PERMISSÕES",
-    icon: ShieldCheck,
-    items: [
-      { title: "Produtos", url: "/products", icon: Package, permission: "products" },
-      { title: "Clientes", url: "/clients", icon: Users, permission: "clients" },
-      { title: "Usuários", url: "/users", icon: UserCog, permission: "users" },
-      { title: "Cargos", url: "/roles", icon: Briefcase, permission: "roles" },
-      { title: "Grupos", url: "/groups", icon: Shield, permission: "groups" },
-    ],
-  },
-  {
-    label: "SISTEMA",
-    icon: Settings,
-    items: [
-      { title: "Configurações", url: "/settings", icon: Settings, permission: "settings" },
-    ],
-  },
-];
-
-export function AppSidebar() {
-  const [expanded, setExpanded] = useState(false);
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(NAV_GROUPS.map((g) => [g.label, false]))
-  );
-  const currentUserId = useAdminStore((s) => s.currentUserId);
-  const users = useAdminStore((s) => s.users);
-  const accessGroups = useAdminStore((s) => s.accessGroups);
-
-  const permissions = useMemo(() => {
-    const user = users.find((u) => u.id === currentUserId);
-    if (!user) return [] as SystemPage[];
-    const group = accessGroups.find((g) => g.id === user.groupId);
-    return group?.permissions ?? [];
-  }, [currentUserId, users, accessGroups]);
-
-  const visibleGroups = useMemo(() => {
-    return NAV_GROUPS
-      .map((group) => ({
-        ...group,
-        items: group.items.filter((item) => permissions.includes(item.permission)),
-      }))
-      .filter((group) => group.items.length > 0);
-  }, [permissions]);
-
-  const toggleGroup = (label: string) => {
-    setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+  const toggleMenu = (menuName) => {
+    setOpenMenus((prev) => ({
+      ...prev,
+      [menuName]: !prev[menuName],
+    }));
   };
 
   return (
-    <motion.aside
-      className="fixed left-0 top-0 h-full z-40 flex flex-col bg-card border-r border-border/60"
-      style={{ boxShadow: expanded ? "var(--shadow-elevated)" : "none" }}
-      initial={false}
-      animate={{ width: expanded ? 240 : 64 }}
-      transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-      onMouseEnter={() => setExpanded(true)}
-      onMouseLeave={() => setExpanded(false)}
+    <aside
+      className={`h-screen bg-white border-r border-gray-200 transition-all duration-300 ${isCollapsed ? "w-24" : "w-72"}`}
     >
-      {/* Logo */}
-      <div className="h-14 flex items-center justify-center px-4 border-b border-border/60 overflow-hidden">
-        {expanded ? (
-          <FadamiFlowLogo showIcon />
-        ) : (
-          <img src={menuIcon} alt="Menu" className="w-5 h-5 opacity-60 dark:invert dark:opacity-50" />
+      {/* HEADER DA SIDEBAR - CENTRALIZAÇÃO AJUSTADA */}
+      <div className="p-6 flex items-center gap-3 min-h-[80px]">
+        {/* Ícone de Fluxo (Referência image_25) */}
+        <div className="flex-shrink-0 text-gray-400">
+          {/* Substitua pelo seu SVG de Matriz/Fluxo se necessário */}
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M4 12c0-4.4 3.6-8 8-8s8 3.6 8 8-3.6 8-8 8-8-3.6-8-8Z" />
+            <path d="M12 12h.01" />
+            <path d="M16 12h.01" />
+            <path d="M8 12h.01" />
+          </svg>
+        </div>
+
+        {!isCollapsed && (
+          <div className="flex flex-col overflow-hidden">
+            <h1 className="text-xl font-bold flex items-center gap-1 whitespace-nowrap">
+              <span className="text-gray-600">Fadami</span>
+              <span className="text-orange-500 drop-shadow-[0_0_8px_rgba(249,115,22,0.6)] animate-pulse">Flow</span>
+            </h1>
+          </div>
         )}
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 py-3 px-2 overflow-y-auto overflow-x-hidden">
-        {visibleGroups.map((group, gi) => {
-          const isOpen = openGroups[group.label] !== false;
-          return (
-            <div key={group.label} className={gi > 0 ? "mt-4" : ""}>
-              {/* Group header - clickable accordion */}
-              <button
-                onClick={() => toggleGroup(group.label)}
-                className={`w-full flex items-center gap-2.5 rounded-lg text-foreground/80 hover:text-foreground transition-colors duration-150 ${expanded ? "px-3 py-2" : "px-3 py-2 justify-center"}`}
-              >
-                <group.icon className="w-[18px] h-[18px] flex-shrink-0" />
-                <AnimatePresence>
-                  {expanded && (
-                    <motion.span
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.12 }}
-                      className="text-[13px] font-semibold tracking-wide whitespace-nowrap flex-1 text-left"
-                    >
-                      {group.label}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-                {expanded && (
-                  <motion.div
-                    animate={{ rotate: isOpen ? 0 : -90 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
-                  </motion.div>
-                )}
-              </button>
-
-              {/* Group children - collapsible */}
-              <AnimatePresence initial={false}>
-                {isOpen && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2, ease: "easeInOut" }}
-                    className="overflow-hidden"
-                  >
-                    <div className="space-y-0.5 mt-0.5">
-                      {group.items.map((item) => (
-                        <NavLink
-                          key={item.url}
-                          to={item.url}
-                          end={item.url === "/"}
-                          className={`flex items-center gap-3 py-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-all duration-150 group ${expanded ? "pl-9 pr-4" : "px-3"}`}
-                          activeClassName="bg-primary/10 text-primary"
-                        >
-                          <item.icon className="w-4 h-4 flex-shrink-0" />
-                          <AnimatePresence>
-                            {expanded && (
-                              <motion.span
-                                initial={{ opacity: 0, x: -4 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -4 }}
-                                transition={{ duration: 0.12 }}
-                                className="text-[13px] font-normal whitespace-nowrap"
-                              >
-                                {item.title}
-                              </motion.span>
-                            )}
-                          </AnimatePresence>
-                        </NavLink>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+      {/* NAVEGAÇÃO */}
+      <nav className="px-4 py-2 space-y-6">
+        {/* GRUPO BACKLOG */}
+        <div>
+          <button
+            onClick={() => toggleMenu("backlog")}
+            className="w-full flex items-center justify-between p-2 text-gray-500 hover:bg-gray-50 rounded-lg transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <ListTodo size={20} />
+              {!isCollapsed && <span className="font-semibold text-sm capitalize text-gray-500">Backlog</span>}
             </div>
-          );
-        })}
-      </nav>
+            {!isCollapsed && (openMenus["backlog"] ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
+          </button>
 
-      {/* Collapse indicator */}
-      <div className="p-3 border-t border-border/60 flex justify-center">
-        <motion.div animate={{ rotate: expanded ? 0 : 180 }} transition={{ duration: 0.2 }}>
-          <ChevronLeft className="w-4 h-4 text-muted-foreground" />
-        </motion.div>
-      </div>
-    </motion.aside>
+          {!isCollapsed && openMenus["backlog"] && (
+            <div className="ml-9 mt-2 space-y-1">
+              <a href="#" className="block p-2 text-sm text-gray-600 hover:text-purple-600">
+                Dashboard
+              </a>
+              <a href="#" className="block p-2 text-sm text-gray-600 hover:text-purple-600">
+                Backlogs
+              </a>
+            </div>
+          )}
+        </div>
+
+        {/* GRUPO CADASTROS E PERMISSÕES */}
+        <div>
+          <button
+            onClick={() => toggleMenu("cadastros")}
+            className="w-full flex items-center justify-between p-2 text-gray-500 hover:bg-gray-50 rounded-lg transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <ShieldCheck size={20} />
+              {!isCollapsed && (
+                <span className="font-semibold text-sm capitalize text-gray-500">Cadastros e Permissões</span>
+              )}
+            </div>
+            {!isCollapsed && (openMenus["cadastros"] ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
+          </button>
+
+          {!isCollapsed && openMenus["cadastros"] && (
+            <div className="ml-9 mt-2 space-y-1">
+              <a href="#" className="block p-2 text-sm text-gray-600 hover:text-purple-600">
+                Produtos
+              </a>
+              <a href="#" className="block p-2 text-sm text-gray-600 hover:text-purple-600">
+                Clientes
+              </a>
+              <a href="#" className="block p-2 text-sm text-gray-600 hover:text-purple-600">
+                Usuários
+              </a>
+              <a href="#" className="block p-2 text-sm text-gray-600 hover:text-purple-600">
+                Cargos
+              </a>
+              <a href="#" className="block p-2 text-sm text-gray-600 hover:text-purple-600">
+                Grupos
+              </a>
+            </div>
+          )}
+        </div>
+      </nav>
+    </aside>
   );
-}
+};
+
+export default Sidebar;
