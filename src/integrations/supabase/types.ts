@@ -198,6 +198,56 @@ export type Database = {
           },
         ]
       }
+      client_contacts: {
+        Row: {
+          area: string
+          client_id: string
+          concession: string
+          created_at: string
+          description: string
+          email: string
+          id: string
+          name: string
+          phone: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          area?: string
+          client_id: string
+          concession?: string
+          created_at?: string
+          description?: string
+          email?: string
+          id?: string
+          name?: string
+          phone?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          area?: string
+          client_id?: string
+          concession?: string
+          created_at?: string
+          description?: string
+          email?: string
+          id?: string
+          name?: string
+          phone?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_contacts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           contact_email: string
@@ -266,6 +316,78 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: []
+      }
+      profile_groups: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          profile_id: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_groups_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "access_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_groups_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profile_products: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          profile_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_products_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
