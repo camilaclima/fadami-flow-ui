@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import type { Phase } from "@/types/backlog";
 import { PHASES, PHASE_LABELS } from "@/types/backlog";
@@ -46,6 +47,9 @@ interface Props {
 
 export function PhaseFilterBar({ selected, onSelect }: Props) {
   const backlogs = useBacklogStore((s) => s.backlogs);
+  const fetchAll = useBacklogStore((s) => s.fetchAll);
+  const initialized = useBacklogStore((s) => s.initialized);
+  useEffect(() => { if (!initialized) fetchAll(); }, [initialized, fetchAll]);
   const total = backlogs.length;
 
   return (

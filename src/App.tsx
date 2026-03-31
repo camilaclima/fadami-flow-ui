@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
@@ -19,27 +20,29 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route element={<ProtectedRoute />}>
-            <Route element={<AppLayout />}>
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/backlogs" element={<BacklogsPage />} />
-              <Route path="/products" element={<ProductsPage />} />
-              <Route path="/clients" element={<ClientsPage />} />
-              <Route path="/users" element={<UsersPage />} />
-              <Route path="/roles" element={<RolesPage />} />
-              <Route path="/groups" element={<AccessGroupsPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
+    <AuthProvider>
+      <TooltipProvider>
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<AppLayout />}>
+                <Route path="/" element={<DashboardPage />} />
+                <Route path="/backlogs" element={<BacklogsPage />} />
+                <Route path="/products" element={<ProductsPage />} />
+                <Route path="/clients" element={<ClientsPage />} />
+                <Route path="/users" element={<UsersPage />} />
+                <Route path="/roles" element={<RolesPage />} />
+                <Route path="/groups" element={<AccessGroupsPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+              </Route>
             </Route>
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

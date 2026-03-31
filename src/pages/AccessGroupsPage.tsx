@@ -1,16 +1,18 @@
 import { useState } from "react";
-import { useAdminStore } from "@/store/adminStore";
+import { useAccessGroups, useAddAccessGroup, useUpdateAccessGroup, useDeleteAccessGroup, type AccessGroup } from "@/hooks/useAccessGroups";
 import { AccessGroupFormModal } from "@/components/admin/AccessGroupFormModal";
 import { Shield, Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { toast } from "sonner";
-import type { AccessGroup, SystemPage } from "@/types/admin";
+import type { SystemPage } from "@/types/admin";
 import { motion } from "framer-motion";
 
 export default function AccessGroupsPage() {
-  const { accessGroups, addAccessGroup, updateAccessGroup, deleteAccessGroup } = useAdminStore();
+  const { data: accessGroups = [] } = useAccessGroups();
+  const addGroup = useAddAccessGroup();
+  const updateGroup = useUpdateAccessGroup();
+  const deleteGroup = useDeleteAccessGroup();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<AccessGroup | null>(null);
 
@@ -19,17 +21,14 @@ export default function AccessGroupsPage() {
 
   const handleSave = (name: string, permissions: SystemPage[]) => {
     if (editing) {
-      updateAccessGroup(editing.id, name, permissions);
-      toast.success("Grupo atualizado!");
+      updateGroup.mutate({ id: editing.id, name, permissions });
     } else {
-      addAccessGroup(name, permissions);
-      toast.success("Grupo criado!");
+      addGroup.mutate({ name, permissions });
     }
   };
 
   const handleDelete = (g: AccessGroup) => {
-    deleteAccessGroup(g.id);
-    toast.success("Grupo removido!");
+    deleteGroup.mutate(g.id);
   };
 
   return (

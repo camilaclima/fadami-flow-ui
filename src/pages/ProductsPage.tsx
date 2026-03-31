@@ -1,35 +1,33 @@
 import { useState } from "react";
-import { useAdminStore } from "@/store/adminStore";
+import { useProducts, useAddProduct, useUpdateProduct, useToggleProductStatus, type Product } from "@/hooks/useProducts";
 import { ProductFormModal } from "@/components/admin/ProductFormModal";
 import { Package, Plus, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { toast } from "sonner";
-import type { AdminProduct } from "@/types/admin";
 import { motion } from "framer-motion";
 
 export default function ProductsPage() {
-  const { products, addProduct, updateProduct, toggleProductStatus } = useAdminStore();
+  const { data: products = [] } = useProducts();
+  const addProduct = useAddProduct();
+  const updateProduct = useUpdateProduct();
+  const toggleStatus = useToggleProductStatus();
   const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<AdminProduct | null>(null);
+  const [editing, setEditing] = useState<Product | null>(null);
 
   const handleNew = () => { setEditing(null); setModalOpen(true); };
-  const handleEdit = (p: AdminProduct) => { setEditing(p); setModalOpen(true); };
+  const handleEdit = (p: Product) => { setEditing(p); setModalOpen(true); };
 
   const handleSave = (data: { name: string; description: string; color: string }) => {
     if (editing) {
-      updateProduct(editing.id, data);
-      toast.success("Produto atualizado!");
+      updateProduct.mutate({ id: editing.id, ...data });
     } else {
-      addProduct({ ...data, status: "active" });
-      toast.success("Produto criado!");
+      addProduct.mutate(data);
     }
   };
 
-  const handleToggle = (p: AdminProduct) => {
-    toggleProductStatus(p.id);
-    toast.success(p.status === "active" ? "Produto inativado" : "Produto ativado");
+  const handleToggle = (p: Product) => {
+    toggleStatus.mutate({ id: p.id, currentStatus: p.status });
   };
 
   return (

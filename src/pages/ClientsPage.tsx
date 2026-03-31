@@ -1,10 +1,11 @@
-import { useBacklogStore } from "@/store/backlogStore";
-import { Users, Mail } from "lucide-react";
+import { useClients, type Client } from "@/hooks/useClients";
+import { useBacklogs } from "@/hooks/useBacklogs";
+import { Users, Mail, Phone, User } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function ClientsPage() {
-  const clients = useBacklogStore((s) => s.clients);
-  const backlogs = useBacklogStore((s) => s.backlogs);
+  const { data: clients = [] } = useClients();
+  const { data: backlogs = [] } = useBacklogs();
 
   return (
     <div className="fade-in space-y-6">
@@ -15,7 +16,7 @@ export default function ClientsPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {clients.map((client, i) => {
-          const count = backlogs.filter((b) => b.clientId === client.id).length;
+          const count = backlogs.filter((b) => b.client_id === client.id).length;
           return (
             <motion.div
               key={client.id}
@@ -33,7 +34,13 @@ export default function ClientsPage() {
                   <p className="text-xs text-muted-foreground flex items-center gap-1"><Mail className="w-3 h-3" />{client.email}</p>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">{count} backlogs vinculados</p>
+              {client.contact_name && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1"><User className="w-3 h-3" />{client.contact_name}</p>
+              )}
+              {client.phone && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1"><Phone className="w-3 h-3" />{client.phone}</p>
+              )}
+              <p className="text-xs text-muted-foreground mt-2">{count} backlogs vinculados</p>
             </motion.div>
           );
         })}

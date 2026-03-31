@@ -1,15 +1,16 @@
 import { useState } from "react";
-import { useAdminStore } from "@/store/adminStore";
+import { useRoles, useAddRole, useUpdateRole, useDeleteRole, type Role } from "@/hooks/useRoles";
 import { RoleFormModal } from "@/components/admin/RoleFormModal";
 import { Briefcase, Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { toast } from "sonner";
-import type { Role } from "@/types/admin";
 import { motion } from "framer-motion";
 
 export default function RolesPage() {
-  const { roles, addRole, updateRole, deleteRole } = useAdminStore();
+  const { data: roles = [] } = useRoles();
+  const addRole = useAddRole();
+  const updateRole = useUpdateRole();
+  const deleteRole = useDeleteRole();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Role | null>(null);
 
@@ -18,17 +19,14 @@ export default function RolesPage() {
 
   const handleSave = (title: string) => {
     if (editing) {
-      updateRole(editing.id, title);
-      toast.success("Cargo atualizado!");
+      updateRole.mutate({ id: editing.id, title });
     } else {
-      addRole(title);
-      toast.success("Cargo criado!");
+      addRole.mutate(title);
     }
   };
 
   const handleDelete = (r: Role) => {
-    deleteRole(r.id);
-    toast.success("Cargo removido!");
+    deleteRole.mutate(r.id);
   };
 
   return (

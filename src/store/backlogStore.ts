@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { useAdminStore } from "@/store/adminStore";
+import { supabase } from "@/integrations/supabase/client";
 import type {
   BacklogItem,
   Product,
@@ -10,6 +10,7 @@ import type {
   RefinementData,
   Priority,
   SubItem,
+  PhaseHistory,
 } from "@/types/backlog";
 
 function calculatePriority(bv: number, oc: number, est: number): Priority {
@@ -19,129 +20,39 @@ function calculatePriority(bv: number, oc: number, est: number): Priority {
   return "low";
 }
 
-// Products are now managed by adminStore
-
-const MOCK_CLIENTS: Client[] = [
-  { id: "c1", name: "TechCorp", email: "contato@techcorp.com" },
-  { id: "c2", name: "StartupXYZ", email: "hello@startupxyz.com" },
-  { id: "c3", name: "MegaSoft", email: "info@megasoft.com" },
-];
-
-const now = new Date().toISOString();
-
-const MOCK_BACKLOGS: BacklogItem[] = [
-  {
-    id: "b1",
-    title: "Implementar autenticação OAuth2",
-    type: "functional",
-    description: "Adicionar suporte a login com Google e GitHub para simplificar o onboarding dos usuários.",
-    productId: "p1",
-    clientId: "c1",
-    thermometer: "high",
-    phase: "refinement",
-    createdBy: "Ana Silva",
-    createdAt: "2024-03-10T10:00:00Z",
-    phaseHistory: [
-      { phase: "prioritization", enteredAt: "2024-03-10T10:00:00Z", completedAt: "2024-03-14T09:00:00Z" },
-      { phase: "approval", enteredAt: "2024-03-14T09:00:00Z", completedAt: "2024-03-15T11:00:00Z" },
-      { phase: "refinement", enteredAt: "2024-03-15T11:00:00Z" },
-    ],
-    prioritization: { businessValue: 5, opportunityCost: 4, estimate: 16, priority: "high", updatedBy: "Ana Silva", updatedAt: "2024-03-14T09:00:00Z" },
-    approval: { observation: "Aprovado. Essencial para o lançamento.", updatedBy: "João Diretor", updatedAt: "2024-03-15T11:00:00Z" },
-  },
-  {
-    id: "b2",
-    title: "Redesign da página de dashboard",
-    type: "functional",
-    description: "Atualizar o layout do dashboard com novos gráficos e métricas de performance.",
-    productId: "p1",
-    thermometer: "medium",
-    phase: "prioritization",
-    createdBy: "Carlos Mendes",
-    createdAt: "2024-03-15T08:30:00Z",
-    phaseHistory: [
-      { phase: "prioritization", enteredAt: "2024-03-15T08:30:00Z" },
-    ],
-  },
-  {
-    id: "b3",
-    title: "API de exportação de relatórios",
-    type: "technical",
-    description: "Criar endpoints para exportação de dados em CSV e PDF.",
-    productId: "p3",
-    clientId: "c2",
-    thermometer: "low",
-    phase: "prioritization",
-    createdBy: "Marina Costa",
-    createdAt: now,
-    phaseHistory: [{ phase: "prioritization", enteredAt: now }],
-  },
-  {
-    id: "b4",
-    title: "Notificações push mobile",
-    type: "technical",
-    description: "Sistema de notificações em tempo real para o app mobile com suporte a deep linking.",
-    productId: "p2",
-    thermometer: "high",
-    phase: "approval",
-    createdBy: "Pedro Alves",
-    createdAt: "2024-03-08T14:00:00Z",
-    phaseHistory: [
-      { phase: "prioritization", enteredAt: "2024-03-08T14:00:00Z", completedAt: "2024-03-11T16:00:00Z" },
-      { phase: "approval", enteredAt: "2024-03-11T16:00:00Z" },
-    ],
-    prioritization: { businessValue: 4, opportunityCost: 3, estimate: 24, priority: "medium", updatedBy: "Pedro Alves", updatedAt: "2024-03-11T16:00:00Z" },
-  },
-  {
-    id: "b5",
-    title: "Integração com Slack",
-    type: "functional",
-    description: "Enviar atualizações de backlog automaticamente para canais do Slack.",
-    productId: "p1",
-    clientId: "c3",
-    thermometer: "medium",
-    phase: "prioritization",
-    createdBy: "Ana Silva",
-    createdAt: "2024-03-20T09:00:00Z",
-    phaseHistory: [{ phase: "prioritization", enteredAt: "2024-03-20T09:00:00Z" }],
-  },
-  {
-    id: "b6",
-    title: "Modo offline para mobile",
-    type: "functional",
-    description: "Permitir que usuários acessem e editem backlogs sem conexão à internet.",
-    productId: "p2",
-    clientId: "c1",
-    thermometer: "low",
-    phase: "finished",
-    createdBy: "Carlos Mendes",
-    createdAt: "2024-02-01T10:00:00Z",
-    phaseHistory: [
-      { phase: "prioritization", enteredAt: "2024-02-01T10:00:00Z", completedAt: "2024-02-05T10:00:00Z" },
-      { phase: "approval", enteredAt: "2024-02-05T10:00:00Z", completedAt: "2024-02-06T10:00:00Z" },
-      { phase: "refinement", enteredAt: "2024-02-06T10:00:00Z", completedAt: "2024-02-10T10:00:00Z" },
-      { phase: "available", enteredAt: "2024-02-10T10:00:00Z", completedAt: "2024-02-12T10:00:00Z" },
-      { phase: "planned", enteredAt: "2024-02-12T10:00:00Z", completedAt: "2024-02-20T10:00:00Z" },
-      { phase: "finished", enteredAt: "2024-02-20T10:00:00Z" },
-    ],
-    prioritization: { businessValue: 3, opportunityCost: 2, estimate: 40, priority: "low", updatedBy: "Carlos Mendes", updatedAt: "2024-02-05T10:00:00Z" },
-    approval: { observation: "Aprovado com ressalvas sobre performance.", updatedBy: "Diretor TI", updatedAt: "2024-02-06T10:00:00Z" },
-    refinement: {
-      functionalRefinement: "Sincronizar ao reconectar",
-      technicalRefinement: "IndexedDB + service worker",
-      acceptanceCriteria: "Funcionar offline por até 72h",
-      definitionOfDone: "Testes E2E passando, docs atualizados",
-      estimate: 40,
-      updatedBy: "Marina Costa",
-      updatedAt: "2024-02-10T10:00:00Z",
-    },
-  },
-];
+// Map DB row to frontend type
+function mapBacklog(row: any, phaseHistory: any[] = []): BacklogItem {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description ?? "",
+    attachment: row.attachment,
+    type: row.type ?? "functional",
+    productId: row.product_id ?? "",
+    clientId: row.client_id ?? undefined,
+    thermometer: row.thermometer ?? "medium",
+    phase: row.phase ?? "prioritization",
+    createdBy: row.created_by ?? "",
+    createdAt: row.created_at,
+    phaseHistory: phaseHistory.map((h: any) => ({
+      phase: h.phase as Phase,
+      enteredAt: h.entered_at,
+      completedAt: h.completed_at ?? undefined,
+    })),
+    prioritization: row.prioritization ?? undefined,
+    approval: row.approval ?? undefined,
+    refinement: row.refinement ?? undefined,
+  };
+}
 
 interface BacklogStore {
   backlogs: BacklogItem[];
   products: Product[];
   clients: Client[];
+  loading: boolean;
+  initialized: boolean;
+
+  fetchAll: () => Promise<void>;
   addBacklog: (item: Omit<BacklogItem, "id" | "createdAt" | "phaseHistory" | "phase">) => void;
   updateBacklog: (id: string, updates: Partial<BacklogItem>) => void;
   moveToPhase: (id: string, phase: Phase) => void;
@@ -155,159 +66,256 @@ interface BacklogStore {
   completeRefinement: (backlogId: string) => void;
 }
 
-export const useBacklogStore = create<BacklogStore>((set) => ({
-  backlogs: MOCK_BACKLOGS,
-  products: useAdminStore.getState().products
-    .filter((p) => p.status === "active")
-    .map((p) => ({ id: p.id, name: p.name, color: p.color })),
-  clients: MOCK_CLIENTS,
+export const useBacklogStore = create<BacklogStore>((set, get) => ({
+  backlogs: [],
+  products: [],
+  clients: [],
+  loading: false,
+  initialized: false,
 
-  addBacklog: (item) =>
-    set((state) => ({
-      backlogs: [
-        ...state.backlogs,
-        {
-          ...item,
-          id: `b${Date.now()}`,
-          phase: "prioritization" as Phase,
-          createdAt: new Date().toISOString(),
-          phaseHistory: [{ phase: "prioritization" as Phase, enteredAt: new Date().toISOString() }],
-        },
-      ],
-    })),
+  fetchAll: async () => {
+    if (get().loading) return;
+    set({ loading: true });
 
-  updateBacklog: (id, updates) =>
-    set((state) => ({
-      backlogs: state.backlogs.map((b) => (b.id === id ? { ...b, ...updates } : b)),
-    })),
+    try {
+      const [backlogsRes, historyRes, productsRes, clientsRes] = await Promise.all([
+        supabase.from("backlogs").select("*").order("created_at", { ascending: false }),
+        supabase.from("backlog_phase_history").select("*").order("entered_at"),
+        supabase.from("products").select("*").eq("status", "active").order("name"),
+        supabase.from("clients").select("*").order("name"),
+      ]);
 
-  moveToPhase: (id, phase) =>
-    set((state) => ({
-      backlogs: state.backlogs.map((b) => {
-        if (b.id !== id) return b;
-        const nowStr = new Date().toISOString();
-        const history = b.phaseHistory.map((h) =>
-          h.phase === b.phase && !h.completedAt ? { ...h, completedAt: nowStr } : h
-        );
-        history.push({ phase, enteredAt: nowStr });
-        return { ...b, phase, phaseHistory: history };
-      }),
-    })),
+      const historyByBacklog: Record<string, any[]> = {};
+      (historyRes.data ?? []).forEach((h: any) => {
+        if (!historyByBacklog[h.backlog_id]) historyByBacklog[h.backlog_id] = [];
+        historyByBacklog[h.backlog_id].push(h);
+      });
 
-  savePrioritization: (id, data) =>
-    set((state) => ({
-      backlogs: state.backlogs.map((b) => {
-        if (b.id !== id) return b;
-        const priority = calculatePriority(data.businessValue, data.opportunityCost, data.estimate);
-        const nowStr = new Date().toISOString();
-        const history = b.phaseHistory.map((h) =>
-          h.phase === "prioritization" && !h.completedAt ? { ...h, completedAt: nowStr } : h
-        );
-        history.push({ phase: "approval" as Phase, enteredAt: nowStr });
-        return {
-          ...b,
-          phase: "approval" as Phase,
-          prioritization: { ...data, priority, updatedBy: b.createdBy, updatedAt: nowStr },
-          phaseHistory: history,
-        };
-      }),
-    })),
+      const backlogs = (backlogsRes.data ?? []).map((row: any) =>
+        mapBacklog(row, historyByBacklog[row.id] ?? [])
+      );
 
-  saveApproval: (id, data) =>
-    set((state) => ({
-      backlogs: state.backlogs.map((b) => {
-        if (b.id !== id) return b;
-        const nowStr = new Date().toISOString();
-        const history = b.phaseHistory.map((h) =>
-          h.phase === "approval" && !h.completedAt ? { ...h, completedAt: nowStr } : h
-        );
-        history.push({ phase: "refinement" as Phase, enteredAt: nowStr });
-        return { ...b, phase: "refinement" as Phase, approval: { ...data, updatedBy: b.createdBy, updatedAt: nowStr }, phaseHistory: history };
-      }),
-    })),
+      const products = (productsRes.data ?? []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        color: p.color,
+      }));
 
-  saveRefinement: (id, data) =>
-    set((state) => ({
-      backlogs: state.backlogs.map((b) => {
-        if (b.id !== id) return b;
-        const nowStr = new Date().toISOString();
-        const history = b.phaseHistory.map((h) =>
-          h.phase === "refinement" && !h.completedAt ? { ...h, completedAt: nowStr } : h
-        );
-        history.push({ phase: "available" as Phase, enteredAt: nowStr });
-        return { ...b, phase: "available" as Phase, refinement: { ...data, updatedBy: b.createdBy, updatedAt: nowStr }, phaseHistory: history };
-      }),
-    })),
+      const clients = (clientsRes.data ?? []).map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        email: c.email,
+      }));
 
-  addSubItem: (backlogId, data) =>
-    set((state) => ({
-      backlogs: state.backlogs.map((b) => {
-        if (b.id !== backlogId) return b;
-        const existing = b.refinement?.subItems ?? [];
-        const newItem: SubItem = {
-          ...data,
-          id: `si-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          order: existing.length,
-        };
-        return {
-          ...b,
-          refinement: { ...b.refinement, subItems: [...existing, newItem] },
-        };
-      }),
-    })),
+      set({ backlogs, products, clients, loading: false, initialized: true });
+    } catch (err) {
+      console.error("Failed to fetch backlogs:", err);
+      set({ loading: false, initialized: true });
+    }
+  },
 
-  updateSubItem: (backlogId, subItemId, data) =>
-    set((state) => ({
-      backlogs: state.backlogs.map((b) => {
-        if (b.id !== backlogId) return b;
-        const items = (b.refinement?.subItems ?? []).map((si) =>
-          si.id === subItemId ? { ...si, ...data, id: si.id, order: si.order } : si
-        );
-        return { ...b, refinement: { ...b.refinement, subItems: items } };
-      }),
-    })),
+  addBacklog: async (item) => {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase.from("backlogs").insert({
+      title: item.title,
+      description: item.description,
+      type: item.type,
+      product_id: item.productId || null,
+      client_id: item.clientId || null,
+      thermometer: item.thermometer,
+      phase: "prioritization",
+      created_by: item.createdBy || null,
+    }).select().single();
 
-  deleteSubItem: (backlogId, subItemId) =>
-    set((state) => ({
-      backlogs: state.backlogs.map((b) => {
-        if (b.id !== backlogId) return b;
-        const items = (b.refinement?.subItems ?? [])
-          .filter((si) => si.id !== subItemId)
-          .map((si, i) => ({ ...si, order: i }));
-        return { ...b, refinement: { ...b.refinement, subItems: items } };
-      }),
-    })),
+    if (error || !data) {
+      console.error("Error adding backlog:", error);
+      return;
+    }
 
-  reorderSubItems: (backlogId, orderedIds) =>
-    set((state) => ({
-      backlogs: state.backlogs.map((b) => {
-        if (b.id !== backlogId) return b;
-        const existing = b.refinement?.subItems ?? [];
-        const reordered = orderedIds
-          .map((id, i) => {
-            const item = existing.find((si) => si.id === id);
-            return item ? { ...item, order: i } : null;
-          })
-          .filter(Boolean) as SubItem[];
-        return { ...b, refinement: { ...b.refinement, subItems: reordered } };
-      }),
-    })),
+    await supabase.from("backlog_phase_history").insert({
+      backlog_id: data.id,
+      phase: "prioritization",
+      entered_at: data.created_at,
+    });
 
-  completeRefinement: (backlogId) =>
-    set((state) => ({
-      backlogs: state.backlogs.map((b) => {
-        if (b.id !== backlogId) return b;
-        const nowStr = new Date().toISOString();
-        const history = b.phaseHistory.map((h) =>
-          h.phase === "refinement" && !h.completedAt ? { ...h, completedAt: nowStr } : h
-        );
-        history.push({ phase: "available" as Phase, enteredAt: nowStr });
-        return {
-          ...b,
-          phase: "available" as Phase,
-          refinement: { ...b.refinement, updatedBy: b.createdBy, updatedAt: nowStr },
-          phaseHistory: history,
-        };
-      }),
-    })),
+    get().fetchAll();
+  },
+
+  updateBacklog: async (id, updates) => {
+    const dbUpdates: any = {};
+    if (updates.title !== undefined) dbUpdates.title = updates.title;
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
+
+    await supabase.from("backlogs").update(dbUpdates).eq("id", id);
+    get().fetchAll();
+  },
+
+  moveToPhase: async (id, phase) => {
+    const item = get().backlogs.find((b) => b.id === id);
+    if (!item) return;
+    const now = new Date().toISOString();
+
+    await supabase.from("backlogs").update({ phase }).eq("id", id);
+    await supabase.from("backlog_phase_history").update({ completed_at: now })
+      .eq("backlog_id", id).eq("phase", item.phase).is("completed_at", null);
+    await supabase.from("backlog_phase_history").insert({
+      backlog_id: id, phase, entered_at: now,
+    });
+
+    get().fetchAll();
+  },
+
+  savePrioritization: async (id, data) => {
+    const priority = calculatePriority(data.businessValue, data.opportunityCost, data.estimate);
+    const now = new Date().toISOString();
+
+    await supabase.from("backlogs").update({
+      phase: "approval",
+      prioritization: { ...data, priority },
+    }).eq("id", id);
+
+    await supabase.from("backlog_phase_history").update({ completed_at: now })
+      .eq("backlog_id", id).eq("phase", "prioritization").is("completed_at", null);
+    await supabase.from("backlog_phase_history").insert({
+      backlog_id: id, phase: "approval", entered_at: now,
+    });
+
+    get().fetchAll();
+  },
+
+  saveApproval: async (id, data) => {
+    const now = new Date().toISOString();
+
+    await supabase.from("backlogs").update({
+      phase: "refinement",
+      approval: data as any,
+    }).eq("id", id);
+
+    await supabase.from("backlog_phase_history").update({ completed_at: now })
+      .eq("backlog_id", id).eq("phase", "approval").is("completed_at", null);
+    await supabase.from("backlog_phase_history").insert({
+      backlog_id: id, phase: "refinement", entered_at: now,
+    });
+
+    get().fetchAll();
+  },
+
+  saveRefinement: async (id, data) => {
+    const now = new Date().toISOString();
+
+    await supabase.from("backlogs").update({
+      phase: "available",
+      refinement: data as any,
+    }).eq("id", id);
+
+    await supabase.from("backlog_phase_history").update({ completed_at: now })
+      .eq("backlog_id", id).eq("phase", "refinement").is("completed_at", null);
+    await supabase.from("backlog_phase_history").insert({
+      backlog_id: id, phase: "available", entered_at: now,
+    });
+
+    get().fetchAll();
+  },
+
+  addSubItem: async (backlogId, data) => {
+    const { data: existing } = await supabase
+      .from("backlog_sub_items")
+      .select("sort_order")
+      .eq("backlog_id", backlogId)
+      .order("sort_order", { ascending: false })
+      .limit(1);
+
+    const nextOrder = (existing?.[0]?.sort_order ?? -1) + 1;
+
+    await supabase.from("backlog_sub_items").insert({
+      backlog_id: backlogId,
+      title: data.title,
+      functional_detail: data.functionalDetail,
+      technical_detail: data.technicalDetail,
+      estimate: data.estimate,
+      attachment: data.attachment || null,
+      sort_order: nextOrder,
+    });
+
+    // Refresh sub items in refinement data
+    await refreshSubItems(backlogId);
+    get().fetchAll();
+  },
+
+  updateSubItem: async (backlogId, subItemId, data) => {
+    await supabase.from("backlog_sub_items").update({
+      title: data.title,
+      functional_detail: data.functionalDetail,
+      technical_detail: data.technicalDetail,
+      estimate: data.estimate,
+      attachment: data.attachment || null,
+    }).eq("id", subItemId);
+
+    await refreshSubItems(backlogId);
+    get().fetchAll();
+  },
+
+  deleteSubItem: async (backlogId, subItemId) => {
+    await supabase.from("backlog_sub_items").delete().eq("id", subItemId);
+    await refreshSubItems(backlogId);
+    get().fetchAll();
+  },
+
+  reorderSubItems: async (backlogId, orderedIds) => {
+    // Update sort_order for each item
+    await Promise.all(
+      orderedIds.map((id, i) =>
+        supabase.from("backlog_sub_items").update({ sort_order: i }).eq("id", id)
+      )
+    );
+    await refreshSubItems(backlogId);
+    get().fetchAll();
+  },
+
+  completeRefinement: async (backlogId) => {
+    const now = new Date().toISOString();
+
+    await supabase.from("backlogs").update({ phase: "available" }).eq("id", backlogId);
+
+    await supabase.from("backlog_phase_history").update({ completed_at: now })
+      .eq("backlog_id", backlogId).eq("phase", "refinement").is("completed_at", null);
+    await supabase.from("backlog_phase_history").insert({
+      backlog_id: backlogId, phase: "available", entered_at: now,
+    });
+
+    get().fetchAll();
+  },
 }));
+
+// Helper to refresh sub-items embedded in refinement JSONB
+async function refreshSubItems(backlogId: string) {
+  const { data: subItems } = await supabase
+    .from("backlog_sub_items")
+    .select("*")
+    .eq("backlog_id", backlogId)
+    .order("sort_order");
+
+  if (subItems) {
+    const mapped = subItems.map((si: any) => ({
+      id: si.id,
+      title: si.title,
+      functionalDetail: si.functional_detail,
+      technicalDetail: si.technical_detail,
+      estimate: si.estimate,
+      attachment: si.attachment,
+      order: si.sort_order,
+    }));
+
+    // Get current refinement data
+    const { data: backlog } = await supabase
+      .from("backlogs")
+      .select("refinement")
+      .eq("id", backlogId)
+      .single();
+
+    const currentRefinement = (backlog?.refinement as any) ?? {};
+    await supabase.from("backlogs").update({
+      refinement: { ...currentRefinement, subItems: mapped },
+    }).eq("id", backlogId);
+  }
+}
