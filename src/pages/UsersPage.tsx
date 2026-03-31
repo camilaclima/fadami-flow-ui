@@ -2,14 +2,14 @@ import { useProfiles, type Profile } from "@/hooks/useProfiles";
 import { useProducts } from "@/hooks/useProducts";
 import { useRoles } from "@/hooks/useRoles";
 import { useAccessGroups } from "@/hooks/useAccessGroups";
+import { useProfileProducts, useProfileGroups } from "@/hooks/useProfileRelations";
 import { useState } from "react";
 import { UserPlus, Pencil, Copy, UserX, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { useUpdateProfile, useToggleProfileActive } from "@/hooks/useProfiles";
+import { useToggleProfileActive } from "@/hooks/useProfiles";
 import { UserFormModalSupabase } from "@/components/admin/UserFormModalSupabase";
 
 export default function UsersPage() {
@@ -17,7 +17,8 @@ export default function UsersPage() {
   const { data: products = [] } = useProducts();
   const { data: roles = [] } = useRoles();
   const { data: accessGroups = [] } = useAccessGroups();
-  const updateProfile = useUpdateProfile();
+  const { data: profileProducts = [] } = useProfileProducts();
+  const { data: profileGroups = [] } = useProfileGroups();
   const toggleActive = useToggleProfileActive();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -28,7 +29,7 @@ export default function UsersPage() {
   const handleEdit = (u: Profile) => { setEditing(u); setCloneData(null); setModalOpen(true); };
   const handleClone = (u: Profile) => {
     setEditing(null);
-    setCloneData({ product_id: u.product_id, role_id: u.role_id, group_id: u.group_id });
+    setCloneData({ role_id: u.role_id });
     setModalOpen(true);
   };
 
@@ -36,9 +37,17 @@ export default function UsersPage() {
     toggleActive.mutate({ id: u.id, active: u.active });
   };
 
-  const getProductName = (id: string | null) => products.find((p) => p.id === id)?.name ?? "-";
+  const getProductNames = (profileId: string) => {
+    const ids = profileProducts.filter((pp) => pp.profile_id === profileId).map((pp) => pp.product_id);
+    return ids.map((id) => products.find((p) => p.id === id)?.name).filter(Boolean).join(", ") || "-";
+  };
+
   const getRoleName = (id: string | null) => roles.find((r) => r.id === id)?.title ?? "-";
-  const getGroupName = (id: string | null) => accessGroups.find((g) => g.id === id)?.name ?? "-";
+
+  const getGroupNames = (profileId: string) => {
+    const ids = profileGroups.filter((pg) => pg.profile_id === profileId).map((pg) => pg.group_id);
+    return ids.map((id) => accessGroups.find((g) => g.id === id)?.name).filter(Boolean).join(", ") || "-";
+  };
 
   return (
     <div className="fade-in space-y-6">
@@ -58,9 +67,9 @@ export default function UsersPage() {
             <TableRow>
               <TableHead>Nome</TableHead>
               <TableHead>E-mail</TableHead>
-              <TableHead>Produto</TableHead>
+              <TableHead>Produtos</TableHead>
               <TableHead>Cargo</TableHead>
-              <TableHead>Grupo</TableHead>
+              <TableHead>Grupos</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
@@ -70,9 +79,9 @@ export default function UsersPage() {
               <TableRow key={u.id} className={!u.active ? "opacity-50" : ""}>
                 <TableCell className="font-medium text-foreground">{u.first_name} {u.last_name}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">{u.email}</TableCell>
-                <TableCell className="text-sm">{getProductName(u.product_id)}</TableCell>
+                <TableCell className="text-sm max-w-[160px] truncate">{getProductNames(u.id)}</TableCell>
                 <TableCell className="text-sm">{getRoleName(u.role_id)}</TableCell>
-                <TableCell className="text-sm">{getGroupName(u.group_id)}</TableCell>
+                <TableCell className="text-sm max-w-[160px] truncate">{getGroupNames(u.id)}</TableCell>
                 <TableCell>
                   <Badge variant={u.active ? "default" : "secondary"} className={u.active ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/20" : "bg-destructive/10 text-destructive border-destructive/20"}>
                     {u.active ? "Ativo" : "Inativo"}
