@@ -35,6 +35,7 @@ const MOCK_BACKLOGS: BacklogItem[] = [
   {
     id: "b1",
     title: "Implementar autenticação OAuth2",
+    type: "functional",
     description: "Adicionar suporte a login com Google e GitHub para simplificar o onboarding dos usuários.",
     productId: "p1",
     clientId: "c1",
