@@ -54,6 +54,7 @@ const MOCK_BACKLOGS: BacklogItem[] = [
   {
     id: "b2",
     title: "Redesign da página de dashboard",
+    type: "functional",
     description: "Atualizar o layout do dashboard com novos gráficos e métricas de performance.",
     productId: "p1",
     thermometer: "medium",
