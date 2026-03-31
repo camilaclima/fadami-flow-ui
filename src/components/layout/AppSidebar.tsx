@@ -142,16 +142,16 @@ export function AppSidebar() {
                     transition={{ duration: 0.2, ease: "easeInOut" }}
                     className="overflow-hidden"
                   >
-                    <div className="space-y-0.5 mt-1">
+                    <div className="space-y-0.5 mt-0.5">
                       {group.items.map((item) => (
                         <NavLink
                           key={item.url}
                           to={item.url}
                           end={item.url === "/"}
-                          className={`flex items-center gap-3 py-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-all duration-150 group ${expanded ? "px-4" : "px-3"}`}
+                          className={`flex items-center gap-3 py-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-all duration-150 group ${expanded ? "pl-9 pr-4" : "px-3"}`}
                           activeClassName="bg-primary/10 text-primary"
                         >
-                          <item.icon className="w-5 h-5 flex-shrink-0" />
+                          <item.icon className="w-4 h-4 flex-shrink-0" />
                           <AnimatePresence>
                             {expanded && (
                               <motion.span
@@ -159,7 +159,7 @@ export function AppSidebar() {
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -4 }}
                                 transition={{ duration: 0.12 }}
-                                className="text-sm font-medium whitespace-nowrap"
+                                className="text-[13px] font-normal whitespace-nowrap"
                               >
                                 {item.title}
                               </motion.span>
