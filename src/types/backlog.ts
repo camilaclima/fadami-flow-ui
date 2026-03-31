@@ -54,12 +54,23 @@ export interface ApprovalData {
   updatedAt?: string;
 }
 
+export interface SubItem {
+  id: string;
+  title: string;
+  functionalDetail: string;
+  technicalDetail: string;
+  estimate: number;
+  attachment?: string;
+  order: number;
+}
+
 export interface RefinementData {
-  functionalRefinement: string;
-  technicalRefinement: string;
-  acceptanceCriteria: string;
-  definitionOfDone: string;
-  estimate: number; // hours
+  functionalRefinement?: string;
+  technicalRefinement?: string;
+  acceptanceCriteria?: string;
+  definitionOfDone?: string;
+  estimate?: number;
+  subItems?: SubItem[];
   updatedBy?: string;
   updatedAt?: string;
 }
