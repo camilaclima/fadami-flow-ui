@@ -18,6 +18,8 @@ import {
   Sparkles,
   ChevronDown,
   Check,
+  Code2,
+  Layers,
 } from "lucide-react";
 
 interface Props {
