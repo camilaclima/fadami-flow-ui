@@ -8,6 +8,7 @@ export interface Client {
   contact_name: string;
   contact_email: string;
   phone: string;
+  active: boolean;
 }
 
 export function useClients() {

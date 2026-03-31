@@ -18,6 +18,13 @@ interface ContactForm {
 
 const emptyContact = (): ContactForm => ({ name: "", phone: "", email: "", concession: "", area: "", description: "" });
 
+const formatPhone = (value: string): string => {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 2) return digits.length ? `(${digits}` : "";
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+};
+
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -30,14 +37,12 @@ export function ClientFormModal({ open, onOpenChange, client, existingContacts }
   const updateClient = useUpdateClient();
 
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
   const [contacts, setContacts] = useState<ContactForm[]>([emptyContact()]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (client) {
       setName(client.name);
-      setEmail(client.email);
       setContacts(
         existingContacts && existingContacts.length > 0
           ? existingContacts.map((c) => ({
@@ -52,7 +57,6 @@ export function ClientFormModal({ open, onOpenChange, client, existingContacts }
       );
     } else {
       setName("");
-      setEmail("");
       setContacts([emptyContact()]);
     }
   }, [client, existingContacts, open]);
@@ -60,7 +64,7 @@ export function ClientFormModal({ open, onOpenChange, client, existingContacts }
   const addContactRow = () => setContacts((prev) => [...prev, emptyContact()]);
   const removeContactRow = (i: number) => setContacts((prev) => prev.filter((_, idx) => idx !== i));
   const updateContact = (i: number, field: keyof ContactForm, value: string) => {
-    setContacts((prev) => prev.map((c, idx) => (idx === i ? { ...c, [field]: value } : c)));
+    setContacts((prev) => prev.map((c, idx) => (idx === i ? { ...c, [field]: field === "phone" ? formatPhone(value) : value } : c)));
   };
 
   const handleSubmit = async () => {
@@ -69,9 +73,9 @@ export function ClientFormModal({ open, onOpenChange, client, existingContacts }
     try {
       const validContacts = contacts.filter((c) => c.name.trim() || c.email.trim());
       if (client) {
-        await updateClient.mutateAsync({ id: client.id, name: name.trim(), email: email.trim(), contacts: validContacts });
+        await updateClient.mutateAsync({ id: client.id, name: name.trim(), contacts: validContacts });
       } else {
-        await addClient.mutateAsync({ name: name.trim(), email: email.trim(), contacts: validContacts });
+        await addClient.mutateAsync({ name: name.trim(), contacts: validContacts });
       }
       onOpenChange(false);
     } catch {
@@ -82,22 +86,16 @@ export function ClientFormModal({ open, onOpenChange, client, existingContacts }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{client ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
           <DialogDescription>{client ? "Atualize os dados do cliente." : "Preencha os dados do cliente e seus contatos."}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2 overflow-y-auto flex-1">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Nome do Grupo / Empresa</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do cliente" />
-            </div>
-            <div className="space-y-2">
-              <Label>E-mail Principal</Label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@empresa.com" />
-            </div>
+        <div className="space-y-4 py-2 overflow-y-auto flex-1 pr-1">
+          <div className="space-y-2">
+            <Label>Nome do Grupo / Empresa</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do cliente" />
           </div>
 
           <div className="space-y-3">
@@ -117,7 +115,7 @@ export function ClientFormModal({ open, onOpenChange, client, existingContacts }
                 )}
                 <div className="grid grid-cols-2 gap-2">
                   <Input placeholder="Nome" value={contact.name} onChange={(e) => updateContact(i, "name", e.target.value)} className="text-sm h-9" />
-                  <Input placeholder="Telefone" value={contact.phone} onChange={(e) => updateContact(i, "phone", e.target.value)} className="text-sm h-9" />
+                  <Input placeholder="(99) 99999-9999" value={contact.phone} onChange={(e) => updateContact(i, "phone", e.target.value)} className="text-sm h-9" />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <Input placeholder="E-mail" type="email" value={contact.email} onChange={(e) => updateContact(i, "email", e.target.value)} className="text-sm h-9" />
