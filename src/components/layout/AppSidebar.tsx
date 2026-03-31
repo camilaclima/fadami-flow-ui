@@ -1,12 +1,26 @@
 import React, { useState } from "react";
-import { ChevronDown, ChevronRight, LayoutDashboard, ShieldCheck, ListTodo } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  ListTodo,
+  ShieldCheck,
+  LayoutDashboard,
+  Package,
+  Users,
+  UserCog,
+  UserCircle,
+  Briefcase,
+} from "lucide-react";
 
-// Exemplo de componente Sidebar ajustado
-const Sidebar = ({ isCollapsed }) => {
-  // Estado para controlar os menus pais vindo fechados por padrão
-  const [openMenus, setOpenMenus] = useState({});
+interface AppSidebarProps {
+  isCollapsed: boolean;
+}
 
-  const toggleMenu = (menuName) => {
+const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
+  // CORREÇÃO: Estado inicial vazio para que todos os menus comecem fechados (retráteis)
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
+
+  const toggleMenu = (menuName: string) => {
     setOpenMenus((prev) => ({
       ...prev,
       [menuName]: !prev[menuName],
@@ -15,16 +29,17 @@ const Sidebar = ({ isCollapsed }) => {
 
   return (
     <aside
-      className={`h-screen bg-white border-r border-gray-200 transition-all duration-300 ${isCollapsed ? "w-24" : "w-72"}`}
+      className={`h-screen bg-white border-r border-gray-200 transition-all duration-300 shadow-sm flex flex-col ${
+        isCollapsed ? "w-24" : "w-72"
+      }`}
     >
-      {/* HEADER DA SIDEBAR - CENTRALIZAÇÃO AJUSTADA */}
-      <div className="p-6 flex items-center gap-3 min-h-[80px]">
-        {/* Ícone de Fluxo (Referência image_25) */}
-        <div className="flex-shrink-0 text-gray-400">
-          {/* Substitua pelo seu SVG de Matriz/Fluxo se necessário */}
+      {/* HEADER DA SIDEBAR: ÍCONE + TEXTO CENTRALIZADOS (image_57a7b0) */}
+      <div className="p-6 flex items-center gap-3 min-h-[80px] border-b border-gray-50">
+        {/* NOVO ÍCONE DE FLUXO (image_25) */}
+        <div className="flex-shrink-0 text-gray-400 flex items-center justify-center">
           <svg
-            width="24"
-            height="24"
+            width="28"
+            height="28"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -49,71 +64,115 @@ const Sidebar = ({ isCollapsed }) => {
         )}
       </div>
 
-      {/* NAVEGAÇÃO */}
-      <nav className="px-4 py-2 space-y-6">
-        {/* GRUPO BACKLOG */}
+      {/* NAVEGAÇÃO - SCROLLÁVEL SE NECESSÁRIO */}
+      <nav className="flex-1 px-4 py-6 space-y-4 overflow-y-auto">
+        {/* GRUPO 1: BACKLOG */}
         <div>
           <button
             onClick={() => toggleMenu("backlog")}
-            className="w-full flex items-center justify-between p-2 text-gray-500 hover:bg-gray-50 rounded-lg transition-colors"
+            className={`w-full flex items-center justify-between p-3 rounded-xl transition-all duration-200 ${
+              openMenus["backlog"] ? "bg-orange-50 text-orange-600" : "text-gray-500 hover:bg-gray-50"
+            }`}
           >
             <div className="flex items-center gap-3">
-              <ListTodo size={20} />
-              {!isCollapsed && <span className="font-semibold text-sm capitalize text-gray-500">Backlog</span>}
+              <ListTodo size={22} className={openMenus["backlog"] ? "text-orange-500" : "text-gray-400"} />
+              {/* CORREÇÃO: Texto sem uppercase e sem corte */}
+              {!isCollapsed && <span className="font-semibold text-[15px] whitespace-nowrap">Backlog</span>}
             </div>
-            {!isCollapsed && (openMenus["backlog"] ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
+            {!isCollapsed && (
+              <div className="transition-transform duration-200">
+                {openMenus["backlog"] ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+              </div>
+            )}
           </button>
 
           {!isCollapsed && openMenus["backlog"] && (
-            <div className="ml-9 mt-2 space-y-1">
-              <a href="#" className="block p-2 text-sm text-gray-600 hover:text-purple-600">
-                Dashboard
+            <div className="ml-10 mt-2 space-y-1 animate-in fade-in slide-in-from-top-1">
+              <a
+                href="/dashboard"
+                className="flex items-center gap-2 p-2 text-sm text-gray-600 hover:text-orange-500 rounded-md"
+              >
+                <LayoutDashboard size={16} /> Dashboard
               </a>
-              <a href="#" className="block p-2 text-sm text-gray-600 hover:text-purple-600">
-                Backlogs
+              <a
+                href="/backlogs"
+                className="flex items-center gap-2 p-2 text-sm text-gray-600 hover:text-orange-500 rounded-md"
+              >
+                <Package size={16} /> Backlogs
               </a>
             </div>
           )}
         </div>
 
-        {/* GRUPO CADASTROS E PERMISSÕES */}
+        {/* GRUPO 2: CADASTROS E PERMISSÕES */}
         <div>
           <button
             onClick={() => toggleMenu("cadastros")}
-            className="w-full flex items-center justify-between p-2 text-gray-500 hover:bg-gray-50 rounded-lg transition-colors"
+            className={`w-full flex items-center justify-between p-3 rounded-xl transition-all duration-200 ${
+              openMenus["cadastros"] ? "bg-orange-50 text-orange-600" : "text-gray-500 hover:bg-gray-50"
+            }`}
           >
             <div className="flex items-center gap-3">
-              <ShieldCheck size={20} />
+              <ShieldCheck size={22} className={openMenus["cadastros"] ? "text-orange-500" : "text-gray-400"} />
+              {/* CORREÇÃO: Texto sem uppercase e sem corte */}
               {!isCollapsed && (
-                <span className="font-semibold text-sm capitalize text-gray-500">Cadastros e Permissões</span>
+                <span className="font-semibold text-[15px] whitespace-nowrap">Cadastros e Permissões</span>
               )}
             </div>
-            {!isCollapsed && (openMenus["cadastros"] ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
+            {!isCollapsed && (
+              <div className="transition-transform duration-200">
+                {openMenus["cadastros"] ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+              </div>
+            )}
           </button>
 
           {!isCollapsed && openMenus["cadastros"] && (
-            <div className="ml-9 mt-2 space-y-1">
-              <a href="#" className="block p-2 text-sm text-gray-600 hover:text-purple-600">
-                Produtos
+            <div className="ml-10 mt-2 space-y-1 animate-in fade-in slide-in-from-top-1">
+              <a
+                href="/produtos"
+                className="flex items-center gap-2 p-2 text-sm text-gray-600 hover:text-orange-500 rounded-md"
+              >
+                <Package size={16} /> Produtos
               </a>
-              <a href="#" className="block p-2 text-sm text-gray-600 hover:text-purple-600">
-                Clientes
+              <a
+                href="/clientes"
+                className="flex items-center gap-2 p-2 text-sm text-gray-600 hover:text-orange-500 rounded-md"
+              >
+                <Briefcase size={16} /> Clientes
               </a>
-              <a href="#" className="block p-2 text-sm text-gray-600 hover:text-purple-600">
-                Usuários
+              <a
+                href="/usuarios"
+                className="flex items-center gap-2 p-2 text-sm text-gray-600 hover:text-orange-500 rounded-md"
+              >
+                <Users size={16} /> Usuários
               </a>
-              <a href="#" className="block p-2 text-sm text-gray-600 hover:text-purple-600">
-                Cargos
+              <a
+                href="/cargos"
+                className="flex items-center gap-2 p-2 text-sm text-gray-600 hover:text-orange-500 rounded-md"
+              >
+                <UserCog size={16} /> Cargos
               </a>
-              <a href="#" className="block p-2 text-sm text-gray-600 hover:text-purple-600">
-                Grupos
+              <a
+                href="/grupos"
+                className="flex items-center gap-2 p-2 text-sm text-gray-600 hover:text-orange-500 rounded-md"
+              >
+                <UserCircle size={16} /> Grupos
               </a>
             </div>
           )}
         </div>
       </nav>
+
+      {/* FOOTER DA SIDEBAR (SLOGAN DISCRETO) */}
+      {!isCollapsed && (
+        <div className="p-6 border-t border-gray-50">
+          <p className="text-[10px] leading-tight text-gray-400 font-medium italic">
+            Inteligência e Governança em Todo o Fluxo Ágil
+          </p>
+        </div>
+      )}
     </aside>
   );
 };
 
-export default Sidebar;
+export default AppSidebar;
