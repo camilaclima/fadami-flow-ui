@@ -69,6 +69,7 @@ export interface BacklogItem {
   title: string;
   description: string;
   attachment?: string;
+  type: BacklogType;
   productId: string;
   clientId?: string;
   thermometer: Thermometer;
