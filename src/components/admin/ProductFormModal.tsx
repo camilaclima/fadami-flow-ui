@@ -9,7 +9,7 @@ import type { Product } from "@/hooks/useProducts";
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  product?: AdminProduct | null;
+  product?: Product | null;
   onSave: (data: { name: string; description: string; color: string }) => void;
 }
 
