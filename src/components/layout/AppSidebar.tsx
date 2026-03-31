@@ -1,7 +1,7 @@
 import { LayoutDashboard, ListTodo, Package, Users, Settings, ChevronLeft, Briefcase, Shield, UserCog } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAdminStore } from "@/store/adminStore";
 import type { SystemPage } from "@/types/admin";
 
@@ -18,7 +18,16 @@ const NAV_ITEMS: { title: string; url: string; icon: typeof LayoutDashboard; per
 
 export function AppSidebar() {
   const [expanded, setExpanded] = useState(false);
-  const permissions = useAdminStore((s) => s.getCurrentUserPermissions());
+  const currentUserId = useAdminStore((s) => s.currentUserId);
+  const users = useAdminStore((s) => s.users);
+  const accessGroups = useAdminStore((s) => s.accessGroups);
+
+  const permissions = useMemo(() => {
+    const user = users.find((u) => u.id === currentUserId);
+    if (!user) return [] as SystemPage[];
+    const group = accessGroups.find((g) => g.id === user.groupId);
+    return group?.permissions ?? [];
+  }, [currentUserId, users, accessGroups]);
 
   const visibleItems = NAV_ITEMS.filter((item) => permissions.includes(item.permission));
 
