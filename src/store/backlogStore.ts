@@ -151,7 +151,12 @@ interface BacklogStore {
 
 export const useBacklogStore = create<BacklogStore>((set) => ({
   backlogs: MOCK_BACKLOGS,
-  products: MOCK_PRODUCTS,
+  get products() {
+    const adminProducts = useAdminStore.getState().products;
+    return adminProducts
+      .filter((p) => p.status === "active")
+      .map((p) => ({ id: p.id, name: p.name, color: p.color }));
+  },
   clients: MOCK_CLIENTS,
 
   addBacklog: (item) =>
