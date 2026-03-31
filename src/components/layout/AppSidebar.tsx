@@ -52,7 +52,7 @@ const NAV_GROUPS: NavGroup[] = [
 export function AppSidebar() {
   const [expanded, setExpanded] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(NAV_GROUPS.map((g) => [g.label, true]))
+    Object.fromEntries(NAV_GROUPS.map((g) => [g.label, false]))
   );
   const currentUserId = useAdminStore((s) => s.currentUserId);
   const users = useAdminStore((s) => s.users);
