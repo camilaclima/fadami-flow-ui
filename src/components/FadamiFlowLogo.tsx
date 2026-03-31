@@ -1,5 +1,3 @@
-import { GitBranch } from "lucide-react";
-
 interface FadamiFlowLogoProps {
   showTagline?: boolean;
   compact?: boolean;
@@ -7,15 +5,11 @@ interface FadamiFlowLogoProps {
 
 export function FadamiFlowLogo({ showTagline = false, compact = false }: FadamiFlowLogoProps) {
   if (compact) {
-    return (
-      <GitBranch className="w-5 h-5 text-muted-foreground/60 flex-shrink-0" />
-    );
+    return null;
   }
 
   return (
     <div className="flex items-center gap-2.5 overflow-hidden">
-      <GitBranch className="w-5 h-5 text-muted-foreground/60 flex-shrink-0" />
-
       <div className="flex items-center gap-2 min-w-0">
         <span className="font-bold text-base whitespace-nowrap tracking-tight">
           <span className="fadamiflow-fadami">Fadami</span>
