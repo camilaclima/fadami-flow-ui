@@ -45,13 +45,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (profileData) {
       setProfile(profileData as Profile);
 
-      if (profileData.group_id) {
+      // Fetch permissions from all associated groups (many-to-many)
+      const { data: pGroups } = await supabase
+        .from("profile_groups")
+        .select("group_id")
+        .eq("profile_id", profileData.id);
+
+      if (pGroups && pGroups.length > 0) {
+        const groupIds = pGroups.map((pg: any) => pg.group_id);
+        const { data: groups } = await supabase
+          .from("access_groups")
+          .select("permissions")
+          .in("id", groupIds);
+
+        const allPerms = (groups ?? []).flatMap((g: any) => (g.permissions as string[]) ?? []);
+        setPermissions([...new Set(allPerms)]);
+      } else if (profileData.group_id) {
+        // Fallback to legacy single group_id
         const { data: group } = await supabase
           .from("access_groups")
           .select("permissions")
           .eq("id", profileData.group_id)
           .maybeSingle();
-
         setPermissions((group?.permissions as string[]) ?? []);
       } else {
         setPermissions([]);
