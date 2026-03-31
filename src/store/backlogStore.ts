@@ -81,6 +81,7 @@ const MOCK_BACKLOGS: BacklogItem[] = [
   {
     id: "b4",
     title: "Notificações push mobile",
+    type: "technical",
     description: "Sistema de notificações em tempo real para o app mobile com suporte a deep linking.",
     productId: "p2",
     thermometer: "high",
