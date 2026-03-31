@@ -53,6 +53,7 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
   const [productId, setProductId] = useState("");
   const [clientId, setClientId] = useState("");
   const [thermometer, setThermometer] = useState<Thermometer | null>(null);
+  const [backlogType, setBacklogType] = useState<BacklogType>("functional");
   const [files, setFiles] = useState<AttachedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
