@@ -3,14 +3,18 @@ import { ThemeToggle } from "../ThemeToggle";
 import { Outlet, useNavigate } from "react-router-dom";
 import { Bell, LogOut } from "lucide-react";
 import { useAdminStore } from "@/store/adminStore";
+import { useMemo } from "react";
 
 export function AppLayout() {
   const navigate = useNavigate();
   const logout = useAdminStore((s) => s.logout);
-  const currentUser = useAdminStore((s) => {
-    const user = s.users.find((u) => u.id === s.currentUserId);
+  const currentUserId = useAdminStore((s) => s.currentUserId);
+  const users = useAdminStore((s) => s.users);
+
+  const initials = useMemo(() => {
+    const user = users.find((u) => u.id === currentUserId);
     return user ? `${user.firstName[0]}${user.lastName[0]}` : "U";
-  });
+  }, [currentUserId, users]);
 
   const handleLogout = () => {
     logout();
@@ -29,7 +33,7 @@ export function AppLayout() {
             </button>
             <ThemeToggle />
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
-              {currentUser}
+              {initials}
             </div>
             <button
               onClick={handleLogout}
