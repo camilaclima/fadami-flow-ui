@@ -22,7 +22,7 @@ interface NavGroup {
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    label: "BACKLOG",
+    label: "Backlog",
     icon: ClipboardList,
     items: [
       { title: "Dashboard", url: "/", icon: LayoutDashboard, permission: "dashboard" },
@@ -30,7 +30,7 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "CADASTROS E PERMISSÕES",
+    label: "Cadastros e Permissões",
     icon: ShieldCheck,
     items: [
       { title: "Produtos", url: "/products", icon: Package, permission: "products" },
@@ -41,7 +41,7 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "SISTEMA",
+    label: "Sistema",
     icon: Settings,
     items: [
       { title: "Configurações", url: "/settings", icon: Settings, permission: "settings" },
