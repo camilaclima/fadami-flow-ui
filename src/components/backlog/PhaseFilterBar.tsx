@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import type { Phase } from "@/types/backlog";
 import { PHASES, PHASE_LABELS } from "@/types/backlog";
