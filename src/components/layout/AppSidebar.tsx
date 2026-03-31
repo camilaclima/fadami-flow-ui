@@ -91,7 +91,7 @@ export function AppSidebar() {
       {/* Logo */}
       <div className="h-14 flex items-center justify-center px-4 border-b border-border/60 overflow-hidden">
         {expanded ? (
-          <FadamiFlowLogo />
+          <FadamiFlowLogo showIcon />
         ) : (
           <img src={menuIcon} alt="Menu" className="w-5 h-5 opacity-60 dark:invert dark:opacity-50" />
         )}
