@@ -73,8 +73,8 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
   roles: MOCK_ROLES,
   accessGroups: MOCK_GROUPS,
   users: MOCK_USERS,
-  currentUserId: "",
-  isAuthenticated: false,
+  currentUserId: "u1",
+  isAuthenticated: true,
 
   // Products
   addProduct: (p) =>
