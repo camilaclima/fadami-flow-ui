@@ -37,6 +37,7 @@ interface AdminStore {
   accessGroups: AccessGroup[];
   users: AppUser[];
   currentUserId: string;
+  isAuthenticated: boolean;
 
   // Products
   addProduct: (p: Omit<AdminProduct, "id">) => void;
