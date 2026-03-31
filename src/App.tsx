@@ -8,6 +8,9 @@ import BacklogsPage from "./pages/BacklogsPage";
 import ProductsPage from "./pages/ProductsPage";
 import ClientsPage from "./pages/ClientsPage";
 import SettingsPage from "./pages/SettingsPage";
+import UsersPage from "./pages/UsersPage";
+import RolesPage from "./pages/RolesPage";
+import AccessGroupsPage from "./pages/AccessGroupsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,6 +26,9 @@ const App = () => (
             <Route path="/backlogs" element={<BacklogsPage />} />
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/clients" element={<ClientsPage />} />
+            <Route path="/users" element={<UsersPage />} />
+            <Route path="/roles" element={<RolesPage />} />
+            <Route path="/groups" element={<AccessGroupsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />

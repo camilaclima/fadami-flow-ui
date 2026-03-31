@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { useAdminStore } from "@/store/adminStore";
 import type {
   BacklogItem,
   Product,
@@ -17,11 +18,7 @@ function calculatePriority(bv: number, oc: number, est: number): Priority {
   return "low";
 }
 
-const MOCK_PRODUCTS: Product[] = [
-  { id: "p1", name: "FadamiFlow Web", color: "hsl(243 75% 59%)" },
-  { id: "p2", name: "FadamiFlow Mobile", color: "hsl(160 84% 39%)" },
-  { id: "p3", name: "FadamiFlow API", color: "hsl(38 92% 50%)" },
-];
+// Products are now managed by adminStore
 
 const MOCK_CLIENTS: Client[] = [
   { id: "c1", name: "TechCorp", email: "contato@techcorp.com" },
@@ -154,7 +151,12 @@ interface BacklogStore {
 
 export const useBacklogStore = create<BacklogStore>((set) => ({
   backlogs: MOCK_BACKLOGS,
-  products: MOCK_PRODUCTS,
+  get products() {
+    const adminProducts = useAdminStore.getState().products;
+    return adminProducts
+      .filter((p) => p.status === "active")
+      .map((p) => ({ id: p.id, name: p.name, color: p.color }));
+  },
   clients: MOCK_CLIENTS,
 
   addBacklog: (item) =>
