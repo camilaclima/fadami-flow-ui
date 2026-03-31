@@ -32,7 +32,7 @@ export function FadamiFlowLogo({ showTagline = false, compact = false }: FadamiF
           <>
             <span className="text-border mx-0.5 select-none">|</span>
             <span className="text-[11px] text-[hsl(220,9%,64%)] whitespace-nowrap font-medium">
-              Inteligência em Fluxo de Backlog
+              O Fluxo Total do seu Projeto!
             </span>
           </>
         )}
