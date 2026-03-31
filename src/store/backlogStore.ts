@@ -68,6 +68,7 @@ const MOCK_BACKLOGS: BacklogItem[] = [
   {
     id: "b3",
     title: "API de exportação de relatórios",
+    type: "technical",
     description: "Criar endpoints para exportação de dados em CSV e PDF.",
     productId: "p3",
     clientId: "c2",
