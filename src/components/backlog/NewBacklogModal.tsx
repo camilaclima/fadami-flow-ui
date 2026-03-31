@@ -106,6 +106,7 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
     addBacklog({
       title: title.trim(),
       description: description.trim(),
+      type: backlogType,
       productId,
       clientId: clientId || undefined,
       thermometer,
