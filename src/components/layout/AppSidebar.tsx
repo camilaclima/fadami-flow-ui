@@ -22,7 +22,7 @@ interface NavGroup {
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    label: "BACKLOG",
+    label: "Backlog",
     icon: ClipboardList,
     items: [
       { title: "Dashboard", url: "/", icon: LayoutDashboard, permission: "dashboard" },
@@ -30,7 +30,7 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "CADASTROS E PERMISSÕES",
+    label: "Cadastros e Permissões",
     icon: ShieldCheck,
     items: [
       { title: "Produtos", url: "/products", icon: Package, permission: "products" },
@@ -41,7 +41,7 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "SISTEMA",
+    label: "Sistema",
     icon: Settings,
     items: [
       { title: "Configurações", url: "/settings", icon: Settings, permission: "settings" },
@@ -83,7 +83,7 @@ export function AppSidebar() {
       className="fixed left-0 top-0 h-full z-40 flex flex-col bg-card border-r border-border/60"
       style={{ boxShadow: expanded ? "var(--shadow-elevated)" : "none" }}
       initial={false}
-      animate={{ width: expanded ? 240 : 64 }}
+      animate={{ width: expanded ? 280 : 64 }}
       transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
       onMouseEnter={() => setExpanded(true)}
       onMouseLeave={() => setExpanded(false)}
@@ -148,7 +148,7 @@ export function AppSidebar() {
                           key={item.url}
                           to={item.url}
                           end={item.url === "/"}
-                          className={`flex items-center gap-3 py-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-all duration-150 group ${expanded ? "pl-9 pr-4" : "px-3"}`}
+                          className={`flex items-center gap-3 py-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-all duration-150 group ${expanded ? "pl-8 pr-3" : "px-3"}`}
                           activeClassName="bg-primary/10 text-primary"
                         >
                           <item.icon className="w-4 h-4 flex-shrink-0" />
