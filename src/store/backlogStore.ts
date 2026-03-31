@@ -18,11 +18,7 @@ function calculatePriority(bv: number, oc: number, est: number): Priority {
   return "low";
 }
 
-const MOCK_PRODUCTS: Product[] = [
-  { id: "p1", name: "FadamiFlow Web", color: "hsl(243 75% 59%)" },
-  { id: "p2", name: "FadamiFlow Mobile", color: "hsl(160 84% 39%)" },
-  { id: "p3", name: "FadamiFlow API", color: "hsl(38 92% 50%)" },
-];
+// Products are now managed by adminStore
 
 const MOCK_CLIENTS: Client[] = [
   { id: "c1", name: "TechCorp", email: "contato@techcorp.com" },

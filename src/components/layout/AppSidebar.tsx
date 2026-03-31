@@ -1,18 +1,26 @@
-import { LayoutDashboard, ListTodo, Package, Users, Settings, ChevronLeft } from "lucide-react";
+import { LayoutDashboard, ListTodo, Package, Users, Settings, ChevronLeft, Briefcase, Shield, UserCog } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
+import { useAdminStore } from "@/store/adminStore";
+import type { SystemPage } from "@/types/admin";
 
-const NAV_ITEMS = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Backlogs", url: "/backlogs", icon: ListTodo },
-  { title: "Produtos", url: "/products", icon: Package },
-  { title: "Clientes", url: "/clients", icon: Users },
-  { title: "Configurações", url: "/settings", icon: Settings },
+const NAV_ITEMS: { title: string; url: string; icon: typeof LayoutDashboard; permission: SystemPage }[] = [
+  { title: "Dashboard", url: "/", icon: LayoutDashboard, permission: "dashboard" },
+  { title: "Backlogs", url: "/backlogs", icon: ListTodo, permission: "backlogs" },
+  { title: "Produtos", url: "/products", icon: Package, permission: "products" },
+  { title: "Clientes", url: "/clients", icon: Users, permission: "clients" },
+  { title: "Usuários", url: "/users", icon: UserCog, permission: "users" },
+  { title: "Cargos", url: "/roles", icon: Briefcase, permission: "roles" },
+  { title: "Grupos", url: "/groups", icon: Shield, permission: "groups" },
+  { title: "Configurações", url: "/settings", icon: Settings, permission: "settings" },
 ];
 
 export function AppSidebar() {
   const [expanded, setExpanded] = useState(false);
+  const permissions = useAdminStore((s) => s.getCurrentUserPermissions());
+
+  const visibleItems = NAV_ITEMS.filter((item) => permissions.includes(item.permission));
 
   return (
     <motion.aside
@@ -46,7 +54,7 @@ export function AppSidebar() {
 
       {/* Nav */}
       <nav className="flex-1 py-3 px-2 space-y-1">
-        {NAV_ITEMS.map((item) => (
+        {visibleItems.map((item) => (
           <NavLink
             key={item.url}
             to={item.url}
