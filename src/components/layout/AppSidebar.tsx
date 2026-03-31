@@ -5,15 +5,42 @@ import { useState, useMemo } from "react";
 import { useAdminStore } from "@/store/adminStore";
 import type { SystemPage } from "@/types/admin";
 
-const NAV_ITEMS: { title: string; url: string; icon: typeof LayoutDashboard; permission: SystemPage }[] = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard, permission: "dashboard" },
-  { title: "Backlogs", url: "/backlogs", icon: ListTodo, permission: "backlogs" },
-  { title: "Produtos", url: "/products", icon: Package, permission: "products" },
-  { title: "Clientes", url: "/clients", icon: Users, permission: "clients" },
-  { title: "Usuários", url: "/users", icon: UserCog, permission: "users" },
-  { title: "Cargos", url: "/roles", icon: Briefcase, permission: "roles" },
-  { title: "Grupos", url: "/groups", icon: Shield, permission: "groups" },
-  { title: "Configurações", url: "/settings", icon: Settings, permission: "settings" },
+interface NavItem {
+  title: string;
+  url: string;
+  icon: typeof LayoutDashboard;
+  permission: SystemPage;
+}
+
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "BACKLOG",
+    items: [
+      { title: "Dashboard", url: "/", icon: LayoutDashboard, permission: "dashboard" },
+      { title: "Backlogs", url: "/backlogs", icon: ListTodo, permission: "backlogs" },
+    ],
+  },
+  {
+    label: "CADASTROS E PERMISSÕES",
+    items: [
+      { title: "Produtos", url: "/products", icon: Package, permission: "products" },
+      { title: "Clientes", url: "/clients", icon: Users, permission: "clients" },
+      { title: "Usuários", url: "/users", icon: UserCog, permission: "users" },
+      { title: "Cargos", url: "/roles", icon: Briefcase, permission: "roles" },
+      { title: "Grupos", url: "/groups", icon: Shield, permission: "groups" },
+    ],
+  },
+  {
+    label: "SISTEMA",
+    items: [
+      { title: "Configurações", url: "/settings", icon: Settings, permission: "settings" },
+    ],
+  },
 ];
 
 export function AppSidebar() {
@@ -29,7 +56,14 @@ export function AppSidebar() {
     return group?.permissions ?? [];
   }, [currentUserId, users, accessGroups]);
 
-  const visibleItems = NAV_ITEMS.filter((item) => permissions.includes(item.permission));
+  const visibleGroups = useMemo(() => {
+    return NAV_GROUPS
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => permissions.includes(item.permission)),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [permissions]);
 
   return (
     <motion.aside
@@ -62,30 +96,49 @@ export function AppSidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 py-3 px-2 space-y-1">
-        {visibleItems.map((item) => (
-          <NavLink
-            key={item.url}
-            to={item.url}
-            end={item.url === "/"}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-all duration-150 group"
-            activeClassName="bg-primary/10 text-primary"
-          >
-            <item.icon className="w-5 h-5 flex-shrink-0" />
+      <nav className="flex-1 py-3 px-2 overflow-y-auto overflow-x-hidden">
+        {visibleGroups.map((group, gi) => (
+          <div key={group.label} className={gi > 0 ? "mt-5" : ""}>
             <AnimatePresence>
               {expanded && (
-                <motion.span
-                  initial={{ opacity: 0, x: -4 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -4 }}
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   transition={{ duration: 0.12 }}
-                  className="text-sm font-medium whitespace-nowrap"
+                  className="text-[10px] font-semibold tracking-wider text-muted-foreground/60 uppercase pl-4 mb-1.5"
                 >
-                  {item.title}
-                </motion.span>
+                  {group.label}
+                </motion.p>
               )}
             </AnimatePresence>
-          </NavLink>
+            <div className="space-y-0.5">
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.url}
+                  to={item.url}
+                  end={item.url === "/"}
+                  className={`flex items-center gap-3 py-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-all duration-150 group ${expanded ? "px-4" : "px-3"}`}
+                  activeClassName="bg-primary/10 text-primary"
+                >
+                  <item.icon className="w-5 h-5 flex-shrink-0" />
+                  <AnimatePresence>
+                    {expanded && (
+                      <motion.span
+                        initial={{ opacity: 0, x: -4 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -4 }}
+                        transition={{ duration: 0.12 }}
+                        className="text-sm font-medium whitespace-nowrap"
+                      >
+                        {item.title}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </NavLink>
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
 
