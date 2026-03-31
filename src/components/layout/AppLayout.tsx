@@ -33,7 +33,7 @@ export function AppLayout() {
             </button>
             <ThemeToggle />
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
-              {currentUser}
+              {initials}
             </div>
             <button
               onClick={handleLogout}
