@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useBacklogStore } from "@/store/backlogStore";
-import type { Thermometer } from "@/types/backlog";
+import type { Thermometer, BacklogType } from "@/types/backlog";
+import { BACKLOG_TYPE_LABELS } from "@/types/backlog";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
