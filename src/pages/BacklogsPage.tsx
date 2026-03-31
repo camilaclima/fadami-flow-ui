@@ -12,6 +12,12 @@ import { motion, AnimatePresence } from "framer-motion";
 
 export default function BacklogsPage() {
   const backlogs = useBacklogStore((s) => s.backlogs);
+  const fetchAll = useBacklogStore((s) => s.fetchAll);
+  const initialized = useBacklogStore((s) => s.initialized);
+
+  useEffect(() => {
+    if (!initialized) fetchAll();
+  }, [initialized, fetchAll]);
   const [newOpen, setNewOpen] = useState(false);
   const [selectedPhase, setSelectedPhase] = useState<Phase | "all">("all");
   const [filters, setFilters] = useState<FilterState>({
