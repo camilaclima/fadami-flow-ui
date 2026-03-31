@@ -4,10 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useProducts } from "@/hooks/useProducts";
 import { useRoles } from "@/hooks/useRoles";
 import { useAccessGroups } from "@/hooks/useAccessGroups";
 import { useUpdateProfile, type Profile } from "@/hooks/useProfiles";
+import { useProfileProducts, useProfileGroups, useSyncProfileProducts, useSyncProfileGroups } from "@/hooks/useProfileRelations";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Copy, Check } from "lucide-react";
@@ -24,16 +26,20 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
   const { data: products = [] } = useProducts();
   const { data: roles = [] } = useRoles();
   const { data: accessGroups = [] } = useAccessGroups();
+  const { data: profileProducts = [] } = useProfileProducts();
+  const { data: profileGroups = [] } = useProfileGroups();
   const updateProfile = useUpdateProfile();
+  const syncProducts = useSyncProfileProducts();
+  const syncGroups = useSyncProfileGroups();
   const queryClient = useQueryClient();
   const activeProducts = products.filter((p) => p.status === "active");
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
-  const [productId, setProductId] = useState("");
   const [roleId, setRoleId] = useState("");
-  const [groupId, setGroupId] = useState("");
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -43,48 +49,53 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
       setFirstName(profile.first_name);
       setLastName(profile.last_name);
       setEmail(profile.email);
-      setProductId(profile.product_id ?? "");
       setRoleId(profile.role_id ?? "");
-      setGroupId(profile.group_id ?? "");
+      setSelectedProductIds(profileProducts.filter((pp) => pp.profile_id === profile.id).map((pp) => pp.product_id));
+      setSelectedGroupIds(profileGroups.filter((pg) => pg.profile_id === profile.id).map((pg) => pg.group_id));
     } else if (cloneData) {
       setFirstName("");
       setLastName("");
       setEmail("");
-      setProductId(cloneData.product_id ?? "");
       setRoleId(cloneData.role_id ?? "");
-      setGroupId(cloneData.group_id ?? "");
+      setSelectedProductIds([]);
+      setSelectedGroupIds([]);
     } else {
       setFirstName("");
       setLastName("");
       setEmail("");
-      setProductId("");
       setRoleId("");
-      setGroupId("");
+      setSelectedProductIds([]);
+      setSelectedGroupIds([]);
     }
     setGeneratedPassword(null);
     setCopied(false);
-  }, [profile, cloneData, open]);
+  }, [profile, cloneData, open, profileProducts, profileGroups]);
+
+  const toggleProduct = (id: string) => {
+    setSelectedProductIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  };
+  const toggleGroup = (id: string) => {
+    setSelectedGroupIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  };
 
   const handleSubmit = async () => {
-    if (!firstName.trim() || !email.trim() || !productId || !roleId || !groupId) return;
+    if (!firstName.trim() || !email.trim() || !roleId) return;
     setSaving(true);
 
     try {
       if (profile) {
-        // Update existing profile
         updateProfile.mutate({
           id: profile.id,
           first_name: firstName.trim(),
           last_name: lastName.trim(),
           email: email.trim(),
-          product_id: productId,
           role_id: roleId,
-          group_id: groupId,
         });
+        await syncProducts.mutateAsync({ profileId: profile.id, productIds: selectedProductIds });
+        await syncGroups.mutateAsync({ profileId: profile.id, groupIds: selectedGroupIds });
         toast.success("Usuário atualizado!");
         onOpenChange(false);
       } else {
-        // Create new user via edge function
         const tempPassword = Math.random().toString(36).slice(-8);
         const { data, error } = await supabase.functions.invoke("create-user", {
           body: {
@@ -92,14 +103,26 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
             password: tempPassword,
             firstName: firstName.trim(),
             lastName: lastName.trim(),
-            productId,
+            productId: selectedProductIds[0] || null,
             roleId,
-            groupId,
+            groupId: selectedGroupIds[0] || null,
           },
         });
 
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
+
+        // Sync many-to-many after profile creation
+        const { data: newProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("email", email.trim())
+          .maybeSingle();
+
+        if (newProfile) {
+          await syncProducts.mutateAsync({ profileId: newProfile.id, productIds: selectedProductIds });
+          await syncGroups.mutateAsync({ profileId: newProfile.id, groupIds: selectedGroupIds });
+        }
 
         setGeneratedPassword(tempPassword);
         toast.success("Usuário criado!");
@@ -124,7 +147,7 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Editar Usuário" : cloneData ? "Clonar Usuário" : "Novo Usuário"}</DialogTitle>
           <DialogDescription>
@@ -152,8 +175,8 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
             </DialogFooter>
           </div>
         ) : (
-          <>
-            <div className="space-y-4 py-2">
+          <div className="flex flex-col flex-1 overflow-hidden">
+            <div className="space-y-4 py-2 overflow-y-auto flex-1">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Nome</Label>
@@ -169,48 +192,58 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
                 <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@empresa.com" disabled={isEditing} />
               </div>
               <div className="space-y-2">
-                <Label>Produto</Label>
-                <Select value={productId} onValueChange={setProductId}>
+                <Label>Cargo</Label>
+                <Select value={roleId} onValueChange={setRoleId}>
                   <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                   <SelectContent>
-                    {activeProducts.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    {roles.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>{r.title}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Cargo</Label>
-                  <Select value={roleId} onValueChange={setRoleId}>
-                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                    <SelectContent>
-                      {roles.map((r) => (
-                        <SelectItem key={r.id} value={r.id}>{r.title}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+
+              {/* Multi-select Products */}
+              <div className="space-y-2">
+                <Label>Produtos</Label>
+                <div className="bg-secondary/50 rounded-lg p-3 space-y-2 max-h-32 overflow-y-auto border border-border/40">
+                  {activeProducts.map((p) => (
+                    <label key={p.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-secondary/80 rounded px-1 py-0.5">
+                      <Checkbox
+                        checked={selectedProductIds.includes(p.id)}
+                        onCheckedChange={() => toggleProduct(p.id)}
+                      />
+                      <span className="text-foreground">{p.name}</span>
+                    </label>
+                  ))}
+                  {activeProducts.length === 0 && <p className="text-xs text-muted-foreground">Nenhum produto ativo.</p>}
                 </div>
-                <div className="space-y-2">
-                  <Label>Grupo de Acesso</Label>
-                  <Select value={groupId} onValueChange={setGroupId}>
-                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                    <SelectContent>
-                      {accessGroups.map((g) => (
-                        <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              </div>
+
+              {/* Multi-select Groups */}
+              <div className="space-y-2">
+                <Label>Grupos de Acesso</Label>
+                <div className="bg-secondary/50 rounded-lg p-3 space-y-2 max-h-32 overflow-y-auto border border-border/40">
+                  {accessGroups.map((g) => (
+                    <label key={g.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-secondary/80 rounded px-1 py-0.5">
+                      <Checkbox
+                        checked={selectedGroupIds.includes(g.id)}
+                        onCheckedChange={() => toggleGroup(g.id)}
+                      />
+                      <span className="text-foreground">{g.name}</span>
+                    </label>
+                  ))}
+                  {accessGroups.length === 0 && <p className="text-xs text-muted-foreground">Nenhum grupo disponível.</p>}
                 </div>
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="pt-2">
               <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-              <Button onClick={handleSubmit} disabled={saving || !firstName.trim() || !email.trim() || !productId || !roleId || !groupId}>
+              <Button onClick={handleSubmit} disabled={saving || !firstName.trim() || !email.trim() || !roleId}>
                 {saving ? "Salvando..." : isEditing ? "Salvar" : "Criar Usuário"}
               </Button>
             </DialogFooter>
-          </>
+          </div>
         )}
       </DialogContent>
     </Dialog>
