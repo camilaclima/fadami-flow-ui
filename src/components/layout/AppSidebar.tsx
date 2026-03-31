@@ -88,23 +88,8 @@ export function AppSidebar() {
       onMouseLeave={() => setExpanded(false)}
     >
       {/* Logo */}
-      <div className="h-14 flex items-center px-4 border-b border-border/60 gap-3 overflow-hidden">
-        <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
-          <span className="text-primary-foreground font-bold text-sm">F</span>
-        </div>
-        <AnimatePresence>
-          {expanded && (
-            <motion.span
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -8 }}
-              transition={{ duration: 0.15 }}
-              className="font-semibold text-foreground whitespace-nowrap text-sm"
-            >
-              FadamiFlow
-            </motion.span>
-          )}
-        </AnimatePresence>
+      <div className="h-14 flex items-center px-4 border-b border-border/60 overflow-hidden">
+        <FadamiFlowLogo compact={!expanded} />
       </div>
 
       {/* Nav */}

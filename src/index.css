@@ -186,6 +186,26 @@
   }
 }
 
+/* FadamiFlow glow effect */
+.fadamiflow-glow {
+  color: hsl(24, 95%, 53%);
+  text-shadow: 0 0 8px hsl(24 95% 53% / 0.6), 0 0 20px hsl(24 95% 53% / 0.3);
+  animation: fadamiGlow 3s ease-in-out infinite;
+}
+
+:root .fadamiflow-glow {
+  text-shadow: 0 0 6px hsl(24 95% 53% / 0.35), 0 0 14px hsl(24 95% 53% / 0.15);
+}
+
+.dark .fadamiflow-glow {
+  text-shadow: 0 0 8px hsl(24 95% 53% / 0.6), 0 0 20px hsl(24 95% 53% / 0.3);
+}
+
+@keyframes fadamiGlow {
+  0%, 100% { opacity: 1; filter: brightness(1); }
+  50% { opacity: 0.85; filter: brightness(1.15); }
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
