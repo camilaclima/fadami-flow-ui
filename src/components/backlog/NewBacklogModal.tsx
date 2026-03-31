@@ -118,6 +118,7 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
     setProductId("");
     setClientId("");
     setThermometer(null);
+    setBacklogType("functional");
     setFiles([]);
     setIsSubmitting(false);
     onOpenChange(false);
