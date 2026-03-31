@@ -1,5 +1,6 @@
 import { LayoutDashboard, ListTodo, Package, Users, Settings, ChevronLeft, ChevronDown, Briefcase, Shield, UserCog, ClipboardList, ShieldCheck } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
+import { FadamiFlowLogo } from "@/components/FadamiFlowLogo";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useMemo } from "react";
 import { useAdminStore } from "@/store/adminStore";
