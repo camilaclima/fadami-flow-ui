@@ -1,37 +1,42 @@
-import { motion } from "framer-motion";
-
 interface FadamiFlowLogoProps {
   showTagline?: boolean;
   compact?: boolean;
 }
 
 export function FadamiFlowLogo({ showTagline = false, compact = false }: FadamiFlowLogoProps) {
+  if (compact) {
+    // Sidebar collapsed: shield icon only
+    return (
+      <div className="w-8 h-8 rounded-lg bg-[hsl(217,91%,60%)] flex items-center justify-center flex-shrink-0 shadow-[0_0_14px_hsl(217_91%_60%/0.35)]">
+        <span className="text-white font-extrabold text-sm tracking-tighter">F</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex items-center gap-3 overflow-hidden">
-      {/* Icon */}
-      <div className="w-8 h-8 rounded-xl bg-[hsl(24,95%,53%)] flex items-center justify-center flex-shrink-0 shadow-[0_0_12px_hsl(24_95%_53%/0.4)]">
-        <span className="text-white font-bold text-sm">F</span>
+    <div className="flex items-center gap-2.5 overflow-hidden">
+      {/* Shield icon */}
+      <div className="w-8 h-8 rounded-lg bg-[hsl(217,91%,60%)] flex items-center justify-center flex-shrink-0 shadow-[0_0_14px_hsl(217_91%_60%/0.35)]">
+        <span className="text-white font-extrabold text-sm tracking-tighter">F</span>
       </div>
 
-      {!compact && (
-        <div className="flex items-center gap-2 min-w-0">
-          {/* Logo text */}
-          <span className="font-bold text-base whitespace-nowrap tracking-tight">
-            <span className="text-foreground">Fadami</span>
-            <span className="fadamiflow-glow">Flow</span>
-          </span>
+      <div className="flex items-center gap-2 min-w-0">
+        {/* Logo text */}
+        <span className="font-bold text-base whitespace-nowrap tracking-tight">
+          <span className="fadamiflow-fadami">Fadami</span>
+          <span className="fadamiflow-glow">Flow</span>
+        </span>
 
-          {/* Tagline separator + text */}
-          {showTagline && (
-            <>
-              <span className="text-border mx-0.5 select-none">|</span>
-              <span className="text-[11px] text-[hsl(24,95%,53%)] whitespace-nowrap font-medium opacity-80">
-                Guardião de Receita Online da Fadami
-              </span>
-            </>
-          )}
-        </div>
-      )}
+        {/* Tagline */}
+        {showTagline && (
+          <>
+            <span className="text-border mx-0.5 select-none">|</span>
+            <span className="text-[11px] text-[hsl(220,9%,64%)] whitespace-nowrap font-medium">
+              Inteligência em Fluxo de Backlog
+            </span>
+          </>
+        )}
+      </div>
     </div>
   );
 }
