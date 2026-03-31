@@ -37,6 +37,7 @@ interface AdminStore {
   accessGroups: AccessGroup[];
   users: AppUser[];
   currentUserId: string;
+  isAuthenticated: boolean;
 
   // Products
   addProduct: (p: Omit<AdminProduct, "id">) => void;
@@ -59,6 +60,10 @@ interface AdminStore {
   toggleUserActive: (id: string) => void;
   getCloneData: (id: string) => Partial<AppUser> | null;
 
+  // Auth
+  login: (email: string, password: string) => { success: boolean; message: string };
+  logout: () => void;
+
   // Permissions
   getCurrentUserPermissions: () => SystemPage[];
 }
@@ -68,7 +73,8 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
   roles: MOCK_ROLES,
   accessGroups: MOCK_GROUPS,
   users: MOCK_USERS,
-  currentUserId: "u1", // admin by default
+  currentUserId: "",
+  isAuthenticated: false,
 
   // Products
   addProduct: (p) =>
@@ -122,6 +128,20 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
     if (!user) return null;
     return { productId: user.productId, roleId: user.roleId, groupId: user.groupId };
   },
+
+  // Auth
+  login: (email, password) => {
+    const state = get();
+    const user = state.users.find((u) => u.email === email);
+    if (!user) return { success: false, message: "Credenciais inválidas." };
+    if (!user.active) return { success: false, message: "Usuário inativo. Contate o administrador." };
+    if (user.firstAccess) {
+      if (password !== user.tempPassword) return { success: false, message: "Senha incorreta." };
+    }
+    set({ currentUserId: user.id, isAuthenticated: true });
+    return { success: true, message: "" };
+  },
+  logout: () => set({ currentUserId: "", isAuthenticated: false }),
 
   // Permissions
   getCurrentUserPermissions: () => {
