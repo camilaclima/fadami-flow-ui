@@ -148,7 +148,7 @@ export function AppSidebar() {
                           key={item.url}
                           to={item.url}
                           end={item.url === "/"}
-                          className={`flex items-center gap-3 py-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-all duration-150 group ${expanded ? "pl-9 pr-4" : "px-3"}`}
+                          className={`flex items-center gap-3 py-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-all duration-150 group ${expanded ? "pl-8 pr-3" : "px-3"}`}
                           activeClassName="bg-primary/10 text-primary"
                         >
                           <item.icon className="w-4 h-4 flex-shrink-0" />
