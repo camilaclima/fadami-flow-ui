@@ -26,6 +26,12 @@ export const PHASE_LABELS: Record<Phase, string> = {
 
 export type Thermometer = "low" | "medium" | "high";
 export type Priority = "low" | "medium" | "high";
+export type BacklogType = "functional" | "technical";
+
+export const BACKLOG_TYPE_LABELS: Record<BacklogType, string> = {
+  functional: "Funcional",
+  technical: "Técnico",
+};
 
 export interface PhaseHistory {
   phase: Phase;
@@ -63,6 +69,7 @@ export interface BacklogItem {
   title: string;
   description: string;
   attachment?: string;
+  type: BacklogType;
   productId: string;
   clientId?: string;
   thermometer: Thermometer;

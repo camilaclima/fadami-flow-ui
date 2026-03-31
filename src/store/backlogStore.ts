@@ -35,6 +35,7 @@ const MOCK_BACKLOGS: BacklogItem[] = [
   {
     id: "b1",
     title: "Implementar autenticação OAuth2",
+    type: "functional",
     description: "Adicionar suporte a login com Google e GitHub para simplificar o onboarding dos usuários.",
     productId: "p1",
     clientId: "c1",
@@ -53,6 +54,7 @@ const MOCK_BACKLOGS: BacklogItem[] = [
   {
     id: "b2",
     title: "Redesign da página de dashboard",
+    type: "functional",
     description: "Atualizar o layout do dashboard com novos gráficos e métricas de performance.",
     productId: "p1",
     thermometer: "medium",
@@ -66,6 +68,7 @@ const MOCK_BACKLOGS: BacklogItem[] = [
   {
     id: "b3",
     title: "API de exportação de relatórios",
+    type: "technical",
     description: "Criar endpoints para exportação de dados em CSV e PDF.",
     productId: "p3",
     clientId: "c2",
@@ -78,6 +81,7 @@ const MOCK_BACKLOGS: BacklogItem[] = [
   {
     id: "b4",
     title: "Notificações push mobile",
+    type: "technical",
     description: "Sistema de notificações em tempo real para o app mobile com suporte a deep linking.",
     productId: "p2",
     thermometer: "high",
@@ -93,6 +97,7 @@ const MOCK_BACKLOGS: BacklogItem[] = [
   {
     id: "b5",
     title: "Integração com Slack",
+    type: "functional",
     description: "Enviar atualizações de backlog automaticamente para canais do Slack.",
     productId: "p1",
     clientId: "c3",
@@ -105,6 +110,7 @@ const MOCK_BACKLOGS: BacklogItem[] = [
   {
     id: "b6",
     title: "Modo offline para mobile",
+    type: "functional",
     description: "Permitir que usuários acessem e editem backlogs sem conexão à internet.",
     productId: "p2",
     clientId: "c1",
