@@ -97,6 +97,7 @@ const MOCK_BACKLOGS: BacklogItem[] = [
   {
     id: "b5",
     title: "Integração com Slack",
+    type: "functional",
     description: "Enviar atualizações de backlog automaticamente para canais do Slack.",
     productId: "p1",
     clientId: "c3",
