@@ -175,6 +175,36 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
             />
           </div>
 
+          {/* Backlog Type */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
+              Tipo <span className="text-primary">*</span>
+            </label>
+            <div className="flex gap-2">
+              {(["functional", "technical"] as BacklogType[]).map((t) => {
+                const isActive = backlogType === t;
+                const Icon = t === "functional" ? Layers : Code2;
+                return (
+                  <motion.button
+                    key={t}
+                    type="button"
+                    onClick={() => setBacklogType(t)}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[12px] font-semibold transition-all duration-200 border ${
+                      isActive
+                        ? "border-primary bg-primary/10 text-primary shadow-sm"
+                        : "border-border bg-secondary text-muted-foreground hover:text-foreground hover:border-primary/30"
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" strokeWidth={isActive ? 2.5 : 2} />
+                    {BACKLOG_TYPE_LABELS[t]}
+                  </motion.button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Product & Client — side by side */}
           <div className="grid grid-cols-2 gap-3">
             {/* Product */}
