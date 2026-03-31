@@ -83,7 +83,7 @@ export function AppSidebar() {
       className="fixed left-0 top-0 h-full z-40 flex flex-col bg-card border-r border-border/60"
       style={{ boxShadow: expanded ? "var(--shadow-elevated)" : "none" }}
       initial={false}
-      animate={{ width: expanded ? 240 : 64 }}
+      animate={{ width: expanded ? 280 : 64 }}
       transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
       onMouseEnter={() => setExpanded(true)}
       onMouseLeave={() => setExpanded(false)}
