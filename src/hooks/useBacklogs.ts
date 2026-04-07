@@ -119,7 +119,7 @@ export function useUpdateBacklog() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: { id: string; [key: string]: any }) => {
-      const { error } = await supabase.from("backlogs").update(updates).eq("id", id);
+      const { error } = await supabase.from("backlogs").update(updates as any).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["backlogs"] }); },

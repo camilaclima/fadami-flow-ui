@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useBacklogStore } from "@/store/backlogStore";
+import { useAuth } from "@/contexts/AuthContext";
 import type { Thermometer, BacklogType } from "@/types/backlog";
 import { BACKLOG_TYPE_LABELS } from "@/types/backlog";
 import { toast } from "sonner";
@@ -48,6 +49,7 @@ function getFileIcon(type: string) {
 
 export function NewBacklogModal({ open, onOpenChange }: Props) {
   const { products, clients, addBacklog } = useBacklogStore();
+  const { user } = useAuth();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [productId, setProductId] = useState("");
@@ -103,14 +105,14 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
     }
     setIsSubmitting(true);
     await new Promise((r) => setTimeout(r, 600));
-    addBacklog({
+    await addBacklog({
       title: title.trim(),
       description: description.trim(),
       type: backlogType,
       productId,
       clientId: clientId || undefined,
       thermometer,
-      createdBy: "Você",
+      createdBy: user?.id ?? "",
     });
     toast.success("Backlog criado com sucesso!");
     setTitle("");
