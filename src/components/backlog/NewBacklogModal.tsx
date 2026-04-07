@@ -49,6 +49,7 @@ function getFileIcon(type: string) {
 
 export function NewBacklogModal({ open, onOpenChange }: Props) {
   const { products, clients, addBacklog } = useBacklogStore();
+  const { user } = useAuth();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [productId, setProductId] = useState("");
