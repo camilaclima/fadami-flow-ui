@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useBacklogStore } from "@/store/backlogStore";
+import { useAuth } from "@/contexts/AuthContext";
 import type { Thermometer, BacklogType } from "@/types/backlog";
 import { BACKLOG_TYPE_LABELS } from "@/types/backlog";
 import { toast } from "sonner";
