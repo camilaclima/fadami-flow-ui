@@ -112,7 +112,7 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
       productId,
       clientId: clientId || undefined,
       thermometer,
-      createdBy: "Você",
+      createdBy: user?.id ?? "",
     });
     toast.success("Backlog criado com sucesso!");
     setTitle("");
