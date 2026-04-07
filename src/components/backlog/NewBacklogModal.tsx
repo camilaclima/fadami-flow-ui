@@ -105,7 +105,7 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
     }
     setIsSubmitting(true);
     await new Promise((r) => setTimeout(r, 600));
-    addBacklog({
+    await addBacklog({
       title: title.trim(),
       description: description.trim(),
       type: backlogType,
