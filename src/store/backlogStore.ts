@@ -21,7 +21,12 @@ function calculatePriority(bv: number, oc: number, est: number): Priority {
 }
 
 // Map DB row to frontend type
-function mapBacklog(row: any, phaseHistory: any[] = []): BacklogItem {
+function mapBacklog(row: any, phaseHistory: any[] = [], profilesMap: Record<string, string> = {}): BacklogItem {
+  const resolveUser = (uid: string | null | undefined) => {
+    if (!uid) return "—";
+    return profilesMap[uid] ?? uid;
+  };
+
   return {
     id: row.id,
     title: row.title,
@@ -32,16 +37,22 @@ function mapBacklog(row: any, phaseHistory: any[] = []): BacklogItem {
     clientId: row.client_id ?? undefined,
     thermometer: row.thermometer ?? "medium",
     phase: row.phase ?? "prioritization",
-    createdBy: row.created_by ?? "",
+    createdBy: resolveUser(row.created_by),
     createdAt: row.created_at,
     phaseHistory: phaseHistory.map((h: any) => ({
       phase: h.phase as Phase,
       enteredAt: h.entered_at,
       completedAt: h.completed_at ?? undefined,
     })),
-    prioritization: row.prioritization ?? undefined,
-    approval: row.approval ?? undefined,
-    refinement: row.refinement ?? undefined,
+    prioritization: row.prioritization
+      ? { ...row.prioritization, updatedBy: resolveUser(row.prioritization?.updatedBy) }
+      : undefined,
+    approval: row.approval
+      ? { ...row.approval, updatedBy: resolveUser(row.approval?.updatedBy) }
+      : undefined,
+    refinement: row.refinement
+      ? { ...row.refinement, updatedBy: resolveUser(row.refinement?.updatedBy) }
+      : undefined,
   };
 }
 
@@ -78,12 +89,20 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
     set({ loading: true });
 
     try {
-      const [backlogsRes, historyRes, productsRes, clientsRes] = await Promise.all([
+      const [backlogsRes, historyRes, productsRes, clientsRes, profilesRes] = await Promise.all([
         supabase.from("backlogs").select("*").order("created_at", { ascending: false }),
         supabase.from("backlog_phase_history").select("*").order("entered_at"),
         supabase.from("products").select("*").eq("status", "active").order("name"),
         supabase.from("clients").select("*").order("name"),
+        supabase.from("profiles").select("user_id, first_name, last_name"),
       ]);
+
+      // Build profiles lookup map: user_id -> "First Last"
+      const profilesMap: Record<string, string> = {};
+      (profilesRes.data ?? []).forEach((p: any) => {
+        const name = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
+        if (name) profilesMap[p.user_id] = name;
+      });
 
       const historyByBacklog: Record<string, any[]> = {};
       (historyRes.data ?? []).forEach((h: any) => {
@@ -92,7 +111,7 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
       });
 
       const backlogs = (backlogsRes.data ?? []).map((row: any) =>
-        mapBacklog(row, historyByBacklog[row.id] ?? [])
+        mapBacklog(row, historyByBacklog[row.id] ?? [], profilesMap)
       );
 
       const products = (productsRes.data ?? []).map((p: any) => ({

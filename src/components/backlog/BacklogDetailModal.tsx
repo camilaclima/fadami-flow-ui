@@ -24,6 +24,8 @@ import {
   CalendarCheck,
   Flag,
   AlertCircle,
+  Paperclip,
+  Download,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -161,6 +163,13 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
     return isNaN(date.getTime()) ? undefined : date.toLocaleDateString("pt-BR");
   };
 
+  const formatDateTime = (dateString?: string) => {
+    if (!dateString) return undefined;
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return undefined;
+    return date.toLocaleDateString("pt-BR") + " " + date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[1000px] p-0 gap-0 overflow-hidden border-border/50 shadow-2xl bg-card max-h-[88vh]">
@@ -227,7 +236,7 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
                       <MetaItem
                         icon={<Calendar className="w-3.5 h-3.5" />}
                         label="Data de Criação"
-                        children={formatDate(liveItem.createdAt)}
+                        children={formatDateTime(liveItem.createdAt)}
                       />
                       <MetaItem
                         icon={<Package className="w-3.5 h-3.5" />}
@@ -239,6 +248,23 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
                         label="Cliente"
                         children={client?.name ?? "—"}
                       />
+                      {liveItem.attachment && (
+                        <MetaItem
+                          icon={<Paperclip className="w-3.5 h-3.5" />}
+                          label="Anexo"
+                        >
+                          <a
+                            href={liveItem.attachment}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline flex items-center gap-1"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Download className="w-3 h-3" />
+                            Visualizar / Download
+                          </a>
+                        </MetaItem>
+                      )}
 
                       <div className="pt-2">
                         <MetaItem

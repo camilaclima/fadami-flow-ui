@@ -1,6 +1,6 @@
 import { memo } from "react";
 import type { SubItem } from "@/types/backlog";
-import { GripVertical, Trash2, Clock } from "lucide-react";
+import { GripVertical, Trash2, Clock, Paperclip } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface Props {
@@ -33,6 +33,20 @@ export const SubItemCard = memo(({ item, onClick, onDelete, readOnly, dragHandle
 
     {/* Title */}
     <span className="flex-1 text-sm font-medium text-foreground truncate">{item.title}</span>
+
+    {/* Attachment indicator */}
+    {item.attachment && (
+      <a
+        href={item.attachment}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        className="text-muted-foreground hover:text-primary transition-colors"
+        title="Ver anexo"
+      >
+        <Paperclip className="w-3.5 h-3.5" />
+      </a>
+    )}
 
     {/* Estimate badge */}
     <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-primary/10 text-primary">
