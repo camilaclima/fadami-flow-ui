@@ -3,7 +3,7 @@ import type { BacklogItem } from "@/types/backlog";
 import { PHASE_LABELS } from "@/types/backlog";
 import { ThermoBadge, PriorityBadge } from "./Badges";
 import { useBacklogStore } from "@/store/backlogStore";
-import { Calendar, User, Clock } from "lucide-react";
+import { Calendar, User, Clock, Paperclip } from "lucide-react";
 
 interface Props {
   item: BacklogItem;
@@ -75,6 +75,11 @@ export function BacklogListCard({ item, onClick, index }: Props) {
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-secondary text-secondary-foreground">
             <Clock className="w-3 h-3" />
             {item.refinement!.estimate}h
+          </span>
+        )}
+        {item.attachment && (
+          <span className="inline-flex items-center text-muted-foreground" title="Possui anexo">
+            <Paperclip className="w-3.5 h-3.5" />
           </span>
         )}
       </div>

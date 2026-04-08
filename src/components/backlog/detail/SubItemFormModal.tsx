@@ -4,6 +4,7 @@ import type { SubItem } from "@/types/backlog";
 import { motion } from "framer-motion";
 import { Loader2, CheckCircle2, CloudUpload, Paperclip, X } from "lucide-react";
 import { toast } from "sonner";
+import { uploadAttachment } from "@/lib/uploadAttachment";
 
 interface Props {
   open: boolean;
@@ -18,6 +19,7 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
   const [technicalDetail, setTechnicalDetail] = useState("");
   const [estimate, setEstimate] = useState<number>(0);
   const [attachment, setAttachment] = useState("");
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -35,11 +37,13 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
       setTechnicalDetail("");
       setEstimate(0);
       setAttachment("");
+      setAttachmentFile(null);
     }
   }, [editItem, open]);
 
   const handleFiles = useCallback((files: FileList | null) => {
     if (!files || files.length === 0) return;
+    setAttachmentFile(files[0]);
     setAttachment(files[0].name);
   }, []);
 
@@ -53,16 +57,26 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
       return;
     }
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 400));
-    onSave({
-      title: title.trim(),
-      functionalDetail,
-      technicalDetail,
-      estimate,
-      attachment: attachment || undefined,
-    });
-    setSaving(false);
-    onOpenChange(false);
+    try {
+      let attachmentUrl = attachment;
+      // Upload new file if selected
+      if (attachmentFile) {
+        attachmentUrl = await uploadAttachment(attachmentFile, "subitems");
+      }
+      onSave({
+        title: title.trim(),
+        functionalDetail,
+        technicalDetail,
+        estimate,
+        attachment: attachmentUrl || undefined,
+      });
+      onOpenChange(false);
+    } catch (err) {
+      console.error("Upload error:", err);
+      toast.error("Erro ao enviar anexo.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -142,8 +156,14 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
             {attachment ? (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary text-sm">
                 <Paperclip className="w-3.5 h-3.5 text-primary" />
-                <span className="text-foreground truncate flex-1">{attachment}</span>
-                <button type="button" onClick={() => setAttachment("")} className="text-muted-foreground hover:text-destructive">
+                {attachment.startsWith("http") ? (
+                  <a href={attachment} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate flex-1">
+                    {attachment.split("/").pop()}
+                  </a>
+                ) : (
+                  <span className="text-foreground truncate flex-1">{attachment}</span>
+                )}
+                <button type="button" onClick={() => { setAttachment(""); setAttachmentFile(null); }} className="text-muted-foreground hover:text-destructive">
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
