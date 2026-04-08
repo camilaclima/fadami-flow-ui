@@ -134,7 +134,6 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
   },
 
   addBacklog: async (item) => {
-    const now = new Date().toISOString();
     const { data, error } = await supabase.from("backlogs").insert({
       title: item.title,
       description: item.description,
@@ -144,6 +143,7 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
       thermometer: item.thermometer,
       phase: "prioritization",
       created_by: item.createdBy || null,
+      attachment: item.attachment || null,
     }).select().single();
 
     if (error || !data) {
