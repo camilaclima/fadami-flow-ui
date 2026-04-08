@@ -22,6 +22,7 @@ import {
   Code2,
   Layers,
 } from "lucide-react";
+import { uploadAttachment } from "@/lib/uploadAttachment";
 
 interface Props {
   open: boolean;
@@ -33,6 +34,7 @@ interface AttachedFile {
   name: string;
   size: number;
   type: string;
+  file: File;
 }
 
 function formatFileSize(bytes: number): string {
@@ -76,6 +78,7 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
       name: f.name,
       size: f.size,
       type: f.type,
+      file: f,
     }));
     setFiles((prev) => [...prev, ...added]);
   }, []);
@@ -104,26 +107,38 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
       return;
     }
     setIsSubmitting(true);
-    await new Promise((r) => setTimeout(r, 600));
-    await addBacklog({
-      title: title.trim(),
-      description: description.trim(),
-      type: backlogType,
-      productId,
-      clientId: clientId || undefined,
-      thermometer,
-      createdBy: user?.id ?? "",
-    });
-    toast.success("Backlog criado com sucesso!");
-    setTitle("");
-    setDescription("");
-    setProductId("");
-    setClientId("");
-    setThermometer(null);
-    setBacklogType("functional");
-    setFiles([]);
-    setIsSubmitting(false);
-    onOpenChange(false);
+    try {
+      // Upload first file if present
+      let attachmentUrl: string | undefined;
+      if (files.length > 0) {
+        attachmentUrl = await uploadAttachment(files[0].file, "backlogs");
+      }
+
+      await addBacklog({
+        title: title.trim(),
+        description: description.trim(),
+        type: backlogType,
+        productId,
+        clientId: clientId || undefined,
+        thermometer,
+        createdBy: user?.id ?? "",
+        attachment: attachmentUrl,
+      });
+      toast.success("Backlog criado com sucesso!");
+      setTitle("");
+      setDescription("");
+      setProductId("");
+      setClientId("");
+      setThermometer(null);
+      setBacklogType("functional");
+      setFiles([]);
+      onOpenChange(false);
+    } catch (err) {
+      console.error("Error creating backlog:", err);
+      toast.error("Erro ao criar backlog.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const selectedProduct = products.find((p) => p.id === productId);
