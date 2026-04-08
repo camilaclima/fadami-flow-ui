@@ -156,8 +156,14 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
             {attachment ? (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary text-sm">
                 <Paperclip className="w-3.5 h-3.5 text-primary" />
-                <span className="text-foreground truncate flex-1">{attachment}</span>
-                <button type="button" onClick={() => setAttachment("")} className="text-muted-foreground hover:text-destructive">
+                {attachment.startsWith("http") ? (
+                  <a href={attachment} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate flex-1">
+                    {attachment.split("/").pop()}
+                  </a>
+                ) : (
+                  <span className="text-foreground truncate flex-1">{attachment}</span>
+                )}
+                <button type="button" onClick={() => { setAttachment(""); setAttachmentFile(null); }} className="text-muted-foreground hover:text-destructive">
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
