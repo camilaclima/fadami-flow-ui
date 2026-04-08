@@ -24,12 +24,20 @@ const phaseConfig: Record<Phase, string> = {
 
 export function ThermoBadge({ value }: { value: Thermometer }) {
   const c = thermoConfig[value];
-  return <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-semibold ${c.className}`}>{c.label}</span>;
+  return (
+    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold ${c.className}`}>
+      <span className="opacity-70">🌡</span> {c.label}
+    </span>
+  );
 }
 
 export function PriorityBadge({ value }: { value: Priority }) {
   const c = priorityConfig[value];
-  return <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-semibold ${c.className}`}>{c.label}</span>;
+  return (
+    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold ${c.className}`}>
+      <span className="opacity-70">⚡</span> {c.label}
+    </span>
+  );
 }
 
 export function PhaseBadge({ value }: { value: Phase }) {
