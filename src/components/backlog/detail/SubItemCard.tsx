@@ -33,7 +33,7 @@ export const SubItemCard = memo(({ item, onClick, onDelete, readOnly, dragHandle
 
     {/* Order Number & Title */}
     <div className="flex-1 flex items-center gap-2 min-w-0">
-      <span className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-md bg-foreground/5 text-[10px] font-bold text-muted-foreground border border-border/20">
+      <span className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-md bg-foreground/5 text-[10px] font-bold border border-border/20 text-accent">
         {item.order + 1}
       </span>
       <span className="text-sm font-medium text-foreground truncate">{item.title}</span>
