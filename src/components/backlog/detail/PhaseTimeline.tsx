@@ -7,12 +7,15 @@ import {
   Clock,
   CalendarCheck,
   Flag,
+  FileText,
+  Code2,
 } from "lucide-react";
 
 const PHASE_ICONS: Record<Phase, React.ReactNode> = {
   prioritization: <Settings2 className="w-3 h-3" />,
   approval: <CheckCircle className="w-3 h-3" />,
-  refinement: <Wrench className="w-3 h-3" />,
+  functional_refinement: <FileText className="w-3 h-3" />,
+  technical_refinement: <Code2 className="w-3 h-3" />,
   available: <Clock className="w-3 h-3" />,
   planned: <CalendarCheck className="w-3 h-3" />,
   finished: <Flag className="w-3 h-3" />,
@@ -26,7 +29,6 @@ export function PhaseTimeline({ currentPhase }: { currentPhase: Phase }) {
       {PHASES.map((phase, i) => {
         const done = i < currentIdx;
         const active = i === currentIdx;
-        const future = i > currentIdx;
 
         return (
           <div key={phase} className="flex items-center" style={{ flex: 1 }}>

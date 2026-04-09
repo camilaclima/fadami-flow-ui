@@ -7,7 +7,8 @@ import {
   Layers,
   Scale,
   Eye,
-  Wrench,
+  FileText,
+  Code2,
   CircleCheck,
   CalendarClock,
   Trophy,
@@ -16,7 +17,8 @@ import {
 const PHASE_ICONS: Record<Phase, React.ElementType> = {
   prioritization: Scale,
   approval: Eye,
-  refinement: Wrench,
+  functional_refinement: FileText,
+  technical_refinement: Code2,
   available: CircleCheck,
   planned: CalendarClock,
   finished: Trophy,
@@ -25,7 +27,8 @@ const PHASE_ICONS: Record<Phase, React.ElementType> = {
 const PHASE_ICON_COLORS: Record<Phase, string> = {
   prioritization: "text-phase-prioritization",
   approval: "text-phase-approval",
-  refinement: "text-phase-refinement",
+  functional_refinement: "text-phase-functional-refinement",
+  technical_refinement: "text-phase-technical-refinement",
   available: "text-phase-available",
   planned: "text-phase-planned",
   finished: "text-phase-finished",
@@ -34,7 +37,8 @@ const PHASE_ICON_COLORS: Record<Phase, string> = {
 const PHASE_BG_COLORS: Record<Phase, string> = {
   prioritization: "bg-phase-prioritization/10",
   approval: "bg-phase-approval/10",
-  refinement: "bg-phase-refinement/10",
+  functional_refinement: "bg-phase-functional-refinement/10",
+  technical_refinement: "bg-phase-technical-refinement/10",
   available: "bg-phase-available/10",
   planned: "bg-phase-planned/10",
   finished: "bg-phase-finished/10",
@@ -53,7 +57,7 @@ export function PhaseFilterBar({ selected, onSelect }: Props) {
   const total = backlogs.length;
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2 w-full">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-2 w-full">
       {/* Total button */}
       <motion.button
         whileHover={{ scale: 1.02 }}
