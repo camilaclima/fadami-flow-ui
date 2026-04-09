@@ -15,15 +15,15 @@ import {
   ChevronRight,
   BarChart3,
   Layers,
-  Recycle,
   Ban,
   Microscope,
   ArrowLeftRight,
   UserCheck,
   Briefcase,
-  TrendingUp,
   Box,
   Monitor,
+  TrendingUp,
+  UserPlus,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -31,7 +31,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-function KpiCard({ label, value, secondary, icon: Icon, delay, accent, description }: any) {
+function KpiCard({ label, value, secondary, icon: Icon, delay, accent }: any) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -52,7 +52,6 @@ function KpiCard({ label, value, secondary, icon: Icon, delay, accent, descripti
         <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight leading-none mt-1">
           {label}
         </p>
-        {description && <p className="text-[9px] text-muted-foreground/50 mt-2 leading-none">{description}</p>}
       </div>
     </motion.div>
   );
@@ -77,163 +76,134 @@ export default function DashboardPage() {
 
   const backlogs = rawBacklogs as any[];
 
-  // --- MOTOR DE CÁLCULO DE KPIs ---
-  const finishedItems = backlogs.filter((b) => b.phase === "finished");
-  const wipItems = backlogs.filter((b) => !["finished", "prioritization"].includes(b.phase));
-  const totalItems = backlogs.length || 1;
-
+  // --- MOTOR DE CÁLCULO MULTIDIMENSIONAL ---
   const stats = backlogs.reduce(
     (acc: any, b) => {
-      const userId = b.created_by || b.createdBy;
-      const userName = profilesMap[userId] || (userId ? `User: ${userId.slice(0, 4)}` : "Sistema");
-      const product = b.product_name || b.product || "Sem Produto";
-      const client = b.client_name || b.client || "Sem Cliente";
-      const area = b.effort_area || "Geral";
-      const complexity = b.complexity || "Média";
+      const user = profilesMap[b.created_by || b.createdBy] || "Sistema";
+      const product = b.product_name || "Sem Produto";
+      const client = b.client_name || "Sem Cliente";
       const priority = b.prioritization?.priority || "medium";
+      const complexity = b.complexity || "Média";
+      const area = b.effort_area || "Geral";
       const estimate = b.refinement?.estimate || 0;
+      const isFinished = b.phase === "finished";
 
-      // Inicialização segura
-      if (!acc.users[userName]) acc.users[userName] = { total: 0, byPhase: {} };
-      if (!acc.products[product]) acc.products[product] = { total: 0, hours: 0, byStatus: {} };
-      if (!acc.clients[client]) acc.clients[client] = { total: 0, hours: 0, byStatus: {} };
-      if (!acc.priority[priority]) acc.priority[priority] = { total: 0, byStatus: {} };
-      if (!acc.areas[area]) acc.areas[area] = 0;
-      if (!acc.complexities[complexity]) acc.complexities[complexity] = 0;
+      // 1. Agrupamento por Usuário
+      if (!acc.users[user]) acc.users[user] = { created: 0, approved: 0, refFunc: 0, refTech: 0, prioritized: 0 };
+      acc.users[user].created += 1;
+      if (b.phase === "approval") acc.users[user].approved += 1;
+      if (b.phase === "functional_refinement") acc.users[user].refFunc += 1;
+      if (b.phase === "technical_refinement") acc.users[user].refTech += 1;
+      if (b.phase === "available") acc.users[user].prioritized += 1;
 
-      // Contadores
-      acc.users[userName].total += 1;
-      acc.users[userName].byPhase[b.phase] = (acc.users[userName].byPhase[b.phase] || 0) + 1;
+      // 2. Agrupamento por Produto
+      if (!acc.products[product]) acc.products[product] = { total: 0, finished: 0, hours: 0 };
       acc.products[product].total += 1;
       acc.products[product].hours += estimate;
-      acc.products[product].byStatus[b.phase] = (acc.products[product].byStatus[b.phase] || 0) + 1;
+      if (isFinished) acc.products[product].finished += 1;
+
+      // 3. Agrupamento por Cliente
+      if (!acc.clients[client]) acc.clients[client] = { total: 0, finished: 0, hours: 0 };
       acc.clients[client].total += 1;
       acc.clients[client].hours += estimate;
-      acc.clients[client].byStatus[b.phase] = (acc.clients[client].byStatus[b.phase] || 0) + 1;
-      acc.priority[priority].total += 1;
-      acc.areas[area] += 1;
-      acc.complexities[complexity] += 1;
+      if (isFinished) acc.clients[client].finished += 1;
+
+      // 4. Agrupamento por Prioridade
+      if (!acc.priorities[priority]) acc.priorities[priority] = { total: 0, finished: 0 };
+      acc.priorities[priority].total += 1;
+      if (isFinished) acc.priorities[priority].finished += 1;
+
+      // 5. Outros
+      acc.areas[area] = (acc.areas[area] || 0) + 1;
+      acc.complexities[complexity] = (acc.complexities[complexity] || 0) + 1;
 
       return acc;
     },
-    { users: {}, products: {}, clients: {}, priority: {}, areas: {}, complexities: {} },
+    { users: {}, products: {}, clients: {}, priorities: {}, areas: {}, complexities: {} },
   );
 
-  if (isLoading) return <div className="p-10 text-center font-bold">Carregando BI...</div>;
+  if (isLoading)
+    return (
+      <div className="p-10 text-center animate-pulse font-black uppercase tracking-tighter">
+        Carregando Data Warehouse...
+      </div>
+    );
 
   return (
     <div className="fade-in space-y-8 pb-10">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-black text-foreground tracking-tighter uppercase">FadamiFlow Cockpit</h1>
-        <div className="text-right">
-          <p className="text-[10px] font-bold text-muted-foreground uppercase">Esforço Global</p>
-          <p className="text-xl font-black text-primary">
-            {backlogs.reduce((acc, b) => acc + (b.refinement?.estimate || 0), 0)}h
-          </p>
+        <div>
+          <h1 className="text-3xl font-black text-foreground tracking-tighter uppercase italic">Fadami Cockpit</h1>
+          <p className="text-xs text-muted-foreground uppercase font-bold">Inteligência Competitiva de Backlog</p>
         </div>
       </div>
 
-      <Tabs defaultValue="strategic" className="w-full">
+      <Tabs defaultValue="tatico" className="w-full">
         <TabsList className="bg-secondary/30 p-1 rounded-2xl mb-8 flex flex-wrap h-auto gap-1">
           <TabsTrigger value="strategic" className="rounded-xl px-4 py-2 gap-2">
-            <Target className="w-4 h-4" /> Estratégico
+            <TrendingUp className="w-4 h-4" /> Estratégico
           </TabsTrigger>
           <TabsTrigger value="tatico" className="rounded-xl px-4 py-2 gap-2">
-            <Users className="w-4 h-4" /> Time & Produtividade
+            <Users className="w-4 h-4" /> Usuários
           </TabsTrigger>
           <TabsTrigger value="segmentation" className="rounded-xl px-4 py-2 gap-2">
             <Box className="w-4 h-4" /> Produtos & Clientes
           </TabsTrigger>
           <TabsTrigger value="operational" className="rounded-xl px-4 py-2 gap-2">
-            <Activity className="w-4 h-4" /> Operacional
+            <Gauge className="w-4 h-4" /> Operacional
           </TabsTrigger>
         </TabsList>
 
-        {/* --- 1. ESTRATÉGICO: VALOR E EFICIÊNCIA --- */}
+        {/* --- ABA 1: ESTRATÉGICO (VALOR E WIP) --- */}
         <TabsContent value="strategic" className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard
-              label="Alinhamento Estratégico"
-              value={`${Math.round((backlogs.filter((b) => (b.prioritization?.businessValue || 0) >= 4).length / totalItems) * 100)}%`}
-              icon={TrendingUp}
-              accent="bg-blue-500/10 text-blue-500"
+              label="Work in Progress (WIP)"
+              value={backlogs.filter((b) => !["finished", "prioritization"].includes(b.phase)).length}
+              icon={Microscope}
+              accent="bg-indigo-500/10 text-indigo-500"
             />
             <KpiCard
-              label="Throughput (Entregas)"
-              value={finishedItems.length}
+              label="Throughput"
+              value={backlogs.filter((b) => b.phase === "finished").length}
               icon={ArrowLeftRight}
-              accent="bg-emerald-500/10 text-emerald-500"
             />
-            <KpiCard label="Lead Time Médio" value="12 dias" icon={Timer} />
-            <KpiCard label="Taxa de Abandono" value="7%" icon={Ban} accent="bg-rose-500/10 text-rose-500" />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="neu-card p-6 rounded-3xl md:col-span-2">
-              <h3 className="text-sm font-bold uppercase mb-4">WIP (Trabalho em Andamento)</h3>
-              <div className="flex items-end gap-2 h-24">
-                {PHASES.filter((p) => p !== "finished").map((p) => {
-                  const count = backlogs.filter((b) => b.phase === p).length;
-                  return (
-                    <div
-                      key={p}
-                      className="flex-1 bg-primary/20 rounded-t-lg relative group"
-                      style={{ height: `${(count / totalItems) * 100 + 10}%` }}
-                    >
-                      <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[8px] font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                        {PHASE_LABELS[p]}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-4 uppercase font-bold text-center">
-                Total de {wipItems.length} itens circulando no fluxo agora
-              </p>
-            </div>
             <KpiCard
-              label="Itens de Alta Prioridade"
-              value={stats.priority["high"]?.total || 0}
-              icon={AlertCircle}
-              accent="bg-orange-500/10 text-orange-500"
-              description="Itens que exigem atenção imediata."
+              label="Esforço Total"
+              value={`${backlogs.reduce((acc, b) => acc + (b.refinement?.estimate || 0), 0)}h`}
+              icon={Clock}
             />
+            <KpiCard label="Lead Time" value="12 dias" icon={Timer} />
           </div>
         </TabsContent>
 
-        {/* --- 2. TÁTICO: PRODUTIVIDADE POR USUÁRIO --- */}
+        {/* --- ABA 2: USUÁRIOS (CRIADOS E ETAPAS ESPECÍFICAS) --- */}
         <TabsContent value="tatico" className="space-y-6">
           <div className="neu-card p-6 rounded-3xl overflow-hidden">
             <h3 className="text-sm font-bold uppercase mb-6 flex items-center gap-2 text-primary tracking-tighter">
-              <UserCheck className="w-4 h-4" /> Produtividade por Usuário e Etapa
+              <UserCheck className="w-4 h-4" /> Performance por Usuário
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="border-b border-border">
-                    <th className="py-3 text-[10px] font-black uppercase text-muted-foreground">Usuário</th>
-                    <th className="py-3 text-[10px] font-black uppercase text-center text-muted-foreground">Criados</th>
-                    <th className="py-3 text-[10px] font-black uppercase text-center text-sky-500">Aprovados</th>
-                    <th className="py-3 text-[10px] font-black uppercase text-center text-indigo-500">Ref. Func</th>
-                    <th className="py-3 text-[10px] font-black uppercase text-center text-primary">Ref. Técn</th>
-                    <th className="py-3 text-[10px] font-black uppercase text-center text-emerald-500">Finalizados</th>
+                  <tr className="border-b border-border text-[10px] font-black uppercase text-muted-foreground">
+                    <th className="py-3">Colaborador</th>
+                    <th className="py-3 text-center">Criados</th>
+                    <th className="py-3 text-center text-sky-500">Aprovados</th>
+                    <th className="py-3 text-center text-indigo-500">Ref. Func</th>
+                    <th className="py-3 text-center text-primary">Ref. Técn</th>
+                    <th className="py-3 text-center text-emerald-500">Priorizados</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {Object.entries(stats.users).map(([name, data]: any) => (
-                    <tr key={name} className="hover:bg-foreground/[0.02] transition-colors">
-                      <td className="py-4 text-xs font-bold uppercase">{name}</td>
-                      <td className="py-4 text-center text-sm font-black">{data.total}</td>
-                      <td className="py-4 text-center text-sm font-bold text-sky-500">{data.byPhase.approval || 0}</td>
-                      <td className="py-4 text-center text-sm font-bold text-indigo-500">
-                        {data.byPhase.functional_refinement || 0}
-                      </td>
-                      <td className="py-4 text-center text-sm font-bold text-primary">
-                        {data.byPhase.technical_refinement || 0}
-                      </td>
-                      <td className="py-4 text-center text-sm font-bold text-emerald-500">
-                        {data.byPhase.finished || 0}
-                      </td>
+                    <tr key={name} className="hover:bg-foreground/[0.02] transition-colors text-xs">
+                      <td className="py-4 font-bold uppercase">{name}</td>
+                      <td className="py-4 text-center font-black">{data.created}</td>
+                      <td className="py-4 text-center font-bold text-sky-500">{data.approved}</td>
+                      <td className="py-4 text-center font-bold text-indigo-500">{data.refFunc}</td>
+                      <td className="py-4 text-center font-bold text-primary">{data.refTech}</td>
+                      <td className="py-4 text-center font-bold text-emerald-500">{data.prioritized}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -242,62 +212,85 @@ export default function DashboardPage() {
           </div>
         </TabsContent>
 
-        {/* --- 3. SEGMENTAÇÃO: PRODUTOS E CLIENTES --- */}
+        {/* --- ABA 3: SEGMENTAÇÃO (GRÁFICOS POR STATUS: PRODUTO, CLIENTE E PRIORIDADE) --- */}
         <TabsContent value="segmentation" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Produtos */}
             <div className="neu-card p-6 rounded-3xl">
-              <h3 className="text-sm font-bold uppercase mb-4 flex items-center gap-2 text-primary tracking-tighter">
-                <Box className="w-4 h-4" /> Backlogs por Produto e Status
+              <h3 className="text-xs font-black uppercase mb-6 text-primary flex justify-between items-center">
+                <span>Status por Produto</span>
+                <span className="text-[10px] text-muted-foreground">Finalizados vs Total</span>
               </h3>
               <div className="space-y-6">
                 {Object.entries(stats.products).map(([name, data]: any) => (
                   <div key={name} className="space-y-1">
                     <div className="flex justify-between text-[10px] font-black uppercase">
                       <span>
-                        {name} ({data.total} itens)
+                        {name} ({data.total})
                       </span>
                       <span className="text-primary">{data.hours}h Estimadas</span>
                     </div>
                     <div className="flex h-3 w-full bg-secondary rounded-full overflow-hidden">
-                      <div
-                        style={{ width: `${((data.byStatus.finished || 0) / data.total) * 100}%` }}
-                        className="bg-emerald-500"
-                        title="Finalizados"
-                      />
-                      <div
-                        style={{ width: `${((data.total - (data.byStatus.finished || 0)) / data.total) * 100}%` }}
-                        className="bg-amber-500"
-                        title="Em Aberto"
-                      />
+                      <div style={{ width: `${(data.finished / data.total) * 100}%` }} className="bg-emerald-500" />
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
+            {/* Clientes */}
             <div className="neu-card p-6 rounded-3xl">
-              <h3 className="text-sm font-bold uppercase mb-4 flex items-center gap-2 text-sky-500 tracking-tighter">
-                <Users className="w-4 h-4" /> Backlogs por Cliente e Status
-              </h3>
+              <h3 className="text-xs font-black uppercase mb-6 text-sky-500">Status por Cliente</h3>
               <div className="space-y-6">
                 {Object.entries(stats.clients).map(([name, data]: any) => (
                   <div key={name} className="space-y-1">
                     <div className="flex justify-between text-[10px] font-black uppercase">
                       <span>
-                        {name} ({data.total} itens)
+                        {name} ({data.total})
                       </span>
                       <span>{data.hours}h de Esforço</span>
                     </div>
                     <div className="flex h-3 w-full bg-secondary rounded-full overflow-hidden">
+                      <div style={{ width: `${(data.finished / data.total) * 100}%` }} className="bg-sky-500" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Prioridades */}
+            <div className="neu-card p-6 rounded-3xl">
+              <h3 className="text-xs font-black uppercase mb-6 text-orange-500">Status por Prioridade</h3>
+              <div className="space-y-6">
+                {Object.entries(stats.priorities).map(([name, data]: any) => (
+                  <div key={name} className="space-y-1">
+                    <div className="flex justify-between text-[10px] font-black uppercase">
+                      <span>
+                        {name} ({data.total})
+                      </span>
+                    </div>
+                    <div className="flex h-3 w-full bg-secondary rounded-full overflow-hidden">
+                      <div style={{ width: `${(data.finished / data.total) * 100}%` }} className="bg-orange-500" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Complexidade (Gráfico de Distribuição) */}
+            <div className="neu-card p-6 rounded-3xl">
+              <h3 className="text-xs font-black uppercase mb-6">Volume por Complexidade</h3>
+              <div className="grid grid-cols-1 gap-4">
+                {Object.entries(stats.complexities).map(([level, val]: any) => (
+                  <div key={level} className="flex items-center gap-4">
+                    <span className="text-[10px] font-black uppercase w-16">{level}</span>
+                    <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
                       <div
-                        style={{ width: `${((data.byStatus.finished || 0) / data.total) * 100}%` }}
-                        className="bg-emerald-500"
-                      />
-                      <div
-                        style={{ width: `${((data.total - (data.byStatus.finished || 0)) / data.total) * 100}%` }}
-                        className="bg-sky-500"
+                        className="h-full bg-primary"
+                        style={{ width: `${(val / (backlogs.length || 1)) * 100}%` }}
                       />
                     </div>
+                    <span className="text-xs font-bold">{val}</span>
                   </div>
                 ))}
               </div>
@@ -305,53 +298,31 @@ export default function DashboardPage() {
           </div>
         </TabsContent>
 
-        {/* --- 4. OPERACIONAL: CARGA, COMPLEXIDADE E ÁREA --- */}
+        {/* --- ABA 4: OPERACIONAL (ÁREA E CARGA) --- */}
         <TabsContent value="operational" className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard
               label="Prontos p/ Sprint"
               value={backlogs.filter((b) => b.phase === "available").length}
               icon={CheckCircle2}
               accent="bg-emerald-500/10 text-emerald-500"
             />
-            <KpiCard label="Itens Bloqueados" value="4" icon={AlertCircle} accent="bg-rose-500/10 text-rose-500" />
-            <KpiCard label="Conclusão da Sprint" value="85%" icon={Target} />
+            <KpiCard
+              label="Aguardando Ref. Técn"
+              value={backlogs.filter((b) => b.phase === "functional_refinement").length}
+              icon={Code2}
+            />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="neu-card p-5 rounded-3xl">
-              <h3 className="text-xs font-black uppercase text-muted-foreground mb-4">Distribuição por Área</h3>
-              <div className="space-y-3">
-                {Object.entries(stats.areas).map(([area, val]: any) => (
-                  <div key={area} className="flex justify-between items-center text-xs border-b border-border/50 pb-2">
-                    <span className="font-bold">{area}</span>
-                    <span className="bg-secondary px-2 py-0.5 rounded-lg">{val} cards</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="neu-card p-5 rounded-3xl">
-              <h3 className="text-xs font-black uppercase text-muted-foreground mb-4">Nível de Complexidade</h3>
-              <div className="grid grid-cols-1 gap-2">
-                {Object.entries(stats.complexities).map(([level, val]: any) => (
-                  <div key={level} className="flex items-center gap-3">
-                    <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
-                      <div className="h-full bg-primary" style={{ width: `${(val / totalItems) * 100}%` }} />
-                    </div>
-                    <span className="text-[10px] font-bold w-12">
-                      {level} ({val})
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="neu-card p-5 rounded-3xl bg-primary/5 border border-primary/20">
-              <h3 className="text-xs font-black uppercase text-primary mb-4">SLA de Refinamento</h3>
-              <p className="text-sm font-medium">
-                92% dos itens estão dentro do tempo esperado de refinamento técnico (3 dias).
-              </p>
+          <div className="neu-card p-6 rounded-3xl">
+            <h3 className="text-xs font-black uppercase mb-6">Backlogs por Área de Atuação</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {Object.entries(stats.areas).map(([area, val]: any) => (
+                <div key={area} className="p-4 bg-secondary/20 rounded-2xl text-center">
+                  <p className="text-2xl font-black">{val}</p>
+                  <p className="text-[9px] font-bold uppercase text-muted-foreground">{area}</p>
+                </div>
+              ))}
             </div>
           </div>
         </TabsContent>
