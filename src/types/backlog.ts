@@ -18,13 +18,13 @@ export const PHASES: Phase[] = [
 ];
 
 export const PHASE_LABELS: Record<Phase, string> = {
-  prioritization: "Priorização",
-  approval: "Aprovação",
-  functional_refinement: "Ref. Funcional",
-  technical_refinement: "Ref. Técnico",
-  available: "Disponível",
-  planned: "Planejado",
-  finished: "Finalizado",
+  prioritization: "1. Priorização",
+  approval: "2. Aprovação",
+  functional_refinement: "3. Ref. Funcional",
+  technical_refinement: "4. Ref. Técnico",
+  available: "5. Disponível",
+  planned: "6. Planejado",
+  finished: "7. Finalizado",
 };
 
 export type Thermometer = "low" | "medium" | "high";
@@ -46,11 +46,6 @@ export const COMPLEXITY_LABELS: Record<string, string> = {
   hard: "Difícil",
 };
 
-export const BACKLOG_TYPE_LABELS: Record<BacklogType, string> = {
-  functional: "Funcional",
-  technical: "Técnico",
-};
-
 export interface PhaseHistory {
   phase: Phase;
   enteredAt: string;
@@ -58,9 +53,9 @@ export interface PhaseHistory {
 }
 
 export interface PrioritizationData {
-  businessValue: number; // 1-5
-  opportunityCost: number; // 1-5
-  estimate: number; // hours
+  businessValue: number;
+  opportunityCost: number;
+  estimate: number;
   priority: Priority;
   updatedBy?: string;
   updatedAt?: string;
@@ -84,6 +79,7 @@ export interface SubItem {
   implementationNotes?: string;
   effortArea?: EffortArea;
   complexity?: Complexity;
+  status?: "valid" | "merged" | "discarded"; // Novo controle de escopo
 }
 
 export interface RefinementData {
@@ -120,7 +116,6 @@ export interface Product {
   name: string;
   color: string;
 }
-
 export interface Client {
   id: string;
   name: string;
