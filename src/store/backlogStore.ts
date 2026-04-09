@@ -95,7 +95,8 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
         supabase.from("backlogs").select("*").order("created_at", { ascending: false }),
         supabase.from("backlog_phase_history").select("*").order("entered_at"),
         supabase.from("products").select("*").eq("status", "active").order("name"),
-        supabase.from("clients").select("*").order("name"),
+        // AJUSTE: Filtrando apenas clientes ativos
+        supabase.from("clients").select("*").eq("status", "active").order("name"),
         supabase.from("profiles").select("user_id, first_name, last_name"),
       ]);
 
@@ -203,7 +204,6 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
     const priority = calculatePriority(data.businessValue, data.opportunityCost, data.estimate);
     const now = new Date().toISOString();
 
-    // Adicionado "as any" para evitar erro de tipagem Json
     const prioritizationUpdate = {
       ...data,
       priority,
@@ -238,7 +238,6 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
     const { data: userData } = await supabase.auth.getUser();
     const now = new Date().toISOString();
 
-    // Adicionado "as any" para evitar erro de tipagem Json
     const approvalUpdate = {
       ...data,
       updated_by: userData.user?.id,
@@ -272,7 +271,6 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
     const { data: userData } = await supabase.auth.getUser();
     const now = new Date().toISOString();
 
-    // Adicionado "as any" para evitar erro de tipagem Json
     const refinementUpdate = {
       ...data,
       updated_by: userData.user?.id,
