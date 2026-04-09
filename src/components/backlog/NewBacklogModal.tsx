@@ -66,9 +66,27 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const thermoOptions: { value: Thermometer; label: string; icon: typeof Flame; color: string; glowColor: string }[] = [
-    { value: "low", label: "Baixo", icon: Snowflake, color: "hsl(var(--thermo-low))", glowColor: "hsl(var(--thermo-low) / 0.3)" },
-    { value: "medium", label: "Médio", icon: TrendingUp, color: "hsl(var(--thermo-medium))", glowColor: "hsl(var(--thermo-medium) / 0.3)" },
-    { value: "high", label: "Alto", icon: Flame, color: "hsl(var(--thermo-high))", glowColor: "hsl(var(--thermo-high) / 0.3)" },
+    {
+      value: "low",
+      label: "Baixo",
+      icon: Snowflake,
+      color: "hsl(var(--thermo-low))",
+      glowColor: "hsl(var(--thermo-low) / 0.3)",
+    },
+    {
+      value: "medium",
+      label: "Médio",
+      icon: TrendingUp,
+      color: "hsl(var(--thermo-medium))",
+      glowColor: "hsl(var(--thermo-medium) / 0.3)",
+    },
+    {
+      value: "high",
+      label: "Alto",
+      icon: Flame,
+      color: "hsl(var(--thermo-high))",
+      glowColor: "hsl(var(--thermo-high) / 0.3)",
+    },
   ];
 
   const handleFiles = useCallback((newFiles: FileList | null) => {
@@ -93,11 +111,14 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
     setIsDragging(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    handleFiles(e.dataTransfer.files);
-  }, [handleFiles]);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      handleFiles(e.dataTransfer.files);
+    },
+    [handleFiles],
+  );
 
   const removeFile = (id: string) => setFiles((prev) => prev.filter((f) => f.id !== id));
 
@@ -108,11 +129,10 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
     }
     setIsSubmitting(true);
     try {
-      // Upload first file if present
-      let attachmentUrl: string | undefined;
-      if (files.length > 0) {
-        attachmentUrl = await uploadAttachment(files[0].file, "backlogs");
-      }
+      // Ajustado para fazer upload de múltiplos arquivos
+      const uploadPromises = files.map((f) => uploadAttachment(f.file, "backlogs"));
+      const uploadedUrls = await Promise.all(uploadPromises);
+      const finalAttachmentString = uploadedUrls.filter(Boolean).join(",");
 
       await addBacklog({
         title: title.trim(),
@@ -122,7 +142,7 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
         clientId: clientId || undefined,
         thermometer,
         createdBy: user?.id ?? "",
-        attachment: attachmentUrl,
+        attachment: finalAttachmentString || undefined,
       });
       toast.success("Backlog criado com sucesso!");
       setTitle("");
@@ -144,7 +164,6 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
   const selectedProduct = products.find((p) => p.id === productId);
   const selectedClient = clients.find((c) => c.id === clientId);
 
-  // Determine glow color based on thermometer selection
   const activeThermo = thermoOptions.find((t) => t.value === thermometer);
   const modalGlow = activeThermo
     ? `0 0 40px -8px ${activeThermo.glowColor}, var(--shadow-elevated)`
@@ -156,7 +175,6 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
         className="sm:max-w-[540px] p-0 gap-0 overflow-hidden bg-card border-border/60"
         style={{ boxShadow: modalGlow, transition: "box-shadow 0.4s ease" }}
       >
-        {/* Header — compact */}
         <div className="px-5 pt-5 pb-3">
           <DialogHeader>
             <DialogTitle className="text-base font-bold tracking-tight flex items-center gap-2">
@@ -169,7 +187,6 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
         </div>
 
         <div className="px-5 pb-5 space-y-3.5 max-h-[75vh] overflow-y-auto">
-          {/* Title */}
           <div className="space-y-1">
             <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">Título</label>
             <input
@@ -180,7 +197,6 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
             />
           </div>
 
-          {/* Description */}
           <div className="space-y-1">
             <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">Descrição</label>
             <textarea
@@ -192,7 +208,6 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
             />
           </div>
 
-          {/* Backlog Type */}
           <div className="space-y-1.5">
             <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
               Tipo <span className="text-primary">*</span>
@@ -222,15 +237,16 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
             </div>
           </div>
 
-          {/* Product & Client — side by side */}
           <div className="grid grid-cols-2 gap-3">
-            {/* Product */}
             <div className="space-y-1 relative">
               <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
                 Produto <span className="text-primary">*</span>
               </label>
               <button
-                onClick={() => { setProductOpen(!productOpen); setClientOpen(false); }}
+                onClick={() => {
+                  setProductOpen(!productOpen);
+                  setClientOpen(false);
+                }}
                 className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-secondary text-sm text-foreground hover:bg-surface-hover transition-colors"
               >
                 <span className={selectedProduct ? "text-foreground" : "text-muted-foreground"}>
@@ -239,9 +255,13 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
                       <span className="w-2 h-2 rounded-full" style={{ backgroundColor: selectedProduct.color }} />
                       {selectedProduct.name}
                     </span>
-                  ) : "Selecione..."}
+                  ) : (
+                    "Selecione..."
+                  )}
                 </span>
-                <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${productOpen ? "rotate-180" : ""}`} />
+                <ChevronDown
+                  className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${productOpen ? "rotate-180" : ""}`}
+                />
               </button>
               <AnimatePresence>
                 {productOpen && (
@@ -255,7 +275,10 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
                     {products.map((p) => (
                       <button
                         key={p.id}
-                        onClick={() => { setProductId(p.id); setProductOpen(false); }}
+                        onClick={() => {
+                          setProductId(p.id);
+                          setProductOpen(false);
+                        }}
                         className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-secondary transition-colors"
                       >
                         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.color }} />
@@ -268,17 +291,21 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
               </AnimatePresence>
             </div>
 
-            {/* Client */}
             <div className="space-y-1 relative">
               <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">Cliente</label>
               <button
-                onClick={() => { setClientOpen(!clientOpen); setProductOpen(false); }}
+                onClick={() => {
+                  setClientOpen(!clientOpen);
+                  setProductOpen(false);
+                }}
                 className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-secondary text-sm text-foreground hover:bg-surface-hover transition-colors"
               >
                 <span className={selectedClient ? "text-foreground" : "text-muted-foreground"}>
                   {selectedClient?.name || "Opcional"}
                 </span>
-                <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${clientOpen ? "rotate-180" : ""}`} />
+                <ChevronDown
+                  className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${clientOpen ? "rotate-180" : ""}`}
+                />
               </button>
               <AnimatePresence>
                 {clientOpen && (
@@ -290,7 +317,10 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
                     className="absolute z-50 top-full mt-1 w-full rounded-lg bg-card border border-border shadow-[var(--shadow-elevated)] overflow-hidden"
                   >
                     <button
-                      onClick={() => { setClientId(""); setClientOpen(false); }}
+                      onClick={() => {
+                        setClientId("");
+                        setClientOpen(false);
+                      }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-secondary transition-colors"
                     >
                       Nenhum
@@ -299,7 +329,10 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
                     {clients.map((c) => (
                       <button
                         key={c.id}
-                        onClick={() => { setClientId(c.id); setClientOpen(false); }}
+                        onClick={() => {
+                          setClientId(c.id);
+                          setClientOpen(false);
+                        }}
                         className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-secondary transition-colors"
                       >
                         <div className="w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center">
@@ -315,7 +348,6 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
             </div>
           </div>
 
-          {/* Thermometer — no pre-selection */}
           <div className="space-y-1.5">
             <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
               Termômetro de Impacto
@@ -368,7 +400,6 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
             </div>
           </div>
 
-          {/* Attachments — compact */}
           <div className="space-y-1.5">
             <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider flex items-center gap-1">
               <Paperclip className="w-3 h-3" />
@@ -429,7 +460,10 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
                         <span className="text-foreground font-medium max-w-[100px] truncate">{file.name}</span>
                         <span className="text-muted-foreground">{formatFileSize(file.size)}</span>
                         <button
-                          onClick={(e) => { e.stopPropagation(); removeFile(file.id); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeFile(file.id);
+                          }}
                           className="ml-0.5 p-0.5 rounded hover:bg-destructive/10 transition-colors"
                         >
                           <X className="w-2.5 h-2.5 text-muted-foreground hover:text-destructive" />
@@ -442,7 +476,6 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
             </AnimatePresence>
           </div>
 
-          {/* Submit */}
           <motion.button
             onClick={handleSubmit}
             disabled={isSubmitting}
