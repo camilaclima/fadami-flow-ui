@@ -12,34 +12,17 @@ interface Props {
 }
 
 export function ApprovalForm({ item, onSaved, readOnly }: Props) {
-  // Certifique-se que o store exporta updateBacklog
-  const { saveApproval, updateBacklog } = useBacklogStore();
+  const { saveApproval } = useBacklogStore();
   const [obs, setObs] = useState(item.approval?.observation ?? "");
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
-    if (readOnly) return;
     setSaving(true);
-
-    try {
-      // 1. Salva a observação
-      await saveApproval(item.id, { observation: obs });
-
-      // 2. Avança para a nova fase técnica
-      // Usamos 'as any' para evitar o erro de build enquanto você não atualiza o arquivo de tipos
-      await updateBacklog(item.id, {
-        phase: "refinement_functional" as any,
-        updated_at: new Date().toISOString(),
-      });
-
-      toast.success("Aprovado e movido para Refinamento Funcional!");
-      onSaved?.();
-    } catch (error) {
-      console.error("Erro na aprovação:", error);
-      toast.error("Erro ao processar aprovação.");
-    } finally {
-      setSaving(false);
-    }
+    await new Promise((r) => setTimeout(r, 600));
+    saveApproval(item.id, { observation: obs });
+    toast.success("Aprovado com sucesso!");
+    setSaving(false);
+    onSaved?.();
   };
 
   return (
@@ -65,13 +48,9 @@ export function ApprovalForm({ item, onSaved, readOnly }: Props) {
           className="w-full py-2.5 rounded-xl font-semibold text-sm text-primary-foreground bg-gradient-to-r from-primary to-[hsl(262_83%_58%)] hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2 shadow-[var(--shadow-glow)]"
         >
           {saving ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" /> Aprovando...
-            </>
+            <><Loader2 className="w-4 h-4 animate-spin" /> Aprovando...</>
           ) : (
-            <>
-              <CheckCircle2 className="w-4 h-4" /> Salvar e Aprovar
-            </>
+            <><CheckCircle2 className="w-4 h-4" /> Salvar e Aprovar</>
           )}
         </motion.button>
       )}
