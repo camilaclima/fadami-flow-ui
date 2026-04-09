@@ -57,12 +57,24 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    // 1. Se o modal fechou, limpamos tudo e encerramos.
     if (!open) {
       setGeneratedPassword(null);
       setCopied(false);
+      setFirstName("");
+      setLastName("");
+      setEmail("");
+      setRoleId("");
+      setSelectedProductIds([]);
+      setSelectedGroupIds([]);
       return;
     }
 
+    // 2. CRITICAL: Se já temos uma senha gerada na tela, NÃO permitimos que o useEffect
+    // sobrescreva os estados. Isso impede o "pisca-pisca" após salvar/clonar.
+    if (generatedPassword) return;
+
+    // 3. Lógica de preenchimento (Edição ou Clone)
     if (profile) {
       setFirstName(profile.first_name);
       setLastName(profile.last_name);
@@ -70,7 +82,6 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
       setRoleId(profile.role_id ?? "");
       setSelectedProductIds(profileProducts.filter((pp) => pp.profile_id === profile.id).map((pp) => pp.product_id));
       setSelectedGroupIds(profileGroups.filter((pg) => pg.profile_id === profile.id).map((pg) => pg.group_id));
-      setGeneratedPassword(null);
     } else if (cloneData) {
       setFirstName("");
       setLastName("");
@@ -78,8 +89,8 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
       setRoleId(cloneData.role_id ?? "");
       setSelectedProductIds(cloneData.selectedProductIds || []);
       setSelectedGroupIds(cloneData.selectedGroupIds || []);
-      setGeneratedPassword(null);
-    } else if (!generatedPassword) {
+    } else {
+      // Novo usuário puro
       setFirstName("");
       setLastName("");
       setEmail("");
@@ -87,7 +98,7 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
       setSelectedProductIds([]);
       setSelectedGroupIds([]);
     }
-  }, [profile, cloneData, open, profileProducts, profileGroups]);
+  }, [profile, cloneData, open, profileProducts, profileGroups, generatedPassword]);
 
   const toggleProduct = (id: string) => {
     setSelectedProductIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -102,7 +113,6 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
 
     try {
       if (profile) {
-        // Fluxo de Edição
         updateProfile.mutate({
           id: profile.id,
           first_name: firstName.trim(),
@@ -115,7 +125,6 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
         toast.success("Usuário atualizado!");
         onOpenChange(false);
       } else {
-        // Fluxo de Criação (Novo ou Clone)
         const tempPassword = Math.random().toString(36).slice(-8);
         const { data, error } = await supabase.functions.invoke("create-user", {
           body: {
@@ -143,7 +152,7 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
           await syncGroups.mutateAsync({ profileId: newProfile.id, groupIds: selectedGroupIds });
         }
 
-        // AGORA FUNCIONA PARA CLONE: Ativa a visualização da senha
+        // Definimos a senha ANTES de invalidar a query para evitar conflito de render
         setGeneratedPassword(tempPassword);
         toast.success("Usuário criado com sucesso!");
         queryClient.invalidateQueries({ queryKey: ["profiles"] });
