@@ -24,7 +24,17 @@ function calculatePriority(bv: number, oc: number, est: number): Priority {
 function mapBacklog(row: any, phaseHistory: any[] = [], profilesMap: Record<string, string> = {}): BacklogItem {
   const resolveUser = (uid: string | null | undefined) => {
     if (!uid) return "—";
-    return profilesMap[uid] ?? uid;
+    return profilesMap[uid] ?? "Usuário desconhecido";
+  };
+
+  // Helper para processar dados de fase que estão em JSONB
+  const mapPhaseData = (data: any) => {
+    if (!data) return undefined;
+    return {
+      ...data,
+      updatedBy: resolveUser(data.updated_by || data.updatedBy), // Aceita ambos os formatos
+      updatedAt: data.updated_at || data.updatedAt,
+    };
   };
 
   return {
@@ -44,15 +54,9 @@ function mapBacklog(row: any, phaseHistory: any[] = [], profilesMap: Record<stri
       enteredAt: h.entered_at,
       completedAt: h.completed_at ?? undefined,
     })),
-    prioritization: row.prioritization
-      ? { ...row.prioritization, updatedBy: resolveUser(row.prioritization?.updatedBy) }
-      : undefined,
-    approval: row.approval
-      ? { ...row.approval, updatedBy: resolveUser(row.approval?.updatedBy) }
-      : undefined,
-    refinement: row.refinement
-      ? { ...row.refinement, updatedBy: resolveUser(row.refinement?.updatedBy) }
-      : undefined,
+    prioritization: mapPhaseData(row.prioritization),
+    approval: mapPhaseData(row.approval),
+    refinement: mapPhaseData(row.refinement),
   };
 }
 
@@ -97,7 +101,6 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
         supabase.from("profiles").select("user_id, first_name, last_name"),
       ]);
 
-      // Build profiles lookup map: user_id -> "First Last"
       const profilesMap: Record<string, string> = {};
       (profilesRes.data ?? []).forEach((p: any) => {
         const name = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
@@ -111,7 +114,7 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
       });
 
       const backlogs = (backlogsRes.data ?? []).map((row: any) =>
-        mapBacklog(row, historyByBacklog[row.id] ?? [], profilesMap)
+        mapBacklog(row, historyByBacklog[row.id] ?? [], profilesMap),
       );
 
       const products = (productsRes.data ?? []).map((p: any) => ({
@@ -134,17 +137,24 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
   },
 
   addBacklog: async (item) => {
-    const { data, error } = await supabase.from("backlogs").insert({
-      title: item.title,
-      description: item.description,
-      type: item.type,
-      product_id: item.productId || null,
-      client_id: item.clientId || null,
-      thermometer: item.thermometer,
-      phase: "prioritization",
-      created_by: item.createdBy || null,
-      attachment: item.attachment || null,
-    }).select().single();
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id;
+
+    const { data, error } = await supabase
+      .from("backlogs")
+      .insert({
+        title: item.title,
+        description: item.description,
+        type: item.type,
+        product_id: item.productId || null,
+        client_id: item.clientId || null,
+        thermometer: item.thermometer,
+        phase: "prioritization",
+        created_by: userId || item.createdBy || null,
+        attachment: item.attachment || null,
+      })
+      .select()
+      .single();
 
     if (error || !data) {
       console.error("Error adding backlog:", error);
@@ -175,62 +185,111 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
     const now = new Date().toISOString();
 
     await supabase.from("backlogs").update({ phase }).eq("id", id);
-    await supabase.from("backlog_phase_history").update({ completed_at: now })
-      .eq("backlog_id", id).eq("phase", item.phase).is("completed_at", null);
+    await supabase
+      .from("backlog_phase_history")
+      .update({ completed_at: now })
+      .eq("backlog_id", id)
+      .eq("phase", item.phase)
+      .is("completed_at", null);
     await supabase.from("backlog_phase_history").insert({
-      backlog_id: id, phase, entered_at: now,
+      backlog_id: id,
+      phase,
+      entered_at: now,
     });
 
     get().fetchAll();
   },
 
   savePrioritization: async (id, data) => {
+    const { data: userData } = await supabase.auth.getUser();
     const priority = calculatePriority(data.businessValue, data.opportunityCost, data.estimate);
     const now = new Date().toISOString();
 
-    await supabase.from("backlogs").update({
-      phase: "approval",
-      prioritization: { ...data, priority },
-    }).eq("id", id);
+    await supabase
+      .from("backlogs")
+      .update({
+        phase: "approval",
+        prioritization: {
+          ...data,
+          priority,
+          updated_by: userData.user?.id,
+          updated_at: now,
+        },
+      })
+      .eq("id", id);
 
-    await supabase.from("backlog_phase_history").update({ completed_at: now })
-      .eq("backlog_id", id).eq("phase", "prioritization").is("completed_at", null);
+    await supabase
+      .from("backlog_phase_history")
+      .update({ completed_at: now })
+      .eq("backlog_id", id)
+      .eq("phase", "prioritization")
+      .is("completed_at", null);
     await supabase.from("backlog_phase_history").insert({
-      backlog_id: id, phase: "approval", entered_at: now,
+      backlog_id: id,
+      phase: "approval",
+      entered_at: now,
     });
 
     get().fetchAll();
   },
 
   saveApproval: async (id, data) => {
+    const { data: userData } = await supabase.auth.getUser();
     const now = new Date().toISOString();
 
-    await supabase.from("backlogs").update({
-      phase: "refinement",
-      approval: data as any,
-    }).eq("id", id);
+    await supabase
+      .from("backlogs")
+      .update({
+        phase: "refinement",
+        approval: {
+          ...data,
+          updated_by: userData.user?.id,
+          updated_at: now,
+        },
+      })
+      .eq("id", id);
 
-    await supabase.from("backlog_phase_history").update({ completed_at: now })
-      .eq("backlog_id", id).eq("phase", "approval").is("completed_at", null);
+    await supabase
+      .from("backlog_phase_history")
+      .update({ completed_at: now })
+      .eq("backlog_id", id)
+      .eq("phase", "approval")
+      .is("completed_at", null);
     await supabase.from("backlog_phase_history").insert({
-      backlog_id: id, phase: "refinement", entered_at: now,
+      backlog_id: id,
+      phase: "refinement",
+      entered_at: now,
     });
 
     get().fetchAll();
   },
 
   saveRefinement: async (id, data) => {
+    const { data: userData } = await supabase.auth.getUser();
     const now = new Date().toISOString();
 
-    await supabase.from("backlogs").update({
-      phase: "available",
-      refinement: data as any,
-    }).eq("id", id);
+    await supabase
+      .from("backlogs")
+      .update({
+        phase: "available",
+        refinement: {
+          ...data,
+          updated_by: userData.user?.id,
+          updated_at: now,
+        },
+      })
+      .eq("id", id);
 
-    await supabase.from("backlog_phase_history").update({ completed_at: now })
-      .eq("backlog_id", id).eq("phase", "refinement").is("completed_at", null);
+    await supabase
+      .from("backlog_phase_history")
+      .update({ completed_at: now })
+      .eq("backlog_id", id)
+      .eq("phase", "refinement")
+      .is("completed_at", null);
     await supabase.from("backlog_phase_history").insert({
-      backlog_id: id, phase: "available", entered_at: now,
+      backlog_id: id,
+      phase: "available",
+      entered_at: now,
     });
 
     get().fetchAll();
@@ -256,19 +315,21 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
       sort_order: nextOrder,
     });
 
-    // Refresh sub items in refinement data
     await refreshSubItems(backlogId);
     get().fetchAll();
   },
 
   updateSubItem: async (backlogId, subItemId, data) => {
-    await supabase.from("backlog_sub_items").update({
-      title: data.title,
-      functional_detail: data.functionalDetail,
-      technical_detail: data.technicalDetail,
-      estimate: data.estimate,
-      attachment: data.attachment || null,
-    }).eq("id", subItemId);
+    await supabase
+      .from("backlog_sub_items")
+      .update({
+        title: data.title,
+        functional_detail: data.functionalDetail,
+        technical_detail: data.technicalDetail,
+        estimate: data.estimate,
+        attachment: data.attachment || null,
+      })
+      .eq("id", subItemId);
 
     await refreshSubItems(backlogId);
     get().fetchAll();
@@ -281,11 +342,8 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
   },
 
   reorderSubItems: async (backlogId, orderedIds) => {
-    // Update sort_order for each item
     await Promise.all(
-      orderedIds.map((id, i) =>
-        supabase.from("backlog_sub_items").update({ sort_order: i }).eq("id", id)
-      )
+      orderedIds.map((id, i) => supabase.from("backlog_sub_items").update({ sort_order: i }).eq("id", id)),
     );
     await refreshSubItems(backlogId);
     get().fetchAll();
@@ -296,17 +354,22 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
 
     await supabase.from("backlogs").update({ phase: "available" }).eq("id", backlogId);
 
-    await supabase.from("backlog_phase_history").update({ completed_at: now })
-      .eq("backlog_id", backlogId).eq("phase", "refinement").is("completed_at", null);
+    await supabase
+      .from("backlog_phase_history")
+      .update({ completed_at: now })
+      .eq("backlog_id", backlogId)
+      .eq("phase", "refinement")
+      .is("completed_at", null);
     await supabase.from("backlog_phase_history").insert({
-      backlog_id: backlogId, phase: "available", entered_at: now,
+      backlog_id: backlogId,
+      phase: "available",
+      entered_at: now,
     });
 
     get().fetchAll();
   },
 }));
 
-// Helper to refresh sub-items embedded in refinement JSONB
 async function refreshSubItems(backlogId: string) {
   const { data: subItems } = await supabase
     .from("backlog_sub_items")
@@ -325,16 +388,14 @@ async function refreshSubItems(backlogId: string) {
       order: si.sort_order,
     }));
 
-    // Get current refinement data
-    const { data: backlog } = await supabase
-      .from("backlogs")
-      .select("refinement")
-      .eq("id", backlogId)
-      .single();
+    const { data: backlog } = await supabase.from("backlogs").select("refinement").eq("id", backlogId).single();
 
     const currentRefinement = (backlog?.refinement as any) ?? {};
-    await supabase.from("backlogs").update({
-      refinement: { ...currentRefinement, subItems: mapped },
-    }).eq("id", backlogId);
+    await supabase
+      .from("backlogs")
+      .update({
+        refinement: { ...currentRefinement, subItems: mapped },
+      })
+      .eq("id", backlogId);
   }
 }
