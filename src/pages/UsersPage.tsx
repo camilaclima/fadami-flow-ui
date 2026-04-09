@@ -23,13 +23,35 @@ export default function UsersPage() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Profile | null>(null);
-  const [cloneData, setCloneData] = useState<Partial<Profile> | null>(null);
+  const [cloneData, setCloneData] = useState<any | null>(null);
 
-  const handleNew = () => { setEditing(null); setCloneData(null); setModalOpen(true); };
-  const handleEdit = (u: Profile) => { setEditing(u); setCloneData(null); setModalOpen(true); };
+  const handleNew = () => {
+    setEditing(null);
+    setCloneData(null);
+    setModalOpen(true);
+  };
+
+  const handleEdit = (u: Profile) => {
+    setEditing(u);
+    setCloneData(null);
+    setModalOpen(true);
+  };
+
   const handleClone = (u: Profile) => {
     setEditing(null);
-    setCloneData({ role_id: u.role_id });
+
+    // Busca os IDs vinculados ao usuário que será clonado
+    const selectedProductIds = profileProducts.filter((pp) => pp.profile_id === u.id).map((pp) => pp.product_id);
+
+    const selectedGroupIds = profileGroups.filter((pg) => pg.profile_id === u.id).map((pg) => pg.group_id);
+
+    // Passa o cargo e as listas de IDs para o cloneData
+    setCloneData({
+      role_id: u.role_id,
+      selectedProductIds,
+      selectedGroupIds,
+    });
+
     setModalOpen(true);
   };
 
@@ -39,14 +61,24 @@ export default function UsersPage() {
 
   const getProductNames = (profileId: string) => {
     const ids = profileProducts.filter((pp) => pp.profile_id === profileId).map((pp) => pp.product_id);
-    return ids.map((id) => products.find((p) => p.id === id)?.name).filter(Boolean).join(", ") || "-";
+    return (
+      ids
+        .map((id) => products.find((p) => p.id === id)?.name)
+        .filter(Boolean)
+        .join(", ") || "-"
+    );
   };
 
   const getRoleName = (id: string | null) => roles.find((r) => r.id === id)?.title ?? "-";
 
   const getGroupNames = (profileId: string) => {
     const ids = profileGroups.filter((pg) => pg.profile_id === profileId).map((pg) => pg.group_id);
-    return ids.map((id) => accessGroups.find((g) => g.id === id)?.name).filter(Boolean).join(", ") || "-";
+    return (
+      ids
+        .map((id) => accessGroups.find((g) => g.id === id)?.name)
+        .filter(Boolean)
+        .join(", ") || "-"
+    );
   };
 
   return (
@@ -61,7 +93,11 @@ export default function UsersPage() {
         </Button>
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-2xl overflow-hidden">
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-card border border-border rounded-2xl overflow-hidden"
+      >
         <Table>
           <TableHeader>
             <TableRow>
@@ -77,13 +113,22 @@ export default function UsersPage() {
           <TableBody>
             {profiles.map((u) => (
               <TableRow key={u.id} className={!u.active ? "opacity-50" : ""}>
-                <TableCell className="font-medium text-foreground">{u.first_name} {u.last_name}</TableCell>
+                <TableCell className="font-medium text-foreground">
+                  {u.first_name} {u.last_name}
+                </TableCell>
                 <TableCell className="text-muted-foreground text-sm">{u.email}</TableCell>
                 <TableCell className="text-sm max-w-[160px] truncate">{getProductNames(u.id)}</TableCell>
                 <TableCell className="text-sm">{getRoleName(u.role_id)}</TableCell>
                 <TableCell className="text-sm max-w-[160px] truncate">{getGroupNames(u.id)}</TableCell>
                 <TableCell>
-                  <Badge variant={u.active ? "default" : "secondary"} className={u.active ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/20" : "bg-destructive/10 text-destructive border-destructive/20"}>
+                  <Badge
+                    variant={u.active ? "default" : "secondary"}
+                    className={
+                      u.active
+                        ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/20"
+                        : "bg-destructive/10 text-destructive border-destructive/20"
+                    }
+                  >
                     {u.active ? "Ativo" : "Inativo"}
                   </Badge>
                 </TableCell>
@@ -95,7 +140,12 @@ export default function UsersPage() {
                     <Button size="sm" variant="ghost" onClick={() => handleClone(u)} title="Clonar">
                       <Copy className="w-4 h-4" />
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleToggle(u)} title={u.active ? "Inativar" : "Ativar"}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleToggle(u)}
+                      title={u.active ? "Inativar" : "Ativar"}
+                    >
                       {u.active ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                     </Button>
                   </div>
@@ -106,12 +156,7 @@ export default function UsersPage() {
         </Table>
       </motion.div>
 
-      <UserFormModalSupabase
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        profile={editing}
-        cloneData={cloneData}
-      />
+      <UserFormModalSupabase open={modalOpen} onOpenChange={setModalOpen} profile={editing} cloneData={cloneData} />
     </div>
   );
 }

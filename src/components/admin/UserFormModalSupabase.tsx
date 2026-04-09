@@ -31,7 +31,7 @@ interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   profile?: Profile | null;
-  cloneData?: Partial<Profile> | null;
+  cloneData?: any | null; // Tipado como any para aceitar as listas de IDs no clone
 }
 
 export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }: Props) {
@@ -65,12 +65,13 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
       setSelectedProductIds(profileProducts.filter((pp) => pp.profile_id === profile.id).map((pp) => pp.product_id));
       setSelectedGroupIds(profileGroups.filter((pg) => pg.profile_id === profile.id).map((pg) => pg.group_id));
     } else if (cloneData) {
+      // Requisito: Cargo, Produtos e Grupos preenchidos ao clonar
       setFirstName("");
       setLastName("");
       setEmail("");
       setRoleId(cloneData.role_id ?? "");
-      setSelectedProductIds([]);
-      setSelectedGroupIds([]);
+      setSelectedProductIds(cloneData.selectedProductIds || []);
+      setSelectedGroupIds(cloneData.selectedGroupIds || []);
     } else {
       setFirstName("");
       setLastName("");
@@ -158,7 +159,6 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {/* Ajuste: sm:max-w-[600px] e padding horizontal px-8 para evitar cortes */}
       <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] flex flex-col p-0 overflow-hidden">
         <div className="px-8 pt-6 pb-2">
           <DialogHeader>
@@ -184,7 +184,7 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
               </div>
               <p className="text-[11px] text-muted-foreground">O usuário deverá alterar a senha no primeiro acesso.</p>
             </div>
-            <DialogFooter className="pb-6">
+            <DialogFooter className="pb-6 px-8">
               <Button onClick={() => onOpenChange(false)}>Fechar</Button>
             </DialogFooter>
           </div>
@@ -227,7 +227,7 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
                 </Select>
               </div>
 
-              {/* Multi-select Products - 2 Colunas com gap ajustado */}
+              {/* Multi-select Products - 2 Colunas */}
               <div className="space-y-2">
                 <Label>Produtos</Label>
                 <div className="bg-secondary/50 rounded-lg p-3 border border-border/40">
@@ -251,7 +251,7 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
                 </div>
               </div>
 
-              {/* Multi-select Groups - 2 Colunas com gap ajustado */}
+              {/* Multi-select Groups - 2 Colunas */}
               <div className="space-y-2">
                 <Label>Grupos de Acesso</Label>
                 <div className="bg-secondary/50 rounded-lg p-3 border border-border/40">
