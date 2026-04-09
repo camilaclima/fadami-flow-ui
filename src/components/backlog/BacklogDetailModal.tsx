@@ -105,12 +105,16 @@ const PhaseAccordion = memo(({ title, icon, defaultOpen, active, completed, chil
         <div className="flex-1 flex items-center justify-between min-w-0">
           <span className="text-xs font-semibold uppercase tracking-wide truncate">{title}</span>
 
-          {/* INFO DE QUEM FEZ À DIREITA */}
-          {completed && (updatedBy || updatedAt) && (
+          {/* INFO DE QUEM FEZ À DIREITA - AJUSTADO */}
+          {completed && (
             <div className="flex items-center gap-2 px-2 py-1 rounded bg-secondary/40 mr-2">
-              <span className="text-[10px] font-medium text-muted-foreground whitespace-nowrap">{updatedBy}</span>
+              <span className="text-[10px] font-medium text-muted-foreground whitespace-nowrap">
+                {updatedBy || "Sistema"}
+              </span>
               <span className="text-[10px] text-muted-foreground/30">•</span>
-              <span className="text-[10px] text-muted-foreground whitespace-nowrap">{updatedAt}</span>
+              <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                {updatedAt || "--/--/--"}
+              </span>
             </div>
           )}
         </div>
@@ -156,6 +160,17 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
   const prioData = (liveItem.prioritization || {}) as any;
   const approvalData = (liveItem.approval || {}) as any;
   const refinementData = (liveItem.refinement || {}) as any;
+
+  // Função para buscar nome do perfil se houver join
+  const getUserName = (data: any) => {
+    if (!data) return null;
+    if (data.profiles) {
+      const first = data.profiles.first_name || '';
+      const last = data.profiles.last_name || '';
+      return `${first} ${last}`.trim() || null;
+    }
+    return data.updatedBy;
+  };
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return undefined;
@@ -277,7 +292,7 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
                           ) : (
                             <span className="text-muted-foreground italic text-[11px]">Aguardando priorização</span>
                           )}
-                        </MetaItem>
+                        </物件Item>
                       </div>
                     </div>
                   </motion.div>
@@ -304,7 +319,7 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
                 defaultOpen={liveItem.phase === "prioritization"}
                 active={liveItem.phase === "prioritization"}
                 completed={phaseIdx > 0}
-                updatedBy={prioData?.updatedBy}
+                updatedBy={getUserName(prioData)}
                 updatedAt={formatDate(prioData?.updatedAt)}
               >
                 <PrioritizationForm
@@ -321,7 +336,7 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
                   defaultOpen={liveItem.phase === "approval"}
                   active={liveItem.phase === "approval"}
                   completed={phaseIdx > 1}
-                  updatedBy={approvalData?.updatedBy}
+                  updatedBy={getUserName(approvalData)}
                   updatedAt={formatDate(approvalData?.updatedAt)}
                 >
                   <ApprovalForm
@@ -339,7 +354,7 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
                   defaultOpen={liveItem.phase === "refinement"}
                   active={liveItem.phase === "refinement"}
                   completed={phaseIdx > 2}
-                  updatedBy={refinementData?.updatedBy}
+                  updatedBy={getUserName(refinementData)}
                   updatedAt={formatDate(refinementData?.updatedAt)}
                 >
                   <RefinementForm
