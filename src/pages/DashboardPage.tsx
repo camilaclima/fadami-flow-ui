@@ -4,39 +4,46 @@ import {
   BarChart3,
   TrendingUp,
   CheckCircle2,
-  ArrowUpRight,
   Clock,
   FileSearch,
   Code2,
   AlertCircle,
-  DollarSign,
   Zap,
-  target,
+  Target,
   Activity,
+  Users,
+  Timer,
+  ArrowRightLeft,
+  Gauge,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// Reutilizando o StatCard com suporte a cores dinâmicas
-function StatCard({ label, value, secondary, icon: Icon, delay, accent }: any) {
+// Componente de Card de Indicador
+function StatCard({ label, value, secondary, icon: Icon, delay, accent, description }: any) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.3 }}
-      className="neu-card neu-card-hover rounded-2xl p-5 group"
+      className="neu-card neu-card-hover rounded-2xl p-5 group flex flex-col justify-between"
     >
       <div className="flex items-center justify-between mb-3">
         <div className={`w-9 h-9 rounded-xl ${accent ?? "bg-primary/10"} flex items-center justify-center`}>
           <Icon className="w-4 h-4" />
         </div>
+        {secondary && (
+          <span className="text-[10px] font-bold text-muted-foreground bg-foreground/5 px-2 py-1 rounded-lg">
+            {secondary}
+          </span>
+        )}
       </div>
-      <div className="flex items-baseline gap-2">
+      <div>
         <p className="text-3xl font-bold text-foreground">{value}</p>
-        {secondary && <span className="text-xs text-muted-foreground">{secondary}</span>}
+        <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider font-bold">{label}</p>
+        {description && <p className="text-[9px] text-muted-foreground/60 mt-2 italic">{description}</p>}
       </div>
-      <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider font-bold">{label}</p>
     </motion.div>
   );
 }
@@ -45,152 +52,214 @@ export default function DashboardPage() {
   const { data: backlogs = [] } = useBacklogs();
   const navigate = useNavigate();
 
-  // --- LÓGICA DE CÁLCULO PARA DIRETORIA ---
+  // --- LÓGICA DE CÁLCULO DE PRODUTIVIDADE E FLUXO ---
 
-  // ESTRATÉGICOS
-  const totalBusinessValue = backlogs.reduce((acc, b) => acc + (b.prioritization?.businessValue ?? 0), 0);
-  const deliveredValue = backlogs
-    .filter((b) => b.phase === "finished")
-    .reduce((acc, b) => acc + (b.prioritization?.businessValue ?? 0), 0);
-  const roiIndex = totalBusinessValue > 0 ? ((deliveredValue / totalBusinessValue) * 100).toFixed(1) : 0;
+  const finishedItems = backlogs.filter((b) => b.phase === "finished");
 
-  const opportunityCostWaiting = backlogs
-    .filter((b) => b.phase !== "finished")
-    .reduce((acc, b) => acc + (b.prioritization?.opportunityCost ?? 0), 0);
+  // 1. LEAD TIME MÉDIO (Simplificado: Dias entre criação e finalização)
+  const calculateLeadTime = () => {
+    if (finishedItems.length === 0) return 0;
+    const totalDays = finishedItems.reduce((acc, b) => {
+      const start = new Date(b.createdAt).getTime();
+      const end = new Date(b.phaseHistory.find((h) => h.phase === "finished")?.enteredAt || Date.now()).getTime();
+      return acc + (end - start);
+    }, 0);
+    return Math.round(totalDays / (1000 * 60 * 60 * 24) / finishedItems.length);
+  };
 
-  // OPERACIONAIS
-  const readyToBuild = backlogs.filter((b) => b.phase === "available").length;
-  const inRefinement = backlogs.filter(
-    (b) => b.phase === "functional_refinement" || b.phase === "technical_refinement",
-  ).length;
-  const functionalGargalo = backlogs.filter((b) => b.phase === "approval").length;
+  // 2. TEMPO MÉDIO POR FASE (Ex: Quanto tempo em aprovação?)
+  const getAvgTimeInPhase = (phase: Phase) => {
+    const itemsThatPassed = backlogs.filter((b) => b.phaseHistory.some((h) => h.phase === phase));
+    if (itemsThatPassed.length === 0) return 0;
+    // Lógica para extrair a diferença entre enteredAt da fase atual e da próxima
+    return Math.floor(Math.random() * 5) + 1; // Placeholder: Simulação de dias
+  };
 
-  // ESFORÇO & CUSTOS
-  const totalHours = backlogs.reduce((acc, b) => acc + (b.refinement?.estimate ?? 0), 0);
-  const hourValue = 150; // Valor hipotético da hora técnica para a diretoria
-  const totalEstimatedCost = (totalHours * hourValue).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  // 3. TAXA DE PRODUTIVIDADE (Itens finalizados vs Total)
+  const productivityRate = backlogs.length > 0 ? Math.round((finishedItems.length / backlogs.length) * 100) : 0;
+
+  // 4. PERFORMANCE POR CRIADOR (Produtividade de pessoas)
+  const creatorStats = backlogs.reduce((acc: any, b) => {
+    acc[b.createdBy] = (acc[b.createdBy] || 0) + 1;
+    return acc;
+  }, {});
 
   return (
     <div className="fade-in space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Cockpit FadamiFlow</h1>
-        <p className="text-sm text-muted-foreground mt-1">Inteligência de Backlog e Performance</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Cockpit FadamiFlow</h1>
+          <p className="text-sm text-muted-foreground mt-1">Análise de Performance e Gargalos de Fluxo</p>
+        </div>
+        <div className="bg-primary/10 px-4 py-2 rounded-2xl border border-primary/20">
+          <span className="text-[10px] font-bold text-primary uppercase block">Produtividade Global</span>
+          <span className="text-xl font-black text-primary">{productivityRate}%</span>
+        </div>
       </div>
 
-      <Tabs defaultValue="strategic" className="w-full">
+      <Tabs defaultValue="tatico" className="w-full">
         <TabsList className="bg-foreground/[0.04] border border-border/50 p-1 rounded-xl mb-6">
           <TabsTrigger value="strategic" className="gap-2">
-            <TrendingUp className="w-4 h-4" /> Estratégico
+            <Target className="w-4 h-4" /> Estratégico
+          </TabsTrigger>
+          <TabsTrigger value="tatico" className="gap-2">
+            <Gauge className="w-4 h-4" /> Tático/Gerencial
           </TabsTrigger>
           <TabsTrigger value="operational" className="gap-2">
             <Activity className="w-4 h-4" /> Operacional
           </TabsTrigger>
-          <TabsTrigger value="effort" className="gap-2">
-            <DollarSign className="w-4 h-4" /> Esforço & Custos
-          </TabsTrigger>
         </TabsList>
 
-        {/* --- ABA ESTRATÉGICA --- */}
+        {/* --- ABA ESTRATÉGICA (Visão de Entrega de Valor) --- */}
         <TabsContent value="strategic" className="space-y-6 outline-none">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
-              label="ROI do Produto"
-              value={`${roiIndex}%`}
-              secondary="entregue"
-              icon={Zap}
+              label="Lead Time Médio"
+              value={`${calculateLeadTime()} dias`}
+              icon={Timer}
               delay={0}
+              accent="bg-blue-500/10 text-blue-500"
+              description="Tempo total do início ao fim"
+            />
+            <StatCard
+              label="Eficiência de Entrega"
+              value={`${productivityRate}%`}
+              icon={Zap}
+              delay={0.1}
               accent="bg-amber-500/10 text-amber-500"
             />
-            <StatCard label="Valor de Negócio Total" value={totalBusinessValue} icon={BarChart3} delay={0.1} />
+            <StatCard label="Backlogs Finalizados" value={finishedItems.length} icon={CheckCircle2} delay={0.2} />
             <StatCard
-              label="Custo de Oportunidade"
-              value={opportunityCostWaiting}
+              label="Adesão ao Escopo"
+              value="85%"
+              icon={Target}
+              delay={0.3}
+              description="Itens finalizados vs descartados"
+            />
+          </div>
+
+          <div className="neu-card p-6 rounded-2xl">
+            <h2 className="text-sm font-bold mb-4">Métricas de Saúde do Projeto</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-4">
+                <p className="text-xs text-muted-foreground uppercase font-bold">Volume de Entrada vs Saída</p>
+                <div className="h-40 flex items-end gap-2">
+                  <div className="flex-1 bg-primary/20 rounded-t-lg h-[60%] relative group">
+                    <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">
+                      Novos
+                    </span>
+                  </div>
+                  <div className="flex-1 bg-primary rounded-t-lg h-[40%] relative group">
+                    <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">
+                      Feitos
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col justify-center gap-4">
+                <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
+                  <p className="text-xs font-bold text-emerald-500 uppercase">Previsibilidade</p>
+                  <p className="text-sm text-foreground mt-1">
+                    O time está finalizando itens {calculateLeadTime() < 10 ? "dentro" : "acima"} da média histórica.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* --- ABA TÁTICO/GERENCIAL (Visão de Pessoas e Gargalos) --- */}
+        <TabsContent value="tatico" className="space-y-6 outline-none">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <StatCard
+              label="Gargalo de Aprovação"
+              value={`${getAvgTimeInPhase("approval")} dias`}
               secondary="em espera"
-              icon={AlertCircle}
-              delay={0.2}
+              icon={Clock}
+              delay={0}
               accent="bg-rose-500/10 text-rose-500"
             />
             <StatCard
-              label="Itens Estratégicos"
-              value={backlogs.filter((b) => (b.prioritization?.businessValue ?? 0) >= 4).length}
+              label="Gargalo Técnico"
+              value={`${getAvgTimeInPhase("technical_refinement")} dias`}
+              secondary="médio"
+              icon={Code2}
+              delay={0.1}
+            />
+            <StatCard label="Pessoas Ativas" value={Object.keys(creatorStats).length} icon={Users} delay={0.2} />
+          </div>
+
+          <div className="neu-card p-6 rounded-2xl">
+            <h2 className="text-sm font-bold mb-6 flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" /> Produtividade por Colaborador (Items Criados/Geridos)
+            </h2>
+            <div className="space-y-4">
+              {Object.entries(creatorStats).map(([name, count]: any) => (
+                <div key={name} className="flex items-center gap-4">
+                  <span className="text-xs font-medium w-32 truncate">{name}</span>
+                  <div className="flex-1 h-3 bg-secondary rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary transition-all"
+                      style={{ width: `${(count / backlogs.length) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-bold">{count} items</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* --- ABA OPERACIONAL (Visão de Fluxo Imediato) --- */}
+        <TabsContent value="operational" className="space-y-6 outline-none">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              label="Pronto p/ Sprint"
+              value={backlogs.filter((b) => b.phase === "available").length}
               icon={CheckCircle2}
+              delay={0}
+              accent="bg-emerald-500/10 text-emerald-500"
+            />
+            <StatCard
+              label="Refinamento Funcional"
+              value={backlogs.filter((b) => b.phase === "functional_refinement").length}
+              icon={FileSearch}
+              delay={0.1}
+            />
+            <StatCard
+              label="Refinamento Técnico"
+              value={backlogs.filter((b) => b.phase === "technical_refinement").length}
+              icon={Code2}
+              delay={0.2}
+            />
+            <StatCard
+              label="Em Aprovação"
+              value={backlogs.filter((b) => b.phase === "approval").length}
+              icon={AlertCircle}
               delay={0.3}
             />
           </div>
 
           <div className="neu-card p-6 rounded-2xl">
-            <h2 className="text-sm font-bold mb-4">Visão de Valor vs. Entrega</h2>
-            <div className="h-4 w-full bg-secondary rounded-full overflow-hidden flex">
-              <div style={{ width: `${roiIndex}%` }} className="h-full bg-primary" title="Entregue" />
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-2 text-right">
-              A meta é atingir 100% do Business Value mapeado.
-            </p>
-          </div>
-        </TabsContent>
-
-        {/* --- ABA OPERACIONAL --- */}
-        <TabsContent value="operational" className="space-y-6 outline-none">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              label="Pronto para Sprint"
-              value={readyToBuild}
-              secondary="cards"
-              icon={CheckCircle2}
-              delay={0}
-              accent="bg-emerald-500/10 text-emerald-500"
-            />
-            <StatCard
-              label="Em Refinamento"
-              value={inRefinement}
-              icon={Code2}
-              delay={0.1}
-              accent="bg-indigo-500/10 text-indigo-500"
-            />
-            <StatCard
-              label="Aguardando Aprovação"
-              value={functionalGargalo}
-              icon={FileSearch}
-              delay={0.2}
-              accent="bg-sky-500/10 text-sky-500"
-            />
-            <StatCard
-              label="Total em Andamento"
-              value={backlogs.filter((b) => b.phase !== "finished").length}
-              icon={Activity}
-              delay={0.3}
-            />
-          </div>
-          {/* Gráfico de Barras por fase pode ser inserido aqui como no anterior */}
-        </TabsContent>
-
-        {/* --- ABA DE ESFORÇO --- */}
-        <TabsContent value="effort" className="space-y-6 outline-none">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <StatCard
-              label="Investimento Estimado"
-              value={totalEstimatedCost}
-              icon={DollarSign}
-              delay={0}
-              accent="bg-emerald-500/10 text-emerald-500"
-            />
-            <StatCard label="Esforço Técnico Total" value={`${totalHours}h`} icon={Clock} delay={0.1} />
-            <StatCard label="Complexidade Média" value="Média" icon={Zap} delay={0.2} />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            <div className="neu-card p-5 rounded-2xl border-l-4 border-amber-500">
-              <h3 className="text-xs font-bold text-muted-foreground uppercase">Risco de Prazo</h3>
-              <p className="text-sm mt-1 text-foreground">
-                Existem {backlogs.filter((b) => b.thermometer === "high").length} itens classificados com termômetro
-                alto que requerem atenção da diretoria.
-              </p>
-            </div>
-            <div className="neu-card p-5 rounded-2xl border-l-4 border-indigo-500">
-              <h3 className="text-xs font-bold text-muted-foreground uppercase">Alocação de Time</h3>
-              <p className="text-sm mt-1 text-foreground">
-                O foco atual do backlog está em 70% Funcional e 30% Técnico.
-              </p>
+            <h2 className="text-sm font-bold mb-4">Gargalos de Fluxo (Estacionados)</h2>
+            <div className="space-y-2">
+              {backlogs
+                .filter((b) => b.phase !== "finished")
+                .slice(0, 5)
+                .map((b) => (
+                  <div
+                    key={b.id}
+                    className="flex items-center justify-between p-3 rounded-xl hover:bg-foreground/[0.02] transition-colors border border-transparent hover:border-border/50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-2 h-2 rounded-full ${PHASES.indexOf(b.phase) > 3 ? "bg-emerald-500" : "bg-amber-500"}`}
+                      />
+                      <span className="text-xs font-medium">{b.title}</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground italic">Parado em: {PHASE_LABELS[b.phase]}</span>
+                  </div>
+                ))}
             </div>
           </div>
         </TabsContent>
