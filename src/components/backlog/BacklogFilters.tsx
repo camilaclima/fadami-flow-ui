@@ -59,7 +59,7 @@ export function BacklogFilters({ filters, onChange }: Props) {
           <SelectValue placeholder="Todos os Produtos" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">Todos os Produtos</SelectItem>
+          <SelectItem value="all">Produtos</SelectItem>
           {products.map((p) => (
             <SelectItem key={p.id} value={p.id}>
               {p.name}
@@ -76,7 +76,7 @@ export function BacklogFilters({ filters, onChange }: Props) {
           <SelectValue placeholder="Todos os Clientes" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">Todos os Clientes</SelectItem>
+          <SelectItem value="all">Clientes</SelectItem>
           {clients.map((c) => (
             <SelectItem key={c.id} value={c.id}>
               {c.name}
@@ -93,7 +93,7 @@ export function BacklogFilters({ filters, onChange }: Props) {
           <SelectValue placeholder="Prioridade (Todas)" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">Prioridade (Todas)</SelectItem>
+          <SelectItem value="all">Prioridade</SelectItem>
           <SelectItem value="high">🔴 Alta</SelectItem>
           <SelectItem value="medium">🟡 Média</SelectItem>
           <SelectItem value="low">🔵 Baixa</SelectItem>
@@ -108,7 +108,7 @@ export function BacklogFilters({ filters, onChange }: Props) {
           <SelectValue placeholder="Criador (Todos)" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">Criador (Todos)</SelectItem>
+          <SelectItem value="all">Criador</SelectItem>
           {creators.map((c) => (
             <SelectItem key={c} value={c}>
               {c}
@@ -126,7 +126,7 @@ export function BacklogFilters({ filters, onChange }: Props) {
           <SelectValue placeholder="Horas..." />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">Horas (Todas)</SelectItem>
+          <SelectItem value="all">Horas</SelectItem>
           {estimateOptions.map((hours) => (
             <SelectItem key={hours} value={hours.toString()}>
               {hours}h
