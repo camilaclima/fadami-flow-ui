@@ -105,16 +105,13 @@ const PhaseAccordion = memo(({ title, icon, defaultOpen, active, completed, chil
         <div className="flex-1 flex items-center justify-between min-w-0">
           <span className="text-xs font-semibold uppercase tracking-wide truncate">{title}</span>
 
-          {/* INFO DE QUEM FEZ À DIREITA - AJUSTADO */}
           {completed && (
             <div className="flex items-center gap-2 px-2 py-1 rounded bg-secondary/40 mr-2">
               <span className="text-[10px] font-medium text-muted-foreground whitespace-nowrap">
                 {updatedBy || "Sistema"}
               </span>
               <span className="text-[10px] text-muted-foreground/30">•</span>
-              <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                {updatedAt || "--/--/--"}
-              </span>
+              <span className="text-[10px] text-muted-foreground whitespace-nowrap">{updatedAt || "--/--/--"}</span>
             </div>
           )}
         </div>
@@ -156,18 +153,19 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
   const client = liveItem.clientId ? clients.find((c) => c.id === liveItem.clientId) : null;
   const phaseIdx = PHASES.indexOf(liveItem.phase);
 
-  // Casts para acessar propriedades dinâmicas das fases
   const prioData = (liveItem.prioritization || {}) as any;
   const approvalData = (liveItem.approval || {}) as any;
   const refinementData = (liveItem.refinement || {}) as any;
 
-  // Função para buscar nome do perfil se houver join
   const getUserName = (data: any) => {
     if (!data) return null;
-    if (data.profiles) {
-      const first = data.profiles.first_name || '';
-      const last = data.profiles.last_name || '';
-      return `${first} ${last}`.trim() || null;
+    // Lógica para capturar de objetos aninhados (comum no banco nativo Lovable)
+    const profile = data.profiles || data.user_profile || data.user;
+    if (profile) {
+      const first = profile.first_name || "";
+      const last = profile.last_name || "";
+      const fullName = `${first} ${last}`.trim();
+      return fullName || profile.full_name || data.updatedBy;
     }
     return data.updatedBy;
   };
@@ -182,7 +180,9 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
     if (!dateString) return undefined;
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return undefined;
-    return date.toLocaleDateString("pt-BR") + " " + date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    return (
+      date.toLocaleDateString("pt-BR") + " " + date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+    );
   };
 
   return (
@@ -193,7 +193,6 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
         </div>
 
         <div className="flex flex-col md:flex-row h-[640px]">
-          {/* LADO ESQUERDO: INFOS & STATUS */}
           <div className="md:w-[40%] shrink-0 flex flex-col border-r border-border/30 bg-surface/60 backdrop-blur-xl overflow-hidden">
             <div className="px-5 pt-5 pb-3">
               <h2 className="text-base font-bold text-foreground leading-tight">{liveItem.title}</h2>
@@ -264,10 +263,7 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
                         children={client?.name ?? "—"}
                       />
                       {liveItem.attachment && (
-                        <MetaItem
-                          icon={<Paperclip className="w-3.5 h-3.5" />}
-                          label="Anexo"
-                        >
+                        <MetaItem icon={<Paperclip className="w-3.5 h-3.5" />} label="Anexo">
                           <a
                             href={liveItem.attachment}
                             target="_blank"
@@ -292,7 +288,7 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
                           ) : (
                             <span className="text-muted-foreground italic text-[11px]">Aguardando priorização</span>
                           )}
-                        </物件Item>
+                        </MetaItem>
                       </div>
                     </div>
                   </motion.div>
@@ -310,7 +306,6 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
             </div>
           </div>
 
-          {/* LADO DIREITO: FLUXO DE TRABALHO COM INFOS DE CONCLUSÃO */}
           <div className="md:w-[60%] flex-1 overflow-y-auto px-5 pt-0 pb-5">
             <div className="max-w-xl mx-auto">
               <PhaseAccordion
