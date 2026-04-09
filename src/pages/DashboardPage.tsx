@@ -5,226 +5,183 @@ import {
   Code2,
   AlertCircle,
   Target,
-  Users,
   Timer,
-  Gauge,
-  Box,
   TrendingUp,
-  UserCheck,
   Microscope,
   ArrowLeftRight,
+  Layers,
+  Activity,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 
-function KpiCard({ label, value, secondary, icon: Icon, accent }: any) {
+function KpiCard({ label, value, icon: Icon, accent }: any) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="neu-card rounded-2xl p-5 border-l-4 hover:border-l-primary transition-all"
-    >
-      <div className="flex justify-between mb-2">
-        <div className={`w-8 h-8 rounded-lg ${accent ?? "bg-primary/10"} flex items-center justify-center`}>
-          <Icon className="w-4 h-4" />
-        </div>
-        {secondary && <span className="text-[10px] font-bold text-primary">{secondary}</span>}
+    <motion.div className="neu-card rounded-2xl p-5 flex flex-col gap-2 border hover:border-primary/30 transition">
+      <div className={`w-8 h-8 rounded-lg ${accent ?? "bg-primary/10"} flex items-center justify-center`}>
+        <Icon className="w-4 h-4" />
       </div>
-
       <p className="text-2xl font-black">{value}</p>
-      <p className="text-[10px] uppercase text-muted-foreground">{label}</p>
+      <p className="text-xs uppercase text-muted-foreground">{label}</p>
     </motion.div>
   );
 }
 
 export default function DashboardPage() {
-  const { data: rawBacklogs = [], isLoading } = useBacklogs();
-
-  const { data: profiles = [] } = useQuery({
-    queryKey: ["profiles-map"],
-    queryFn: async () => {
-      const { data } = await supabase.from("profiles").select("user_id, first_name, last_name");
-      return data || [];
-    },
-  });
-
-  const profilesMap = profiles.reduce((acc: any, p: any) => {
-    acc[p.user_id] = `${p.first_name || ""} ${p.last_name || ""}`;
-    return acc;
-  }, {});
-
-  const backlogs = rawBacklogs as any[];
+  const { data: backlogs = [] } = useBacklogs();
 
   const now = new Date();
+
   const getDays = (date: string) => (date ? Math.floor((now.getTime() - new Date(date).getTime()) / 86400000) : 0);
 
   const stats = backlogs.reduce(
-    (acc: any, b) => {
-      const user = profilesMap[b.created_by] || "Sistema";
-      const product = b.product_name || "Sem Produto";
-      const client = b.client_name || "Sem Cliente";
-      const priority = b.prioritization?.priority || "medium";
-      const estimate = b.refinement?.estimate || 0;
-      const isFinished = b.phase === "finished";
-
+    (acc: any, b: any) => {
       const days = getDays(b.created_at);
+      const estimate = b.refinement?.estimate || 0;
+      const finished = b.phase === "finished";
 
+      acc.totalItems++;
       acc.totalLeadTime += days;
-      acc.totalItems += 1;
-      if (days > 7) acc.aging += 1;
+      acc.totalHours += estimate;
+
+      if (days > 7) acc.aging++;
+
+      if (!finished) acc.wip++;
+
+      if (finished) acc.done++;
+
+      acc.phase[b.phase] = (acc.phase[b.phase] || 0) + 1;
 
       acc.phaseTime[b.phase] = (acc.phaseTime[b.phase] || 0) + days;
-      if (!isFinished) acc.wipByPhase[b.phase] = (acc.wipByPhase[b.phase] || 0) + 1;
 
-      if (!acc.users[user]) acc.users[user] = { created: 0 };
-      acc.users[user].created++;
+      acc.priority[b.prioritization?.priority || "medium"] =
+        (acc.priority[b.prioritization?.priority || "medium"] || 0) + 1;
 
-      if (!acc.products[product]) acc.products[product] = { total: 0, finished: 0, hours: 0 };
-      acc.products[product].total++;
-      acc.products[product].hours += estimate;
-      if (isFinished) acc.products[product].finished++;
-
-      if (!acc.clients[client]) acc.clients[client] = { total: 0, finished: 0 };
-      acc.clients[client].total++;
-      if (isFinished) acc.clients[client].finished++;
-
-      if (!acc.priorities[priority]) acc.priorities[priority] = 0;
-      acc.priorities[priority]++;
-
-      acc.totalHours += estimate;
+      acc.area[b.effort_area || "Geral"] = (acc.area[b.effort_area || "Geral"] || 0) + 1;
 
       return acc;
     },
     {
-      users: {},
-      products: {},
-      clients: {},
-      priorities: {},
-      totalLeadTime: 0,
       totalItems: 0,
-      aging: 0,
-      phaseTime: {},
-      wipByPhase: {},
+      totalLeadTime: 0,
       totalHours: 0,
+      aging: 0,
+      wip: 0,
+      done: 0,
+      phase: {},
+      phaseTime: {},
+      priority: {},
+      area: {},
     },
   );
 
-  if (isLoading) return <div className="p-10">Carregando...</div>;
-
-  const throughput = backlogs.filter((b) => b.phase === "finished").length;
+  const leadTime = Math.round(stats.totalLeadTime / (stats.totalItems || 1));
+  const throughput = stats.done;
   const avgPerDay = throughput / 30;
-  const remaining = backlogs.filter((b) => b.phase !== "finished").length;
-  const daysToFinish = avgPerDay > 0 ? Math.ceil(remaining / avgPerDay) : 0;
+  const daysToFinish = avgPerDay ? Math.ceil(stats.wip / avgPerDay) : 0;
 
   const forecastDate = new Date();
   forecastDate.setDate(forecastDate.getDate() + daysToFinish);
 
-  const leadTime = Math.round(stats.totalLeadTime / (stats.totalItems || 1));
+  const bottleneck = Object.entries(stats.phaseTime).sort((a: any, b: any) => b[1] - a[1])[0];
 
   return (
-    <div className="space-y-8 pb-10">
-      {/* INSIGHT */}
-      <div className="neu-card p-5 rounded-2xl">
-        <p className="text-xs uppercase font-bold text-muted-foreground">Insight</p>
-        <p className="text-sm font-semibold">
-          {stats.aging > backlogs.length * 0.3 ? "⚠️ Muitos itens envelhecendo" : "Fluxo saudável 🚀"}
-        </p>
+    <div className="space-y-8">
+      {/* KPI TOP */}
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+        <KpiCard label="Backlogs" value={stats.totalItems} icon={Layers} />
+        <KpiCard label="WIP" value={stats.wip} icon={Microscope} />
+        <KpiCard label="Finalizados" value={stats.done} icon={CheckCircle2} />
+        <KpiCard label="Lead Time" value={`${leadTime}d`} icon={Timer} />
+        <KpiCard label="Horas" value={`${stats.totalHours}h`} icon={Clock} />
+        <KpiCard label="Aging" value={stats.aging} icon={AlertCircle} accent="bg-red-500/10 text-red-500" />
       </div>
 
-      <Tabs defaultValue="strategic">
+      {/* PREVISÃO */}
+      <div className="neu-card p-6 rounded-3xl flex justify-between items-center">
+        <div>
+          <p className="text-xs uppercase text-muted-foreground">Previsão de Entrega</p>
+          <p className="text-3xl font-black">{daysToFinish} dias</p>
+        </div>
+
+        <div className="text-right">
+          <p className="text-xs uppercase text-muted-foreground">Data estimada</p>
+          <p className="text-lg font-bold">{forecastDate.toLocaleDateString("pt-BR")}</p>
+        </div>
+      </div>
+
+      {/* GARGALO */}
+      <div className="neu-card p-6 rounded-3xl">
+        <h3 className="text-xs font-black mb-4 text-red-500">Gargalo do Fluxo</h3>
+
+        {Object.entries(stats.phaseTime).map(([phase, val]: any) => (
+          <div key={phase} className="mb-3">
+            <div className="flex justify-between text-xs font-bold">
+              <span>{phase}</span>
+              <span>{val} dias</span>
+            </div>
+
+            <div className="h-2 bg-secondary rounded">
+              <div className="h-2 bg-red-500 rounded" style={{ width: `${(val / stats.totalLeadTime) * 100}%` }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <Tabs defaultValue="distribution">
         <TabsList>
-          <TabsTrigger value="strategic">Estratégico</TabsTrigger>
-          <TabsTrigger value="segmentation">Segmentação</TabsTrigger>
+          <TabsTrigger value="distribution">Distribuições</TabsTrigger>
+          <TabsTrigger value="flow">Fluxo</TabsTrigger>
         </TabsList>
 
-        {/* ESTRATÉGICO */}
-        <TabsContent value="strategic">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <KpiCard label="WIP" value={remaining} icon={Microscope} />
-            <KpiCard label="Throughput" value={throughput} icon={ArrowLeftRight} />
-            <KpiCard label="Lead Time" value={`${leadTime}d`} icon={Timer} />
-            <KpiCard label="Horas" value={`${stats.totalHours}h`} icon={Clock} />
+        {/* DISTRIBUIÇÕES */}
+        <TabsContent value="distribution" className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* PRIORIDADE */}
+          <div className="neu-card p-6 rounded-3xl">
+            <h3 className="text-xs font-black mb-4">Prioridade</h3>
 
-            <KpiCard
-              label="Previsão"
-              value={`${daysToFinish} dias`}
-              secondary={forecastDate.toLocaleDateString("pt-BR")}
-              icon={TrendingUp}
-              accent="bg-emerald-500/10 text-emerald-500"
-            />
+            {Object.entries(stats.priority).map(([k, v]: any) => (
+              <div key={k} className="mb-3">
+                <div className="flex justify-between text-xs">
+                  <span>{k}</span>
+                  <span>{v}</span>
+                </div>
 
-            <KpiCard label="Aging" value={stats.aging} icon={AlertCircle} accent="bg-red-500/10 text-red-500" />
+                <div className="h-2 bg-secondary rounded">
+                  <div className="h-2 bg-orange-500" style={{ width: `${(v / stats.totalItems) * 100}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ÁREA */}
+          <div className="neu-card p-6 rounded-3xl">
+            <h3 className="text-xs font-black mb-4">Área</h3>
+
+            {Object.entries(stats.area).map(([k, v]: any) => (
+              <div key={k} className="mb-3">
+                <div className="flex justify-between text-xs">
+                  <span>{k}</span>
+                  <span>{v}</span>
+                </div>
+
+                <div className="h-2 bg-secondary rounded">
+                  <div className="h-2 bg-primary" style={{ width: `${(v / stats.totalItems) * 100}%` }} />
+                </div>
+              </div>
+            ))}
           </div>
         </TabsContent>
 
-        {/* SEGMENTAÇÃO VISUAL */}
-        <TabsContent value="segmentation" className="space-y-6">
-          {/* PRODUTOS */}
-          <div className="neu-card p-6 rounded-3xl">
-            <h3 className="text-xs font-black mb-6">Produtos</h3>
-
-            {Object.entries(stats.products).map(([name, d]: any) => {
-              const percent = (d.finished / d.total) * 100;
-
-              return (
-                <div key={name} className="mb-4">
-                  <div className="flex justify-between text-xs font-bold">
-                    <span>{name}</span>
-                    <span>{d.hours}h</span>
-                  </div>
-
-                  <div className="h-3 bg-gray-200 rounded-full mt-1">
-                    <div className="h-3 bg-emerald-500 rounded-full" style={{ width: `${percent}%` }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* CLIENTES */}
-          <div className="neu-card p-6 rounded-3xl">
-            <h3 className="text-xs font-black mb-6">Clientes</h3>
-
-            {Object.entries(stats.clients).map(([name, d]: any) => {
-              const percent = (d.finished / d.total) * 100;
-
-              return (
-                <div key={name} className="mb-4">
-                  <div className="flex justify-between text-xs font-bold">
-                    <span>{name}</span>
-                    <span>{d.total}</span>
-                  </div>
-
-                  <div className="h-3 bg-gray-200 rounded-full mt-1">
-                    <div className="h-3 bg-sky-500 rounded-full" style={{ width: `${percent}%` }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* PRIORIDADES */}
-          <div className="neu-card p-6 rounded-3xl">
-            <h3 className="text-xs font-black mb-6">Prioridades</h3>
-
-            {Object.entries(stats.priorities).map(([name, val]: any) => {
-              const percent = (val / backlogs.length) * 100;
-
-              return (
-                <div key={name} className="mb-4">
-                  <div className="flex justify-between text-xs font-bold">
-                    <span>{name}</span>
-                    <span>{val}</span>
-                  </div>
-
-                  <div className="h-3 bg-gray-200 rounded-full mt-1">
-                    <div className="h-3 bg-orange-500 rounded-full" style={{ width: `${percent}%` }} />
-                  </div>
-                </div>
-              );
-            })}
+        {/* FLUXO */}
+        <TabsContent value="flow">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {Object.entries(stats.phase).map(([phase, val]: any) => (
+              <div key={phase} className="neu-card p-4 rounded-2xl text-center">
+                <p className="text-xl font-black">{val}</p>
+                <p className="text-[10px] uppercase text-muted-foreground">{phase}</p>
+              </div>
+            ))}
           </div>
         </TabsContent>
       </Tabs>
