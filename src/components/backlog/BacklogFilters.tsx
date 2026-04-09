@@ -44,7 +44,7 @@ export function BacklogFilters({ filters, onChange }: Props) {
     <motion.div
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-center gap-2 flex-wrap" // Reduzi gap de 3 para 2 para compensar o espaço extra
+      className="flex items-center gap-2 flex-wrap"
     >
       <div className="flex items-center gap-1.5 text-muted-foreground mr-1">
         <Filter className="w-3.5 h-3.5" />
@@ -56,10 +56,10 @@ export function BacklogFilters({ filters, onChange }: Props) {
         onValueChange={(v) => onChange({ ...filters, productId: v === "all" ? null : v })}
       >
         <SelectTrigger className="h-8 w-[160px] text-xs rounded-xl border-border bg-card">
-          <SelectValue placeholder="Produto" />
+          <SelectValue placeholder="Todos os Produtos" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">Produtos (Todos)</SelectItem>
+          <SelectItem value="all">Todos os Produtos</SelectItem>
           {products.map((p) => (
             <SelectItem key={p.id} value={p.id}>
               {p.name}
@@ -73,10 +73,10 @@ export function BacklogFilters({ filters, onChange }: Props) {
         onValueChange={(v) => onChange({ ...filters, clientId: v === "all" ? null : v })}
       >
         <SelectTrigger className="h-8 w-[160px] text-xs rounded-xl border-border bg-card">
-          <SelectValue placeholder="Cliente" />
+          <SelectValue placeholder="Todos os Clientes" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">Clientes (Todos)</SelectItem>
+          <SelectItem value="all">Todos os Clientes</SelectItem>
           {clients.map((c) => (
             <SelectItem key={c.id} value={c.id}>
               {c.name}
@@ -90,8 +90,7 @@ export function BacklogFilters({ filters, onChange }: Props) {
         onValueChange={(v) => onChange({ ...filters, priority: v === "all" ? null : v })}
       >
         <SelectTrigger className="h-8 w-[140px] text-xs rounded-xl border-border bg-card">
-          {/* Ajustado label para não ficar apenas "Todas" */}
-          <SelectValue>{filters.priority ? undefined : "Prioridade (Todas)"}</SelectValue>
+          <SelectValue placeholder="Prioridade (Todas)" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Prioridade (Todas)</SelectItem>
@@ -106,8 +105,7 @@ export function BacklogFilters({ filters, onChange }: Props) {
         onValueChange={(v) => onChange({ ...filters, createdBy: v === "all" ? null : v })}
       >
         <SelectTrigger className="h-8 w-[150px] text-xs rounded-xl border-border bg-card">
-          {/* Ajustado label para não ficar apenas "Todos" */}
-          <SelectValue>{filters.createdBy ? undefined : "Criador (Todos)"}</SelectValue>
+          <SelectValue placeholder="Criador (Todos)" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Criador (Todos)</SelectItem>
@@ -123,9 +121,9 @@ export function BacklogFilters({ filters, onChange }: Props) {
         value={filters.estimate ?? "all"}
         onValueChange={(v) => onChange({ ...filters, estimate: v === "all" ? null : v })}
       >
-        {/* Removido padding excessivo ou margens que poderiam estar causando o espaço à esquerda */}
-        <SelectTrigger className="h-8 w-[120px] text-xs rounded-xl border-border bg-card ml-0">
-          <SelectValue placeholder="Horas (Todas)" />
+        {/* Adicionado justify-start e px-3 para forçar o texto a colar na esquerda */}
+        <SelectTrigger className="h-8 w-[120px] text-xs rounded-xl border-border bg-card flex justify-start px-3">
+          <SelectValue placeholder="Horas..." />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Horas (Todas)</SelectItem>
