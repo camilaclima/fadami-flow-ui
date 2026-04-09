@@ -325,22 +325,24 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
                       Nenhum
                       {!clientId && <Check className="w-3.5 h-3.5 ml-auto text-primary" />}
                     </button>
-                    {clients.map((c) => (
-                      <button
-                        key={c.id}
-                        onClick={() => {
-                          setClientId(c.id);
-                          setClientOpen(false);
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-secondary transition-colors"
-                      >
-                        <div className="w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center">
-                          <span className="text-[10px] font-bold text-primary">{c.name[0]}</span>
-                        </div>
-                        {c.name}
-                        {clientId === c.id && <Check className="w-3.5 h-3.5 ml-auto text-primary" />}
-                      </button>
-                    ))}
+                    {clients
+                      .filter((c: any) => c.status === "active")
+                      .map((c) => (
+                        <button
+                          key={c.id}
+                          onClick={() => {
+                            setClientId(c.id);
+                            setClientOpen(false);
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-secondary transition-colors"
+                        >
+                          <div className="w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center">
+                            <span className="text-[10px] font-bold text-primary">{c.name[0]}</span>
+                          </div>
+                          {c.name}
+                          {clientId === c.id && <Check className="w-3.5 h-3.5 ml-auto text-primary" />}
+                        </button>
+                      ))}
                   </motion.div>
                 )}
               </AnimatePresence>
