@@ -23,6 +23,7 @@ export function BacklogFilters({ filters, onChange }: Props) {
 
   const creators = [...new Set(backlogs.map((b) => b.createdBy))];
 
+  // Extrai estimativas únicas dos backlogs que já passaram pelo refinamento
   const estimateOptions = [
     ...new Set(
       backlogs.map((b) => b.refinement?.estimate).filter((est): est is number => est !== undefined && est !== null),
@@ -44,9 +45,9 @@ export function BacklogFilters({ filters, onChange }: Props) {
     <motion.div
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-center gap-2 flex-wrap" // Reduzi gap de 3 para 2 para compensar o espaço extra
+      className="flex items-center gap-3 flex-wrap"
     >
-      <div className="flex items-center gap-1.5 text-muted-foreground mr-1">
+      <div className="flex items-center gap-1.5 text-muted-foreground">
         <Filter className="w-3.5 h-3.5" />
         <span className="text-xs font-medium">Filtros</span>
       </div>
@@ -89,12 +90,11 @@ export function BacklogFilters({ filters, onChange }: Props) {
         value={filters.priority ?? "all"}
         onValueChange={(v) => onChange({ ...filters, priority: v === "all" ? null : v })}
       >
-        <SelectTrigger className="h-8 w-[140px] text-xs rounded-xl border-border bg-card">
-          {/* Ajustado label para não ficar apenas "Todas" */}
-          <SelectValue>{filters.priority ? undefined : "Prioridade (Todas)"}</SelectValue>
+        <SelectTrigger className="h-8 w-[130px] text-xs rounded-xl border-border bg-card">
+          <SelectValue placeholder="Prioridade" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">Prioridade (Todas)</SelectItem>
+          <SelectItem value="all">Todas</SelectItem>
           <SelectItem value="high">🔴 Alta</SelectItem>
           <SelectItem value="medium">🟡 Média</SelectItem>
           <SelectItem value="low">🔵 Baixa</SelectItem>
@@ -106,11 +106,10 @@ export function BacklogFilters({ filters, onChange }: Props) {
         onValueChange={(v) => onChange({ ...filters, createdBy: v === "all" ? null : v })}
       >
         <SelectTrigger className="h-8 w-[150px] text-xs rounded-xl border-border bg-card">
-          {/* Ajustado label para não ficar apenas "Todos" */}
-          <SelectValue>{filters.createdBy ? undefined : "Criador (Todos)"}</SelectValue>
+          <SelectValue placeholder="Criador" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">Criador (Todos)</SelectItem>
+          <SelectItem value="all">Todos</SelectItem>
           {creators.map((c) => (
             <SelectItem key={c} value={c}>
               {c}
@@ -123,9 +122,8 @@ export function BacklogFilters({ filters, onChange }: Props) {
         value={filters.estimate ?? "all"}
         onValueChange={(v) => onChange({ ...filters, estimate: v === "all" ? null : v })}
       >
-        {/* Removido padding excessivo ou margens que poderiam estar causando o espaço à esquerda */}
-        <SelectTrigger className="h-8 w-[120px] text-xs rounded-xl border-border bg-card ml-0">
-          <SelectValue placeholder="Horas (Todas)" />
+        <SelectTrigger className="h-8 w-[120px] text-xs rounded-xl border-border bg-card">
+          <SelectValue placeholder="Horas" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Horas (Todas)</SelectItem>
@@ -144,7 +142,7 @@ export function BacklogFilters({ filters, onChange }: Props) {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
             onClick={clearAll}
-            className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors ml-1"
+            className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
           >
             <X className="w-3 h-3" />
             Limpar
