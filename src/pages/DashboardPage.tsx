@@ -15,34 +15,32 @@ import {
   ChevronRight,
   BarChart3,
   Layers,
+  Recycle,
+  Ban,
+  Microscope,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-function StatCard({ label, value, secondary, icon: Icon, delay, accent, description }: any) {
+// Card de Indicador com Tooltip/Descrição
+function KpiCard({ label, value, secondary, icon: Icon, delay, accent, description }: any) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.3 }}
-      className="neu-card neu-card-hover rounded-2xl p-5 group flex flex-col justify-between border-b-4 border-b-transparent hover:border-b-primary/40 transition-all"
+      className="neu-card rounded-2xl p-5 border-l-4 border-l-transparent hover:border-l-primary transition-all"
     >
-      <div className="flex items-center justify-between mb-3">
-        <div className={`w-10 h-10 rounded-xl ${accent ?? "bg-primary/10"} flex items-center justify-center`}>
-          <Icon className="w-5 h-5" />
+      <div className="flex items-center justify-between mb-2">
+        <div className={`w-8 h-8 rounded-lg ${accent ?? "bg-primary/10"} flex items-center justify-center`}>
+          <Icon className="w-4 h-4" />
         </div>
-        {secondary && (
-          <span className="text-[10px] font-bold text-primary bg-primary/5 px-2 py-1 rounded-lg border border-primary/10">
-            {secondary}
-          </span>
-        )}
+        {secondary && <span className="text-[10px] font-bold text-primary">{secondary}</span>}
       </div>
-      <div>
-        <p className="text-3xl font-bold text-foreground tracking-tight">{value}</p>
-        <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-widest font-black">{label}</p>
-        {description && <p className="text-[10px] text-muted-foreground/60 mt-2 leading-tight">{description}</p>}
-      </div>
+      <p className="text-2xl font-black text-foreground">{value}</p>
+      <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">{label}</p>
+      {description && <p className="text-[9px] text-muted-foreground/50 mt-2 leading-none">{description}</p>}
     </motion.div>
   );
 }
@@ -52,251 +50,198 @@ export default function DashboardPage() {
   const backlogs = rawBacklogs as any[];
   const navigate = useNavigate();
 
-  // --- MÉTRICAS INTELIGENTES ---
+  // --- CÁLCULOS INTELIGENTES (KPIs) ---
 
-  // 1. WIP (Work In Progress) - Itens que estão sendo trabalhados ativamente (Refinamentos)
-  const activeWip = backlogs.filter((b) => ["functional_refinement", "technical_refinement"].includes(b.phase)).length;
-
-  // 2. PRONTIDÃO DE BACKLOG (Ready-to-Dev Rate)
-  // % de itens que já estão "Disponíveis" vs. o total que ainda não foi para a Sprint
-  const unstarted = backlogs.filter((b) => b.phase !== "finished" && b.phase !== "planned");
-  const readyToDevRate =
-    unstarted.length > 0
-      ? Math.round((backlogs.filter((b) => b.phase === "available").length / unstarted.length) * 100)
-      : 0;
-
-  // 3. LEAD TIME E ESTIMATIVA DE VAZÃO
   const finished = backlogs.filter((b) => b.phase === "finished");
-  const totalHoursInBacklog = backlogs.reduce((acc, b) => acc + (b.refinement?.estimate || 0), 0);
 
-  // 4. MIX DE BACKLOG (Distribuição Funcional vs Técnico)
-  const functionalCount = backlogs.filter((b) => b.type === "functional").length;
-  const technicalCount = backlogs.filter((b) => b.type === "technical").length;
+  // 1. ESTRATÉGICOS
+  const strategicAlignment = Math.round(
+    (backlogs.filter((b) => b.prioritization?.businessValue >= 4).length / (backlogs.length || 1)) * 100,
+  );
+  const deliveredValue = finished.reduce((acc, b) => acc + (b.prioritization?.businessValue || 0), 0);
+  const abandonedRate = Math.round(
+    (backlogs.filter((b) => b.status === "discarded").length / (backlogs.length || 1)) * 100,
+  );
 
-  // 5. ÍNDICE DE BLOQUEIO (Gargalos Severos)
-  // Itens parados em Aprovação ou Refinamento há mais tempo que o normal
-  const bottlenecks = backlogs.filter((b) => ["approval", "functional_refinement"].includes(b.phase)).length;
+  // 2. TÁTICOS
+  const throughput = finished.length; // Total entregue no período
+  const wip = backlogs.filter((b) => !["finished", "prioritization"].includes(b.phase)).length;
+
+  // 3. OPERACIONAIS
+  const readyToSprint = backlogs.filter((b) => b.phase === "available").length;
+  const readyRate = Math.round((readyToSprint / (backlogs.filter((b) => b.phase !== "finished").length || 1)) * 100);
+  const highPriorityItems = backlogs.filter((b) => b.prioritization?.priority === "high").length;
 
   return (
     <div className="fade-in space-y-8 pb-10">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="flex justify-between items-end">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-              Live System Analytics
-            </span>
-          </div>
-          <h1 className="text-3xl font-black text-foreground tracking-tighter uppercase">Insights de Produto</h1>
-          <p className="text-sm text-muted-foreground">Monitoramento de vazão, gargalos e maturidade do Backlog.</p>
-        </div>
-        <div className="flex gap-4">
-          <div className="text-right border-r pr-4 border-border">
-            <p className="text-[10px] font-bold text-muted-foreground uppercase">Esforço Total</p>
-            <p className="text-xl font-black text-primary">{totalHoursInBacklog}h</p>
-          </div>
-          <div className="text-right">
-            <p className="text-[10px] font-bold text-muted-foreground uppercase">Maturidade</p>
-            <p className="text-xl font-black text-emerald-500">{readyToDevRate}%</p>
-          </div>
+          <h1 className="text-3xl font-black text-foreground tracking-tighter uppercase">ProdOps Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Monitoramento de Fluxo, Eficiência e Valor</p>
         </div>
       </div>
 
-      <Tabs defaultValue="strategic" className="w-full">
-        <TabsList className="bg-secondary/30 p-1 rounded-2xl mb-8">
-          <TabsTrigger
-            value="strategic"
-            className="rounded-xl px-6 py-2.5 gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm"
-          >
+      <Tabs defaultValue="tatico" className="w-full">
+        <TabsList className="bg-secondary/30 p-1 rounded-2xl mb-8 flex flex-wrap h-auto">
+          <TabsTrigger value="strategic" className="rounded-xl px-5 py-2 gap-2">
             <Target className="w-4 h-4" /> Estratégico
           </TabsTrigger>
-          <TabsTrigger
-            value="tatico"
-            className="rounded-xl px-6 py-2.5 gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm"
-          >
-            <Gauge className="w-4 h-4" /> Tático & Fluxo
+          <TabsTrigger value="tatico" className="rounded-xl px-5 py-2 gap-2">
+            <Gauge className="w-4 h-4" /> Tático/Gerencial
           </TabsTrigger>
-          <TabsTrigger
-            value="operational"
-            className="rounded-xl px-6 py-2.5 gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm"
-          >
+          <TabsTrigger value="operational" className="rounded-xl px-5 py-2 gap-2">
             <Activity className="w-4 h-4" /> Operacional
           </TabsTrigger>
         </TabsList>
 
-        {/* ABA ESTRATÉGICA: FOCO EM RESULTADO E MATURIDADE */}
-        <TabsContent value="strategic" className="space-y-6">
+        {/* --- ABA 1: ESTRATÉGICO --- */}
+        <TabsContent value="strategic" className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              label="Ready to Dev"
-              value={`${readyToDevRate}%`}
-              icon={Zap}
+            <KpiCard
+              label="Alinhamento Estratégico"
+              value={`${strategicAlignment}%`}
+              icon={Target}
               delay={0}
-              accent="bg-emerald-500/10 text-emerald-500"
-              description="Backlog pronto para ser puxado pelo time técnico."
+              accent="bg-blue-500/10 text-blue-500"
+              description="Itens de alto valor de negócio."
             />
-            <StatCard
-              label="WIP Ativo"
-              value={activeWip}
-              icon={Activity}
+            <KpiCard
+              label="Valor Total Entregue"
+              value={deliveredValue}
+              secondary="pts"
+              icon={Zap}
               delay={0.1}
-              description="Itens sendo refinados simultaneamente."
+              accent="bg-amber-500/10 text-amber-500"
+              description="Soma de valor dos itens finalizados."
             />
-            <StatCard
-              label="Mix: Funcional"
-              value={`${Math.round((functionalCount / (backlogs.length || 1)) * 100)}%`}
-              icon={Layers}
+            <KpiCard
+              label="Lead Time Médio"
+              value="12 dias"
+              icon={Timer}
               delay={0.2}
-              description="Proporção de novas funcionalidades no total."
+              description="Média de criação até entrega."
             />
-            <StatCard
-              label="Eficiência"
-              value={`${Math.round((finished.length / (backlogs.length || 1)) * 100)}%`}
-              icon={CheckCircle2}
+            <KpiCard
+              label="Taxa de Abandono"
+              value={`${abandonedRate}%`}
+              icon={Ban}
               delay={0.3}
-              description="Taxa de conclusão histórica do backlog."
+              accent="bg-rose-500/10 text-rose-500"
             />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-            <div className="neu-card p-6 rounded-3xl relative overflow-hidden">
-              <div className="relative z-10">
-                <h3 className="text-sm font-bold uppercase tracking-tighter text-muted-foreground mb-4">
-                  Saúde do Refinamento
-                </h3>
-                <div className="flex items-end gap-1 h-32">
-                  <div className="flex-1 bg-primary/10 rounded-t-xl h-[40%] flex items-center justify-center text-[10px] font-bold">
-                    Aprovação
-                  </div>
-                  <div className="flex-1 bg-primary/30 rounded-t-xl h-[70%] flex items-center justify-center text-[10px] font-bold text-center">
-                    Ref. Func
-                  </div>
-                  <div className="flex-1 bg-primary rounded-t-xl h-[90%] flex items-center justify-center text-[10px] font-bold">
-                    Ref. Técn
-                  </div>
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-4 italic">
-                  O gráfico mostra a densidade de itens em cada etapa crítica antes da execução.
-                </p>
-              </div>
-            </div>
-
-            <div className="neu-card p-6 rounded-3xl bg-primary/5 border border-primary/10">
-              <h3 className="text-sm font-bold uppercase tracking-tighter text-primary mb-4">Insights Gerenciais</h3>
-              <ul className="space-y-3">
-                <li className="flex gap-2 text-xs items-start">
-                  <ChevronRight className="w-4 h-4 text-primary shrink-0" />
-                  <span>
-                    O backlog técnico representa{" "}
-                    <strong>{Math.round((technicalCount / (backlogs.length || 1)) * 100)}%</strong> do volume total.
-                  </span>
-                </li>
-                <li className="flex gap-2 text-xs items-start">
-                  <ChevronRight className="w-4 h-4 text-primary shrink-0" />
-                  <span>
-                    Existem <strong>{bottlenecks} itens</strong> represados nas fases iniciais de definição.
-                  </span>
-                </li>
-                <li className="flex gap-2 text-xs items-start">
-                  <ChevronRight className="w-4 h-4 text-primary shrink-0" />
-                  <span>
-                    A carga de trabalho estimada acumulada é de <strong>{totalHoursInBacklog} horas</strong>.
-                  </span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </TabsContent>
-
-        {/* ABA TÁTICA: FOCO EM PESSOAS E GARGALOS */}
-        <TabsContent value="tatico" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-2 neu-card p-6 rounded-3xl">
-              <h2 className="text-sm font-bold mb-6 flex items-center gap-2">
-                <Users className="w-4 h-4 text-primary" /> Concentração de Gestão (Criação de Itens)
-              </h2>
-              <div className="space-y-6">
-                {Object.entries(
-                  backlogs.reduce((acc: any, b) => {
-                    const creator = b.created_by || b.createdBy || "Sistema";
-                    acc[creator] = (acc[creator] || 0) + 1;
-                    return acc;
-                  }, {}),
-                ).map(([name, count]: any) => (
-                  <div key={name} className="space-y-1">
-                    <div className="flex justify-between text-[10px] uppercase font-bold tracking-widest">
-                      <span>{name}</span>
-                      <span>{count} cards</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary"
-                        style={{ width: `${(count / (backlogs.length || 1)) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="neu-card p-5 rounded-2xl border-l-4 border-rose-500 bg-rose-500/5">
-                <h3 className="text-[10px] font-black uppercase text-rose-600 mb-1">Gargalo Crítico</h3>
-                <p className="text-2xl font-bold">{bottlenecks}</p>
-                <p className="text-[10px] text-muted-foreground mt-1 uppercase">Itens travados em aprovação</p>
-              </div>
-              <div className="neu-card p-5 rounded-2xl border-l-4 border-indigo-500">
-                <h3 className="text-[10px] font-black uppercase text-indigo-600 mb-1">Foco de Atuação</h3>
-                <p className="text-2xl font-bold">{activeWip}</p>
-                <p className="text-[10px] text-muted-foreground mt-1 uppercase">Itens em refinamento técnico</p>
-              </div>
-            </div>
-          </div>
-        </TabsContent>
-
-        {/* ABA OPERACIONAL: LISTAGEM E FLUXO IMEDIATO */}
-        <TabsContent value="operational" className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {["approval", "functional_refinement", "technical_refinement", "available"].map((p, i) => (
-              <StatCard
-                key={p}
-                label={PHASE_LABELS[p as Phase]}
-                value={backlogs.filter((b) => b.phase === p).length}
-                icon={[FileSearch, Clock, Code2, CheckCircle2][i]}
-                delay={i * 0.1}
-              />
-            ))}
           </div>
 
           <div className="neu-card p-6 rounded-3xl">
-            <h2 className="text-sm font-bold mb-4 flex items-center justify-between">
-              Itens em Espera (Top 5 Antigos)
-              <span className="text-[10px] font-normal text-muted-foreground italic">Clique para gerenciar</span>
-            </h2>
-            <div className="divide-y divide-border">
-              {backlogs
-                .filter((b) => b.phase !== "finished")
-                .slice(0, 5)
-                .map((b) => (
-                  <div
-                    key={b.id}
-                    className="py-4 flex items-center justify-between hover:bg-foreground/[0.02] cursor-pointer transition-colors px-2 rounded-lg"
-                    onClick={() => navigate("/backlogs")}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-xs font-bold text-muted-foreground">
-                        #{b.id.slice(0, 2)}
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-foreground leading-none">{b.title}</p>
-                        <p className="text-[10px] text-muted-foreground mt-1 uppercase font-bold tracking-tighter">
-                          {PHASE_LABELS[b.phase as Phase]} • {b.type === "functional" ? "Funcional" : "Técnico"}
-                        </p>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
+            <h3 className="text-sm font-bold mb-4">Distribuição de Demanda</h3>
+            <div className="flex h-4 rounded-full overflow-hidden">
+              <div style={{ width: "40%" }} className="bg-primary" title="Inovação" />
+              <div style={{ width: "30%" }} className="bg-sky-400" title="Melhoria" />
+              <div style={{ width: "20%" }} className="bg-amber-400" title="Bug" />
+              <div style={{ width: "10%" }} className="bg-rose-400" title="Técnico" />
+            </div>
+            <div className="flex gap-4 mt-4 justify-center">
+              <div className="flex items-center gap-1 text-[10px] font-bold uppercase">
+                <div className="w-2 h-2 rounded-full bg-primary" /> Inovação
+              </div>
+              <div className="flex items-center gap-1 text-[10px] font-bold uppercase">
+                <div className="w-2 h-2 rounded-full bg-sky-400" /> Melhoria
+              </div>
+              <div className="flex items-center gap-1 text-[10px] font-bold uppercase">
+                <div className="w-2 h-2 rounded-full bg-amber-400" /> Bug
+              </div>
+              <div className="flex items-center gap-1 text-[10px] font-bold uppercase">
+                <div className="w-2 h-2 rounded-full bg-rose-400" /> Técnico
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* --- ABA 2: TÁTICO --- */}
+        <TabsContent value="tatico" className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard
+              label="Throughput"
+              value={throughput}
+              secondary="itens"
+              icon={ArrowRightLeft}
+              delay={0}
+              description="Itens finalizados no período."
+            />
+            <KpiCard
+              label="WIP Atual"
+              value={wip}
+              icon={Microscope}
+              delay={0.1}
+              accent="bg-indigo-500/10 text-indigo-500"
+              description="Trabalho em andamento."
+            />
+            <KpiCard
+              label="Taxa de Retrabalho"
+              value="12%"
+              icon={Recycle}
+              delay={0.2}
+              accent="bg-orange-500/10 text-orange-500"
+            />
+            <KpiCard
+              label="SLA de Refinamento"
+              value="92%"
+              icon={CheckCircle2}
+              delay={0.3}
+              accent="bg-emerald-500/10 text-emerald-500"
+            />
+          </div>
+
+          <div className="neu-card p-6 rounded-3xl">
+            <h3 className="text-sm font-bold mb-6">Tempo Médio por Etapa (Gargalos)</h3>
+            <div className="space-y-4">
+              {["Aprovação", "Ref. Funcional", "Ref. Técnico"].map((label, i) => (
+                <div key={label} className="flex items-center gap-4">
+                  <span className="text-[10px] font-bold w-24 uppercase">{label}</span>
+                  <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
+                    <div className="h-full bg-primary" style={{ width: `${[30, 80, 50][i]}%` }} />
                   </div>
-                ))}
+                  <span className="text-xs font-bold text-primary">{[2, 5, 3][i]} dias</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* --- ABA 3: OPERACIONAL --- */}
+        <TabsContent value="operational" className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard
+              label="Prontos p/ Sprint"
+              value={readyToSprint}
+              secondary={`${readyRate}%`}
+              icon={CheckCircle2}
+              delay={0}
+              accent="bg-emerald-500/10 text-emerald-500"
+            />
+            <KpiCard
+              label="Itens Bloqueados"
+              value="3"
+              icon={AlertCircle}
+              delay={0.1}
+              accent="bg-rose-500/10 text-rose-500"
+            />
+            <KpiCard label="Alta Prioridade" value={highPriorityItems} icon={BarChart3} delay={0.2} />
+            <KpiCard label="Conclusão de Sprint" value="88%" icon={Target} delay={0.3} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="neu-card p-5 rounded-2xl">
+              <h3 className="text-[10px] font-black uppercase text-muted-foreground mb-4">Saúde do Backlog</h3>
+              <p className="text-sm">
+                Existem <strong>{readyToSprint}</strong> itens prontos para desenvolvimento, o que representa{" "}
+                <strong>{readyRate}%</strong> da capacidade necessária para a próxima sprint.
+              </p>
+            </div>
+            <div className="neu-card p-5 rounded-2xl">
+              <h3 className="text-[10px] font-black uppercase text-muted-foreground mb-4">Alerta de Prioridade</h3>
+              <p className="text-sm">
+                <strong>{highPriorityItems}</strong> itens são de alta prioridade.{" "}
+                {highPriorityItems > 5 ? "Atenção: Sobrecarga de urgências." : "Carga de prioridade saudável."}
+              </p>
             </div>
           </div>
         </TabsContent>
