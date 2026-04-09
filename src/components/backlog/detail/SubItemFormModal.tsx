@@ -38,7 +38,6 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
       setEstimate(editItem.estimate);
 
       if (editItem.attachment) {
-        // Assume que múltiplos anexos podem vir separados por vírgula no banco
         const urls = editItem.attachment.split(",");
         setAttachments(
           urls.map((url) => ({
@@ -115,17 +114,18 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px] p-0 gap-0 overflow-hidden bg-card border-border/60">
-        <div className="px-5 pt-5 pb-3">
+      {/* Aumento da largura máxima para sm:max-w-[800px] */}
+      <DialogContent className="sm:max-w-[800px] p-0 gap-0 overflow-hidden bg-card border-border/60">
+        <div className="px-6 pt-6 pb-3">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold tracking-tight">
+            <DialogTitle className="text-lg font-bold tracking-tight">
               {editItem ? "Editar Subitem" : "Novo Subitem"}
             </DialogTitle>
           </DialogHeader>
         </div>
 
-        <div className="px-5 pb-5 space-y-3.5 max-h-[75vh] overflow-y-auto">
-          <div className="space-y-1">
+        <div className="px-6 pb-6 space-y-5 max-h-[85vh] overflow-y-auto">
+          <div className="space-y-1.5">
             <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
               Título <span className="text-primary">*</span>
             </label>
@@ -133,123 +133,128 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Nome do subitem..."
-              className="w-full px-3 py-2 rounded-lg bg-secondary text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow border-0"
+              className="w-full px-4 py-2.5 rounded-lg bg-secondary text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow border-0"
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
-              Detalhamento Funcional
-            </label>
-            <textarea
-              value={functionalDetail}
-              onChange={(e) => setFunctionalDetail(e.target.value)}
-              rows={2}
-              placeholder="Descreva o detalhamento funcional..."
-              className="w-full px-3 py-2 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow resize-none border-0"
-            />
+          {/* Grid para detalhamentos em telas maiores para melhor aproveitamento de espaço */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
+                Detalhamento Funcional
+              </label>
+              <textarea
+                value={functionalDetail}
+                onChange={(e) => setFunctionalDetail(e.target.value)}
+                rows={8}
+                placeholder="Descreva o detalhamento funcional com clareza..."
+                className="w-full px-4 py-3 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow resize-y border-0 min-h-[160px]"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
+                Detalhamento Técnico
+              </label>
+              <textarea
+                value={technicalDetail}
+                onChange={(e) => setTechnicalDetail(e.target.value)}
+                rows={8}
+                placeholder="Descreva as especificações técnicas, endpoints, tabelas..."
+                className="w-full px-4 py-3 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow resize-y border-0 min-h-[160px]"
+              />
+            </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
-              Detalhamento Técnico
-            </label>
-            <textarea
-              value={technicalDetail}
-              onChange={(e) => setTechnicalDetail(e.target.value)}
-              rows={2}
-              placeholder="Descreva o detalhamento técnico..."
-              className="w-full px-3 py-2 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow resize-none border-0"
-            />
-          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-end">
+            <div className="space-y-1.5 md:col-span-1">
+              <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
+                Estimativa (Horas) <span className="text-primary">*</span>
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={estimate || ""}
+                onChange={(e) => setEstimate(Number(e.target.value))}
+                placeholder="Ex: 8"
+                className="w-full px-4 py-2.5 rounded-lg bg-secondary text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow border-0"
+              />
+            </div>
 
-          <div className="space-y-1">
-            <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
-              Estimativa (Horas) <span className="text-primary">*</span>
-            </label>
-            <input
-              type="number"
-              min={0}
-              value={estimate || ""}
-              onChange={(e) => setEstimate(Number(e.target.value))}
-              placeholder="Ex: 8"
-              className="w-full px-3 py-2 rounded-lg bg-secondary text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow border-0"
-            />
-          </div>
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider flex items-center gap-1">
+                <Paperclip className="w-3 h-3" />
+                Anexar Documentos
+              </label>
 
-          <div className="space-y-2">
-            <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider flex items-center gap-1">
-              <Paperclip className="w-3 h-3" />
-              Anexar Documentos
-            </label>
-
-            <div className="space-y-2">
-              <AnimatePresence>
-                {attachments.map((file) => (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    key={file.id}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary text-xs"
-                  >
-                    <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
-                    {file.url ? (
-                      <a
-                        href={file.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline truncate flex-1"
-                      >
-                        {file.name}
-                      </a>
-                    ) : (
-                      <span className="text-foreground truncate flex-1">{file.name}</span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => removeAttachment(file.id)}
-                      className="text-muted-foreground hover:text-destructive shrink-0"
+              <div className="space-y-2">
+                <AnimatePresence>
+                  {attachments.map((file) => (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      key={file.id}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary text-xs"
                     >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+                      <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
+                      {file.url ? (
+                        <a
+                          href={file.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline truncate flex-1"
+                        >
+                          {file.name}
+                        </a>
+                      ) : (
+                        <span className="text-foreground truncate flex-1">{file.name}</span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(file.id)}
+                        className="text-muted-foreground hover:text-destructive shrink-0"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
 
-              <div
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setIsDragging(true);
-                }}
-                onDragLeave={(e) => {
-                  e.preventDefault();
-                  setIsDragging(false);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setIsDragging(false);
-                  handleFiles(e.dataTransfer.files);
-                }}
-                onClick={() => fileInputRef.current?.click()}
-                className={`relative cursor-pointer rounded-lg border border-dashed transition-all duration-300 ${
-                  isDragging
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/40 hover:bg-secondary/50"
-                }`}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => handleFiles(e.target.files)}
-                />
-                <div className="flex items-center justify-center gap-2 py-3">
-                  <CloudUpload className={`w-4 h-4 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
-                  <p className="text-[11px] text-muted-foreground">
-                    Solte ou <span className="text-primary font-medium">clique</span> para anexar vários arquivos
-                  </p>
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                    handleFiles(e.dataTransfer.files);
+                  }}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`relative cursor-pointer rounded-lg border border-dashed transition-all duration-300 ${
+                    isDragging
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/40 hover:bg-secondary/50"
+                  }`}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => handleFiles(e.target.files)}
+                  />
+                  <div className="flex items-center justify-center gap-2 py-2.5">
+                    <CloudUpload className={`w-4 h-4 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
+                    <p className="text-[11px] text-muted-foreground">
+                      Solte ou <span className="text-primary font-medium">clique</span> para anexar documentos
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -261,7 +266,7 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
             disabled={saving}
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.98 }}
-            className="w-full mt-4 py-2.5 rounded-xl font-semibold text-sm text-primary-foreground bg-gradient-to-r from-primary to-[hsl(262_83%_58%)] hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
+            className="w-full mt-2 py-3 rounded-xl font-semibold text-sm text-primary-foreground bg-gradient-to-r from-primary to-[hsl(262_83%_58%)] hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {saving ? (
               <>
