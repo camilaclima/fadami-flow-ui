@@ -31,8 +31,13 @@ export const SubItemCard = memo(({ item, onClick, onDelete, readOnly, dragHandle
       </div>
     )}
 
-    {/* Title */}
-    <span className="flex-1 text-sm font-medium text-foreground truncate">{item.title}</span>
+    {/* Order Number & Title */}
+    <div className="flex-1 flex items-center gap-2 min-w-0">
+      <span className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-md bg-foreground/5 text-[10px] font-bold text-muted-foreground border border-border/20">
+        {item.order + 1}
+      </span>
+      <span className="text-sm font-medium text-foreground truncate">{item.title}</span>
+    </div>
 
     {/* Attachment indicator */}
     {item.attachment && (
@@ -58,7 +63,10 @@ export const SubItemCard = memo(({ item, onClick, onDelete, readOnly, dragHandle
     {!readOnly && (
       <button
         type="button"
-        onClick={(e) => { e.stopPropagation(); onDelete(); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
         className="opacity-0 group-hover:opacity-100 text-muted-foreground/50 hover:text-destructive transition-all"
       >
         <Trash2 className="w-3.5 h-3.5" />
