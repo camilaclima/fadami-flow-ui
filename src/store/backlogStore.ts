@@ -27,12 +27,11 @@ function mapBacklog(row: any, phaseHistory: any[] = [], profilesMap: Record<stri
     return profilesMap[uid] ?? "Usuário desconhecido";
   };
 
-  // Helper para processar dados de fase que estão em JSONB
   const mapPhaseData = (data: any) => {
     if (!data) return undefined;
     return {
       ...data,
-      updatedBy: resolveUser(data.updated_by || data.updatedBy), // Aceita ambos os formatos
+      updatedBy: resolveUser(data.updated_by || data.updatedBy),
       updatedAt: data.updated_at || data.updatedAt,
     };
   };
@@ -66,7 +65,6 @@ interface BacklogStore {
   clients: Client[];
   loading: boolean;
   initialized: boolean;
-
   fetchAll: () => Promise<void>;
   addBacklog: (item: Omit<BacklogItem, "id" | "createdAt" | "phaseHistory" | "phase">) => void;
   updateBacklog: (id: string, updates: Partial<BacklogItem>) => void;
@@ -150,7 +148,7 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
         client_id: item.clientId || null,
         thermometer: item.thermometer,
         phase: "prioritization",
-        created_by: userId || item.createdBy || null,
+        created_by: userId || null,
         attachment: item.attachment || null,
       })
       .select()
@@ -205,16 +203,19 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
     const priority = calculatePriority(data.businessValue, data.opportunityCost, data.estimate);
     const now = new Date().toISOString();
 
+    // Adicionado "as any" para evitar erro de tipagem Json
+    const prioritizationUpdate = {
+      ...data,
+      priority,
+      updated_by: userData.user?.id,
+      updated_at: now,
+    } as any;
+
     await supabase
       .from("backlogs")
       .update({
         phase: "approval",
-        prioritization: {
-          ...data,
-          priority,
-          updated_by: userData.user?.id,
-          updated_at: now,
-        },
+        prioritization: prioritizationUpdate,
       })
       .eq("id", id);
 
@@ -237,15 +238,18 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
     const { data: userData } = await supabase.auth.getUser();
     const now = new Date().toISOString();
 
+    // Adicionado "as any" para evitar erro de tipagem Json
+    const approvalUpdate = {
+      ...data,
+      updated_by: userData.user?.id,
+      updated_at: now,
+    } as any;
+
     await supabase
       .from("backlogs")
       .update({
         phase: "refinement",
-        approval: {
-          ...data,
-          updated_by: userData.user?.id,
-          updated_at: now,
-        },
+        approval: approvalUpdate,
       })
       .eq("id", id);
 
@@ -268,15 +272,18 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
     const { data: userData } = await supabase.auth.getUser();
     const now = new Date().toISOString();
 
+    // Adicionado "as any" para evitar erro de tipagem Json
+    const refinementUpdate = {
+      ...data,
+      updated_by: userData.user?.id,
+      updated_at: now,
+    } as any;
+
     await supabase
       .from("backlogs")
       .update({
         phase: "available",
-        refinement: {
-          ...data,
-          updated_by: userData.user?.id,
-          updated_at: now,
-        },
+        refinement: refinementUpdate,
       })
       .eq("id", id);
 
@@ -351,9 +358,7 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
 
   completeRefinement: async (backlogId) => {
     const now = new Date().toISOString();
-
     await supabase.from("backlogs").update({ phase: "available" }).eq("id", backlogId);
-
     await supabase
       .from("backlog_phase_history")
       .update({ completed_at: now })
@@ -365,7 +370,6 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
       phase: "available",
       entered_at: now,
     });
-
     get().fetchAll();
   },
 }));
@@ -394,7 +398,7 @@ async function refreshSubItems(backlogId: string) {
     await supabase
       .from("backlogs")
       .update({
-        refinement: { ...currentRefinement, subItems: mapped },
+        refinement: { ...currentRefinement, subItems: mapped } as any,
       })
       .eq("id", backlogId);
   }
