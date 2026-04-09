@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +16,12 @@ import { useProducts } from "@/hooks/useProducts";
 import { useRoles } from "@/hooks/useRoles";
 import { useAccessGroups } from "@/hooks/useAccessGroups";
 import { useUpdateProfile, type Profile } from "@/hooks/useProfiles";
-import { useProfileProducts, useProfileGroups, useSyncProfileProducts, useSyncProfileGroups } from "@/hooks/useProfileRelations";
+import {
+  useProfileProducts,
+  useProfileGroups,
+  useSyncProfileProducts,
+  useSyncProfileGroups,
+} from "@/hooks/useProfileRelations";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Copy, Check } from "lucide-react";
@@ -72,10 +84,10 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
   }, [profile, cloneData, open, profileProducts, profileGroups]);
 
   const toggleProduct = (id: string) => {
-    setSelectedProductIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+    setSelectedProductIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
   const toggleGroup = (id: string) => {
-    setSelectedGroupIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+    setSelectedGroupIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
   const handleSubmit = async () => {
@@ -112,7 +124,6 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
 
-        // Sync many-to-many after profile creation
         const { data: newProfile } = await supabase
           .from("profiles")
           .select("id")
@@ -147,7 +158,8 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col">
+      {/* Ajustado para 550px e p-6 para evitar cortes laterais e no scroll */}
+      <DialogContent className="sm:max-w-[550px] w-[95vw] max-h-[90vh] flex flex-col p-6">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Editar Usuário" : cloneData ? "Clonar Usuário" : "Novo Usuário"}</DialogTitle>
           <DialogDescription>
@@ -171,44 +183,69 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
               <p className="text-[11px] text-muted-foreground">O usuário deverá alterar a senha no primeiro acesso.</p>
             </div>
             <DialogFooter>
-              <Button onClick={() => onOpenChange(false)}>Fechar</Button>
+              <Button onClick={() => onOpenChange(false)} className="rounded-xl">
+                Fechar
+              </Button>
             </DialogFooter>
           </div>
         ) : (
           <div className="flex flex-col flex-1 overflow-hidden">
-            <div className="space-y-4 py-2 overflow-y-auto flex-1">
+            <div className="space-y-4 py-2 overflow-y-auto flex-1 px-1 custom-scrollbar">
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Nome</Label>
-                  <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Nome" />
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Nome</Label>
+                  <Input
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="Nome"
+                    className="h-10"
+                  />
                 </div>
-                <div className="space-y-2">
-                  <Label>Sobrenome</Label>
-                  <Input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Sobrenome" />
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Sobrenome</Label>
+                  <Input
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Sobrenome"
+                    className="h-10"
+                  />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>E-mail</Label>
-                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@empresa.com" disabled={isEditing} />
+              <div className="space-y-1.5">
+                <Label className="text-sm">E-mail</Label>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="email@empresa.com"
+                  disabled={isEditing}
+                  className="h-10"
+                />
               </div>
-              <div className="space-y-2">
-                <Label>Cargo</Label>
+              <div className="space-y-1.5">
+                <Label className="text-sm">Cargo</Label>
                 <Select value={roleId} onValueChange={setRoleId}>
-                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
                   <SelectContent>
                     {roles.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>{r.title}</SelectItem>
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.title}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* Multi-select Products */}
-              <div className="space-y-2">
-                <Label>Produtos</Label>
-                <div className="bg-secondary/50 rounded-lg p-3 space-y-2 max-h-32 overflow-y-auto border border-border/40">
+              <div className="space-y-1.5">
+                <Label className="text-sm">Produtos</Label>
+                <div className="bg-secondary/30 rounded-xl p-3 space-y-2 max-h-40 overflow-y-auto border border-border/40">
                   {activeProducts.map((p) => (
-                    <label key={p.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-secondary/80 rounded px-1 py-0.5">
+                    <label
+                      key={p.id}
+                      className="flex items-center gap-2 text-sm cursor-pointer hover:bg-secondary/50 rounded-lg px-2 py-1.5 transition-colors"
+                    >
                       <Checkbox
                         checked={selectedProductIds.includes(p.id)}
                         onCheckedChange={() => toggleProduct(p.id)}
@@ -216,31 +253,40 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
                       <span className="text-foreground">{p.name}</span>
                     </label>
                   ))}
-                  {activeProducts.length === 0 && <p className="text-xs text-muted-foreground">Nenhum produto ativo.</p>}
+                  {activeProducts.length === 0 && (
+                    <p className="text-xs text-muted-foreground p-2">Nenhum produto ativo.</p>
+                  )}
                 </div>
               </div>
 
-              {/* Multi-select Groups */}
-              <div className="space-y-2">
-                <Label>Grupos de Acesso</Label>
-                <div className="bg-secondary/50 rounded-lg p-3 space-y-2 max-h-32 overflow-y-auto border border-border/40">
+              <div className="space-y-1.5">
+                <Label className="text-sm">Grupos de Acesso</Label>
+                <div className="bg-secondary/30 rounded-xl p-3 space-y-2 max-h-40 overflow-y-auto border border-border/40">
                   {accessGroups.map((g) => (
-                    <label key={g.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-secondary/80 rounded px-1 py-0.5">
-                      <Checkbox
-                        checked={selectedGroupIds.includes(g.id)}
-                        onCheckedChange={() => toggleGroup(g.id)}
-                      />
+                    <label
+                      key={g.id}
+                      className="flex items-center gap-2 text-sm cursor-pointer hover:bg-secondary/50 rounded-lg px-2 py-1.5 transition-colors"
+                    >
+                      <Checkbox checked={selectedGroupIds.includes(g.id)} onCheckedChange={() => toggleGroup(g.id)} />
                       <span className="text-foreground">{g.name}</span>
                     </label>
                   ))}
-                  {accessGroups.length === 0 && <p className="text-xs text-muted-foreground">Nenhum grupo disponível.</p>}
+                  {accessGroups.length === 0 && (
+                    <p className="text-xs text-muted-foreground p-2">Nenhum grupo disponível.</p>
+                  )}
                 </div>
               </div>
             </div>
-            <DialogFooter className="pt-2">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-              <Button onClick={handleSubmit} disabled={saving || !firstName.trim() || !email.trim() || !roleId}>
-                {saving ? "Salvando..." : isEditing ? "Salvar" : "Criar Usuário"}
+            <DialogFooter className="pt-4 border-t mt-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl">
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={saving || !firstName.trim() || !email.trim() || !roleId}
+                className="rounded-xl px-6"
+              >
+                {saving ? "Salvando..." : isEditing ? "Salvar Alterações" : "Criar Usuário"}
               </Button>
             </DialogFooter>
           </div>
