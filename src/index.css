@@ -53,7 +53,8 @@
     --phase-backlog: 228 8% 52%;
     --phase-prioritization: 252 56% 57%;
     --phase-approval: 262 83% 58%;
-    --phase-refinement: 199 89% 48%;
+    --phase-functional-refinement: 199 89% 48%;
+    --phase-technical-refinement: 187 80% 42%;
     --phase-available: 160 84% 39%;
     --phase-planned: 211 100% 50%;
     --phase-finished: 152 69% 45%;
@@ -121,7 +122,8 @@
     --phase-backlog: 220 14% 50%;
     --phase-prioritization: 252 56% 60%;
     --phase-approval: 262 83% 58%;
-    --phase-refinement: 199 89% 48%;
+    --phase-functional-refinement: 199 89% 48%;
+    --phase-technical-refinement: 187 80% 42%;
     --phase-available: 160 84% 39%;
     --phase-planned: 211 100% 50%;
     --phase-finished: 152 69% 45%;

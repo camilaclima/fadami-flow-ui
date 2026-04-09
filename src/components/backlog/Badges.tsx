@@ -16,7 +16,8 @@ const priorityConfig: Record<Priority, { label: string; className: string }> = {
 const phaseConfig: Record<Phase, string> = {
   prioritization: "bg-phase-prioritization/15 text-phase-prioritization",
   approval: "bg-phase-approval/15 text-phase-approval",
-  refinement: "bg-phase-refinement/15 text-phase-refinement",
+  functional_refinement: "bg-phase-functional-refinement/15 text-phase-functional-refinement",
+  technical_refinement: "bg-phase-technical-refinement/15 text-phase-technical-refinement",
   available: "bg-phase-available/15 text-phase-available",
   planned: "bg-phase-planned/15 text-phase-planned",
   finished: "bg-phase-finished/15 text-phase-finished",

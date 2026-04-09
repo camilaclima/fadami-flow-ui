@@ -80,10 +80,14 @@ export type Database = {
         Row: {
           attachment: string | null
           backlog_id: string
+          code_block: string
+          complexity: string
           created_at: string
+          effort_area: string
           estimate: number
           functional_detail: string
           id: string
+          implementation_notes: string
           sort_order: number
           technical_detail: string
           title: string
@@ -93,10 +97,14 @@ export type Database = {
         Insert: {
           attachment?: string | null
           backlog_id: string
+          code_block?: string
+          complexity?: string
           created_at?: string
+          effort_area?: string
           estimate?: number
           functional_detail?: string
           id?: string
+          implementation_notes?: string
           sort_order?: number
           technical_detail?: string
           title: string
@@ -106,10 +114,14 @@ export type Database = {
         Update: {
           attachment?: string | null
           backlog_id?: string
+          code_block?: string
+          complexity?: string
           created_at?: string
+          effort_area?: string
           estimate?: number
           functional_detail?: string
           id?: string
+          implementation_notes?: string
           sort_order?: number
           technical_detail?: string
           title?: string

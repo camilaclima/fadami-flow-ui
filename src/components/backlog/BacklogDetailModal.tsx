@@ -20,7 +20,8 @@ import {
   Clock,
   Settings2,
   CheckCircle,
-  Wrench,
+  FileText,
+  Code2,
   CalendarCheck,
   Flag,
   AlertCircle,
@@ -39,7 +40,8 @@ interface Props {
 const PHASE_ICONS: Record<Phase, React.ReactNode> = {
   prioritization: <Settings2 className="w-3.5 h-3.5" />,
   approval: <CheckCircle className="w-3.5 h-3.5" />,
-  refinement: <Wrench className="w-3.5 h-3.5" />,
+  functional_refinement: <FileText className="w-3.5 h-3.5" />,
+  technical_refinement: <Code2 className="w-3.5 h-3.5" />,
   available: <Clock className="w-3.5 h-3.5" />,
   planned: <CalendarCheck className="w-3.5 h-3.5" />,
   finished: <Flag className="w-3.5 h-3.5" />,
@@ -159,7 +161,6 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
 
   const getUserName = (data: any) => {
     if (!data) return null;
-    // Lógica para capturar de objetos aninhados (comum no banco nativo Lovable)
     const profile = data.profiles || data.user_profile || data.user;
     if (profile) {
       const first = profile.first_name || "";
@@ -184,6 +185,10 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
       date.toLocaleDateString("pt-BR") + " " + date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
     );
   };
+
+  // Phase indices for functional_refinement and technical_refinement
+  const funcRefIdx = PHASES.indexOf("functional_refinement");
+  const techRefIdx = PHASES.indexOf("technical_refinement");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -342,20 +347,40 @@ export function BacklogDetailModal({ item, open, onOpenChange }: Props) {
                 </PhaseAccordion>
               )}
 
-              {phaseIdx >= 2 && (
+              {phaseIdx >= funcRefIdx && (
                 <PhaseAccordion
-                  title="Refinamento"
-                  icon={PHASE_ICONS.refinement}
-                  defaultOpen={liveItem.phase === "refinement"}
-                  active={liveItem.phase === "refinement"}
-                  completed={phaseIdx > 2}
+                  title="Refinamento Funcional"
+                  icon={PHASE_ICONS.functional_refinement}
+                  defaultOpen={liveItem.phase === "functional_refinement"}
+                  active={liveItem.phase === "functional_refinement"}
+                  completed={phaseIdx > funcRefIdx}
                   updatedBy={getUserName(refinementData)}
                   updatedAt={formatDate(refinementData?.updatedAt)}
                 >
                   <RefinementForm
-                    key={`form-refi-${liveItem.id}`}
+                    key={`form-func-refi-${liveItem.id}`}
                     item={liveItem}
-                    readOnly={liveItem.phase !== "refinement"}
+                    refinementPhase="functional"
+                    readOnly={liveItem.phase !== "functional_refinement"}
+                  />
+                </PhaseAccordion>
+              )}
+
+              {phaseIdx >= techRefIdx && (
+                <PhaseAccordion
+                  title="Refinamento Técnico"
+                  icon={PHASE_ICONS.technical_refinement}
+                  defaultOpen={liveItem.phase === "technical_refinement"}
+                  active={liveItem.phase === "technical_refinement"}
+                  completed={phaseIdx > techRefIdx}
+                  updatedBy={getUserName(refinementData)}
+                  updatedAt={formatDate(refinementData?.updatedAt)}
+                >
+                  <RefinementForm
+                    key={`form-tech-refi-${liveItem.id}`}
+                    item={liveItem}
+                    refinementPhase="technical"
+                    readOnly={liveItem.phase !== "technical_refinement"}
                   />
                 </PhaseAccordion>
               )}

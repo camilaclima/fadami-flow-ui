@@ -1,6 +1,7 @@
 import { memo } from "react";
 import type { SubItem } from "@/types/backlog";
-import { GripVertical, Trash2, Clock, Paperclip } from "lucide-react";
+import { EFFORT_AREA_LABELS, COMPLEXITY_LABELS } from "@/types/backlog";
+import { GripVertical, Trash2, Clock, Paperclip, Code2, Database, Server, Monitor, Layers } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface Props {
@@ -9,9 +10,23 @@ interface Props {
   onDelete: () => void;
   readOnly?: boolean;
   dragHandleProps?: any;
+  refinementPhase?: "functional" | "technical";
 }
 
-export const SubItemCard = memo(({ item, onClick, onDelete, readOnly, dragHandleProps }: Props) => (
+const AREA_ICONS: Record<string, React.ReactNode> = {
+  database: <Database className="w-3 h-3" />,
+  backend: <Server className="w-3 h-3" />,
+  frontend: <Monitor className="w-3 h-3" />,
+  fullstack: <Layers className="w-3 h-3" />,
+};
+
+const COMPLEXITY_COLORS: Record<string, string> = {
+  easy: "bg-emerald-500/15 text-emerald-600",
+  medium: "bg-amber-500/15 text-amber-600",
+  hard: "bg-red-500/15 text-red-600",
+};
+
+export const SubItemCard = memo(({ item, onClick, onDelete, readOnly, dragHandleProps, refinementPhase }: Props) => (
   <motion.div
     layout
     initial={{ opacity: 0, y: 8 }}
@@ -39,10 +54,27 @@ export const SubItemCard = memo(({ item, onClick, onDelete, readOnly, dragHandle
       <span className="text-sm font-medium text-foreground truncate">{item.title}</span>
     </div>
 
+    {/* Technical badges */}
+    {refinementPhase === "technical" && (
+      <>
+        {item.effortArea && EFFORT_AREA_LABELS[item.effortArea] && (
+          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-secondary text-muted-foreground text-[10px] font-medium">
+            {AREA_ICONS[item.effortArea]}
+            <span className="hidden sm:inline">{EFFORT_AREA_LABELS[item.effortArea]}</span>
+          </div>
+        )}
+        {item.complexity && COMPLEXITY_LABELS[item.complexity] && (
+          <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-semibold ${COMPLEXITY_COLORS[item.complexity] || "bg-secondary text-muted-foreground"}`}>
+            {COMPLEXITY_LABELS[item.complexity]}
+          </span>
+        )}
+      </>
+    )}
+
     {/* Attachment indicator */}
     {item.attachment && (
       <a
-        href={item.attachment}
+        href={item.attachment.split(",")[0]}
         target="_blank"
         rel="noopener noreferrer"
         onClick={(e) => e.stopPropagation()}
@@ -53,11 +85,13 @@ export const SubItemCard = memo(({ item, onClick, onDelete, readOnly, dragHandle
       </a>
     )}
 
-    {/* Estimate badge */}
-    <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-primary/10 text-primary">
-      <Clock className="w-3 h-3" />
-      <span className="text-[11px] font-bold">{item.estimate}h</span>
-    </div>
+    {/* Estimate badge (only in technical) */}
+    {refinementPhase === "technical" && item.estimate > 0 && (
+      <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-primary/10 text-primary">
+        <Clock className="w-3 h-3" />
+        <span className="text-[11px] font-bold">{item.estimate}h</span>
+      </div>
+    )}
 
     {/* Delete */}
     {!readOnly && (

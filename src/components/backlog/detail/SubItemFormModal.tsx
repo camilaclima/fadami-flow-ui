@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import type { SubItem } from "@/types/backlog";
+import type { SubItem, EffortArea, Complexity } from "@/types/backlog";
+import { EFFORT_AREA_LABELS, COMPLEXITY_LABELS } from "@/types/backlog";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, CheckCircle2, CloudUpload, Paperclip, X, FileText } from "lucide-react";
 import { toast } from "sonner";
@@ -11,6 +12,7 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   onSave: (data: Omit<SubItem, "id" | "order">) => void;
   editItem?: SubItem | null;
+  refinementPhase: "functional" | "technical";
 }
 
 interface AttachmentItem {
@@ -20,7 +22,7 @@ interface AttachmentItem {
   file?: File;
 }
 
-export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props) {
+export function SubItemFormModal({ open, onOpenChange, onSave, editItem, refinementPhase }: Props) {
   const [title, setTitle] = useState("");
   const [functionalDetail, setFunctionalDetail] = useState("");
   const [technicalDetail, setTechnicalDetail] = useState("");
@@ -28,6 +30,10 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [codeBlock, setCodeBlock] = useState("");
+  const [implementationNotes, setImplementationNotes] = useState("");
+  const [effortArea, setEffortArea] = useState<EffortArea>("");
+  const [complexity, setComplexity] = useState<Complexity>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -36,6 +42,10 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
       setFunctionalDetail(editItem.functionalDetail);
       setTechnicalDetail(editItem.technicalDetail);
       setEstimate(editItem.estimate);
+      setCodeBlock(editItem.codeBlock || "");
+      setImplementationNotes(editItem.implementationNotes || "");
+      setEffortArea(editItem.effortArea || "");
+      setComplexity(editItem.complexity || "");
 
       if (editItem.attachment) {
         const urls = editItem.attachment.split(",");
@@ -55,18 +65,20 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
       setTechnicalDetail("");
       setEstimate(0);
       setAttachments([]);
+      setCodeBlock("");
+      setImplementationNotes("");
+      setEffortArea("");
+      setComplexity("");
     }
   }, [editItem, open]);
 
   const handleFiles = useCallback((files: FileList | null) => {
     if (!files) return;
-
     const newFiles: AttachmentItem[] = Array.from(files).map((file) => ({
       id: Math.random().toString(36).substr(2, 9),
       name: file.name,
       file: file,
     }));
-
     setAttachments((prev) => [...prev, ...newFiles]);
   }, []);
 
@@ -79,7 +91,7 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
       toast.error("Informe o título do subitem.");
       return;
     }
-    if (estimate <= 0) {
+    if (refinementPhase === "technical" && estimate <= 0) {
       toast.error("Informe a estimativa em horas.");
       return;
     }
@@ -102,6 +114,10 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
         technicalDetail,
         estimate,
         attachment: finalAttachmentString || undefined,
+        codeBlock: codeBlock || undefined,
+        implementationNotes: implementationNotes || undefined,
+        effortArea: effortArea || undefined,
+        complexity: complexity || undefined,
       });
       onOpenChange(false);
     } catch (err) {
@@ -112,19 +128,25 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
     }
   };
 
+  const isFunctional = refinementPhase === "functional";
+  const isTechnical = refinementPhase === "technical";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] p-0 gap-0 overflow-hidden bg-card border-border/60 shadow-xl">
         <div className="px-6 pt-5 pb-2">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold tracking-tight">
-              {editItem ? "Editar Subitem" : "Novo Subitem"}
+              {editItem ? "Editar Subitem" : "Novo Subitem"}{" "}
+              <span className="text-xs font-normal text-muted-foreground">
+                — {isFunctional ? "Refinamento Funcional" : "Refinamento Técnico"}
+              </span>
             </DialogTitle>
           </DialogHeader>
         </div>
 
         <div className="px-6 pb-6 space-y-3 max-h-[82vh] overflow-y-auto">
-          {/* Título - Fonte restaurada para sm */}
+          {/* Título */}
           <div className="space-y-1">
             <label className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">
               Título <span className="text-primary">*</span>
@@ -137,48 +159,103 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
             />
           </div>
 
-          {/* Funcional - Reduzido rows para 3 para ganhar espaço sem diminuir letra */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">
-              Detalhamento Funcional
-            </label>
-            <textarea
-              value={functionalDetail}
-              onChange={(e) => setFunctionalDetail(e.target.value)}
-              rows={3}
-              placeholder="Descreva o detalhamento funcional..."
-              className="w-full px-4 py-2.5 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow resize-y border-0 min-h-[90px]"
-            />
-          </div>
+          {/* Funcional: Descrição de Negócio */}
+          {isFunctional && (
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">
+                Descrição de Negócio
+              </label>
+              <textarea
+                value={functionalDetail}
+                onChange={(e) => setFunctionalDetail(e.target.value)}
+                rows={3}
+                placeholder="Descreva o detalhamento funcional / regra de negócio..."
+                className="w-full px-4 py-2.5 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow resize-y border-0 min-h-[90px]"
+              />
+            </div>
+          )}
 
-          {/* Técnico - Reduzido rows para 3 */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">
-              Detalhamento Técnico
-            </label>
-            <textarea
-              value={technicalDetail}
-              onChange={(e) => setTechnicalDetail(e.target.value)}
-              rows={3}
-              placeholder="Descreva o detalhamento técnico..."
-              className="w-full px-4 py-2.5 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow resize-y border-0 min-h-[90px]"
-            />
-          </div>
+          {/* Técnico: Bloco de Código */}
+          {isTechnical && (
+            <>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">
+                  Bloco de Código
+                </label>
+                <textarea
+                  value={codeBlock}
+                  onChange={(e) => setCodeBlock(e.target.value)}
+                  rows={4}
+                  placeholder="Queries SQL, JSONs, endpoints, exemplos de código..."
+                  className="w-full px-4 py-2.5 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow resize-y border-0 min-h-[100px] font-mono text-xs"
+                />
+              </div>
 
-          {/* Estimativa */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">
-              Estimativa (Horas) <span className="text-primary">*</span>
-            </label>
-            <input
-              type="number"
-              min={0}
-              value={estimate || ""}
-              onChange={(e) => setEstimate(Number(e.target.value))}
-              placeholder="Ex: 8"
-              className="w-full px-4 py-2.5 rounded-lg bg-secondary text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow border-0"
-            />
-          </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">
+                  Notas de Implementação
+                </label>
+                <textarea
+                  value={implementationNotes}
+                  onChange={(e) => setImplementationNotes(e.target.value)}
+                  rows={3}
+                  placeholder="Dicas técnicas, fluxos de dados, dependências..."
+                  className="w-full px-4 py-2.5 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow resize-y border-0 min-h-[90px]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {/* Área de Atuação */}
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">
+                    Área de Atuação
+                  </label>
+                  <select
+                    value={effortArea}
+                    onChange={(e) => setEffortArea(e.target.value as EffortArea)}
+                    className="w-full px-4 py-2.5 rounded-lg bg-secondary text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow border-0"
+                  >
+                    <option value="">Selecione...</option>
+                    {Object.entries(EFFORT_AREA_LABELS).map(([k, v]) => (
+                      <option key={k} value={k}>{v}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Complexidade */}
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">
+                    Complexidade
+                  </label>
+                  <select
+                    value={complexity}
+                    onChange={(e) => setComplexity(e.target.value as Complexity)}
+                    className="w-full px-4 py-2.5 rounded-lg bg-secondary text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow border-0"
+                  >
+                    <option value="">Selecione...</option>
+                    {Object.entries(COMPLEXITY_LABELS).map(([k, v]) => (
+                      <option key={k} value={k}>{v}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Estimativa */}
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">
+                  Estimativa (Horas) <span className="text-primary">*</span>
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={estimate || ""}
+                  onChange={(e) => setEstimate(Number(e.target.value))}
+                  placeholder="Ex: 8"
+                  className="w-full px-4 py-2.5 rounded-lg bg-secondary text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow border-0"
+                />
+              </div>
+            </>
+          )}
 
           {/* Anexos */}
           <div className="space-y-2">

@@ -1,7 +1,8 @@
 export type Phase =
   | "prioritization"
   | "approval"
-  | "refinement"
+  | "functional_refinement"
+  | "technical_refinement"
   | "available"
   | "planned"
   | "finished";
@@ -9,7 +10,8 @@ export type Phase =
 export const PHASES: Phase[] = [
   "prioritization",
   "approval",
-  "refinement",
+  "functional_refinement",
+  "technical_refinement",
   "available",
   "planned",
   "finished",
@@ -18,7 +20,8 @@ export const PHASES: Phase[] = [
 export const PHASE_LABELS: Record<Phase, string> = {
   prioritization: "Priorização",
   approval: "Aprovação",
-  refinement: "Refinamento",
+  functional_refinement: "Ref. Funcional",
+  technical_refinement: "Ref. Técnico",
   available: "Disponível",
   planned: "Planejado",
   finished: "Finalizado",
@@ -27,6 +30,21 @@ export const PHASE_LABELS: Record<Phase, string> = {
 export type Thermometer = "low" | "medium" | "high";
 export type Priority = "low" | "medium" | "high";
 export type BacklogType = "functional" | "technical";
+export type EffortArea = "database" | "backend" | "frontend" | "fullstack" | "";
+export type Complexity = "easy" | "medium" | "hard" | "";
+
+export const EFFORT_AREA_LABELS: Record<string, string> = {
+  database: "Banco de Dados",
+  backend: "Back-end",
+  frontend: "Front-end",
+  fullstack: "Full-stack",
+};
+
+export const COMPLEXITY_LABELS: Record<string, string> = {
+  easy: "Fácil",
+  medium: "Médio",
+  hard: "Difícil",
+};
 
 export const BACKLOG_TYPE_LABELS: Record<BacklogType, string> = {
   functional: "Funcional",
@@ -62,6 +80,10 @@ export interface SubItem {
   estimate: number;
   attachment?: string;
   order: number;
+  codeBlock?: string;
+  implementationNotes?: string;
+  effortArea?: EffortArea;
+  complexity?: Complexity;
 }
 
 export interface RefinementData {
