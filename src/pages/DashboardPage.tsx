@@ -59,7 +59,7 @@ function KpiCard({ label, value, secondary, icon: Icon, delay, accent, descripti
 }
 
 export default function DashboardPage() {
-  const { data: rawBacklogs = [] } = useBacklogs();
+  const { data: rawBacklogs = [], isLoading } = useBacklogs();
   const navigate = useNavigate();
 
   const { data: profiles = [] } = useQuery({
@@ -76,7 +76,7 @@ export default function DashboardPage() {
   }, {});
 
   const backlogs = rawBacklogs as any[];
-  const finished = backlogs.filter((b) => b.phase === "finished"); // Definido no escopo principal
+  const finishedCount = backlogs.filter((b) => b.phase === "finished").length;
 
   const stats = backlogs.reduce(
     (acc: any, b) => {
@@ -125,6 +125,8 @@ export default function DashboardPage() {
     },
   );
 
+  if (isLoading) return <div className="p-8 text-center text-muted-foreground">Carregando indicadores...</div>;
+
   return (
     <div className="fade-in space-y-8 pb-10">
       <div>
@@ -150,37 +152,37 @@ export default function DashboardPage() {
 
         <TabsContent value="tatico" className="space-y-6">
           <div className="neu-card p-6 rounded-3xl">
-            <h3 className="text-sm font-bold uppercase mb-6 flex items-center gap-2">
-              <UserCheck className="w-4 h-4 text-primary" /> Atuação por Etapa e Usuário
+            <h3 className="text-sm font-bold uppercase mb-6 flex items-center gap-2 text-primary tracking-tighter">
+              <UserCheck className="w-4 h-4" /> Atuação por Etapa e Usuário
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-border">
                     <th className="py-3 text-[10px] font-black uppercase text-muted-foreground">Usuário</th>
-                    <th className="py-3 text-[10px] font-black uppercase text-center text-muted-foreground">Criados</th>
-                    <th className="py-3 text-[10px] font-black uppercase text-center text-sky-500">Aprovados</th>
-                    <th className="py-3 text-[10px] font-black uppercase text-center text-indigo-500">
-                      Ref. Funcional
-                    </th>
-                    <th className="py-3 text-[10px] font-black uppercase text-center text-primary">Ref. Técnico</th>
-                    <th className="py-3 text-[10px] font-black uppercase text-center text-emerald-500">Priorizados</th>
+                    <th className="py-3 text-[10px] font-black uppercase text-center text-muted-foreground">Total</th>
+                    <th className="py-3 text-[10px] font-black uppercase text-center text-sky-500">Aprovação</th>
+                    <th className="py-3 text-[10px] font-black uppercase text-center text-indigo-500">Ref. Func</th>
+                    <th className="py-3 text-[10px] font-black uppercase text-center text-primary">Ref. Técn</th>
+                    <th className="py-3 text-[10px] font-black uppercase text-center text-emerald-500">Prontos</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {Object.entries(stats.users).map(([name, data]: any) => (
                     <tr key={name} className="hover:bg-foreground/[0.02] transition-colors">
                       <td className="py-4 text-xs font-bold uppercase">{name}</td>
-                      <td className="py-4 text-center text-sm font-black">{data.total}</td>
-                      <td className="py-4 text-center text-sm font-bold text-sky-500">{data.byPhase.approval || 0}</td>
+                      <td className="py-4 text-center text-sm font-black">{data?.total || 0}</td>
+                      <td className="py-4 text-center text-sm font-bold text-sky-500">
+                        {data?.byPhase?.approval || 0}
+                      </td>
                       <td className="py-4 text-center text-sm font-bold text-indigo-500">
-                        {data.byPhase.functional_refinement || 0}
+                        {data?.byPhase?.functional_refinement || 0}
                       </td>
                       <td className="py-4 text-center text-sm font-bold text-primary">
-                        {data.byPhase.technical_refinement || 0}
+                        {data?.byPhase?.technical_refinement || 0}
                       </td>
                       <td className="py-4 text-center text-sm font-bold text-emerald-500">
-                        {data.byPhase.available || 0}
+                        {data?.byPhase?.available || 0}
                       </td>
                     </tr>
                   ))}
@@ -193,8 +195,8 @@ export default function DashboardPage() {
         <TabsContent value="segmentation" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="neu-card p-6 rounded-3xl">
-              <h3 className="text-sm font-bold uppercase mb-4 flex items-center gap-2 text-primary">
-                <Box className="w-4 h-4" /> Backlogs por Produto
+              <h3 className="text-sm font-bold uppercase mb-4 flex items-center gap-2 text-primary tracking-tighter">
+                <Box className="w-4 h-4" /> Progresso por Produto
               </h3>
               <div className="space-y-4">
                 {Object.entries(stats.products).map(([name, data]: any) => (
@@ -203,15 +205,17 @@ export default function DashboardPage() {
                       <span>
                         {name} ({data.total})
                       </span>
-                      <span className="text-primary">{data.hours}h estimadas</span>
+                      <span className="text-primary">{data.hours}h</span>
                     </div>
                     <div className="flex h-2 w-full bg-secondary rounded-full overflow-hidden">
                       <div
-                        style={{ width: `${((data.byPhase.finished || 0) / data.total) * 100}%` }}
+                        style={{ width: `${((data?.byPhase?.finished || 0) / (data.total || 1)) * 100}%` }}
                         className="bg-emerald-500"
                       />
                       <div
-                        style={{ width: `${((data.total - (data.byPhase.finished || 0)) / data.total) * 100}%` }}
+                        style={{
+                          width: `${((data.total - (data?.byPhase?.finished || 0)) / (data.total || 1)) * 100}%`,
+                        }}
                         className="bg-amber-500"
                       />
                     </div>
@@ -221,8 +225,8 @@ export default function DashboardPage() {
             </div>
 
             <div className="neu-card p-6 rounded-3xl">
-              <h3 className="text-sm font-bold uppercase mb-4 flex items-center gap-2 text-sky-500">
-                <Users className="w-4 h-4" /> Backlogs por Cliente
+              <h3 className="text-sm font-bold uppercase mb-4 flex items-center gap-2 text-sky-500 tracking-tighter">
+                <Users className="w-4 h-4" /> Progresso por Cliente
               </h3>
               <div className="space-y-4">
                 {Object.entries(stats.clients).map(([name, data]: any) => (
@@ -235,11 +239,13 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex h-2 w-full bg-secondary rounded-full overflow-hidden">
                       <div
-                        style={{ width: `${((data.byPhase.finished || 0) / data.total) * 100}%` }}
+                        style={{ width: `${((data?.byPhase?.finished || 0) / (data.total || 1)) * 100}%` }}
                         className="bg-emerald-500"
                       />
                       <div
-                        style={{ width: `${((data.total - (data.byPhase.finished || 0)) / data.total) * 100}%` }}
+                        style={{
+                          width: `${((data.total - (data?.byPhase?.finished || 0)) / (data.total || 1)) * 100}%`,
+                        }}
                         className="bg-sky-500"
                       />
                     </div>
@@ -273,8 +279,8 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard label="Alinhamento" value="85%" icon={Target} />
             <KpiCard label="Lead Time" value="14d" icon={Timer} />
-            <KpiCard label="Throughput" value={finished.length} icon={ArrowLeftRight} />
-            <KpiCard label="Efficiency" value="92%" icon={Gauge} />
+            <KpiCard label="Throughput" value={finishedCount} icon={ArrowLeftRight} />
+            <KpiCard label="Eficiência" value="92%" icon={Gauge} />
           </div>
         </TabsContent>
       </Tabs>
