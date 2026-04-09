@@ -65,14 +65,21 @@ export default function DashboardPage() {
   const strategicItems = backlogs.filter((b) => (b.prioritization?.businessValue || 0) >= 4);
 
   // --- LÓGICA DE USUÁRIOS (TÁTICO) ---
+  // --- LÓGICA DE USUÁRIOS (TÁTICO) ---
   const userStats = backlogs.reduce((acc: any, b) => {
-    const user = b.created_by || b.createdBy || "Sistema";
+    // Tenta pegar o nome mapeado (createdBy), se não existir, usa o ID bruto (created_by)
+    // No nosso store, 'createdBy' já vem com o Nome + Sobrenome do profile
+    const user = b.createdBy || b.created_by || "Sistema";
+
     if (!acc[user]) acc[user] = { total: 0, finished: 0, phases: {}, highValue: 0 };
+
     acc[user].total += 1;
     if (b.phase === "finished") acc[user].finished += 1;
     if ((b.prioritization?.businessValue || 0) >= 4) acc[user].highValue += 1;
+
     const phaseLabel = PHASE_LABELS[b.phase as Phase] || b.phase;
     acc[user].phases[phaseLabel] = (acc[user].phases[phaseLabel] || 0) + 1;
+
     return acc;
   }, {});
 
