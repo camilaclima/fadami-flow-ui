@@ -23,9 +23,6 @@ import {
   Briefcase,
   TrendingUp,
   Box,
-  UserGroup,
-  Stethoscope,
-  HardHat,
   Monitor,
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -34,7 +31,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-// Reutilizando o KpiCard anterior para manter o estilo
 function KpiCard({ label, value, secondary, icon: Icon, delay, accent, description }: any) {
   return (
     <motion.div
@@ -66,7 +62,6 @@ export default function DashboardPage() {
   const { data: rawBacklogs = [] } = useBacklogs();
   const navigate = useNavigate();
 
-  // 1. BUSCA DE DADOS AUXILIARES (Profiles)
   const { data: profiles = [] } = useQuery({
     queryKey: ["profiles-map"],
     queryFn: async () => {
@@ -81,12 +76,10 @@ export default function DashboardPage() {
   }, {});
 
   const backlogs = rawBacklogs as any[];
-
-  // --- LÓGICA DE AGRUPAMENTO AVANÇADO ---
+  const finished = backlogs.filter((b) => b.phase === "finished"); // Definido no escopo principal
 
   const stats = backlogs.reduce(
     (acc: any, b) => {
-      // Nomes e Ids
       const userId = b.created_by || b.createdBy;
       const userName = profilesMap[userId] || (userId ? `User: ${userId.slice(0, 4)}` : "Sistema");
       const product = b.product_name || b.product || "Sem Produto";
@@ -96,7 +89,6 @@ export default function DashboardPage() {
       const priority = b.prioritization?.priority || "medium";
       const estimate = b.refinement?.estimate || 0;
 
-      // Inicialização de grupos
       if (!acc.users[userName]) acc.users[userName] = { total: 0, byPhase: {} };
       if (!acc.products[product]) acc.products[product] = { total: 0, hours: 0, byStatus: {} };
       if (!acc.clients[client]) acc.clients[client] = { total: 0, hours: 0, byStatus: {} };
@@ -104,7 +96,6 @@ export default function DashboardPage() {
       if (!acc.areas[area]) acc.areas[area] = 0;
       if (!acc.complexities[complexity]) acc.complexities[complexity] = 0;
 
-      // Incrementos
       acc.users[userName].total += 1;
       acc.users[userName].byPhase[b.phase] = (acc.users[userName].byPhase[b.phase] || 0) + 1;
 
@@ -157,7 +148,6 @@ export default function DashboardPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* --- ABA: PRODUTIVIDADE/TIME (Sua solicitação de usuários) --- */}
         <TabsContent value="tatico" className="space-y-6">
           <div className="neu-card p-6 rounded-3xl">
             <h3 className="text-sm font-bold uppercase mb-6 flex items-center gap-2">
@@ -200,10 +190,8 @@ export default function DashboardPage() {
           </div>
         </TabsContent>
 
-        {/* --- ABA: PRODUTO & CLIENTE (Status e Gráficos de Barra) --- */}
         <TabsContent value="segmentation" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Bloco Produto */}
             <div className="neu-card p-6 rounded-3xl">
               <h3 className="text-sm font-bold uppercase mb-4 flex items-center gap-2 text-primary">
                 <Box className="w-4 h-4" /> Backlogs por Produto
@@ -221,12 +209,10 @@ export default function DashboardPage() {
                       <div
                         style={{ width: `${((data.byPhase.finished || 0) / data.total) * 100}%` }}
                         className="bg-emerald-500"
-                        title="Finalizados"
                       />
                       <div
                         style={{ width: `${((data.total - (data.byPhase.finished || 0)) / data.total) * 100}%` }}
                         className="bg-amber-500"
-                        title="Em andamento"
                       />
                     </div>
                   </div>
@@ -234,10 +220,9 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Bloco Cliente */}
             <div className="neu-card p-6 rounded-3xl">
               <h3 className="text-sm font-bold uppercase mb-4 flex items-center gap-2 text-sky-500">
-                <UserGroup className="w-4 h-4" /> Backlogs por Cliente
+                <Users className="w-4 h-4" /> Backlogs por Cliente
               </h3>
               <div className="space-y-4">
                 {Object.entries(stats.clients).map(([name, data]: any) => (
@@ -265,7 +250,6 @@ export default function DashboardPage() {
           </div>
         </TabsContent>
 
-        {/* --- ABA: CARGA & ESFORÇO (Área, Complexidade, Prioridade) --- */}
         <TabsContent value="operational" className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard
@@ -283,41 +267,8 @@ export default function DashboardPage() {
             <KpiCard label="Área: Backend" value={stats.areas["Backend"] || 0} icon={Code2} />
             <KpiCard label="Área: Frontend" value={stats.areas["Frontend"] || 0} icon={Monitor} />
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="neu-card p-6 rounded-3xl">
-              <h3 className="text-sm font-bold uppercase mb-4">Volume por Prioridade</h3>
-              <div className="space-y-4">
-                {Object.entries(stats.priority).map(([name, data]: any) => (
-                  <div key={name} className="flex items-center gap-4">
-                    <span className="text-[10px] font-black uppercase w-16">{name}</span>
-                    <div className="flex-1 h-3 bg-secondary rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary"
-                        style={{ width: `${(data.total / backlogs.length) * 100}%` }}
-                      />
-                    </div>
-                    <span className="text-xs font-bold">{data.total}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="neu-card p-6 rounded-3xl">
-              <h3 className="text-sm font-bold uppercase mb-4">Complexidade do Backlog</h3>
-              <div className="grid grid-cols-3 gap-2">
-                {Object.entries(stats.complexities).map(([name, val]: any) => (
-                  <div key={name} className="text-center p-4 bg-secondary/20 rounded-2xl">
-                    <p className="text-lg font-black">{val}</p>
-                    <p className="text-[9px] font-bold uppercase text-muted-foreground">{name}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
         </TabsContent>
 
-        {/* Aba estratégica original mantida para contexto de negócio */}
         <TabsContent value="strategic">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard label="Alinhamento" value="85%" icon={Target} />
