@@ -18,6 +18,7 @@ import {
   Recycle,
   Ban,
   Microscope,
+  ArrowLeftRight, // Corrigido de ArrowRightLeft para ArrowLeftRight
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -56,7 +57,7 @@ export default function DashboardPage() {
 
   // 1. ESTRATÉGICOS
   const strategicAlignment = Math.round(
-    (backlogs.filter((b) => b.prioritization?.businessValue >= 4).length / (backlogs.length || 1)) * 100,
+    (backlogs.filter((b) => (b.prioritization?.businessValue || 0) >= 4).length / (backlogs.length || 1)) * 100,
   );
   const deliveredValue = finished.reduce((acc, b) => acc + (b.prioritization?.businessValue || 0), 0);
   const abandonedRate = Math.round(
@@ -64,12 +65,13 @@ export default function DashboardPage() {
   );
 
   // 2. TÁTICOS
-  const throughput = finished.length; // Total entregue no período
+  const throughput = finished.length;
   const wip = backlogs.filter((b) => !["finished", "prioritization"].includes(b.phase)).length;
 
   // 3. OPERACIONAIS
   const readyToSprint = backlogs.filter((b) => b.phase === "available").length;
-  const readyRate = Math.round((readyToSprint / (backlogs.filter((b) => b.phase !== "finished").length || 1)) * 100);
+  const activeItems = backlogs.filter((b) => b.phase !== "finished").length;
+  const readyRate = Math.round((readyToSprint / (activeItems || 1)) * 100);
   const highPriorityItems = backlogs.filter((b) => b.prioritization?.priority === "high").length;
 
   return (
@@ -77,7 +79,7 @@ export default function DashboardPage() {
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-black text-foreground tracking-tighter uppercase">ProdOps Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Monitoramento de Fluxo, Eficiência e Valor</p>
+          <p className="text-sm text-muted-foreground mt-1">Monitoramento de Fluxo, Eficiência e Valor</p>
         </div>
       </div>
 
@@ -138,7 +140,7 @@ export default function DashboardPage() {
               <div style={{ width: "20%" }} className="bg-amber-400" title="Bug" />
               <div style={{ width: "10%" }} className="bg-rose-400" title="Técnico" />
             </div>
-            <div className="flex gap-4 mt-4 justify-center">
+            <div className="flex flex-wrap gap-4 mt-4 justify-center">
               <div className="flex items-center gap-1 text-[10px] font-bold uppercase">
                 <div className="w-2 h-2 rounded-full bg-primary" /> Inovação
               </div>
@@ -162,7 +164,7 @@ export default function DashboardPage() {
               label="Throughput"
               value={throughput}
               secondary="itens"
-              icon={ArrowRightLeft}
+              icon={ArrowLeftRight}
               delay={0}
               description="Itens finalizados no período."
             />
@@ -232,15 +234,17 @@ export default function DashboardPage() {
             <div className="neu-card p-5 rounded-2xl">
               <h3 className="text-[10px] font-black uppercase text-muted-foreground mb-4">Saúde do Backlog</h3>
               <p className="text-sm">
-                Existem <strong>{readyToSprint}</strong> itens prontos para desenvolvimento, o que representa{" "}
-                <strong>{readyRate}%</strong> da capacidade necessária para a próxima sprint.
+                Existem <strong>{readyToSprint}</strong> itens prontos para desenvolvimento, representando{" "}
+                <strong>{readyRate}%</strong> do backlog ativo.
               </p>
             </div>
             <div className="neu-card p-5 rounded-2xl">
               <h3 className="text-[10px] font-black uppercase text-muted-foreground mb-4">Alerta de Prioridade</h3>
               <p className="text-sm">
                 <strong>{highPriorityItems}</strong> itens são de alta prioridade.{" "}
-                {highPriorityItems > 5 ? "Atenção: Sobrecarga de urgências." : "Carga de prioridade saudável."}
+                {highPriorityItems > 5
+                  ? "Atenção: Sobrecarga de urgências detectada."
+                  : "Volume de prioridades sob controle."}
               </p>
             </div>
           </div>
