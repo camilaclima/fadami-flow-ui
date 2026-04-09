@@ -1,80 +1,174 @@
-import { useEffect } from "react";
-import { motion } from "framer-motion";
-import type { Phase } from "@/types/backlog";
-import { PHASES, PHASE_LABELS } from "@/types/backlog";
-import { useBacklogStore } from "@/store/backlogStore";
-import { Layers, Scale, Eye, FileText, Code2, CircleCheck, CalendarClock, Trophy } from "lucide-react";
+import { create } from "zustand";
+import { supabase } from "@/integrations/supabase/client";
+import type {
+  BacklogItem,
+  Product,
+  Client,
+  Phase,
+  PrioritizationData,
+  ApprovalData,
+  RefinementData,
+  Priority,
+  SubItem,
+} from "@/types/backlog";
 
-const PHASE_ICONS: Record<Phase, React.ElementType> = {
-  prioritization: Scale,
-  approval: Eye,
-  functional_refinement: FileText,
-  technical_refinement: Code2,
-  available: CircleCheck,
-  planned: CalendarClock,
-  finished: Trophy,
-};
-
-const PHASE_COLORS: Record<Phase, string> = {
-  prioritization: "primary",
-  approval: "amber-500",
-  functional_refinement: "blue-500",
-  technical_refinement: "indigo-500",
-  available: "emerald-500",
-  planned: "orange-500",
-  finished: "purple-500",
-};
-
-export function PhaseFilterBar({
-  selected,
-  onSelect,
-}: {
-  selected: Phase | "all";
-  onSelect: (p: Phase | "all") => void;
-}) {
-  const { backlogs, fetchAll, initialized } = useBacklogStore();
-  useEffect(() => {
-    if (!initialized) fetchAll();
-  }, [initialized, fetchAll]);
-
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 w-full">
-      <motion.button
-        onClick={() => onSelect("all")}
-        className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all neu-card ${selected === "all" ? "bg-card shadow-lg ring-1 ring-primary/20" : "hover:bg-accent"}`}
-      >
-        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-          <Layers className="w-5 h-5 text-primary" />
-        </div>
-        <div className="text-left">
-          <p className="text-xl font-bold leading-none">{backlogs.length}</p>
-          <p className="text-[10px] uppercase font-bold text-muted-foreground mt-1">Total</p>
-        </div>
-      </motion.button>
-
-      {PHASES.map((phase) => {
-        const count = backlogs.filter((b) => b.phase === phase).length;
-        const Icon = PHASE_ICONS[phase];
-        const isActive = selected === phase;
-
-        return (
-          <motion.button
-            key={phase}
-            onClick={() => onSelect(phase)}
-            className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all neu-card ${isActive ? "bg-card shadow-lg ring-1 ring-primary/20" : "hover:bg-accent"}`}
-          >
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-${PHASE_COLORS[phase]}/10`}>
-              <Icon className={`w-5 h-5 text-${PHASE_COLORS[phase]}`} />
-            </div>
-            <div className="text-left">
-              <p className="text-xl font-bold leading-none">{count}</p>
-              <p className="text-[10px] uppercase font-bold text-muted-foreground mt-1">
-                {PHASE_LABELS[phase].split(". ")[1]}
-              </p>
-            </div>
-          </motion.button>
-        );
-      })}
-    </div>
-  );
+function calculatePriority(bv: number, oc: number, est: number): Priority {
+  const score = (bv + oc) / 2 - est / 20;
+  if (score >= 3.5) return "high";
+  if (score >= 2) return "medium";
+  return "low";
 }
+
+function mapBacklog(row: any, phaseHistory: any[] = [], profilesMap: Record<string, string> = {}): BacklogItem {
+  const resolveUser = (uid: string) => (uid ? (profilesMap[uid] ?? "Usuário") : "—");
+  const mapPhaseData = (data: any) =>
+    data
+      ? {
+          ...data,
+          updatedBy: resolveUser(data.updated_by || data.updatedBy),
+          updatedAt: data.updated_at || data.updatedAt,
+        }
+      : undefined;
+
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description ?? "",
+    attachment: row.attachment,
+    type: row.type ?? "functional",
+    productId: row.product_id ?? "",
+    clientId: row.client_id ?? undefined,
+    thermometer: row.thermometer ?? "medium",
+    phase: row.phase as Phase,
+    createdBy: resolveUser(row.created_by),
+    createdAt: row.created_at,
+    phaseHistory: phaseHistory.map((h: any) => ({
+      phase: h.phase as Phase,
+      enteredAt: h.entered_at,
+      completedAt: h.completed_at ?? undefined,
+    })),
+    prioritization: mapPhaseData(row.prioritization),
+    approval: mapPhaseData(row.approval),
+    refinement: mapPhaseData(row.refinement),
+  };
+}
+
+interface BacklogStore {
+  backlogs: BacklogItem[];
+  products: Product[];
+  clients: Client[];
+  loading: boolean;
+  initialized: boolean;
+  fetchAll: () => Promise<void>;
+  updateBacklog: (id: string, updates: Partial<BacklogItem>) => Promise<void>;
+  saveApproval: (id: string, data: ApprovalData) => Promise<void>;
+  completeRefinement: (backlogId: string, type: "functional" | "technical") => Promise<void>;
+  saveRefinement: (id: string, data: RefinementData) => Promise<void>;
+}
+
+export const useBacklogStore = create<BacklogStore>((set, get) => ({
+  backlogs: [],
+  products: [],
+  clients: [],
+  loading: false,
+  initialized: false,
+
+  fetchAll: async () => {
+    set({ loading: true });
+    try {
+      const [backlogsRes, historyRes, productsRes, clientsRes, profilesRes] = await Promise.all([
+        supabase.from("backlogs").select("*").order("created_at", { ascending: false }),
+        supabase.from("backlog_phase_history").select("*").order("entered_at"),
+        supabase.from("products").select("*").eq("status", "active"),
+        supabase.from("clients").select("*"),
+        supabase.from("profiles").select("user_id, first_name, last_name"),
+      ]);
+
+      const profilesMap: Record<string, string> = {};
+      profilesRes.data?.forEach((p) => (profilesMap[p.user_id] = `${p.first_name} ${p.last_name}`));
+
+      const historyByBacklog: Record<string, any[]> = {};
+      historyRes.data?.forEach((h) => {
+        if (!historyByBacklog[h.backlog_id]) historyByBacklog[h.backlog_id] = [];
+        historyByBacklog[h.backlog_id].push(h);
+      });
+
+      const backlogs = (backlogsRes.data ?? []).map((row) => mapBacklog(row, historyByBacklog[row.id], profilesMap));
+      set({ backlogs, initialized: true, loading: false });
+    } catch (err) {
+      set({ loading: false });
+    }
+  },
+
+  updateBacklog: async (id, updates) => {
+    await supabase
+      .from("backlogs")
+      .update(updates as any)
+      .eq("id", id);
+    get().fetchAll();
+  },
+
+  saveApproval: async (id, data) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const now = new Date().toISOString();
+
+    await supabase
+      .from("backlogs")
+      .update({
+        phase: "functional_refinement",
+        approval: { ...data, updated_by: user?.id, updated_at: now } as any,
+      })
+      .eq("id", id);
+
+    await supabase
+      .from("backlog_phase_history")
+      .update({ completed_at: now })
+      .eq("backlog_id", id)
+      .eq("phase", "approval")
+      .is("completed_at", null);
+
+    await supabase.from("backlog_phase_history").insert({
+      backlog_id: id,
+      phase: "functional_refinement",
+      entered_at: now,
+    });
+    get().fetchAll();
+  },
+
+  completeRefinement: async (backlogId, type) => {
+    const now = new Date().toISOString();
+    const currentPhase = type === "functional" ? "functional_refinement" : "technical_refinement";
+    const nextPhase = type === "functional" ? "technical_refinement" : "available";
+
+    await supabase.from("backlogs").update({ phase: nextPhase }).eq("id", backlogId);
+    await supabase
+      .from("backlog_phase_history")
+      .update({ completed_at: now })
+      .eq("backlog_id", backlogId)
+      .eq("phase", currentPhase)
+      .is("completed_at", null);
+
+    await supabase.from("backlog_phase_history").insert({
+      backlog_id: backlogId,
+      phase: nextPhase,
+      entered_at: now,
+    });
+    get().fetchAll();
+  },
+
+  saveRefinement: async (id, data) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const now = new Date().toISOString();
+    await supabase
+      .from("backlogs")
+      .update({
+        refinement: { ...data, updated_by: user?.id, updated_at: now } as any,
+      })
+      .eq("id", id);
+    get().fetchAll();
+  },
+}));

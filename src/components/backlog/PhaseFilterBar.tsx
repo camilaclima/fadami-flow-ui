@@ -3,16 +3,7 @@ import { motion } from "framer-motion";
 import type { Phase } from "@/types/backlog";
 import { PHASES, PHASE_LABELS } from "@/types/backlog";
 import { useBacklogStore } from "@/store/backlogStore";
-import {
-  Layers,
-  Scale,
-  Eye,
-  FileText,
-  Code2,
-  CircleCheck,
-  CalendarClock,
-  Trophy,
-} from "lucide-react";
+import { Layers, Scale, Eye, FileText, Code2, CircleCheck, CalendarClock, Trophy } from "lucide-react";
 
 const PHASE_ICONS: Record<Phase, React.ElementType> = {
   prioritization: Scale,
@@ -24,57 +15,44 @@ const PHASE_ICONS: Record<Phase, React.ElementType> = {
   finished: Trophy,
 };
 
-const PHASE_ICON_COLORS: Record<Phase, string> = {
-  prioritization: "text-phase-prioritization",
-  approval: "text-phase-approval",
-  functional_refinement: "text-phase-functional-refinement",
-  technical_refinement: "text-phase-technical-refinement",
-  available: "text-phase-available",
-  planned: "text-phase-planned",
-  finished: "text-phase-finished",
+// Cores baseadas nas suas classes tailwind
+const PHASE_COLORS: Record<Phase, string> = {
+  prioritization: "text-blue-500",
+  approval: "text-amber-500",
+  functional_refinement: "text-sky-500",
+  technical_refinement: "text-indigo-500",
+  available: "text-emerald-500",
+  planned: "text-orange-500",
+  finished: "text-purple-500",
 };
 
-const PHASE_BG_COLORS: Record<Phase, string> = {
-  prioritization: "bg-phase-prioritization/10",
-  approval: "bg-phase-approval/10",
-  functional_refinement: "bg-phase-functional-refinement/10",
-  technical_refinement: "bg-phase-technical-refinement/10",
-  available: "bg-phase-available/10",
-  planned: "bg-phase-planned/10",
-  finished: "bg-phase-finished/10",
-};
-
-interface Props {
+export function PhaseFilterBar({
+  selected,
+  onSelect,
+}: {
   selected: Phase | "all";
-  onSelect: (phase: Phase | "all") => void;
-}
+  onSelect: (p: Phase | "all") => void;
+}) {
+  const { backlogs, fetchAll, initialized } = useBacklogStore();
 
-export function PhaseFilterBar({ selected, onSelect }: Props) {
-  const backlogs = useBacklogStore((s) => s.backlogs);
-  const fetchAll = useBacklogStore((s) => s.fetchAll);
-  const initialized = useBacklogStore((s) => s.initialized);
-  useEffect(() => { if (!initialized) fetchAll(); }, [initialized, fetchAll]);
-  const total = backlogs.length;
+  useEffect(() => {
+    if (!initialized) fetchAll();
+  }, [initialized, fetchAll]);
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-2 w-full">
-      {/* Total button */}
+    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 w-full">
       <motion.button
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         onClick={() => onSelect("all")}
-        className={`relative flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 neu-card-hover ${
-          selected === "all"
-            ? "glow-active bg-card"
-            : "neu-card hover:border-primary/20"
-        }`}
+        className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all ${selected === "all" ? "bg-card shadow-lg ring-1 ring-primary/20" : "bg-card/50 hover:bg-card"}`}
       >
-        <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-          <Layers className="w-4.5 h-4.5 text-primary" />
+        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+          <Layers className="w-5 h-5 text-primary" />
         </div>
         <div className="text-left">
-          <p className="text-xl font-bold text-foreground leading-none">{total}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Total</p>
+          <p className="text-xl font-bold leading-none">{backlogs.length}</p>
+          <p className="text-[10px] uppercase font-bold text-muted-foreground mt-1">Total</p>
         </div>
       </motion.button>
 
@@ -89,18 +67,16 @@ export function PhaseFilterBar({ selected, onSelect }: Props) {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => onSelect(phase)}
-            className={`relative flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 neu-card-hover ${
-              isActive
-                ? "glow-active bg-card"
-                : "neu-card hover:border-primary/20"
-            }`}
+            className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all ${isActive ? "bg-card shadow-lg ring-1 ring-primary/20" : "bg-card/50 hover:bg-card"}`}
           >
-            <div className={`w-9 h-9 rounded-xl ${PHASE_BG_COLORS[phase]} flex items-center justify-center`}>
-              <Icon className={`w-4.5 h-4.5 ${PHASE_ICON_COLORS[phase]}`} />
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-foreground/5`}>
+              <Icon className={`w-5 h-5 ${PHASE_COLORS[phase]}`} />
             </div>
             <div className="text-left">
-              <p className="text-xl font-bold text-foreground leading-none">{count}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{PHASE_LABELS[phase]}</p>
+              <p className="text-xl font-bold leading-none">{count}</p>
+              <p className="text-[10px] uppercase font-bold text-muted-foreground mt-1">
+                {PHASE_LABELS[phase].replace(/^\d+\.\s/, "")}
+              </p>
             </div>
           </motion.button>
         );
