@@ -76,7 +76,7 @@ interface BacklogStore {
   updateSubItem: (backlogId: string, subItemId: string, data: Omit<SubItem, "id" | "order">) => void;
   deleteSubItem: (backlogId: string, subItemId: string) => void;
   reorderSubItems: (backlogId: string, orderedIds: string[]) => void;
-  completeRefinement: (backlogId: string) => void;
+  completeRefinement: (backlogId: string, type: "functional" | "technical") => void;
 }
 
 export const useBacklogStore = create<BacklogStore>((set, get) => ({
@@ -91,12 +91,11 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
     set({ loading: true });
 
     try {
-      // Ajuste para evitar erros de tipagem e garantir que clientes sejam carregados
       const [backlogsRes, historyRes, productsRes, clientsRes, profilesRes] = await Promise.all([
         (supabase.from("backlogs") as any).select("*").order("created_at", { ascending: false }),
         (supabase.from("backlog_phase_history") as any).select("*").order("entered_at"),
         (supabase.from("products") as any).select("*").eq("status", "active").order("name"),
-        (supabase.from("clients") as any).select("*").order("name"), // Removido filtro problemático
+        (supabase.from("clients") as any).select("*").order("name"),
         (supabase.from("profiles") as any).select("user_id, first_name, last_name"),
       ]);
 
@@ -126,7 +125,6 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
         id: c.id,
         name: c.name,
         email: c.email,
-        status: c.status, // Garantindo que o status venha para o filtro no componente
       }));
 
       set({ backlogs, products, clients, loading: false, initialized: true });
@@ -245,7 +243,7 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
 
     await (supabase.from("backlogs") as any)
       .update({
-        phase: "refinement",
+        phase: "functional_refinement",
         approval: approvalUpdate,
       })
       .eq("id", id);
@@ -257,7 +255,7 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
       .is("completed_at", null);
     await (supabase.from("backlog_phase_history") as any).insert({
       backlog_id: id,
-      phase: "refinement",
+      phase: "functional_refinement",
       entered_at: now,
     });
 
@@ -284,7 +282,7 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
     await (supabase.from("backlog_phase_history") as any)
       .update({ completed_at: now })
       .eq("backlog_id", id)
-      .eq("phase", "refinement")
+      .eq("phase", "technical_refinement")
       .is("completed_at", null);
     await (supabase.from("backlog_phase_history") as any).insert({
       backlog_id: id,
@@ -313,6 +311,10 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
       estimate: data.estimate,
       attachment: data.attachment || null,
       sort_order: nextOrder,
+      code_block: data.codeBlock || "",
+      implementation_notes: data.implementationNotes || "",
+      effort_area: data.effortArea || "",
+      complexity: data.complexity || "",
     });
 
     await refreshSubItems(backlogId);
@@ -328,6 +330,10 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
         technical_detail: data.technicalDetail,
         estimate: data.estimate,
         attachment: data.attachment || null,
+        code_block: data.codeBlock || "",
+        implementation_notes: data.implementationNotes || "",
+        effort_area: data.effortArea || "",
+        complexity: data.complexity || "",
       })
       .eq("id", subItemId);
 
@@ -349,18 +355,21 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
     get().fetchAll();
   },
 
-  completeRefinement: async (backlogId) => {
+  completeRefinement: async (backlogId, type) => {
     const now = new Date().toISOString();
-    await supabase.from("backlogs").update({ phase: "available" }).eq("id", backlogId);
+    const currentPhase = type === "functional" ? "functional_refinement" : "technical_refinement";
+    const nextPhase = type === "functional" ? "technical_refinement" : "available";
+
+    await supabase.from("backlogs").update({ phase: nextPhase }).eq("id", backlogId);
     await supabase
       .from("backlog_phase_history")
       .update({ completed_at: now })
       .eq("backlog_id", backlogId)
-      .eq("phase", "refinement")
+      .eq("phase", currentPhase)
       .is("completed_at", null);
     await supabase.from("backlog_phase_history").insert({
       backlog_id: backlogId,
-      phase: "available",
+      phase: nextPhase,
       entered_at: now,
     });
     get().fetchAll();
@@ -383,6 +392,10 @@ async function refreshSubItems(backlogId: string) {
       estimate: si.estimate,
       attachment: si.attachment,
       order: si.sort_order,
+      codeBlock: si.code_block,
+      implementationNotes: si.implementation_notes,
+      effortArea: si.effort_area,
+      complexity: si.complexity,
     }));
 
     const { data: backlog } = await supabase.from("backlogs").select("refinement").eq("id", backlogId).single();
