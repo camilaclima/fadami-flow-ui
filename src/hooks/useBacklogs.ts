@@ -167,7 +167,7 @@ export function useSaveApproval() {
       const now = new Date().toISOString();
 
       await supabase.from("backlogs").update({
-        phase: "refinement",
+        phase: "functional_refinement",
         approval: { observation },
       }).eq("id", id);
 
@@ -175,7 +175,7 @@ export function useSaveApproval() {
         .eq("backlog_id", id).eq("phase", "approval").is("completed_at", null);
 
       await supabase.from("backlog_phase_history").insert({
-        backlog_id: id, phase: "refinement", entered_at: now,
+        backlog_id: id, phase: "functional_refinement", entered_at: now,
       });
     },
     onSuccess: () => {
@@ -204,7 +204,7 @@ export function useSaveRefinement() {
       }).eq("id", id);
 
       await supabase.from("backlog_phase_history").update({ completed_at: now })
-        .eq("backlog_id", id).eq("phase", "refinement").is("completed_at", null);
+        .eq("backlog_id", id).eq("phase", "technical_refinement").is("completed_at", null);
 
       await supabase.from("backlog_phase_history").insert({
         backlog_id: id, phase: "available", entered_at: now,
