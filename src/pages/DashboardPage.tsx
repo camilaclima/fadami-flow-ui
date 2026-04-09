@@ -26,6 +26,8 @@ import {
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 function KpiCard({ label, value, secondary, icon: Icon, delay, accent, description }: any) {
   return (
@@ -56,30 +58,40 @@ function KpiCard({ label, value, secondary, icon: Icon, delay, accent, descripti
 
 export default function DashboardPage() {
   const { data: rawBacklogs = [] } = useBacklogs();
-  const backlogs = rawBacklogs as any[];
   const navigate = useNavigate();
 
-  // --- CÁLCULOS GERAIS ---
+  // BUSCA NOMES DOS USUÁRIOS (Profiles)
+  const { data: profiles = [] } = useQuery({
+    queryKey: ["profiles-map"],
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles").select("user_id, first_name, last_name");
+      return data || [];
+    },
+  });
+
+  // CRIA UM MAPA DE NOMES: { "id-uuid": "Nome Sobrenome" }
+  const profilesMap = profiles.reduce((acc: any, p: any) => {
+    acc[p.user_id] = `${p.first_name || ""} ${p.last_name || ""}`.trim();
+    return acc;
+  }, {});
+
+  const backlogs = rawBacklogs as any[];
   const finished = backlogs.filter((b) => b.phase === "finished");
   const totalItems = backlogs.length || 1;
   const strategicItems = backlogs.filter((b) => (b.prioritization?.businessValue || 0) >= 4);
 
-  // --- LÓGICA DE USUÁRIOS (TÁTICO) ---
-  // --- LÓGICA DE USUÁRIOS (TÁTICO) ---
+  // --- LÓGICA DE USUÁRIOS COM RESOLUÇÃO DE NOMES ---
   const userStats = backlogs.reduce((acc: any, b) => {
-    // Tenta pegar o nome mapeado (createdBy), se não existir, usa o ID bruto (created_by)
-    // No nosso store, 'createdBy' já vem com o Nome + Sobrenome do profile
-    const user = b.createdBy || b.created_by || "Sistema";
+    const userId = b.created_by || b.createdBy;
+    // Resolve o nome pelo mapa, ou usa o próprio ID se não encontrar, ou "Sistema"
+    const userName = profilesMap[userId] || (userId ? `ID: ${userId.slice(0, 5)}...` : "Sistema");
 
-    if (!acc[user]) acc[user] = { total: 0, finished: 0, phases: {}, highValue: 0 };
-
-    acc[user].total += 1;
-    if (b.phase === "finished") acc[user].finished += 1;
-    if ((b.prioritization?.businessValue || 0) >= 4) acc[user].highValue += 1;
-
+    if (!acc[userName]) acc[userName] = { total: 0, finished: 0, phases: {}, highValue: 0 };
+    acc[userName].total += 1;
+    if (b.phase === "finished") acc[userName].finished += 1;
+    if ((b.prioritization?.businessValue || 0) >= 4) acc[userName].highValue += 1;
     const phaseLabel = PHASE_LABELS[b.phase as Phase] || b.phase;
-    acc[user].phases[phaseLabel] = (acc[user].phases[phaseLabel] || 0) + 1;
-
+    acc[userName].phases[phaseLabel] = (acc[userName].phases[phaseLabel] || 0) + 1;
     return acc;
   }, {});
 
@@ -92,115 +104,63 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="strategic" className="w-full">
+      <Tabs defaultValue="tatico" className="w-full">
         <TabsList className="bg-secondary/30 p-1 rounded-2xl mb-8 flex flex-wrap h-auto gap-1">
           <TabsTrigger value="strategic" className="rounded-xl px-5 py-2 gap-2 data-[state=active]:bg-card">
             <Target className="w-4 h-4" /> Estratégico
           </TabsTrigger>
           <TabsTrigger value="tatico" className="rounded-xl px-5 py-2 gap-2 data-[state=active]:bg-card">
-            <Gauge className="w-4 h-4" /> Tático/Gerencial
+            <Gauge className="w-4 h-4" /> Tático
           </TabsTrigger>
           <TabsTrigger value="operational" className="rounded-xl px-5 py-2 gap-2 data-[state=active]:bg-card">
             <Activity className="w-4 h-4" /> Operacional
           </TabsTrigger>
         </TabsList>
 
-        {/* --- ABA 1: ESTRATÉGICO (FOCO EM VALOR E NEGÓCIO) --- */}
+        {/* --- ABA 1: ESTRATÉGICO --- */}
         <TabsContent value="strategic" className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard
-              label="Alinhamento Estratégico"
+              label="Alinhamento"
               value={`${Math.round((strategicItems.length / totalItems) * 100)}%`}
               icon={TrendingUp}
               delay={0}
               accent="bg-blue-500/10 text-blue-500"
-              description="Itens com alto Business Value"
             />
             <KpiCard
               label="Valor Entregue"
               value={finished.reduce((acc, b) => acc + (b.prioritization?.businessValue || 0), 0)}
-              secondary="pts"
               icon={Zap}
               delay={0.1}
               accent="bg-amber-500/10 text-amber-500"
-              description="Soma de pontos de valor finalizados"
             />
-            <KpiCard
-              label="Lead Time Médio"
-              value="12 dias"
-              icon={Timer}
-              delay={0.2}
-              description="Tempo de 'Ideia para Entrega'"
-            />
-            <KpiCard
-              label="Taxa de Abandono"
-              value="8%"
-              icon={Ban}
-              delay={0.3}
-              accent="bg-rose-500/10 text-rose-500"
-              description="Itens descartados ou cancelados"
-            />
-          </div>
-
-          <div className="neu-card p-6 rounded-3xl">
-            <h3 className="text-sm font-bold uppercase mb-4 tracking-tighter">Mix de Carga de Trabalho</h3>
-            <div className="flex h-4 rounded-full overflow-hidden bg-secondary">
-              <div style={{ width: "55%" }} className="bg-primary" title="Novas Funcionalidades" />
-              <div style={{ width: "25%" }} className="bg-sky-400" title="Melhorias" />
-              <div style={{ width: "20%" }} className="bg-rose-400" title="Dívida Técnica" />
-            </div>
-            <div className="flex flex-wrap gap-4 mt-6 justify-center text-[10px] font-bold uppercase tracking-widest">
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 rounded-full bg-primary" /> Funcionalidades
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 rounded-full bg-sky-400" /> Melhorias
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 rounded-full bg-rose-400" /> Dívida Técnica
-              </div>
-            </div>
+            <KpiCard label="Lead Time Médio" value="12 dias" icon={Timer} delay={0.2} />
+            <KpiCard label="Taxa de Abandono" value="8%" icon={Ban} delay={0.3} accent="bg-rose-500/10 text-rose-500" />
           </div>
         </TabsContent>
 
-        {/* --- ABA 2: TÁTICO (FOCO EM PESSOAS E GARGALOS) --- */}
+        {/* --- ABA 2: TÁTICO (CORRIGIDO NOMES) --- */}
         <TabsContent value="tatico" className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard label="Throughput" value={finished.length} icon={ArrowLeftRight} delay={0} />
             <KpiCard
-              label="Throughput"
-              value={finished.length}
-              secondary="items"
-              icon={ArrowLeftRight}
-              delay={0}
-              description="Itens finalizados no período"
-            />
-            <KpiCard
-              label="WIP (Work in Progress)"
+              label="WIP"
               value={backlogs.filter((b) => !["finished", "prioritization"].includes(b.phase)).length}
               icon={Microscope}
               delay={0.1}
-              accent="bg-indigo-500/10 text-indigo-500"
             />
+            <KpiCard label="Responsáveis" value={Object.keys(userStats).length} icon={Users} delay={0.2} />
             <KpiCard
-              label="Taxa de Retrabalho"
-              value="14%"
-              icon={Recycle}
-              delay={0.2}
-              accent="bg-orange-500/10 text-orange-500"
-              description="Itens que voltaram de etapa"
-            />
-            <KpiCard
-              label="Acurácia de Est."
-              value="82%"
-              icon={BarChart3}
+              label="Taxa de Entrega"
+              value={`${Math.round((finished.length / totalItems) * 100)}%`}
+              icon={UserCheck}
               delay={0.3}
-              description="Estimado vs Realizado"
             />
           </div>
 
           <div className="neu-card p-6 rounded-3xl overflow-hidden">
             <h3 className="text-sm font-bold uppercase mb-8 flex items-center gap-2 tracking-tighter">
-              <Users className="w-4 h-4 text-primary" /> Produtividade e Perfil por Colaborador
+              <Users className="w-4 h-4 text-primary" /> Produtividade por Colaborador
             </h3>
             <div className="space-y-8">
               {Object.entries(userStats).map(([name, stats]: any) => {
@@ -209,10 +169,10 @@ export default function DashboardPage() {
                 return (
                   <div key={name} className="border-b border-border/40 pb-6 last:border-0">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                      <div className="md:w-1/4">
+                      <div className="md:w-1/3">
                         <p className="text-sm font-black text-foreground uppercase truncate">{name}</p>
                         <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-primary/10 text-primary mt-1 inline-block">
-                          Especialidade: {mainPhase}
+                          Maior Atuação: {mainPhase}
                         </span>
                       </div>
                       <div className="flex-1 space-y-2">
@@ -226,11 +186,11 @@ export default function DashboardPage() {
                           <div className="h-full bg-primary" style={{ width: `${productivity}%` }} />
                         </div>
                       </div>
-                      <div className="flex gap-8 md:ml-12">
-                        <div className="text-center">
-                          <p className="text-[9px] font-bold text-muted-foreground uppercase">Estratégicos</p>
-                          <p className="text-lg font-black">{stats.highValue}</p>
-                        </div>
+                      <div className="text-center w-20">
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase leading-none mb-1">
+                          Items Valor
+                        </p>
+                        <p className="text-lg font-black">{stats.highValue}</p>
                       </div>
                     </div>
                   </div>
@@ -240,7 +200,7 @@ export default function DashboardPage() {
           </div>
         </TabsContent>
 
-        {/* --- ABA 3: OPERACIONAL (FOCO EM EXECUÇÃO E PRONTIDÃO) --- */}
+        {/* --- ABA 3: OPERACIONAL --- */}
         <TabsContent value="operational" className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard
@@ -257,7 +217,7 @@ export default function DashboardPage() {
               delay={0.1}
               accent="bg-rose-500/10 text-rose-500"
             />
-            <KpiCard label="Média Horas Subitem" value="4.5h" icon={Clock} delay={0.2} />
+            <KpiCard label="Média Horas" value="4.5h" icon={Clock} delay={0.2} />
             <KpiCard
               label="Alta Prioridade"
               value={backlogs.filter((b) => b.prioritization?.priority === "high").length}
@@ -267,7 +227,9 @@ export default function DashboardPage() {
           </div>
 
           <div className="neu-card p-6 rounded-3xl">
-            <h3 className="text-sm font-bold uppercase mb-4 tracking-tighter">Fluxo de Refinamento (Aging)</h3>
+            <h3 className="text-sm font-bold uppercase mb-4 tracking-tighter italic text-muted-foreground">
+              Itens Estacionados (Aging)
+            </h3>
             <div className="divide-y divide-border">
               {backlogs
                 .filter((b) => b.phase !== "finished")
@@ -275,7 +237,7 @@ export default function DashboardPage() {
                 .map((b) => (
                   <div
                     key={b.id}
-                    className="py-4 flex items-center justify-between hover:bg-foreground/[0.02] cursor-pointer rounded-xl px-2 transition-all"
+                    className="py-4 flex items-center justify-between hover:bg-foreground/[0.02] cursor-pointer rounded-xl px-2"
                     onClick={() => navigate("/backlogs")}
                   >
                     <div className="flex items-center gap-4">
@@ -283,7 +245,7 @@ export default function DashboardPage() {
                       <div>
                         <p className="text-sm font-bold text-foreground">{b.title}</p>
                         <p className="text-[10px] text-muted-foreground uppercase font-bold mt-1">
-                          Há 5 dias em: {PHASE_LABELS[b.phase as Phase] || b.phase}
+                          Status: {PHASE_LABELS[b.phase as Phase] || b.phase}
                         </p>
                       </div>
                     </div>
