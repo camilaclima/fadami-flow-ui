@@ -11,9 +11,10 @@ interface Props {
   item: BacklogItem;
   onSaved?: () => void;
   readOnly?: boolean;
+  refinementPhase: "functional" | "technical";
 }
 
-export function RefinementForm({ item, onSaved, readOnly }: Props) {
+export function RefinementForm({ item, onSaved, readOnly, refinementPhase }: Props) {
   const { addSubItem, updateSubItem, deleteSubItem, reorderSubItems, completeRefinement } =
     useBacklogStore();
 
@@ -54,17 +55,31 @@ export function RefinementForm({ item, onSaved, readOnly }: Props) {
     [item.id, deleteSubItem]
   );
 
+  const currentPhaseKey = refinementPhase === "functional" ? "functional_refinement" : "technical_refinement";
+  const nextPhaseLabel = refinementPhase === "functional" ? "Ref. Técnico" : "Disponível";
+
   const handleComplete = async () => {
-    if (subItems.length === 0) {
-      toast.error("Adicione pelo menos um subitem.");
-      return;
+    if (refinementPhase === "functional") {
+      // Functional refinement can proceed with or without sub-items
+      setSaving(true);
+      await new Promise((r) => setTimeout(r, 600));
+      completeRefinement(item.id, "functional");
+      toast.success("Refinamento Funcional concluído!");
+      onSaved?.();
+      setSaving(false);
+    } else {
+      // Technical refinement requires at least one sub-item
+      if (subItems.length === 0) {
+        toast.error("Adicione pelo menos um subitem.");
+        return;
+      }
+      setSaving(true);
+      await new Promise((r) => setTimeout(r, 600));
+      completeRefinement(item.id, "technical");
+      toast.success("Refinamento Técnico concluído!");
+      onSaved?.();
+      setSaving(false);
     }
-    setSaving(true);
-    await new Promise((r) => setTimeout(r, 600));
-    completeRefinement(item.id);
-    toast.success("Refinamento concluído!");
-    onSaved?.();
-    setSaving(false);
   };
 
   // Simple drag-and-drop via HTML5 API
@@ -85,16 +100,18 @@ export function RefinementForm({ item, onSaved, readOnly }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Header with total */}
+      {/* Header with total (only show hours in technical phase) */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-[11px] text-foreground/60 uppercase tracking-widest font-semibold">
             Subitens
           </span>
-          <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-primary/10 text-primary">
-            <Clock className="w-3 h-3" />
-            <span className="text-[11px] font-bold">Total Estimado: {totalHours}h</span>
-          </div>
+          {refinementPhase === "technical" && (
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-primary/10 text-primary">
+              <Clock className="w-3 h-3" />
+              <span className="text-[11px] font-bold">Total Estimado: {totalHours}h</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -129,6 +146,7 @@ export function RefinementForm({ item, onSaved, readOnly }: Props) {
               <SubItemCard
                 item={si}
                 readOnly={readOnly}
+                refinementPhase={refinementPhase}
                 onClick={() => {
                   setEditingItem(si);
                   setModalOpen(true);
@@ -147,7 +165,7 @@ export function RefinementForm({ item, onSaved, readOnly }: Props) {
       </div>
 
       {/* Complete refinement */}
-      {item.phase === "refinement" && !readOnly && (
+      {item.phase === currentPhaseKey && !readOnly && (
         <motion.button
           type="button"
           onClick={handleComplete}
@@ -162,7 +180,7 @@ export function RefinementForm({ item, onSaved, readOnly }: Props) {
             </>
           ) : (
             <>
-              <CheckCircle2 className="w-4 h-4" /> Concluir Refinamento
+              <CheckCircle2 className="w-4 h-4" /> Concluir → {nextPhaseLabel}
             </>
           )}
         </motion.button>
@@ -174,6 +192,7 @@ export function RefinementForm({ item, onSaved, readOnly }: Props) {
         onOpenChange={setModalOpen}
         onSave={handleAddOrEdit}
         editItem={editingItem}
+        refinementPhase={refinementPhase}
       />
     </div>
   );
