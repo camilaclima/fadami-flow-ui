@@ -57,15 +57,12 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    // Se o modal fechar, resetamos a senha gerada e o estado de cópia
     if (!open) {
       setGeneratedPassword(null);
       setCopied(false);
       return;
     }
 
-    // Só resetamos a senha se não houver uma senha sendo exibida no momento
-    // (Isso evita que o modal de senha suma quando o queryClient invalida as queries)
     if (profile) {
       setFirstName(profile.first_name);
       setLastName(profile.last_name);
@@ -83,7 +80,6 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
       setSelectedGroupIds(cloneData.selectedGroupIds || []);
       setGeneratedPassword(null);
     } else if (!generatedPassword) {
-      // Novo usuário: Limpamos apenas se não acabamos de gerar uma senha
       setFirstName("");
       setLastName("");
       setEmail("");
@@ -106,6 +102,7 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
 
     try {
       if (profile) {
+        // Fluxo de Edição
         updateProfile.mutate({
           id: profile.id,
           first_name: firstName.trim(),
@@ -118,6 +115,7 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
         toast.success("Usuário atualizado!");
         onOpenChange(false);
       } else {
+        // Fluxo de Criação (Novo ou Clone)
         const tempPassword = Math.random().toString(36).slice(-8);
         const { data, error } = await supabase.functions.invoke("create-user", {
           body: {
@@ -145,8 +143,9 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
           await syncGroups.mutateAsync({ profileId: newProfile.id, groupIds: selectedGroupIds });
         }
 
+        // AGORA FUNCIONA PARA CLONE: Ativa a visualização da senha
         setGeneratedPassword(tempPassword);
-        toast.success("Usuário criado!");
+        toast.success("Usuário criado com sucesso!");
         queryClient.invalidateQueries({ queryKey: ["profiles"] });
       }
     } catch (err: any) {
@@ -194,7 +193,9 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
               <p className="text-[11px] text-muted-foreground">O usuário deverá alterar a senha no primeiro acesso.</p>
             </div>
             <DialogFooter className="pb-6 px-8">
-              <Button onClick={() => onOpenChange(false)}>Fechar</Button>
+              <Button onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
+                Fechar
+              </Button>
             </DialogFooter>
           </div>
         ) : (
@@ -252,9 +253,6 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
                         <span className="text-foreground truncate">{p.name}</span>
                       </label>
                     ))}
-                    {activeProducts.length === 0 && (
-                      <p className="text-xs text-muted-foreground col-span-2">Nenhum produto ativo.</p>
-                    )}
                   </div>
                 </div>
               </div>
@@ -272,9 +270,6 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
                         <span className="text-foreground truncate">{g.name}</span>
                       </label>
                     ))}
-                    {accessGroups.length === 0 && (
-                      <p className="text-xs text-muted-foreground col-span-2">Nenhum grupo disponível.</p>
-                    )}
                   </div>
                 </div>
               </div>
