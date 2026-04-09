@@ -326,7 +326,8 @@ export function NewBacklogModal({ open, onOpenChange }: Props) {
                       {!clientId && <Check className="w-3.5 h-3.5 ml-auto text-primary" />}
                     </button>
                     {clients
-                      .filter((c: any) => c.status === "active")
+                      // AJUSTE: Filtro tolerante. Mostra se for "active" ou se o status não estiver preenchido (null/undefined)
+                      .filter((c: any) => !c.status || c.status === "active")
                       .map((c) => (
                         <button
                           key={c.id}
