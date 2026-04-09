@@ -158,7 +158,6 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {/* Ajustado para 550px e p-6 para evitar cortes laterais e no scroll */}
       <DialogContent className="sm:max-w-[550px] w-[95vw] max-h-[90vh] flex flex-col p-6">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Editar Usuário" : cloneData ? "Clonar Usuário" : "Novo Usuário"}</DialogTitle>
@@ -193,7 +192,7 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
             <div className="space-y-4 py-2 overflow-y-auto flex-1 px-1 custom-scrollbar">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-sm">Nome</Label>
+                  <Label className="text-sm font-semibold">Nome</Label>
                   <Input
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
@@ -202,7 +201,7 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-sm">Sobrenome</Label>
+                  <Label className="text-sm font-semibold">Sobrenome</Label>
                   <Input
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
@@ -211,8 +210,9 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
                   />
                 </div>
               </div>
+
               <div className="space-y-1.5">
-                <Label className="text-sm">E-mail</Label>
+                <Label className="text-sm font-semibold">E-mail</Label>
                 <Input
                   type="email"
                   value={email}
@@ -222,8 +222,9 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
                   className="h-10"
                 />
               </div>
+
               <div className="space-y-1.5">
-                <Label className="text-sm">Cargo</Label>
+                <Label className="text-sm font-semibold">Cargo</Label>
                 <Select value={roleId} onValueChange={setRoleId}>
                   <SelectTrigger className="h-10">
                     <SelectValue placeholder="Selecione..." />
@@ -238,45 +239,54 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
                 </Select>
               </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-sm">Produtos</Label>
-                <div className="bg-secondary/30 rounded-xl p-3 space-y-2 max-h-40 overflow-y-auto border border-border/40">
-                  {activeProducts.map((p) => (
-                    <label
-                      key={p.id}
-                      className="flex items-center gap-2 text-sm cursor-pointer hover:bg-secondary/50 rounded-lg px-2 py-1.5 transition-colors"
-                    >
-                      <Checkbox
-                        checked={selectedProductIds.includes(p.id)}
-                        onCheckedChange={() => toggleProduct(p.id)}
-                      />
-                      <span className="text-foreground">{p.name}</span>
-                    </label>
-                  ))}
-                  {activeProducts.length === 0 && (
-                    <p className="text-xs text-muted-foreground p-2">Nenhum produto ativo.</p>
-                  )}
+              {/* Grid 2 Colunas para Produtos */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Produtos</Label>
+                <div className="bg-secondary/30 rounded-xl p-3 border border-border/40">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 max-h-40 overflow-y-auto pr-1">
+                    {activeProducts.map((p) => (
+                      <label
+                        key={p.id}
+                        className="flex items-center gap-2 text-sm cursor-pointer hover:bg-secondary/50 rounded-lg px-2 py-1.5 transition-colors"
+                      >
+                        <Checkbox
+                          checked={selectedProductIds.includes(p.id)}
+                          onCheckedChange={() => toggleProduct(p.id)}
+                        />
+                        <span className="text-foreground truncate">{p.name}</span>
+                      </label>
+                    ))}
+                    {activeProducts.length === 0 && (
+                      <p className="text-xs text-muted-foreground col-span-2 p-2">Nenhum produto ativo.</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-sm">Grupos de Acesso</Label>
-                <div className="bg-secondary/30 rounded-xl p-3 space-y-2 max-h-40 overflow-y-auto border border-border/40">
-                  {accessGroups.map((g) => (
-                    <label
-                      key={g.id}
-                      className="flex items-center gap-2 text-sm cursor-pointer hover:bg-secondary/50 rounded-lg px-2 py-1.5 transition-colors"
-                    >
-                      <Checkbox checked={selectedGroupIds.includes(g.id)} onCheckedChange={() => toggleGroup(g.id)} />
-                      <span className="text-foreground">{g.name}</span>
-                    </label>
-                  ))}
-                  {accessGroups.length === 0 && (
-                    <p className="text-xs text-muted-foreground p-2">Nenhum grupo disponível.</p>
-                  )}
+              {/* Grid 2 Colunas para Grupos de Acesso */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                  Grupos de Acesso
+                </Label>
+                <div className="bg-secondary/30 rounded-xl p-3 border border-border/40">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 max-h-40 overflow-y-auto pr-1">
+                    {accessGroups.map((g) => (
+                      <label
+                        key={g.id}
+                        className="flex items-center gap-2 text-sm cursor-pointer hover:bg-secondary/50 rounded-lg px-2 py-1.5 transition-colors"
+                      >
+                        <Checkbox checked={selectedGroupIds.includes(g.id)} onCheckedChange={() => toggleGroup(g.id)} />
+                        <span className="text-foreground truncate">{g.name}</span>
+                      </label>
+                    ))}
+                    {accessGroups.length === 0 && (
+                      <p className="text-xs text-muted-foreground col-span-2 p-2">Nenhum grupo disponível.</p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
+
             <DialogFooter className="pt-4 border-t mt-2">
               <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl">
                 Cancelar
