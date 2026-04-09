@@ -18,24 +18,35 @@ export default function BacklogsPage() {
   useEffect(() => {
     if (!initialized) fetchAll();
   }, [initialized, fetchAll]);
+
   const [newOpen, setNewOpen] = useState(false);
   const [selectedPhase, setSelectedPhase] = useState<Phase | "all">("all");
+
+  // AJUSTE: Inicializando com as novas propriedades exigidas pelo FilterState
   const [filters, setFilters] = useState<FilterState>({
     productId: null,
     priority: null,
     createdBy: null,
+    clientId: null,
+    estimate: null,
   });
+
   const [search, setSearch] = useState("");
   const [selectedItem, setSelectedItem] = useState<BacklogItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
   const filtered = useMemo(() => {
     let items = backlogs;
+
     if (selectedPhase !== "all") {
       items = items.filter((b) => b.phase === selectedPhase);
     }
     if (filters.productId) {
       items = items.filter((b) => b.productId === filters.productId);
+    }
+    // NOVO: Lógica de filtro por Cliente
+    if (filters.clientId) {
+      items = items.filter((b) => b.clientId === filters.clientId);
     }
     if (filters.priority) {
       items = items.filter((b) => b.prioritization?.priority === filters.priority);
@@ -43,6 +54,11 @@ export default function BacklogsPage() {
     if (filters.createdBy) {
       items = items.filter((b) => b.createdBy === filters.createdBy);
     }
+    // NOVO: Lógica de filtro por Estimativa de Horas
+    if (filters.estimate) {
+      items = items.filter((b) => b.refinement?.estimate?.toString() === filters.estimate);
+    }
+
     if (search.trim()) {
       const q = search.toLowerCase();
       items = items.filter((b) => b.title.toLowerCase().includes(q) || b.description.toLowerCase().includes(q));
@@ -56,12 +72,10 @@ export default function BacklogsPage() {
   };
 
   return (
-    /* AJUSTE: w-full e max-w-none para ocupar a tela toda. px-8 para respiro lateral */
     <div
       className="fade-in space-y-4 w-full pb-10"
       style={{ maxWidth: "100vw", margin: "0", paddingLeft: "2rem", paddingRight: "2rem" }}
     >
-      {/* Header - Ajustado para w-full */}
       <div className="flex items-center justify-between w-full">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Backlogs</h1>
@@ -79,12 +93,10 @@ export default function BacklogsPage() {
         </motion.button>
       </div>
 
-      {/* Phase filter buttons - Ocupando a largura total */}
       <div className="w-full">
         <PhaseFilterBar selected={selectedPhase} onSelect={setSelectedPhase} />
       </div>
 
-      {/* Search + Filters row */}
       <div className="flex items-center justify-between gap-4 flex-wrap w-full">
         <BacklogFilters filters={filters} onChange={setFilters} />
 
@@ -100,7 +112,6 @@ export default function BacklogsPage() {
         </div>
       </div>
 
-      {/* Cards grid - AJUSTE: justify-items-stretch para os cards ocuparem a largura total da coluna */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full justify-items-stretch">
         <AnimatePresence mode="popLayout">
           {filtered.map((item, i) => (
@@ -123,7 +134,6 @@ export default function BacklogsPage() {
         )}
       </div>
 
-      {/* Modals */}
       <NewBacklogModal open={newOpen} onOpenChange={setNewOpen} />
       <BacklogDetailModal
         item={selectedItem}
