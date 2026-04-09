@@ -96,11 +96,7 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
         supabase.from("backlog_phase_history").select("*").order("entered_at"),
         supabase.from("products").select("*").eq("status", "active").order("name"),
         // AJUSTE: Cast "any" para ignorar erro de tipagem no filtro de status
-        supabase
-          .from("clients")
-          .select("*")
-          .eq("status" as any, "active")
-          .order("name"),
+        supabase.from("clients").select("*").eq("active", true).order("name"),
         supabase.from("profiles").select("user_id, first_name, last_name"),
       ]);
 
