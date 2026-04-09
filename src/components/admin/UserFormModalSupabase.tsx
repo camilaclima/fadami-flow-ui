@@ -158,16 +158,19 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>{isEditing ? "Editar Usuário" : cloneData ? "Clonar Usuário" : "Novo Usuário"}</DialogTitle>
-          <DialogDescription>
-            {isEditing ? "Atualize os dados do usuário." : "Preencha os dados para criar um novo usuário."}
-          </DialogDescription>
-        </DialogHeader>
+      {/* Ajuste: sm:max-w-[600px] e padding horizontal px-8 para evitar cortes */}
+      <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <div className="px-8 pt-6 pb-2">
+          <DialogHeader>
+            <DialogTitle>{isEditing ? "Editar Usuário" : cloneData ? "Clonar Usuário" : "Novo Usuário"}</DialogTitle>
+            <DialogDescription>
+              {isEditing ? "Atualize os dados do usuário." : "Preencha os dados para criar um novo usuário."}
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
         {generatedPassword ? (
-          <div className="py-6 space-y-4">
+          <div className="px-8 py-6 space-y-4">
             <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 text-center space-y-2">
               <p className="text-sm text-foreground font-medium">Usuário criado com sucesso!</p>
               <p className="text-xs text-muted-foreground">Senha temporária gerada:</p>
@@ -181,13 +184,13 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
               </div>
               <p className="text-[11px] text-muted-foreground">O usuário deverá alterar a senha no primeiro acesso.</p>
             </div>
-            <DialogFooter>
+            <DialogFooter className="pb-6">
               <Button onClick={() => onOpenChange(false)}>Fechar</Button>
             </DialogFooter>
           </div>
         ) : (
           <div className="flex flex-col flex-1 overflow-hidden">
-            <div className="space-y-4 py-2 overflow-y-auto flex-1 pr-1">
+            <div className="space-y-4 py-2 overflow-y-auto flex-1 px-8">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Nome</Label>
@@ -224,15 +227,15 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
                 </Select>
               </div>
 
-              {/* Multi-select Products - 2 Colunas */}
+              {/* Multi-select Products - 2 Colunas com gap ajustado */}
               <div className="space-y-2">
                 <Label>Produtos</Label>
                 <div className="bg-secondary/50 rounded-lg p-3 border border-border/40">
-                  <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto pr-1">
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 max-h-32 overflow-y-auto pr-1">
                     {activeProducts.map((p) => (
                       <label
                         key={p.id}
-                        className="flex items-center gap-2 text-sm cursor-pointer hover:bg-secondary/80 rounded px-1 py-0.5"
+                        className="flex items-center gap-2 text-sm cursor-pointer hover:bg-secondary/80 rounded px-1 py-0.5 transition-colors"
                       >
                         <Checkbox
                           checked={selectedProductIds.includes(p.id)}
@@ -248,15 +251,15 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
                 </div>
               </div>
 
-              {/* Multi-select Groups - 2 Colunas */}
+              {/* Multi-select Groups - 2 Colunas com gap ajustado */}
               <div className="space-y-2">
                 <Label>Grupos de Acesso</Label>
                 <div className="bg-secondary/50 rounded-lg p-3 border border-border/40">
-                  <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto pr-1">
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 max-h-32 overflow-y-auto pr-1">
                     {accessGroups.map((g) => (
                       <label
                         key={g.id}
-                        className="flex items-center gap-2 text-sm cursor-pointer hover:bg-secondary/80 rounded px-1 py-0.5"
+                        className="flex items-center gap-2 text-sm cursor-pointer hover:bg-secondary/80 rounded px-1 py-0.5 transition-colors"
                       >
                         <Checkbox checked={selectedGroupIds.includes(g.id)} onCheckedChange={() => toggleGroup(g.id)} />
                         <span className="text-foreground truncate">{g.name}</span>
@@ -269,7 +272,7 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
                 </div>
               </div>
             </div>
-            <DialogFooter className="pt-2">
+            <DialogFooter className="px-8 pb-6 pt-2">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>
