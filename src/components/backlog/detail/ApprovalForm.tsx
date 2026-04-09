@@ -12,17 +12,35 @@ interface Props {
 }
 
 export function ApprovalForm({ item, onSaved, readOnly }: Props) {
-  const { saveApproval } = useBacklogStore();
+  // Adicionei 'updateBacklog' que deve ser a função responsável por mudar os dados da tarefa
+  const { saveApproval, updateBacklog } = useBacklogStore();
   const [obs, setObs] = useState(item.approval?.observation ?? "");
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
+    if (readOnly) return;
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 600));
-    saveApproval(item.id, { observation: obs });
-    toast.success("Aprovado com sucesso!");
-    setSaving(false);
-    onSaved?.();
+
+    try {
+      // 1. Salva a observação da aprovação
+      await saveApproval(item.id, { observation: obs });
+
+      // 2. DISPARO DO AVANÇO DE FASE:
+      // Aqui alteramos o status do backlog para a fase que você criou
+      // 'refinement_functional' é o nome técnico da coluna de Refinamento Funcional
+      await updateBacklog(item.id, {
+        phase: "refinement_functional",
+        updated_at: new Date().toISOString(),
+      });
+
+      toast.success("Aprovado e movido para Refinamento Funcional!");
+      onSaved?.(); // Fecha o modal ou atualiza a lista
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao processar aprovação.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -48,9 +66,13 @@ export function ApprovalForm({ item, onSaved, readOnly }: Props) {
           className="w-full py-2.5 rounded-xl font-semibold text-sm text-primary-foreground bg-gradient-to-r from-primary to-[hsl(262_83%_58%)] hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2 shadow-[var(--shadow-glow)]"
         >
           {saving ? (
-            <><Loader2 className="w-4 h-4 animate-spin" /> Aprovando...</>
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" /> Aprovando...
+            </>
           ) : (
-            <><CheckCircle2 className="w-4 h-4" /> Salvar e Aprovar</>
+            <>
+              <CheckCircle2 className="w-4 h-4" /> Salvar e Aprovar
+            </>
           )}
         </motion.button>
       )}
