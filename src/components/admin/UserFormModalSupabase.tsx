@@ -31,7 +31,7 @@ interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   profile?: Profile | null;
-  cloneData?: any | null; // Tipado como any para aceitar as listas de IDs no clone
+  cloneData?: any | null;
 }
 
 export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }: Props) {
@@ -57,6 +57,15 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    // Se o modal fechar, resetamos a senha gerada e o estado de cópia
+    if (!open) {
+      setGeneratedPassword(null);
+      setCopied(false);
+      return;
+    }
+
+    // Só resetamos a senha se não houver uma senha sendo exibida no momento
+    // (Isso evita que o modal de senha suma quando o queryClient invalida as queries)
     if (profile) {
       setFirstName(profile.first_name);
       setLastName(profile.last_name);
@@ -64,15 +73,17 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
       setRoleId(profile.role_id ?? "");
       setSelectedProductIds(profileProducts.filter((pp) => pp.profile_id === profile.id).map((pp) => pp.product_id));
       setSelectedGroupIds(profileGroups.filter((pg) => pg.profile_id === profile.id).map((pg) => pg.group_id));
+      setGeneratedPassword(null);
     } else if (cloneData) {
-      // Requisito: Cargo, Produtos e Grupos preenchidos ao clonar
       setFirstName("");
       setLastName("");
       setEmail("");
       setRoleId(cloneData.role_id ?? "");
       setSelectedProductIds(cloneData.selectedProductIds || []);
       setSelectedGroupIds(cloneData.selectedGroupIds || []);
-    } else {
+      setGeneratedPassword(null);
+    } else if (!generatedPassword) {
+      // Novo usuário: Limpamos apenas se não acabamos de gerar uma senha
       setFirstName("");
       setLastName("");
       setEmail("");
@@ -80,8 +91,6 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
       setSelectedProductIds([]);
       setSelectedGroupIds([]);
     }
-    setGeneratedPassword(null);
-    setCopied(false);
   }, [profile, cloneData, open, profileProducts, profileGroups]);
 
   const toggleProduct = (id: string) => {
@@ -227,7 +236,6 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
                 </Select>
               </div>
 
-              {/* Multi-select Products - 2 Colunas */}
               <div className="space-y-2">
                 <Label>Produtos</Label>
                 <div className="bg-secondary/50 rounded-lg p-3 border border-border/40">
@@ -251,7 +259,6 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
                 </div>
               </div>
 
-              {/* Multi-select Groups - 2 Colunas */}
               <div className="space-y-2">
                 <Label>Grupos de Acesso</Label>
                 <div className="bg-secondary/50 rounded-lg p-3 border border-border/40">
