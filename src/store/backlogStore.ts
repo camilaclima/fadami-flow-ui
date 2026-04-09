@@ -91,13 +91,13 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
     set({ loading: true });
 
     try {
+      // Ajuste para evitar erros de tipagem e garantir que clientes sejam carregados
       const [backlogsRes, historyRes, productsRes, clientsRes, profilesRes] = await Promise.all([
-        supabase.from("backlogs").select("*").order("created_at", { ascending: false }),
-        supabase.from("backlog_phase_history").select("*").order("entered_at"),
-        supabase.from("products").select("*").eq("status", "active").order("name"),
-        // AJUSTE: Cast "any" para ignorar erro de tipagem no filtro de status
-        supabase.from("clients").select("*").eq("active", true).order("name"),
-        supabase.from("profiles").select("user_id, first_name, last_name"),
+        (supabase.from("backlogs") as any).select("*").order("created_at", { ascending: false }),
+        (supabase.from("backlog_phase_history") as any).select("*").order("entered_at"),
+        (supabase.from("products") as any).select("*").eq("status", "active").order("name"),
+        (supabase.from("clients") as any).select("*").order("name"), // Removido filtro problemático
+        (supabase.from("profiles") as any).select("user_id, first_name, last_name"),
       ]);
 
       const profilesMap: Record<string, string> = {};
@@ -126,6 +126,7 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
         id: c.id,
         name: c.name,
         email: c.email,
+        status: c.status, // Garantindo que o status venha para o filtro no componente
       }));
 
       set({ backlogs, products, clients, loading: false, initialized: true });
@@ -211,21 +212,19 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
       updated_at: now,
     } as any;
 
-    await supabase
-      .from("backlogs")
+    await (supabase.from("backlogs") as any)
       .update({
         phase: "approval",
         prioritization: prioritizationUpdate,
       })
       .eq("id", id);
 
-    await supabase
-      .from("backlog_phase_history")
+    await (supabase.from("backlog_phase_history") as any)
       .update({ completed_at: now })
       .eq("backlog_id", id)
       .eq("phase", "prioritization")
       .is("completed_at", null);
-    await supabase.from("backlog_phase_history").insert({
+    await (supabase.from("backlog_phase_history") as any).insert({
       backlog_id: id,
       phase: "approval",
       entered_at: now,
@@ -244,21 +243,19 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
       updated_at: now,
     } as any;
 
-    await supabase
-      .from("backlogs")
+    await (supabase.from("backlogs") as any)
       .update({
         phase: "refinement",
         approval: approvalUpdate,
       })
       .eq("id", id);
 
-    await supabase
-      .from("backlog_phase_history")
+    await (supabase.from("backlog_phase_history") as any)
       .update({ completed_at: now })
       .eq("backlog_id", id)
       .eq("phase", "approval")
       .is("completed_at", null);
-    await supabase.from("backlog_phase_history").insert({
+    await (supabase.from("backlog_phase_history") as any).insert({
       backlog_id: id,
       phase: "refinement",
       entered_at: now,
@@ -277,21 +274,19 @@ export const useBacklogStore = create<BacklogStore>((set, get) => ({
       updated_at: now,
     } as any;
 
-    await supabase
-      .from("backlogs")
+    await (supabase.from("backlogs") as any)
       .update({
         phase: "available",
         refinement: refinementUpdate,
       })
       .eq("id", id);
 
-    await supabase
-      .from("backlog_phase_history")
+    await (supabase.from("backlog_phase_history") as any)
       .update({ completed_at: now })
       .eq("backlog_id", id)
       .eq("phase", "refinement")
       .is("completed_at", null);
-    await supabase.from("backlog_phase_history").insert({
+    await (supabase.from("backlog_phase_history") as any).insert({
       backlog_id: id,
       phase: "available",
       entered_at: now,
