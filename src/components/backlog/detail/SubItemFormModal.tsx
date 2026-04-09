@@ -115,59 +115,59 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] p-0 gap-0 overflow-hidden bg-card border-border/60 shadow-xl">
-        <div className="px-6 pt-6 pb-3">
+        <div className="px-6 pt-5 pb-2">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold tracking-tight">
+            <DialogTitle className="text-base font-bold tracking-tight">
               {editItem ? "Editar Subitem" : "Novo Subitem"}
             </DialogTitle>
           </DialogHeader>
         </div>
 
-        <div className="px-6 pb-6 space-y-5 max-h-[80vh] overflow-y-auto">
-          {/* Título */}
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
+        <div className="px-6 pb-6 space-y-3 max-h-[85vh] overflow-y-auto">
+          {/* Título - Reduzido space-y-0.5 */}
+          <div className="space-y-0.5">
+            <label className="text-[10px] font-semibold text-foreground/70 uppercase tracking-wider">
               Título <span className="text-primary">*</span>
             </label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Nome do subitem..."
-              className="w-full px-4 py-2.5 rounded-lg bg-secondary text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow border-0"
+              className="w-full px-4 py-2 rounded-lg bg-secondary text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow border-0"
             />
           </div>
 
-          {/* Funcional */}
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
+          {/* Funcional - Reduzido space-y-0.5 e rows */}
+          <div className="space-y-0.5">
+            <label className="text-[10px] font-semibold text-foreground/70 uppercase tracking-wider">
               Detalhamento Funcional
             </label>
             <textarea
               value={functionalDetail}
               onChange={(e) => setFunctionalDetail(e.target.value)}
-              rows={6}
+              rows={4}
               placeholder="Descreva o detalhamento funcional..."
-              className="w-full px-4 py-3 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow resize-y border-0 min-h-[120px]"
+              className="w-full px-4 py-2.5 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow resize-y border-0 min-h-[100px]"
             />
           </div>
 
-          {/* Técnico */}
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
+          {/* Técnico - Reduzido space-y-0.5 e rows */}
+          <div className="space-y-0.5">
+            <label className="text-[10px] font-semibold text-foreground/70 uppercase tracking-wider">
               Detalhamento Técnico
             </label>
             <textarea
               value={technicalDetail}
               onChange={(e) => setTechnicalDetail(e.target.value)}
-              rows={6}
+              rows={4}
               placeholder="Descreva o detalhamento técnico..."
-              className="w-full px-4 py-3 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow resize-y border-0 min-h-[120px]"
+              className="w-full px-4 py-2.5 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow resize-y border-0 min-h-[100px]"
             />
           </div>
 
-          {/* Estimativa */}
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
+          {/* Estimativa - Reduzido space-y-0.5 */}
+          <div className="space-y-0.5">
+            <label className="text-[10px] font-semibold text-foreground/70 uppercase tracking-wider">
               Estimativa (Horas) <span className="text-primary">*</span>
             </label>
             <input
@@ -176,13 +176,13 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
               value={estimate || ""}
               onChange={(e) => setEstimate(Number(e.target.value))}
               placeholder="Ex: 8"
-              className="w-full px-4 py-2.5 rounded-lg bg-secondary text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow border-0"
+              className="w-full px-4 py-2 rounded-lg bg-secondary text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow border-0"
             />
           </div>
 
-          {/* Anexos - Agora posicionado abaixo da estimativa */}
-          <div className="space-y-2">
-            <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider flex items-center gap-1">
+          {/* Anexos - Reduzido space-y-1 */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-semibold text-foreground/70 uppercase tracking-wider flex items-center gap-1">
               <Paperclip className="w-3 h-3" />
               Anexar Documentos
             </label>
@@ -215,45 +215,33 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
                 className="hidden"
                 onChange={(e) => handleFiles(e.target.files)}
               />
-              <div className="flex items-center justify-center gap-2 py-3">
+              <div className="flex items-center justify-center gap-2 py-2">
                 <CloudUpload className={`w-4 h-4 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
-                <p className="text-[11px] text-muted-foreground">
-                  Solte ou <span className="text-primary font-medium">clique</span> para anexar arquivos
+                <p className="text-[10px] text-muted-foreground">
+                  Solte ou <span className="text-primary font-medium">clique</span> para anexar
                 </p>
               </div>
             </div>
 
-            {/* Lista de Anexos */}
             <AnimatePresence>
               {attachments.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-1.5">
                   {attachments.map((file) => (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
                       key={file.id}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary text-xs"
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary text-[11px]"
                     >
-                      <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
-                      {file.url ? (
-                        <a
-                          href={file.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline truncate flex-1"
-                        >
-                          {file.name}
-                        </a>
-                      ) : (
-                        <span className="text-foreground truncate flex-1">{file.name}</span>
-                      )}
+                      <FileText className="w-3 h-3 text-primary shrink-0" />
+                      <span className="truncate flex-1">{file.name}</span>
                       <button
                         type="button"
                         onClick={() => removeAttachment(file.id)}
                         className="text-muted-foreground hover:text-destructive shrink-0"
                       >
-                        <X className="w-3.5 h-3.5" />
+                        <X className="w-3 h-3" />
                       </button>
                     </motion.div>
                   ))}
@@ -268,7 +256,7 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
             disabled={saving}
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.98 }}
-            className="w-full mt-4 py-3 rounded-xl font-semibold text-sm text-primary-foreground bg-gradient-to-r from-primary to-[hsl(262_83%_58%)] hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2 shadow-md"
+            className="w-full mt-2 py-2.5 rounded-xl font-semibold text-sm text-primary-foreground bg-gradient-to-r from-primary to-[hsl(262_83%_58%)] hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2 shadow-sm"
           >
             {saving ? (
               <>
