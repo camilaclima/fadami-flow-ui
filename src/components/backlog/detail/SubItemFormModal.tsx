@@ -114,7 +114,6 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {/* Aumento do modal para 700px */}
       <DialogContent className="sm:max-w-[700px] p-0 gap-0 overflow-hidden bg-card border-border/60 shadow-xl">
         <div className="px-6 pt-6 pb-3">
           <DialogHeader>
@@ -138,7 +137,7 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
             />
           </div>
 
-          {/* Funcional - Campo aumentado */}
+          {/* Funcional */}
           <div className="space-y-1.5">
             <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
               Detalhamento Funcional
@@ -147,12 +146,12 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
               value={functionalDetail}
               onChange={(e) => setFunctionalDetail(e.target.value)}
               rows={6}
-              placeholder="Descreva o detalhamento funcional com mais espaço..."
+              placeholder="Descreva o detalhamento funcional..."
               className="w-full px-4 py-3 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow resize-y border-0 min-h-[120px]"
             />
           </div>
 
-          {/* Técnico - Campo aumentado */}
+          {/* Técnico */}
           <div className="space-y-1.5">
             <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
               Detalhamento Técnico
@@ -161,108 +160,107 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
               value={technicalDetail}
               onChange={(e) => setTechnicalDetail(e.target.value)}
               rows={6}
-              placeholder="Descreva o detalhamento técnico com mais espaço..."
+              placeholder="Descreva o detalhamento técnico..."
               className="w-full px-4 py-3 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow resize-y border-0 min-h-[120px]"
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
-                Estimativa (Horas) <span className="text-primary">*</span>
-              </label>
-              <input
-                type="number"
-                min={0}
-                value={estimate || ""}
-                onChange={(e) => setEstimate(Number(e.target.value))}
-                placeholder="Ex: 8"
-                className="w-full px-4 py-2.5 rounded-lg bg-secondary text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow border-0"
-              />
-            </div>
-
-            {/* Anexos */}
-            <div className="space-y-2">
-              <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider flex items-center gap-1">
-                <Paperclip className="w-3 h-3" />
-                Anexar Documentos
-              </label>
-
-              <div
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setIsDragging(true);
-                }}
-                onDragLeave={(e) => {
-                  e.preventDefault();
-                  setIsDragging(false);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setIsDragging(false);
-                  handleFiles(e.dataTransfer.files);
-                }}
-                onClick={() => fileInputRef.current?.click()}
-                className={`relative cursor-pointer rounded-lg border border-dashed transition-all duration-300 ${
-                  isDragging
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/40 hover:bg-secondary/50"
-                }`}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => handleFiles(e.target.files)}
-                />
-                <div className="flex items-center justify-center gap-2 py-2.5">
-                  <CloudUpload className={`w-4 h-4 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
-                  <p className="text-[11px] text-muted-foreground">
-                    Solte ou <span className="text-primary font-medium">clique</span> para anexar
-                  </p>
-                </div>
-              </div>
-            </div>
+          {/* Estimativa */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
+              Estimativa (Horas) <span className="text-primary">*</span>
+            </label>
+            <input
+              type="number"
+              min={0}
+              value={estimate || ""}
+              onChange={(e) => setEstimate(Number(e.target.value))}
+              placeholder="Ex: 8"
+              className="w-full px-4 py-2.5 rounded-lg bg-secondary text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-shadow border-0"
+            />
           </div>
 
-          {/* Lista de Anexos */}
-          <AnimatePresence>
-            {attachments.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                {attachments.map((file) => (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    key={file.id}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary text-xs"
-                  >
-                    <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
-                    {file.url ? (
-                      <a
-                        href={file.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline truncate flex-1"
-                      >
-                        {file.name}
-                      </a>
-                    ) : (
-                      <span className="text-foreground truncate flex-1">{file.name}</span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => removeAttachment(file.id)}
-                      className="text-muted-foreground hover:text-destructive shrink-0"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </motion.div>
-                ))}
+          {/* Anexos - Agora posicionado abaixo da estimativa */}
+          <div className="space-y-2">
+            <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider flex items-center gap-1">
+              <Paperclip className="w-3 h-3" />
+              Anexar Documentos
+            </label>
+
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                setIsDragging(false);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDragging(false);
+                handleFiles(e.dataTransfer.files);
+              }}
+              onClick={() => fileInputRef.current?.click()}
+              className={`relative cursor-pointer rounded-lg border border-dashed transition-all duration-300 ${
+                isDragging
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-primary/40 hover:bg-secondary/50"
+              }`}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => handleFiles(e.target.files)}
+              />
+              <div className="flex items-center justify-center gap-2 py-3">
+                <CloudUpload className={`w-4 h-4 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
+                <p className="text-[11px] text-muted-foreground">
+                  Solte ou <span className="text-primary font-medium">clique</span> para anexar arquivos
+                </p>
               </div>
-            )}
-          </AnimatePresence>
+            </div>
+
+            {/* Lista de Anexos */}
+            <AnimatePresence>
+              {attachments.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                  {attachments.map((file) => (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      key={file.id}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary text-xs"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
+                      {file.url ? (
+                        <a
+                          href={file.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline truncate flex-1"
+                        >
+                          {file.name}
+                        </a>
+                      ) : (
+                        <span className="text-foreground truncate flex-1">{file.name}</span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(file.id)}
+                        className="text-muted-foreground hover:text-destructive shrink-0"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </AnimatePresence>
+          </div>
 
           <motion.button
             type="button"
