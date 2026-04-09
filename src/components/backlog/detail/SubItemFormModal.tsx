@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { SubItem } from "@/types/backlog";
-import { motion } from "framer-motion";
-import { Loader2, CheckCircle2, CloudUpload, Paperclip, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Loader2, CheckCircle2, CloudUpload, Paperclip, X, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { uploadAttachment } from "@/lib/uploadAttachment";
 
@@ -13,13 +13,19 @@ interface Props {
   editItem?: SubItem | null;
 }
 
+interface AttachmentItem {
+  id: string;
+  name: string;
+  url?: string;
+  file?: File;
+}
+
 export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props) {
   const [title, setTitle] = useState("");
   const [functionalDetail, setFunctionalDetail] = useState("");
   const [technicalDetail, setTechnicalDetail] = useState("");
   const [estimate, setEstimate] = useState<number>(0);
-  const [attachment, setAttachment] = useState("");
-  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -30,22 +36,44 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
       setFunctionalDetail(editItem.functionalDetail);
       setTechnicalDetail(editItem.technicalDetail);
       setEstimate(editItem.estimate);
-      setAttachment(editItem.attachment ?? "");
+
+      if (editItem.attachment) {
+        // Assume que múltiplos anexos podem vir separados por vírgula no banco
+        const urls = editItem.attachment.split(",");
+        setAttachments(
+          urls.map((url) => ({
+            id: Math.random().toString(36).substr(2, 9),
+            name: url.split("/").pop() || "Arquivo",
+            url: url.trim(),
+          })),
+        );
+      } else {
+        setAttachments([]);
+      }
     } else {
       setTitle("");
       setFunctionalDetail("");
       setTechnicalDetail("");
       setEstimate(0);
-      setAttachment("");
-      setAttachmentFile(null);
+      setAttachments([]);
     }
   }, [editItem, open]);
 
   const handleFiles = useCallback((files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    setAttachmentFile(files[0]);
-    setAttachment(files[0].name);
+    if (!files) return;
+
+    const newFiles: AttachmentItem[] = Array.from(files).map((file) => ({
+      id: Math.random().toString(36).substr(2, 9),
+      name: file.name,
+      file: file,
+    }));
+
+    setAttachments((prev) => [...prev, ...newFiles]);
   }, []);
+
+  const removeAttachment = (id: string) => {
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+  };
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -56,24 +84,30 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
       toast.error("Informe a estimativa em horas.");
       return;
     }
+
     setSaving(true);
     try {
-      let attachmentUrl = attachment;
-      // Upload new file if selected
-      if (attachmentFile) {
-        attachmentUrl = await uploadAttachment(attachmentFile, "subitems");
-      }
+      const uploadPromises = attachments.map(async (attr) => {
+        if (attr.file) {
+          return await uploadAttachment(attr.file, "subitems");
+        }
+        return attr.url;
+      });
+
+      const uploadedUrls = await Promise.all(uploadPromises);
+      const finalAttachmentString = uploadedUrls.filter(Boolean).join(",");
+
       onSave({
         title: title.trim(),
         functionalDetail,
         technicalDetail,
         estimate,
-        attachment: attachmentUrl || undefined,
+        attachment: finalAttachmentString || undefined,
       });
       onOpenChange(false);
     } catch (err) {
       console.error("Upload error:", err);
-      toast.error("Erro ao enviar anexo.");
+      toast.error("Erro ao enviar anexos.");
     } finally {
       setSaving(false);
     }
@@ -91,7 +125,6 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
         </div>
 
         <div className="px-5 pb-5 space-y-3.5 max-h-[75vh] overflow-y-auto">
-          {/* Título */}
           <div className="space-y-1">
             <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
               Título <span className="text-primary">*</span>
@@ -104,7 +137,6 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
             />
           </div>
 
-          {/* Detalhamento Funcional */}
           <div className="space-y-1">
             <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
               Detalhamento Funcional
@@ -118,7 +150,6 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
             />
           </div>
 
-          {/* Detalhamento Técnico */}
           <div className="space-y-1">
             <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
               Detalhamento Técnico
@@ -132,7 +163,6 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
             />
           </div>
 
-          {/* Estimativa */}
           <div className="space-y-1">
             <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
               Estimativa (Horas) <span className="text-primary">*</span>
@@ -147,31 +177,60 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
             />
           </div>
 
-          {/* Anexo */}
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <label className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider flex items-center gap-1">
               <Paperclip className="w-3 h-3" />
-              Anexar Documento
+              Anexar Documentos
             </label>
-            {attachment ? (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary text-sm">
-                <Paperclip className="w-3.5 h-3.5 text-primary" />
-                {attachment.startsWith("http") ? (
-                  <a href={attachment} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate flex-1">
-                    {attachment.split("/").pop()}
-                  </a>
-                ) : (
-                  <span className="text-foreground truncate flex-1">{attachment}</span>
-                )}
-                <button type="button" onClick={() => { setAttachment(""); setAttachmentFile(null); }} className="text-muted-foreground hover:text-destructive">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ) : (
+
+            <div className="space-y-2">
+              <AnimatePresence>
+                {attachments.map((file) => (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    key={file.id}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary text-xs"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
+                    {file.url ? (
+                      <a
+                        href={file.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline truncate flex-1"
+                      >
+                        {file.name}
+                      </a>
+                    ) : (
+                      <span className="text-foreground truncate flex-1">{file.name}</span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(file.id)}
+                      className="text-muted-foreground hover:text-destructive shrink-0"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+
               <div
-                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
-                onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleFiles(e.dataTransfer.files); }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  handleFiles(e.dataTransfer.files);
+                }}
                 onClick={() => fileInputRef.current?.click()}
                 className={`relative cursor-pointer rounded-lg border border-dashed transition-all duration-300 ${
                   isDragging
@@ -182,27 +241,27 @@ export function SubItemFormModal({ open, onOpenChange, onSave, editItem }: Props
                 <input
                   ref={fileInputRef}
                   type="file"
+                  multiple
                   className="hidden"
                   onChange={(e) => handleFiles(e.target.files)}
                 />
-                <div className="flex items-center justify-center gap-2 py-2.5">
+                <div className="flex items-center justify-center gap-2 py-3">
                   <CloudUpload className={`w-4 h-4 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
-                  <p className="text-xs text-muted-foreground">
-                    Solte ou <span className="text-primary font-medium">clique</span>
+                  <p className="text-[11px] text-muted-foreground">
+                    Solte ou <span className="text-primary font-medium">clique</span> para anexar vários arquivos
                   </p>
                 </div>
               </div>
-            )}
+            </div>
           </div>
 
-          {/* Botão salvar */}
           <motion.button
             type="button"
             onClick={handleSave}
             disabled={saving}
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.98 }}
-            className="w-full py-2.5 rounded-xl font-semibold text-sm text-primary-foreground bg-gradient-to-r from-primary to-[hsl(262_83%_58%)] hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
+            className="w-full mt-4 py-2.5 rounded-xl font-semibold text-sm text-primary-foreground bg-gradient-to-r from-primary to-[hsl(262_83%_58%)] hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {saving ? (
               <>
