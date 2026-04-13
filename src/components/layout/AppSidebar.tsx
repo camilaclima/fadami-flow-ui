@@ -1,4 +1,4 @@
-import { LayoutDashboard, ListTodo, Package, Users, Settings, ChevronLeft, ChevronDown, Briefcase, Shield, UserCog, ClipboardList, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, ListTodo, Package, Users, Settings, ChevronLeft, ChevronDown, Briefcase, Shield, UserCog, ClipboardList, ShieldCheck, UsersRound, Zap } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { FadamiFlowLogo } from "@/components/FadamiFlowLogo";
 import menuIcon from "@/assets/menu-icon.png";
@@ -27,6 +27,14 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { title: "Dashboard", url: "/", icon: LayoutDashboard, permission: "dashboard" },
       { title: "Backlogs", url: "/backlogs", icon: ListTodo, permission: "backlogs" },
+    ],
+  },
+  {
+    label: "Sprints",
+    icon: Zap,
+    items: [
+      { title: "Equipe", url: "/team", icon: UsersRound, permission: "team" },
+      { title: "Sprints", url: "/sprints", icon: Zap, permission: "sprints" },
     ],
   },
   {
