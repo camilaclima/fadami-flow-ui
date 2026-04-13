@@ -498,6 +498,275 @@ export type Database = {
         }
         Relationships: []
       }
+      sprint_backlog_items: {
+        Row: {
+          actual_hours: number
+          backlog_id: string
+          backlog_sub_item_id: string
+          checklist_access: string
+          checklist_dependency: string
+          checklist_questions: string
+          checklist_tools: string
+          created_at: string
+          id: string
+          impediment_deadline: string | null
+          impediment_text: string
+          sprint_id: string
+          status: string
+          team_member_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          actual_hours?: number
+          backlog_id: string
+          backlog_sub_item_id: string
+          checklist_access?: string
+          checklist_dependency?: string
+          checklist_questions?: string
+          checklist_tools?: string
+          created_at?: string
+          id?: string
+          impediment_deadline?: string | null
+          impediment_text?: string
+          sprint_id: string
+          status?: string
+          team_member_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          actual_hours?: number
+          backlog_id?: string
+          backlog_sub_item_id?: string
+          checklist_access?: string
+          checklist_dependency?: string
+          checklist_questions?: string
+          checklist_tools?: string
+          created_at?: string
+          id?: string
+          impediment_deadline?: string | null
+          impediment_text?: string
+          sprint_id?: string
+          status?: string
+          team_member_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sprint_backlog_items_backlog_id_fkey"
+            columns: ["backlog_id"]
+            isOneToOne: false
+            referencedRelation: "backlogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sprint_backlog_items_backlog_sub_item_id_fkey"
+            columns: ["backlog_sub_item_id"]
+            isOneToOne: false
+            referencedRelation: "backlog_sub_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sprint_backlog_items_sprint_id_fkey"
+            columns: ["sprint_id"]
+            isOneToOne: false
+            referencedRelation: "sprints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sprint_backlog_items_team_member_id_fkey"
+            columns: ["team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sprint_members: {
+        Row: {
+          created_at: string
+          id: string
+          sprint_id: string
+          team_member_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          sprint_id: string
+          team_member_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          sprint_id?: string
+          team_member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sprint_members_sprint_id_fkey"
+            columns: ["sprint_id"]
+            isOneToOne: false
+            referencedRelation: "sprints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sprint_members_team_member_id_fkey"
+            columns: ["team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sprint_unavailabilities: {
+        Row: {
+          created_at: string
+          description: string
+          hours: number
+          id: string
+          sprint_member_id: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          hours?: number
+          id?: string
+          sprint_member_id: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          hours?: number
+          id?: string
+          sprint_member_id?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sprint_unavailabilities_sprint_member_id_fkey"
+            columns: ["sprint_member_id"]
+            isOneToOne: false
+            referencedRelation: "sprint_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sprints: {
+        Row: {
+          coordinator_id: string
+          created_at: string
+          diary: string
+          end_date: string
+          id: string
+          name: string
+          product_id: string | null
+          ritual_hours: number
+          start_date: string
+          status: string
+          sustentation_percent: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          coordinator_id: string
+          created_at?: string
+          diary?: string
+          end_date: string
+          id?: string
+          name: string
+          product_id?: string | null
+          ritual_hours?: number
+          start_date: string
+          status?: string
+          sustentation_percent?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          coordinator_id?: string
+          created_at?: string
+          diary?: string
+          end_date?: string
+          id?: string
+          name?: string
+          product_id?: string | null
+          ritual_hours?: number
+          start_date?: string
+          status?: string
+          sustentation_percent?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sprints_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_members: {
+        Row: {
+          active: boolean
+          coordinator_id: string
+          created_at: string
+          daily_capacity_hours: number
+          id: string
+          name: string
+          product_id: string | null
+          role: string
+          seniority: string
+          specialty: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          active?: boolean
+          coordinator_id: string
+          created_at?: string
+          daily_capacity_hours?: number
+          id?: string
+          name: string
+          product_id?: string | null
+          role?: string
+          seniority?: string
+          specialty?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          active?: boolean
+          coordinator_id?: string
+          created_at?: string
+          daily_capacity_hours?: number
+          id?: string
+          name?: string
+          product_id?: string | null
+          role?: string
+          seniority?: string
+          specialty?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
