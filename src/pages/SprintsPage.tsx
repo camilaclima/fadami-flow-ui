@@ -11,6 +11,8 @@ import { motion } from "framer-motion";
 import { SPRINT_STATUS_LABELS } from "@/types/sprint";
 import type { Sprint, SprintStatus } from "@/types/sprint";
 import { SprintFormModal } from "@/components/sprint/SprintFormModal";
+import type { SprintFormData } from "@/components/sprint/SprintFormModal";
+import { useAddSprintMember, useAddSprintUnavailability } from "@/hooks/useSprints";
 import { SprintDetailModal } from "@/components/sprint/SprintDetailModal";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
