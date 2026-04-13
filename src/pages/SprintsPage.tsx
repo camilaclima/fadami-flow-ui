@@ -30,6 +30,8 @@ export default function SprintsPage() {
   const addSprint = useAddSprint();
   const updateSprint = useUpdateSprint();
   const deleteSprint = useDeleteSprint();
+  const addSprintMember = useAddSprintMember();
+  const addUnavailability = useAddSprintUnavailability();
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Sprint | null>(null);
@@ -40,11 +42,31 @@ export default function SprintsPage() {
   const handleNew = () => { setEditing(null); setFormOpen(true); };
   const handleEdit = (s: Sprint) => { setEditing(s); setFormOpen(true); };
 
-  const handleSave = (data: any) => {
+  const handleSave = async (data: SprintFormData) => {
+    const { members, ...sprintData } = data;
     if (editing) {
-      updateSprint.mutate({ id: editing.id, ...data });
+      updateSprint.mutate({ id: editing.id, ...sprintData });
     } else {
-      addSprint.mutate({ ...data, coordinator_id: user?.id ?? "" });
+      try {
+        const newSprint = await addSprint.mutateAsync({ ...sprintData, coordinator_id: user?.id ?? "" });
+        // Save members and their unavailabilities
+        for (const member of members) {
+          const sm = await addSprintMember.mutateAsync({
+            sprint_id: newSprint.id,
+            team_member_id: member.team_member_id,
+          });
+          for (const u of member.unavailabilities) {
+            await addUnavailability.mutateAsync({
+              sprint_member_id: sm.id,
+              type: u.type,
+              hours: u.hours,
+              description: u.description,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Error creating sprint with members:", err);
+      }
     }
   };
 
