@@ -16,6 +16,8 @@ export interface Role {
 export const SYSTEM_PAGES = [
   "dashboard",
   "backlogs",
+  "team",
+  "sprints",
   "products",
   "clients",
   "users",
@@ -29,6 +31,8 @@ export type SystemPage = (typeof SYSTEM_PAGES)[number];
 export const SYSTEM_PAGE_LABELS: Record<SystemPage, string> = {
   dashboard: "Dashboard",
   backlogs: "Backlogs",
+  team: "Equipe",
+  sprints: "Sprints",
   products: "Produtos",
   clients: "Clientes",
   users: "Usuários",
