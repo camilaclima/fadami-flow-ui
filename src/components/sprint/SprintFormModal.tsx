@@ -46,7 +46,7 @@ export function SprintFormModal({ open, onOpenChange, sprint, onSave }: Props) {
   const [productId, setProductId] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [status, setStatus] = useState("planned");
+  const [status, setStatus] = useState<SprintStatus>("planned");
   const [sustentation, setSustentation] = useState(0);
   const [ritualHours, setRitualHours] = useState(0);
   const [selectedMembers, setSelectedMembers] = useState<SelectedMember[]>([]);
