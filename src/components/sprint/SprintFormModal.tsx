@@ -26,7 +26,7 @@ export interface SprintFormData {
   product_id: string | null;
   start_date: string;
   end_date: string;
-  status: string;
+  status: SprintStatus;
   sustentation_percent: number;
   ritual_hours: number;
   members: SelectedMember[];
