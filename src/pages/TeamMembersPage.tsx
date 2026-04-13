@@ -4,7 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAllTeamMembers, useAddTeamMember, useUpdateTeamMember, useToggleTeamMember } from "@/hooks/useTeamMembers";
-import { TeamMemberFormModal } from "@/components/TeamMemberFormModal";
+
+// Importe corrigido para o nome exato do arquivo e adicionando a extensão para evitar erro de resolução do Vite
+import { TeamMemberFormModal } from "../components/TeamMemberFormModal";
+
 import { TEAM_ROLE_LABELS, SENIORITY_LABELS, SPECIALTY_LABELS } from "@/types/sprint";
 import type { TeamMember } from "@/types/sprint";
 
@@ -17,7 +20,7 @@ export default function TeamMembersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
 
-  // ID do coordenador (pode ser mockado ou vir do seu hook de Auth)
+  // ID padrão para o coordenador
   const COORDINATOR_ID = "00000000-0000-0000-0000-000000000000";
 
   const handleSave = (data: any) => {
@@ -27,7 +30,6 @@ export default function TeamMembersPage() {
       addMutation.mutate(data);
     }
     setModalOpen(false);
-    setEditingMember(null);
   };
 
   const handleToggle = (id: string, active: boolean) => {
@@ -36,9 +38,9 @@ export default function TeamMembersPage() {
 
   if (isLoading) {
     return (
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="p-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
-          <Skeleton key={i} className="h-[280px] w-full rounded-[28px]" />
+          <Skeleton key={i} className="h-[250px] w-full rounded-[28px]" />
         ))}
       </div>
     );
@@ -46,7 +48,6 @@ export default function TeamMembersPage() {
 
   return (
     <div className="fade-in space-y-8 pb-10">
-      {/* HEADER */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-black text-foreground tracking-tighter uppercase italic">Equipe & Capacity</h1>
@@ -63,11 +64,10 @@ export default function TeamMembersPage() {
         </Button>
       </div>
 
-      {/* GRID DE CARDS */}
       {list.length === 0 ? (
         <div className="bg-card rounded-[32px] border-2 border-dashed border-muted p-20 text-center">
           <Briefcase className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-20" />
-          <p className="text-muted-foreground font-bold uppercase text-xs tracking-widest">
+          <p className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest">
             Nenhum colaborador cadastrado
           </p>
         </div>
@@ -80,7 +80,6 @@ export default function TeamMembersPage() {
                 !c.active ? "opacity-60 grayscale bg-muted/30" : "border-border hover:border-primary/30"
               }`}
             >
-              {/* PERFIL */}
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center text-xl font-black shrink-0 border border-primary/10">
                   {c.name?.charAt(0) || "U"}
@@ -98,40 +97,34 @@ export default function TeamMembersPage() {
                 </div>
               </div>
 
-              {/* TAGS (Utilizando os Labels reais do seu types/sprint.ts) */}
               <div className="flex flex-wrap gap-2">
                 <Badge variant="secondary" className="rounded-lg text-[9px] font-black uppercase px-2 py-1">
-                  <Briefcase className="w-3 h-3 mr-1" />
                   {TEAM_ROLE_LABELS[c.role as keyof typeof TEAM_ROLE_LABELS] || c.role}
                 </Badge>
                 <Badge
                   variant="outline"
                   className="rounded-lg text-[9px] font-black uppercase px-2 py-1 border-primary/20 text-primary"
                 >
-                  <Award className="w-3 h-3 mr-1" />
                   {SENIORITY_LABELS[c.seniority as keyof typeof SENIORITY_LABELS] || c.seniority}
                 </Badge>
                 <Badge
                   className="bg-foreground/5 text-foreground border-foreground/10 rounded-lg text-[9px] font-black uppercase px-2 py-1"
                   variant="outline"
                 >
-                  <Puzzle className="w-3 h-3 mr-1" />
                   {SPECIALTY_LABELS[c.specialty as keyof typeof SPECIALTY_LABELS] || c.specialty}
                 </Badge>
               </div>
 
-              {/* PRODUTO */}
               <div className="bg-muted/30 rounded-2xl p-3 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Monitor className="w-3 h-3" />
-                  <span className="text-[10px] font-black uppercase text-[8px]">Produto:</span>
+                  <span className="text-[10px] font-black uppercase">Foco:</span>
                 </div>
                 <span className="text-[10px] font-black uppercase text-foreground truncate max-w-[100px]">
-                  {c.product_name || "Global"}
+                  {c.product_id ? "Projeto Ativo" : "Global"}
                 </span>
               </div>
 
-              {/* AÇÕES */}
               <div className="flex items-center gap-2 pt-2 mt-auto border-t border-border/50">
                 <Button
                   size="sm"
