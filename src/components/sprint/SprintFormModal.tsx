@@ -8,7 +8,7 @@ import { useProducts } from "@/hooks/useProducts";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { CheckCircle2, Circle, Plus, X } from "lucide-react";
 import { TEAM_ROLE_LABELS, UNAVAILABILITY_LABELS } from "@/types/sprint";
-import type { Sprint, TeamMember, UnavailabilityType } from "@/types/sprint";
+import type { Sprint, TeamMember, UnavailabilityType, SprintStatus } from "@/types/sprint";
 
 interface UnavailabilityEntry {
   type: UnavailabilityType;
