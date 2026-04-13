@@ -14,6 +14,8 @@ import SettingsPage from "./pages/SettingsPage";
 import UsersPage from "./pages/UsersPage";
 import RolesPage from "./pages/RolesPage";
 import AccessGroupsPage from "./pages/AccessGroupsPage";
+import TeamMembersPage from "./pages/TeamMembersPage";
+import SprintsPage from "./pages/SprintsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +32,8 @@ const App = () => (
               <Route element={<AppLayout />}>
                 <Route path="/" element={<DashboardPage />} />
                 <Route path="/backlogs" element={<BacklogsPage />} />
+                <Route path="/team" element={<TeamMembersPage />} />
+                <Route path="/sprints" element={<SprintsPage />} />
                 <Route path="/products" element={<ProductsPage />} />
                 <Route path="/clients" element={<ClientsPage />} />
                 <Route path="/users" element={<UsersPage />} />
