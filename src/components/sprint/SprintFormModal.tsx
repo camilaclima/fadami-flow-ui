@@ -166,7 +166,7 @@ export function SprintFormModal({ open, onOpenChange, sprint, onSave }: Props) {
           {sprint && (
             <div>
               <Label>Status</Label>
-              <Select value={status} onValueChange={setStatus}>
+              <Select value={status} onValueChange={(v) => setStatus(v as SprintStatus)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="planned">Planejada</SelectItem>
