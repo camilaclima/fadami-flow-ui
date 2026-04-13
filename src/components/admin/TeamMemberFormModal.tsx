@@ -116,10 +116,10 @@ export function TeamMemberFormModal({ open, onOpenChange, member, onSave, coordi
 
           <div>
             <Label>Produto</Label>
-            <Select value={productId} onValueChange={setProductId}>
+            <Select value={productId || "__none__"} onValueChange={(v) => setProductId(v === "__none__" ? "" : v)}>
               <SelectTrigger><SelectValue placeholder="Selecione (opcional)" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Nenhum</SelectItem>
+                <SelectItem value="__none__">Nenhum</SelectItem>
                 {products.map((p) => (
                   <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                 ))}
