@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAllTeamMembers, useAddTeamMember, useUpdateTeamMember, useToggleTeamMember } from "@/hooks/useTeamMembers";
-import { TeamMemberFormModal } from "../components/TeamMemberFormModal";
+import { TeamMemberFormModal } from "@/components/TeamMemberFormModal";
 import { TEAM_ROLE_LABELS, SENIORITY_LABELS, SPECIALTY_LABELS } from "@/types/sprint";
 import type { TeamMember } from "@/types/sprint";
 
@@ -94,7 +94,7 @@ export default function TeamMembersPage() {
                 </div>
               </div>
 
-              {/* GRUPO DE TAGS (Sem rótulos "Função:", "Senioridade:", etc) */}
+              {/* TAGS (Sem rótulos fixos) */}
               <div className="flex flex-wrap gap-2">
                 <Badge variant="secondary" className="rounded-lg text-[9px] font-black uppercase px-2.5 py-1">
                   <Briefcase className="w-3 h-3 mr-1.5" />
@@ -116,7 +116,7 @@ export default function TeamMembersPage() {
                 </Badge>
               </div>
 
-              {/* PRODUTO/FOCO */}
+              {/* PRODUTO */}
               <div className="bg-muted/30 rounded-2xl p-3 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Monitor className="w-3 h-3" />
@@ -127,7 +127,7 @@ export default function TeamMembersPage() {
                 </span>
               </div>
 
-              {/* BOTÕES DE AÇÃO */}
+              {/* AÇÕES */}
               <div className="flex items-center gap-2 pt-2 mt-auto border-t border-border/50">
                 <Button
                   size="sm"
