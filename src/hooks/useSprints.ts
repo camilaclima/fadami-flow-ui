@@ -169,7 +169,7 @@ export function useDeleteSprintUnavailability() {
 export function useAddSprintBacklogItem() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: Omit<SprintBacklogItem, "id" | "created_at" | "actual_hours" | "checklist_questions" | "checklist_access" | "checklist_dependency" | "checklist_tools" | "impediment_text" | "impediment_deadline">) => {
+    mutationFn: async (data: Omit<SprintBacklogItem, "id" | "created_at" | "actual_hours" | "checklist_questions" | "checklist_access" | "checklist_dependency" | "checklist_tools" | "impediment_text" | "impediment_deadline" | "deadline">) => {
       const { error } = await (supabase.from("sprint_backlog_items") as any).insert(data);
       if (error) throw error;
     },
