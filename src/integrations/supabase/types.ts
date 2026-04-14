@@ -587,6 +587,48 @@ export type Database = {
           },
         ]
       }
+      sprint_diary_entries: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          sprint_backlog_item_id: string | null
+          sprint_id: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          sprint_backlog_item_id?: string | null
+          sprint_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          sprint_backlog_item_id?: string | null
+          sprint_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sprint_diary_entries_sprint_backlog_item_id_fkey"
+            columns: ["sprint_backlog_item_id"]
+            isOneToOne: false
+            referencedRelation: "sprint_backlog_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sprint_diary_entries_sprint_id_fkey"
+            columns: ["sprint_id"]
+            isOneToOne: false
+            referencedRelation: "sprints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sprint_members: {
         Row: {
           created_at: string
