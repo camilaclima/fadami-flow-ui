@@ -508,6 +508,7 @@ export type Database = {
           checklist_questions: string
           checklist_tools: string
           created_at: string
+          deadline: string | null
           id: string
           impediment_deadline: string | null
           impediment_text: string
@@ -526,6 +527,7 @@ export type Database = {
           checklist_questions?: string
           checklist_tools?: string
           created_at?: string
+          deadline?: string | null
           id?: string
           impediment_deadline?: string | null
           impediment_text?: string
@@ -544,6 +546,7 @@ export type Database = {
           checklist_questions?: string
           checklist_tools?: string
           created_at?: string
+          deadline?: string | null
           id?: string
           impediment_deadline?: string | null
           impediment_text?: string
