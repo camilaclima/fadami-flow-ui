@@ -3,7 +3,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { SPRINT_STATUS_LABELS } from "@/types/sprint";
 import type { Sprint, SprintStatus } from "@/types/sprint";
-import { SprintCapacityDashboard } from "./SprintCapacityDashboard";
 import { SprintPrePlanning } from "./SprintPrePlanning";
 import { SprintPlanning } from "./SprintPlanning";
 import { SprintExecution } from "./SprintExecution";
@@ -17,7 +16,7 @@ interface Props {
 
 export function SprintDetailModal({ open, onOpenChange, sprint }: Props) {
   const status = sprint.status as SprintStatus;
-  const defaultTab = status === "planned" ? "capacity" : status === "active" ? "execution" : "closing";
+  const defaultTab = status === "planned" ? "preplanning" : status === "active" ? "execution" : "closing";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -33,7 +32,6 @@ export function SprintDetailModal({ open, onOpenChange, sprint }: Props) {
 
         <Tabs defaultValue={defaultTab} className="mt-2">
           <TabsList className="w-full justify-start">
-            <TabsTrigger value="capacity">Capacity</TabsTrigger>
             <TabsTrigger value="preplanning">Pré-Planning</TabsTrigger>
             <TabsTrigger value="planning">Planning</TabsTrigger>
             {(status === "active" || status === "finished") && (
@@ -44,9 +42,6 @@ export function SprintDetailModal({ open, onOpenChange, sprint }: Props) {
             )}
           </TabsList>
 
-          <TabsContent value="capacity" className="mt-4">
-            <SprintCapacityDashboard sprint={sprint} />
-          </TabsContent>
           <TabsContent value="preplanning" className="mt-4">
             <SprintPrePlanning sprint={sprint} />
           </TabsContent>
