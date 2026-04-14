@@ -19,20 +19,20 @@ export function SprintClosing({ sprint }: Props) {
   const memberMap = Object.fromEntries(teamMembers.map((t) => [t.id, t]));
 
   const totalItems = sprintItems.length;
-  const doneItems = sprintItems.filter((i) => i.status === "done").length;
-  const completionPct = totalItems > 0 ? (doneItems / totalItems) * 100 : 0;
+  const doneItems = sprintItems.filter((i) => i.status === "completed").length;
+  const withdrawnItems = sprintItems.filter((i) => i.status === "withdrawn").length;
+  const completionPct = totalItems > 0 ? ((doneItems + withdrawnItems) / totalItems) * 100 : 0;
 
   const totalPlannedHours = sprintItems.reduce((s, i) => s + (i.actual_hours || 0), 0);
-  const totalActualHours = sprintItems.filter((i) => i.status === "done").reduce((s, i) => s + (i.actual_hours || 0), 0);
+  const totalActualHours = sprintItems.filter((i) => i.status === "completed").reduce((s, i) => s + (i.actual_hours || 0), 0);
 
-  // Per-member productivity
   const memberStats = Object.entries(
     sprintItems.reduce<Record<string, { planned: number; actual: number; done: number; total: number }>>((acc, item) => {
       const mid = item.team_member_id ?? "unassigned";
       if (!acc[mid]) acc[mid] = { planned: 0, actual: 0, done: 0, total: 0 };
       acc[mid].total++;
       acc[mid].planned += item.actual_hours || 0;
-      if (item.status === "done") { acc[mid].done++; acc[mid].actual += item.actual_hours || 0; }
+      if (item.status === "completed") { acc[mid].done++; acc[mid].actual += item.actual_hours || 0; }
       return acc;
     }, {})
   );
@@ -43,7 +43,6 @@ export function SprintClosing({ sprint }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-card border border-border rounded-xl p-4">
           <p className="text-xs text-muted-foreground">% Concluída</p>
@@ -51,8 +50,8 @@ export function SprintClosing({ sprint }: Props) {
           <Progress value={completionPct} className="h-2 mt-2" />
         </div>
         <div className="bg-card border border-border rounded-xl p-4">
-          <p className="text-xs text-muted-foreground">Itens Done</p>
-          <p className="text-2xl font-bold text-foreground mt-1">{doneItems}/{totalItems}</p>
+          <p className="text-xs text-muted-foreground">Concluídos / Retirados</p>
+          <p className="text-2xl font-bold text-foreground mt-1">{doneItems} / {withdrawnItems}</p>
         </div>
         <div className="bg-card border border-border rounded-xl p-4">
           <p className="text-xs text-muted-foreground">Horas Planejadas</p>
@@ -64,7 +63,6 @@ export function SprintClosing({ sprint }: Props) {
         </div>
       </div>
 
-      {/* Per-member */}
       <div className="bg-card border border-border rounded-xl p-4 space-y-3">
         <h3 className="font-semibold text-sm">Produtividade Individual</h3>
         {memberStats.map(([mid, stats]) => {
@@ -81,7 +79,6 @@ export function SprintClosing({ sprint }: Props) {
         })}
       </div>
 
-      {/* Sprint Diary */}
       <div className="bg-card border border-border rounded-xl p-4 space-y-3">
         <h3 className="font-semibold text-sm">Diário da Sprint</h3>
         <Textarea className="min-h-[120px]" value={diary} onChange={(e) => setDiary(e.target.value)} placeholder="Anotações livres sobre a sprint…" />
