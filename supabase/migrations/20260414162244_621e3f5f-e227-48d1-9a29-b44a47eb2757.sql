@@ -1,0 +1,1 @@
+ALTER TABLE public.sprint_backlog_items ADD COLUMN deadline date DEFAULT NULL;
