@@ -209,6 +209,53 @@ export function useRemoveSprintBacklogItem() {
   });
 }
 
+// --- Diary Entries ---
+
+export interface SprintDiaryEntry {
+  id: string;
+  sprint_id: string;
+  sprint_backlog_item_id: string | null;
+  content: string;
+  created_at: string;
+  created_by: string;
+}
+
+export function useSprintDiaryEntries(sprintId: string | undefined) {
+  return useQuery({
+    queryKey: ["sprint_diary_entries", sprintId],
+    enabled: !!sprintId,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("sprint_diary_entries") as any)
+        .select("*")
+        .eq("sprint_id", sprintId!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as SprintDiaryEntry[];
+    },
+  });
+}
+
+export function useAddSprintDiaryEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { sprint_id: string; sprint_backlog_item_id?: string | null; content: string; created_by?: string }) => {
+      const insertData: any = {
+        sprint_id: data.sprint_id,
+        content: data.content,
+        created_by: data.created_by ?? "",
+      };
+      if (data.sprint_backlog_item_id && data.sprint_backlog_item_id !== "general") {
+        insertData.sprint_backlog_item_id = data.sprint_backlog_item_id;
+      }
+      const { error } = await (supabase.from("sprint_diary_entries") as any).insert(insertData);
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["sprint_diary_entries", vars.sprint_id] });
+    },
+  });
+}
+
 /** Calculate business days between two dates */
 export function getBusinessDays(start: string, end: string): number {
   const s = new Date(start);

@@ -1,6 +1,8 @@
 import { useBacklogs, useBacklogSubItems } from "@/hooks/useBacklogs";
 import { useSprintBacklogItems, useAddSprintBacklogItem, useRemoveSprintBacklogItem, useSprintMembers, useSprintUnavailabilities, useUpdateSprint, getBusinessDays } from "@/hooks/useSprints";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
+import { useBacklogStore } from "@/store/backlogStore";
+import { BacklogDetailModal } from "@/components/backlog/BacklogDetailModal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -9,17 +11,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2, ChevronDown, ChevronRight, CalendarIcon, Eye, CheckCircle2, Users, Clock, TrendingUp, Zap, AlertTriangle } from "lucide-react";
-import { useState } from "react";
+import { Trash2, ChevronDown, ChevronRight, CalendarIcon, Eye, CheckCircle2, Users, Clock, TrendingUp, Zap, AlertTriangle } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import type { Sprint } from "@/types/sprint";
 import { isSpecialtyCompatible, SPECIALTY_LABELS, TEAM_ROLE_LABELS } from "@/types/sprint";
 import { EFFORT_AREA_LABELS, COMPLEXITY_LABELS } from "@/types/backlog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
-interface Props { sprint: Sprint; }
+interface Props { sprint: Sprint; onAdvance?: () => void; }
 
 function getCapacityColor(pct: number): string {
   if (pct >= 100) return "text-destructive";
@@ -39,7 +40,7 @@ function getCapacityCardBorder(pct: number): string {
   return "border-emerald-500/50";
 }
 
-export function SprintPrePlanning({ sprint }: Props) {
+export function SprintPrePlanning({ sprint, onAdvance }: Props) {
   const { data: backlogs = [] } = useBacklogs();
   const { data: sprintItems = [] } = useSprintBacklogItems(sprint.id);
   const { data: sprintMembers = [] } = useSprintMembers(sprint.id);
@@ -48,9 +49,13 @@ export function SprintPrePlanning({ sprint }: Props) {
   const addItem = useAddSprintBacklogItem();
   const removeItem = useRemoveSprintBacklogItem();
   const updateSprint = useUpdateSprint();
+  const { fetchAll, backlogs: storeBacklogs } = useBacklogStore();
+
+  // Ensure backlog store is loaded for BacklogDetailModal
+  useEffect(() => { fetchAll(); }, []);
 
   const [expandedBacklog, setExpandedBacklog] = useState<string | null>(null);
-  const [viewBacklog, setViewBacklog] = useState<any | null>(null);
+  const [detailBacklogId, setDetailBacklogId] = useState<string | null>(null);
   const [viewSubItem, setViewSubItem] = useState<any | null>(null);
 
   const availableBacklogs = backlogs.filter((b) => b.phase === "available" || b.phase === "planned");
@@ -72,12 +77,7 @@ export function SprintPrePlanning({ sprint }: Props) {
   const baseCapacity = totalHoursBase - totalUnavailHours - sprint.ritual_hours;
   const usefulCapacity = baseCapacity * (1 - sprint.sustentation_percent / 100);
 
-  // Get estimated hours from sub items via sprint items
-  const allocatedEstimateHours = sprintItems.reduce((sum, item) => {
-    return sum + (item.actual_hours || 0);
-  }, 0);
-
-  // We need to also track by sub-item estimate - let's compute from the backlog sub items we have loaded
+  const allocatedEstimateHours = sprintItems.reduce((sum, item) => sum + (item.actual_hours || 0), 0);
   const remainingCapacity = usefulCapacity - allocatedEstimateHours;
   const allocationPct = usefulCapacity > 0 ? (allocatedEstimateHours / usefulCapacity) * 100 : 0;
 
@@ -100,7 +100,11 @@ export function SprintPrePlanning({ sprint }: Props) {
   const handleAdvanceToPlanning = () => {
     updateSprint.mutate({ id: sprint.id, status: "planned" as any });
     toast.success("Sprint pronta para Planning!");
+    onAdvance?.();
   };
+
+  // Find backlog item in store for detail modal
+  const detailBacklogItem = detailBacklogId ? storeBacklogs.find((b) => b.id === detailBacklogId) ?? null : null;
 
   return (
     <div className="space-y-6">
@@ -181,7 +185,7 @@ export function SprintPrePlanning({ sprint }: Props) {
             onAdd={(subItemId, teamMemberId, estimate) => addItem.mutate({ sprint_id: sprint.id, backlog_sub_item_id: subItemId, backlog_id: backlog.id, team_member_id: teamMemberId, status: "pending" as any, actual_hours: estimate } as any)}
             onRemove={(itemId) => removeItem.mutate({ id: itemId, sprintId: sprint.id })}
             sprintItems={sprintItems}
-            onViewBacklog={() => setViewBacklog(backlog)}
+            onViewBacklog={() => setDetailBacklogId(backlog.id)}
             onViewSubItem={(si: any) => setViewSubItem(si)}
           />
         ))}
@@ -212,26 +216,8 @@ export function SprintPrePlanning({ sprint }: Props) {
         </Button>
       </div>
 
-      {/* View Backlog Modal */}
-      <Dialog open={!!viewBacklog} onOpenChange={(o) => !o && setViewBacklog(null)}>
-        <DialogContent className="max-w-2xl max-h-[70vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{viewBacklog?.title}</DialogTitle>
-          </DialogHeader>
-          {viewBacklog && (
-            <div className="space-y-3 text-sm">
-              <p className="text-muted-foreground">{viewBacklog.description || "Sem descrição."}</p>
-              {viewBacklog.refinement && (
-                <div className="space-y-2">
-                  {viewBacklog.refinement.functionalRefinement && <div><strong>Refinamento Funcional:</strong><p className="text-muted-foreground">{viewBacklog.refinement.functionalRefinement}</p></div>}
-                  {viewBacklog.refinement.technicalRefinement && <div><strong>Refinamento Técnico:</strong><p className="text-muted-foreground">{viewBacklog.refinement.technicalRefinement}</p></div>}
-                  {viewBacklog.refinement.acceptanceCriteria && <div><strong>Critérios de Aceite:</strong><p className="text-muted-foreground">{viewBacklog.refinement.acceptanceCriteria}</p></div>}
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Backlog Detail Modal (same as backlog page) */}
+      <BacklogDetailModal item={detailBacklogItem} open={!!detailBacklogId} onOpenChange={(o) => !o && setDetailBacklogId(null)} />
 
       {/* View SubItem Modal */}
       <Dialog open={!!viewSubItem} onOpenChange={(o) => !o && setViewSubItem(null)}>
@@ -240,16 +226,20 @@ export function SprintPrePlanning({ sprint }: Props) {
             <DialogTitle>{viewSubItem?.title}</DialogTitle>
           </DialogHeader>
           {viewSubItem && (
-            <div className="space-y-3 text-sm">
-              {viewSubItem.functional_detail && <div><strong>Detalhe Funcional:</strong><p className="text-muted-foreground whitespace-pre-wrap">{viewSubItem.functional_detail}</p></div>}
-              {viewSubItem.technical_detail && <div><strong>Detalhe Técnico:</strong><p className="text-muted-foreground whitespace-pre-wrap">{viewSubItem.technical_detail}</p></div>}
-              {viewSubItem.implementation_notes && <div><strong>Notas de Implementação:</strong><p className="text-muted-foreground whitespace-pre-wrap">{viewSubItem.implementation_notes}</p></div>}
-              {viewSubItem.code_block && <div><strong>Código:</strong><pre className="bg-muted p-3 rounded-lg text-xs overflow-auto">{viewSubItem.code_block}</pre></div>}
-              <div className="flex gap-4 text-xs text-muted-foreground">
-                <span>Estimativa: {viewSubItem.estimate}h</span>
-                {viewSubItem.complexity && <span>Complexidade: {COMPLEXITY_LABELS[viewSubItem.complexity] ?? viewSubItem.complexity}</span>}
-                {viewSubItem.effort_area && <span>Área: {EFFORT_AREA_LABELS[viewSubItem.effort_area] ?? viewSubItem.effort_area}</span>}
+            <div className="space-y-4 text-sm">
+              <div className="flex gap-2 flex-wrap">
+                {viewSubItem.effort_area && (
+                  <Badge className="bg-primary/10 text-primary border-primary/20">{EFFORT_AREA_LABELS[viewSubItem.effort_area] ?? viewSubItem.effort_area}</Badge>
+                )}
+                {viewSubItem.complexity && (
+                  <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">{COMPLEXITY_LABELS[viewSubItem.complexity] ?? viewSubItem.complexity}</Badge>
+                )}
+                <Badge variant="outline">{viewSubItem.estimate}h estimadas</Badge>
               </div>
+              {viewSubItem.functional_detail && <div><strong className="text-foreground">Detalhe Funcional:</strong><p className="text-muted-foreground whitespace-pre-wrap mt-1">{viewSubItem.functional_detail}</p></div>}
+              {viewSubItem.technical_detail && <div><strong className="text-foreground">Detalhe Técnico:</strong><p className="text-muted-foreground whitespace-pre-wrap mt-1">{viewSubItem.technical_detail}</p></div>}
+              {viewSubItem.implementation_notes && <div><strong className="text-foreground">Notas de Implementação:</strong><p className="text-muted-foreground whitespace-pre-wrap mt-1">{viewSubItem.implementation_notes}</p></div>}
+              {viewSubItem.code_block && <div><strong className="text-foreground">Código:</strong><pre className="bg-muted p-3 rounded-lg text-xs overflow-auto mt-1">{viewSubItem.code_block}</pre></div>}
             </div>
           )}
         </DialogContent>
@@ -267,17 +257,15 @@ function BacklogAllocator({ backlog, expanded, onToggle, sprintId, allocatedSubI
   onViewBacklog: () => void; onViewSubItem: (si: any) => void;
 }) {
   const { data: subItems = [] } = useBacklogSubItems(expanded ? backlog.id : undefined);
-  const [selectedDev, setSelectedDev] = useState<Record<string, string>>({});
   const [deadlines, setDeadlines] = useState<Record<string, Date | undefined>>({});
 
   const allocatedInSprint = sprintItems.filter((si) => si.backlog_id === backlog.id);
   const totalEstimate = subItems.reduce((s: number, si: any) => s + (si.estimate || 0), 0);
   const allocatedCount = subItems.filter((si: any) => allocatedSubItemIds.has(si.id)).length;
 
-  const handleAddWithDeadline = async (subItemId: string, estimate: number) => {
-    const dev = selectedDev[subItemId] || null;
-    if (!dev) return;
-    onAdd(subItemId, dev, estimate);
+  const handleDevSelect = async (subItemId: string, devId: string, estimate: number) => {
+    if (!devId || devId === "__none__") return;
+    onAdd(subItemId, devId, estimate);
     // Update deadline if set
     const dl = deadlines[subItemId];
     if (dl) {
@@ -305,7 +293,7 @@ function BacklogAllocator({ backlog, expanded, onToggle, sprintId, allocatedSubI
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-[11px] text-muted-foreground">{totalEstimate}h estimadas</span>
             <span className="text-[11px] text-muted-foreground">•</span>
-            <span className="text-[11px] text-muted-foreground">{subItems.length > 0 || !expanded ? "" : "0"} subtarefas</span>
+            <span className="text-[11px] text-muted-foreground">{subItems.length} subtarefas</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -331,74 +319,79 @@ function BacklogAllocator({ backlog, expanded, onToggle, sprintId, allocatedSubI
               .filter((tm) => isSpecialtyCompatible(tm.specialty, effortArea));
 
             return (
-              <div key={si.id} className="flex items-center gap-3 bg-muted/20 rounded-lg p-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <button className="text-sm font-medium hover:text-primary transition-colors text-left" onClick={() => onViewSubItem(si)}>
-                      {si.title}
-                    </button>
-                    {effortArea && (
-                      <Badge variant="outline" className="text-[10px]">{EFFORT_AREA_LABELS[effortArea] ?? effortArea}</Badge>
-                    )}
-                    {si.complexity && (
-                      <Badge variant="outline" className="text-[10px]">{COMPLEXITY_LABELS[si.complexity] ?? si.complexity}</Badge>
-                    )}
+              <div key={si.id} className={`rounded-lg p-3 transition-all ${isAllocated ? "bg-emerald-500/5 border border-emerald-500/20" : "bg-muted/20 border border-transparent hover:border-border"}`}>
+                <div className="flex items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                      <button className="text-sm font-medium hover:text-primary transition-colors text-left" onClick={() => onViewSubItem(si)}>
+                        {si.title}
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Badge variant="outline" className="text-[10px] font-mono">{si.estimate}h</Badge>
+                      {effortArea && (
+                        <Badge className="text-[10px] bg-primary/10 text-primary border-primary/20">{EFFORT_AREA_LABELS[effortArea] ?? effortArea}</Badge>
+                      )}
+                      {si.complexity && (
+                        <Badge className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/20">{COMPLEXITY_LABELS[si.complexity] ?? si.complexity}</Badge>
+                      )}
+                    </div>
                   </div>
-                  <span className="text-xs text-muted-foreground">{si.estimate}h estimadas</span>
-                </div>
 
-                {!isAllocated ? (
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {/* Deadline */}
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button size="sm" variant="outline" className="h-8 text-xs gap-1 w-32">
-                          <CalendarIcon className="w-3 h-3" />
-                          {deadlines[si.id] ? format(deadlines[si.id]!, "dd/MM/yy") : "Prazo"}
+                  {!isAllocated ? (
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button size="sm" variant="outline" className="h-8 text-xs gap-1 w-28">
+                            <CalendarIcon className="w-3 h-3" />
+                            {deadlines[si.id] ? format(deadlines[si.id]!, "dd/MM/yy") : "Prazo"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={deadlines[si.id]}
+                            onSelect={(d) => setDeadlines((p) => ({ ...p, [si.id]: d ?? undefined }))}
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <Select
+                        value=""
+                        onValueChange={(v) => handleDevSelect(si.id, v, si.estimate || 0)}
+                      >
+                        <SelectTrigger className="w-44 h-8 text-xs"><SelectValue placeholder="Selecionar responsável" /></SelectTrigger>
+                        <SelectContent>
+                          {compatibleMembers.map((tm) => {
+                            const mc = memberCapacityData.find((c: any) => c.id === tm.id);
+                            return (
+                              <SelectItem key={tm.id} value={tm.id}>
+                                {tm.name} {mc ? `(${mc.allocated.toFixed(0)}/${mc.capacity.toFixed(0)}h)` : ""}
+                              </SelectItem>
+                            );
+                          })}
+                          {compatibleMembers.length === 0 && (
+                            <SelectItem value="__none__" disabled>Sem dev compatível</SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/20 text-[10px]">
+                        ✓ {memberTeamMap[sprintItem?.team_member_id]?.name ?? "—"}
+                      </Badge>
+                      {sprintItem?.deadline && (
+                        <Badge variant="outline" className="text-[10px]">{format(new Date(sprintItem.deadline), "dd/MM/yy")}</Badge>
+                      )}
+                      {sprintItem && (
+                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive hover:text-destructive" onClick={() => onRemove(sprintItem.id)}>
+                          <Trash2 className="w-3 h-3" />
                         </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={deadlines[si.id]}
-                          onSelect={(d) => setDeadlines((p) => ({ ...p, [si.id]: d ?? undefined }))}
-                          className={cn("p-3 pointer-events-auto")}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    {/* Dev select */}
-                    <Select value={selectedDev[si.id] ?? ""} onValueChange={(v) => setSelectedDev((p) => ({ ...p, [si.id]: v }))}>
-                      <SelectTrigger className="w-40 h-8 text-xs"><SelectValue placeholder="Responsável" /></SelectTrigger>
-                      <SelectContent>
-                        {compatibleMembers.map((tm) => {
-                          const mc = memberCapacityData.find((c: any) => c.id === tm.id);
-                          return (
-                            <SelectItem key={tm.id} value={tm.id}>
-                              {tm.name} {mc ? `(${mc.allocated.toFixed(0)}/${mc.capacity.toFixed(0)}h)` : ""}
-                            </SelectItem>
-                          );
-                        })}
-                        {compatibleMembers.length === 0 && (
-                          <SelectItem value="__none__" disabled>Sem dev compatível</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <Button size="sm" variant="outline" className="h-8" onClick={() => handleAddWithDeadline(si.id, si.estimate || 0)} disabled={!selectedDev[si.id]}>
-                      <Plus className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/20 text-[10px]">
-                      Alocado — {memberTeamMap[sprintItem?.team_member_id]?.name ?? "—"}
-                    </Badge>
-                    {sprintItem && (
-                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive" onClick={() => onRemove(sprintItem.id)}>
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    )}
-                  </div>
-                )}
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}

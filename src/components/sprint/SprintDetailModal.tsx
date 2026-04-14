@@ -7,6 +7,7 @@ import { SprintPrePlanning } from "./SprintPrePlanning";
 import { SprintPlanning } from "./SprintPlanning";
 import { SprintExecution } from "./SprintExecution";
 import { SprintClosing } from "./SprintClosing";
+import { useState, useEffect } from "react";
 
 interface Props {
   open: boolean;
@@ -14,9 +15,22 @@ interface Props {
   sprint: Sprint;
 }
 
+function getDefaultTab(status: SprintStatus): string {
+  if (status === "active") return "execution";
+  if (status === "finished") return "closing";
+  return "preplanning";
+}
+
 export function SprintDetailModal({ open, onOpenChange, sprint }: Props) {
   const status = sprint.status as SprintStatus;
-  const defaultTab = status === "planned" ? "preplanning" : status === "active" ? "execution" : "closing";
+  const [activeTab, setActiveTab] = useState(getDefaultTab(status));
+
+  useEffect(() => {
+    setActiveTab(getDefaultTab(status));
+  }, [status]);
+
+  const handleAdvanceToPlanning = () => setActiveTab("planning");
+  const handleAdvanceToExecution = () => setActiveTab("execution");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -30,7 +44,7 @@ export function SprintDetailModal({ open, onOpenChange, sprint }: Props) {
           </div>
         </DialogHeader>
 
-        <Tabs defaultValue={defaultTab} className="mt-2">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-2">
           <TabsList className="w-full justify-start">
             <TabsTrigger value="preplanning">Pré-Planning</TabsTrigger>
             <TabsTrigger value="planning">Planning</TabsTrigger>
@@ -43,10 +57,10 @@ export function SprintDetailModal({ open, onOpenChange, sprint }: Props) {
           </TabsList>
 
           <TabsContent value="preplanning" className="mt-4">
-            <SprintPrePlanning sprint={sprint} />
+            <SprintPrePlanning sprint={sprint} onAdvance={handleAdvanceToPlanning} />
           </TabsContent>
           <TabsContent value="planning" className="mt-4">
-            <SprintPlanning sprint={sprint} />
+            <SprintPlanning sprint={sprint} onAdvance={handleAdvanceToExecution} />
           </TabsContent>
           {(status === "active" || status === "finished") && (
             <TabsContent value="execution" className="mt-4">
