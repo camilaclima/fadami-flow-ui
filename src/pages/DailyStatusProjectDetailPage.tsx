@@ -6,6 +6,7 @@ import {
   ArrowLeft, Plus, CalendarCheck, TrendingUp, AlertTriangle, Flame,
   Sparkles, Activity, Smile, Frown, Meh, Heart, Loader2, ListChecks, CheckCircle2,
   UserMinus, UserPlus, Link2, Target, ShieldAlert, History, Pencil, Lock, FileDown,
+  Compass, GitBranch,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -30,6 +31,8 @@ interface AIRecorrencia { descricao: string; dias_consecutivos: number; responsa
 interface AIOcioso { nome: string; motivo: string; }
 interface AISobrecarregado { nome: string; motivo: string; nivel_risco: "baixo" | "medio" | "alto"; }
 interface AIDependencia { item: string; bloqueador: string; tipo: "externo" | "interno"; }
+interface AIExtraEscopo { descricao: string; responsavel: string; motivo: string; }
+interface AIProgressoBacklog { task: string; percentual_conclusao: number; status: "nao_iniciado" | "em_andamento" | "concluido" | "bloqueado"; evidencia: string; }
 interface AIInsights {
   avancos: string[];
   riscos: string[];
@@ -44,6 +47,8 @@ interface AIInsights {
   dependencias_externas?: AIDependencia[];
   avancos_consolidados?: string[];
   prospeccao_riscos?: string[];
+  tarefas_extra_escopo?: AIExtraEscopo[];
+  progresso_backlog?: AIProgressoBacklog[];
 }
 
 interface DailyRow {
