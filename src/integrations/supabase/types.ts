@@ -518,6 +518,7 @@ export type Database = {
       }
       project_backlog_items: {
         Row: {
+          approved: boolean
           category: string
           created_at: string
           deadline: string
@@ -532,6 +533,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          approved?: boolean
           category?: string
           created_at?: string
           deadline?: string
@@ -546,6 +548,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          approved?: boolean
           category?: string
           created_at?: string
           deadline?: string
