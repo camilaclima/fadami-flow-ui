@@ -573,25 +573,47 @@ export default function DailyStatusProjectDetailPage() {
       )}
 
       <NewDailyDialog open={openDialog} onOpenChange={setOpenDialog} lockedProductId={productId} />
+      <EditDailyDialog open={!!editingDaily} onOpenChange={(o) => !o && setEditingDaily(null)} daily={editingDaily} onSaved={() => setSelectedDaily(null)} />
 
       {/* Modal de detalhe da daily */}
       <Dialog open={!!selectedDaily} onOpenChange={(o) => !o && setSelectedDaily(null)}>
-        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+        <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] flex flex-col">
           {selectedDaily && (
             <>
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 flex-wrap">
-                  <CalendarCheck className="h-5 w-5 text-primary" />
-                  Daily de {format(new Date(selectedDaily.status_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                </DialogTitle>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <DialogTitle className="flex items-center gap-2 flex-wrap">
+                      <CalendarCheck className="h-5 w-5 text-primary" />
+                      Daily #{dailyNumberMap[selectedDaily.id]} —{" "}
+                      {format(new Date(selectedDaily.status_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                    </DialogTitle>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {canEdit(selectedDaily) ? (
+                      <Button size="sm" variant="outline" onClick={() => setEditingDaily(selectedDaily)}>
+                        <Pencil className="h-4 w-4 mr-2" /> Editar
+                      </Button>
+                    ) : (
+                      <Badge variant="outline" className="gap-1.5">
+                        <Lock className="h-3 w-3" /> Somente leitura
+                      </Badge>
+                    )}
+                  </div>
+                </div>
                 <DialogDescription className="flex items-center gap-2 flex-wrap">
                   <Badge variant="secondary">{sprintNameMap[selectedDaily.sprint_id] ?? "Sprint —"}</Badge>
-                  <Badge variant="outline">Bloqueio {selectedDaily.blocker_level}/5</Badge>
+                  <Badge variant="outline" className="gap-1">
+                    <Sparkles className="h-3 w-3" /> Bloqueio IA {selectedDaily.blocker_level}/5
+                  </Badge>
                   {(selectedDaily.present_member_ids ?? []).length > 0 && (
                     <span className="text-xs">
                       {(selectedDaily.present_member_ids ?? []).length} membro(s) presente(s)
                     </span>
                   )}
+                  <span className="text-xs text-muted-foreground">
+                    · Criada em {format(new Date(selectedDaily.created_at), "dd/MM HH:mm", { locale: ptBR })}
+                  </span>
                 </DialogDescription>
               </DialogHeader>
 
