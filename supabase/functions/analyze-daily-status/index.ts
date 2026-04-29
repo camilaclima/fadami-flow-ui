@@ -26,7 +26,17 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const systemPrompt = `Você é um PMO especialista. Compare a daily de hoje com o histórico enviado. Identifique avanços, riscos e, principalmente, RECORRÊNCIAS. Se uma tarefa, impedimento ou ociosidade de um desenvolvedor aparecer em 2 ou mais dias seguidos, destaque como um GARGALO PRIORITÁRIO. Retorne a resposta em um formato JSON estruturado.`;
+    const systemPrompt = `Você é um PMO especialista em gestão ágil. Analise a daily de hoje comparando com o histórico do projeto.
+Identifique e categorize obrigatoriamente:
+- Avanços do dia e avanços consolidados ao longo da sprint
+- Riscos imediatos e prospecção de riscos futuros (baseado em tendências)
+- RECORRÊNCIAS: qualquer tarefa, impedimento ou ociosidade que apareça em 2+ dias seguidos é GARGALO PRIORITÁRIO
+- Colaboradores OCIOSOS: nomes citados como sem tarefas, parados, aguardando algo
+- Colaboradores SOBRECARREGADOS: nomes citados com excesso de tarefas, atrasos acumulados, sinais de estresse — atribua nível de risco baixo/medio/alto
+- Dependências EXTERNAS (ex: Aguardando Cliente, TI, Financeiro, Fornecedor) vs INTERNAS (outras áreas internas)
+- Resumo curto de 1 frase (máx 140 chars) e resumo executivo completo
+- Próximos passos práticos para o coordenador
+Retorne SEMPRE em JSON estruturado via tool call.`;
 
     const historyText = history.length
       ? history
