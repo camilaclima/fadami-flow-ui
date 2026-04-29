@@ -170,7 +170,7 @@ Retorne SEMPRE em JSON estruturado via tool call.`;
                     description: "Previsão de possíveis atrasos ou problemas futuros baseado nas tendências.",
                   },
                 },
-                required: ["avancos", "riscos", "recorrencias", "status_geral", "resumo_executivo", "vibe_equipe", "proximos_passos", "resumo_curto", "colaboradores_ociosos", "colaboradores_sobrecarregados", "dependencias_externas", "avancos_consolidados", "prospeccao_riscos"],
+                required: ["blocker_level", "avancos", "riscos", "recorrencias", "status_geral", "resumo_executivo", "vibe_equipe", "proximos_passos", "resumo_curto", "colaboradores_ociosos", "colaboradores_sobrecarregados", "dependencias_externas", "avancos_consolidados", "prospeccao_riscos"],
                 additionalProperties: false,
               },
             },
