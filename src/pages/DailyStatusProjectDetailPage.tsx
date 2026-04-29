@@ -6,7 +6,7 @@ import {
   ArrowLeft, Plus, CalendarCheck, TrendingUp, AlertTriangle, Flame,
   Sparkles, Activity, Smile, Frown, Meh, Heart, Loader2, ListChecks, CheckCircle2,
   UserMinus, UserPlus, Link2, Target, ShieldAlert, History, Pencil, Lock, FileDown,
-  Compass, GitBranch,
+  Compass, GitBranch, BookOpen,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -96,6 +96,17 @@ export default function DailyStatusProjectDetailPage() {
         .select("*").eq("product_id", productId!).order("status_date", { ascending: false });
       if (error) throw error;
       return data as DailyRow[];
+    },
+  });
+
+  const { data: approvedBacklog = [] } = useQuery({
+    queryKey: ["project_backlog_approved", productId],
+    enabled: !!productId,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("project_backlog_items") as any)
+        .select("*").eq("product_id", productId!).eq("approved", true).order("sort_order", { ascending: true });
+      if (error) throw error;
+      return data as Array<{ id: string; task: string; likely_owner: string; deadline: string; risk_mitigation: string; category: string }>;
     },
   });
 
@@ -252,6 +263,7 @@ export default function DailyStatusProjectDetailPage() {
         <Tabs defaultValue="historico" className="space-y-4">
           <TabsList>
             <TabsTrigger value="historico">Histórico</TabsTrigger>
+            <TabsTrigger value="escopo">Escopo e Backlog</TabsTrigger>
             <TabsTrigger value="executivo">Dashboard Executivo</TabsTrigger>
           </TabsList>
 
@@ -285,6 +297,72 @@ export default function DailyStatusProjectDetailPage() {
                 </motion.div>
               );
             })}
+          </TabsContent>
+
+          {/* ESCOPO E BACKLOG – itens aprovados + status de entrega */}
+          <TabsContent value="escopo" className="space-y-3">
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-primary/10 text-primary"><BookOpen className="h-4 w-4" /></div>
+                    <div>
+                      <CardTitle className="text-base">Escopo Aprovado do Projeto</CardTitle>
+                      <CardDescription>Itens do Contexto Mestre + status de entrega calculado pelas dailys</CardDescription>
+                    </div>
+                  </div>
+                  <Badge variant="secondary">{approvedBacklog.length} item(ns)</Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {approvedBacklog.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-8 text-center">
+                    Nenhum item aprovado ainda. Abra a engrenagem do projeto na página inicial de Status Diário e aprove os itens sugeridos pela IA.
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {approvedBacklog.map((it) => {
+                      const prog = (latestInsights?.progresso_backlog ?? []).find(
+                        (p) => p.task.toLowerCase().trim() === it.task.toLowerCase().trim(),
+                      );
+                      const pct = prog ? Math.max(0, Math.min(100, Math.round(prog.percentual_conclusao))) : 0;
+                      const statusKey = prog?.status ?? "nao_iniciado";
+                      const statusMeta: Record<string, { label: string; cls: string; bar: string }> = {
+                        nao_iniciado: { label: "Pendente", cls: "bg-muted text-muted-foreground border-border", bar: "bg-muted-foreground/30" },
+                        em_andamento: { label: "Em andamento", cls: "bg-primary/15 text-primary border-primary/30", bar: "bg-primary" },
+                        concluido: { label: "Concluído", cls: "bg-emerald-500/15 text-emerald-600 border-emerald-500/30", bar: "bg-emerald-500" },
+                        bloqueado: { label: "Bloqueado", cls: "bg-red-500/15 text-red-600 border-red-500/30", bar: "bg-red-500" },
+                      };
+                      const meta = statusMeta[statusKey];
+                      return (
+                        <li key={it.id} className="rounded-lg border border-border/60 bg-card/40 p-3 space-y-2">
+                          <div className="flex items-start justify-between gap-2 flex-wrap">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium">{it.task}</p>
+                              <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap mt-0.5">
+                                <span><strong>Resp:</strong> {it.likely_owner || "—"}</span>
+                                <span><strong>Prazo:</strong> {it.deadline || "—"}</span>
+                                {it.category && <Badge variant="outline" className="text-[10px]">{it.category}</Badge>}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <Badge className={cn("border text-xs", meta.cls)}>{meta.label}</Badge>
+                              <span className="text-xs text-muted-foreground tabular-nums">{pct}%</span>
+                            </div>
+                          </div>
+                          <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                            <div className={cn("h-full transition-all", meta.bar)} style={{ width: `${pct}%` }} />
+                          </div>
+                          {prog?.evidencia && (
+                            <p className="text-[11px] text-muted-foreground italic">"{prog.evidencia}"</p>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* EXECUTIVO – central de inteligência */}
