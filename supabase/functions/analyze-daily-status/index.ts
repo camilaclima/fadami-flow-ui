@@ -12,20 +12,28 @@ interface HistoryItem {
   ai_insights?: any;
 }
 
+interface MasterBacklogItem {
+  task: string;
+  category?: string;
+  likely_owner?: string;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { todaySummary, presentMembers, history } = await req.json() as {
+    const { todaySummary, presentMembers, history, masterContext, masterBacklog } = await req.json() as {
       todaySummary: string;
       presentMembers: string[];
       history: HistoryItem[];
+      masterContext?: string;
+      masterBacklog?: MasterBacklogItem[];
     };
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const systemPrompt = `Você é um PMO especialista em gestão ágil. Analise a daily de hoje comparando com o histórico do projeto.
+    const systemPrompt = `Você é um PMO especialista em gestão ágil. Analise a daily de hoje comparando com o histórico do projeto e com o CONTEXTO MESTRE (escopo oficial do projeto).
 Identifique e categorize obrigatoriamente:
 - NÍVEL DE BLOQUEIO da equipe (1 a 5) avaliado PURAMENTE pelo conteúdo dos relatos: 1 = fluxo livre sem impedimentos, 2 = pequenos atritos, 3 = impedimentos relevantes mas contornáveis, 4 = bloqueios sérios afetando entregas, 5 = paralisia / múltiplos bloqueios críticos. Esse valor SUBSTITUI qualquer estimativa humana.
 - Avanços do dia e avanços consolidados ao longo da sprint
@@ -36,6 +44,8 @@ Identifique e categorize obrigatoriamente:
 - Dependências EXTERNAS (ex: Aguardando Cliente, TI, Financeiro, Fornecedor) vs INTERNAS (outras áreas internas)
 - Resumo curto de 1 frase (máx 140 chars) e resumo executivo completo
 - Próximos passos práticos para o coordenador
+- TAREFAS EXTRA-ESCOPO: cruze cada relato com o BACKLOG MESTRE. Qualquer tarefa relatada que NÃO se mapeie a nenhum item do backlog é "Tarefa Extra-Escopo (Risco de Desvio)". Liste em "tarefas_extra_escopo".
+- PROGRESSO DO BACKLOG: para cada item do backlog mestre, estime percentual_conclusao (0-100) considerando todo o histórico de dailys + relato de hoje. Se nada foi reportado para o item, mantenha o último valor estimado ou 0. Justifique brevemente em "evidencia".
 Retorne SEMPRE em JSON estruturado via tool call.`;
 
     const historyText = history.length
@@ -47,7 +57,12 @@ Retorne SEMPRE em JSON estruturado via tool call.`;
           .join("\n---\n")
       : "Nenhum histórico anterior.";
 
-    const userPrompt = `## DAILY DE HOJE\nMembros presentes: ${presentMembers.join(", ") || "—"}\n\nRelatos:\n${todaySummary}\n\n## HISTÓRICO DE DAILYS ANTERIORES (mesmo projeto)\n${historyText}`;
+    const masterText = (masterBacklog && masterBacklog.length)
+      ? masterBacklog.map((b, i) => `${i + 1}. [${b.category ?? "—"}] ${b.task}${b.likely_owner ? ` (resp: ${b.likely_owner})` : ""}`).join("\n")
+      : "Nenhum backlog mestre cadastrado.";
+    const masterContextText = masterContext?.trim() ? masterContext.trim() : "Sem contexto narrativo cadastrado.";
+
+    const userPrompt = `## CONTEXTO MESTRE DO PROJETO\n${masterContextText}\n\n## BACKLOG MESTRE (escopo oficial)\n${masterText}\n\n## DAILY DE HOJE\nMembros presentes: ${presentMembers.join(", ") || "—"}\n\nRelatos:\n${todaySummary}\n\n## HISTÓRICO DE DAILYS ANTERIORES (mesmo projeto)\n${historyText}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -169,8 +184,37 @@ Retorne SEMPRE em JSON estruturado via tool call.`;
                     items: { type: "string" },
                     description: "Previsão de possíveis atrasos ou problemas futuros baseado nas tendências.",
                   },
+                  tarefas_extra_escopo: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        descricao: { type: "string" },
+                        responsavel: { type: "string" },
+                        motivo: { type: "string", description: "Por que está fora do escopo do backlog mestre." },
+                      },
+                      required: ["descricao", "responsavel", "motivo"],
+                      additionalProperties: false,
+                    },
+                    description: "Tarefas reportadas hoje que não constam no backlog mestre — risco de desvio.",
+                  },
+                  progresso_backlog: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        task: { type: "string", description: "Texto exato da tarefa do backlog mestre." },
+                        percentual_conclusao: { type: "number", description: "0 a 100." },
+                        status: { type: "string", enum: ["nao_iniciado", "em_andamento", "concluido", "bloqueado"] },
+                        evidencia: { type: "string", description: "Trecho/relato que justifica a estimativa." },
+                      },
+                      required: ["task", "percentual_conclusao", "status", "evidencia"],
+                      additionalProperties: false,
+                    },
+                    description: "Estimativa de progresso por item do backlog mestre baseada nas dailys.",
+                  },
                 },
-                required: ["blocker_level", "avancos", "riscos", "recorrencias", "status_geral", "resumo_executivo", "vibe_equipe", "proximos_passos", "resumo_curto", "colaboradores_ociosos", "colaboradores_sobrecarregados", "dependencias_externas", "avancos_consolidados", "prospeccao_riscos"],
+                required: ["blocker_level", "avancos", "riscos", "recorrencias", "status_geral", "resumo_executivo", "vibe_equipe", "proximos_passos", "resumo_curto", "colaboradores_ociosos", "colaboradores_sobrecarregados", "dependencias_externas", "avancos_consolidados", "prospeccao_riscos", "tarefas_extra_escopo", "progresso_backlog"],
                 additionalProperties: false,
               },
             },
