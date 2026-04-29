@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { format, differenceInCalendarDays } from "date-fns";
+import { format, differenceInCalendarDays, differenceInHours } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   ArrowLeft, Plus, CalendarCheck, TrendingUp, AlertTriangle, Flame,
   Sparkles, Activity, Smile, Frown, Meh, Heart, Loader2, ListChecks, CheckCircle2,
-  UserMinus, UserPlus, Link2, Target, ShieldAlert, History,
+  UserMinus, UserPlus, Link2, Target, ShieldAlert, History, Pencil, Lock, FileDown,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -23,6 +23,8 @@ import { useActiveProducts } from "@/hooks/useProducts";
 import { useSprints } from "@/hooks/useSprints";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { NewDailyDialog } from "@/components/daily/NewDailyDialog";
+import { EditDailyDialog } from "@/components/daily/EditDailyDialog";
+import { downloadExecutivePdf } from "@/lib/dailyExecutivePdf";
 
 interface AIRecorrencia { descricao: string; dias_consecutivos: number; responsavel?: string; }
 interface AIOcioso { nome: string; motivo: string; }
@@ -77,6 +79,7 @@ export default function DailyStatusProjectDetailPage() {
   const { data: teamMembers = [] } = useTeamMembers();
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedDaily, setSelectedDaily] = useState<DailyRow | null>(null);
+  const [editingDaily, setEditingDaily] = useState<DailyRow | null>(null);
 
   const product = products.find((p) => p.id === productId);
 
@@ -93,6 +96,14 @@ export default function DailyStatusProjectDetailPage() {
 
   const sprintNameMap = Object.fromEntries(sprints.map((s) => [s.id, s.name]));
   const memberNameMap = Object.fromEntries(teamMembers.map((m) => [m.id, m.name]));
+
+  // Sequential counter: order chronologically (oldest = #1)
+  const dailyNumberMap = useMemo(() => {
+    const sortedAsc = [...dailies].sort((a, b) => a.status_date.localeCompare(b.status_date));
+    const map: Record<string, number> = {};
+    sortedAsc.forEach((d, i) => { map[d.id] = i + 1; });
+    return map;
+  }, [dailies]);
 
   const latest = dailies[0];
   const latestInsights = latest?.ai_insights;
@@ -184,6 +195,24 @@ export default function DailyStatusProjectDetailPage() {
     };
   }, [dailies, latest, latestInsights]);
 
+  const canEdit = (d: DailyRow) => differenceInHours(new Date(), new Date(d.created_at)) <= 72;
+
+  const handleExportPdf = () => {
+    if (!exec || !product) return;
+    downloadExecutivePdf({
+      productName: product.name,
+      total: exec.total,
+      avgBlocker: exec.avgBlocker,
+      eficienciaDesbloqueio: exec.eficienciaDesbloqueio,
+      vibe: latestInsights?.vibe_equipe ? VIBE_MAP[latestInsights.vibe_equipe].label : undefined,
+      historicoGargalos: exec.historicoGargalos,
+      ociosos: exec.ociosos,
+      sobrecarregados: exec.sobrecarregados.map((s) => ({ nome: s.nome, vezes: s.vezes, nivel_risco: s.nivel_risco })),
+      dependenciasExternas: exec.dependenciasExternas,
+      proximosPassos: latestInsights?.proximos_passos,
+    });
+  };
+
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between gap-3">
@@ -225,6 +254,7 @@ export default function DailyStatusProjectDetailPage() {
           <TabsContent value="historico" className="space-y-2">
             {dailies.map((d) => {
               const resumo = d.ai_insights?.resumo_curto ?? d.ai_insights?.resumo_executivo ?? d.summary;
+              const num = dailyNumberMap[d.id];
               return (
                 <motion.div key={d.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
                   <Card
@@ -233,6 +263,9 @@ export default function DailyStatusProjectDetailPage() {
                   >
                     <CardContent className="py-3 flex items-center justify-between gap-4">
                       <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <Badge className="flex-shrink-0 bg-primary/15 text-primary border-primary/30 hover:bg-primary/15">
+                          Daily #{num}
+                        </Badge>
                         <Badge variant="outline" className="flex-shrink-0">
                           {format(new Date(d.status_date), "dd/MM/yyyy", { locale: ptBR })}
                         </Badge>
@@ -251,6 +284,11 @@ export default function DailyStatusProjectDetailPage() {
 
           {/* EXECUTIVO – central de inteligência */}
           <TabsContent value="executivo" className="space-y-4">
+            <div className="flex items-center justify-end">
+              <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={!exec}>
+                <FileDown className="h-4 w-4 mr-2" /> Baixar Relatório PDF
+              </Button>
+            </div>
             {/* Métricas rápidas */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card>
@@ -535,25 +573,47 @@ export default function DailyStatusProjectDetailPage() {
       )}
 
       <NewDailyDialog open={openDialog} onOpenChange={setOpenDialog} lockedProductId={productId} />
+      <EditDailyDialog open={!!editingDaily} onOpenChange={(o) => !o && setEditingDaily(null)} daily={editingDaily} onSaved={() => setSelectedDaily(null)} />
 
       {/* Modal de detalhe da daily */}
       <Dialog open={!!selectedDaily} onOpenChange={(o) => !o && setSelectedDaily(null)}>
-        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+        <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] flex flex-col">
           {selectedDaily && (
             <>
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 flex-wrap">
-                  <CalendarCheck className="h-5 w-5 text-primary" />
-                  Daily de {format(new Date(selectedDaily.status_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                </DialogTitle>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <DialogTitle className="flex items-center gap-2 flex-wrap">
+                      <CalendarCheck className="h-5 w-5 text-primary" />
+                      Daily #{dailyNumberMap[selectedDaily.id]} —{" "}
+                      {format(new Date(selectedDaily.status_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                    </DialogTitle>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {canEdit(selectedDaily) ? (
+                      <Button size="sm" variant="outline" onClick={() => setEditingDaily(selectedDaily)}>
+                        <Pencil className="h-4 w-4 mr-2" /> Editar
+                      </Button>
+                    ) : (
+                      <Badge variant="outline" className="gap-1.5">
+                        <Lock className="h-3 w-3" /> Somente leitura
+                      </Badge>
+                    )}
+                  </div>
+                </div>
                 <DialogDescription className="flex items-center gap-2 flex-wrap">
                   <Badge variant="secondary">{sprintNameMap[selectedDaily.sprint_id] ?? "Sprint —"}</Badge>
-                  <Badge variant="outline">Bloqueio {selectedDaily.blocker_level}/5</Badge>
+                  <Badge variant="outline" className="gap-1">
+                    <Sparkles className="h-3 w-3" /> Bloqueio IA {selectedDaily.blocker_level}/5
+                  </Badge>
                   {(selectedDaily.present_member_ids ?? []).length > 0 && (
                     <span className="text-xs">
                       {(selectedDaily.present_member_ids ?? []).length} membro(s) presente(s)
                     </span>
                   )}
+                  <span className="text-xs text-muted-foreground">
+                    · Criada em {format(new Date(selectedDaily.created_at), "dd/MM HH:mm", { locale: ptBR })}
+                  </span>
                 </DialogDescription>
               </DialogHeader>
 

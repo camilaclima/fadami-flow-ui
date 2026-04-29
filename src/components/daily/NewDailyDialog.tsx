@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, Sparkles, Loader2, CheckCircle2, Star } from "lucide-react";
+import { CalendarIcon, Sparkles, Loader2, CheckCircle2, MessageSquare, Users } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -26,19 +26,6 @@ interface Props {
   onSaved?: () => void;
 }
 
-function StarRating({ value, onChange }: { value: number; onChange: (n: number) => void }) {
-  return (
-    <div className="flex items-center gap-1">
-      {[1, 2, 3, 4, 5].map((n) => (
-        <button key={n} type="button" onClick={() => onChange(n)} className="p-1 transition-transform hover:scale-110">
-          <Star className={cn("h-6 w-6 transition-colors", n <= value ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40")} />
-        </button>
-      ))}
-      <span className="ml-2 text-sm text-muted-foreground">{value}/5</span>
-    </div>
-  );
-}
-
 export function NewDailyDialog({ open, onOpenChange, lockedProductId, onSaved }: Props) {
   const qc = useQueryClient();
   const { data: products = [] } = useActiveProducts();
@@ -49,8 +36,8 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, onSaved }:
   const [sprintId, setSprintId] = useState<string>("");
   const [date, setDate] = useState<Date>(new Date());
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
-  const [summary, setSummary] = useState("");
-  const [blockerLevel, setBlockerLevel] = useState(1);
+  const [memberReports, setMemberReports] = useState<Record<string, string>>({});
+  const [generalNotes, setGeneralNotes] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -59,8 +46,8 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, onSaved }:
       setSprintId("");
       setDate(new Date());
       setSelectedMembers([]);
-      setSummary("");
-      setBlockerLevel(1);
+      setMemberReports({});
+      setGeneralNotes("");
     }
   }, [open, lockedProductId]);
 
@@ -83,20 +70,53 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, onSaved }:
   const memberNameMap = Object.fromEntries(teamMembers.map((m) => [m.id, m.name]));
 
   const toggleMember = (id: string) =>
-    setSelectedMembers((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setSelectedMembers((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      if (!next.includes(id)) {
+        setMemberReports((r) => {
+          const { [id]: _, ...rest } = r;
+          return rest;
+        });
+      }
+      return next;
+    });
+
+  const buildCompositeSummary = () => {
+    const blocks = selectedMembers
+      .map((id) => {
+        const name = memberNameMap[id] ?? id;
+        const text = (memberReports[id] ?? "").trim();
+        if (!text) return null;
+        return `=== ${name} ===\n${text}`;
+      })
+      .filter(Boolean) as string[];
+    if (generalNotes.trim()) {
+      blocks.push(`=== Observações Gerais da Coordenação ===\n${generalNotes.trim()}`);
+    }
+    return blocks.join("\n\n");
+  };
 
   const handleSave = async () => {
-    if (!productId || !sprintId || !summary.trim()) {
-      toast.error("Preencha projeto, sprint e o resumo da daily.");
+    if (!productId || !sprintId) {
+      toast.error("Selecione projeto e sprint.");
       return;
     }
+    if (selectedMembers.length === 0) {
+      toast.error("Selecione pelo menos um membro presente.");
+      return;
+    }
+    const filledMembers = selectedMembers.filter((id) => (memberReports[id] ?? "").trim().length > 0);
+    if (filledMembers.length === 0 && !generalNotes.trim()) {
+      toast.error("Preencha o relato de pelo menos um membro ou as observações gerais.");
+      return;
+    }
+    const compositeSummary = buildCompositeSummary();
     setLoading(true);
     try {
       const presentNames = selectedMembers.map((id) => memberNameMap[id] ?? id);
       const { data: aiData, error: aiError } = await supabase.functions.invoke("analyze-daily-status", {
         body: {
-          todaySummary: summary,
-          blockerLevel,
+          todaySummary: compositeSummary,
           presentMembers: presentNames,
           history: (history as any[]).map((h) => ({
             status_date: h.status_date,
@@ -108,21 +128,22 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, onSaved }:
       });
       if (aiError) throw aiError;
       const insights = aiData?.insights;
+      const aiBlockerLevel = Math.min(5, Math.max(1, Math.round(Number(insights?.blocker_level ?? 1))));
 
       const { error: insertErr } = await (supabase.from("daily_status") as any).insert({
         product_id: productId,
         sprint_id: sprintId,
         status_date: format(date, "yyyy-MM-dd"),
         present_member_ids: selectedMembers,
-        summary,
-        blocker_level: blockerLevel,
+        summary: compositeSummary,
+        blocker_level: aiBlockerLevel,
         ai_insights: insights,
       });
       if (insertErr) throw insertErr;
 
       qc.invalidateQueries({ queryKey: ["daily_status_history", productId] });
       qc.invalidateQueries({ queryKey: ["daily_status_all"] });
-      toast.success("Daily registrada e analisada pela IA!");
+      toast.success(`Daily registrada! Nível de bloqueio (IA): ${aiBlockerLevel}/5`);
       onSaved?.();
       onOpenChange(false);
     } catch (e: any) {
@@ -137,10 +158,12 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, onSaved }:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nova Daily</DialogTitle>
-          <DialogDescription>Preencha os dados do dia para gerar a análise da IA.</DialogDescription>
+          <DialogDescription>
+            Preencha o relato individual de cada membro presente. A IA calculará o nível de bloqueio automaticamente.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 py-2">
@@ -186,7 +209,7 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, onSaved }:
           </div>
 
           <div className="space-y-2">
-            <Label>Membros presentes</Label>
+            <Label className="flex items-center gap-2"><Users className="h-4 w-4" /> Membros presentes</Label>
             <div className="flex flex-wrap gap-2 rounded-md border border-input bg-background p-3 min-h-[44px]">
               {teamMembers.length === 0 && <span className="text-sm text-muted-foreground">Nenhum colaborador cadastrado</span>}
               {teamMembers.map((m) => {
@@ -203,15 +226,46 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, onSaved }:
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Resumo da Daily</Label>
-            <Textarea value={summary} onChange={(e) => setSummary(e.target.value)} rows={6}
-              placeholder="O que cada membro fez ontem, o que vai fazer hoje, impedimentos..." className="resize-none" />
-          </div>
+          {selectedMembers.length > 0 && (
+            <div className="space-y-3">
+              <Label className="flex items-center gap-2">
+                <MessageSquare className="h-4 w-4" /> Relato individual por membro
+              </Label>
+              <div className="space-y-3">
+                {selectedMembers.map((id) => {
+                  const name = memberNameMap[id] ?? id;
+                  const initials = name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
+                  return (
+                    <div key={id} className="rounded-lg border border-border bg-card/50 p-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="h-7 w-7 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-semibold">
+                          {initials}
+                        </div>
+                        <span className="text-sm font-medium">{name}</span>
+                      </div>
+                      <Textarea
+                        value={memberReports[id] ?? ""}
+                        onChange={(e) => setMemberReports((prev) => ({ ...prev, [id]: e.target.value }))}
+                        rows={3}
+                        placeholder={`O que ${name.split(" ")[0]} fez ontem, fará hoje e impedimentos...`}
+                        className="resize-none text-sm"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2">
-            <Label>Nível de bloqueio da equipe</Label>
-            <StarRating value={blockerLevel} onChange={setBlockerLevel} />
+            <Label>Observações Gerais da Coordenação</Label>
+            <Textarea
+              value={generalNotes}
+              onChange={(e) => setGeneralNotes(e.target.value)}
+              rows={3}
+              placeholder="Notas neutras da coordenação: contexto da sprint, decisões, alertas gerais..."
+              className="resize-none"
+            />
           </div>
 
           <div className="flex items-center justify-between pt-2">
