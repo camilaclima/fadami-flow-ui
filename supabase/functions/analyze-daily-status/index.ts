@@ -16,9 +16,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { todaySummary, blockerLevel, presentMembers, history } = await req.json() as {
+    const { todaySummary, presentMembers, history } = await req.json() as {
       todaySummary: string;
-      blockerLevel: number;
       presentMembers: string[];
       history: HistoryItem[];
     };
@@ -28,11 +27,12 @@ serve(async (req) => {
 
     const systemPrompt = `Você é um PMO especialista em gestão ágil. Analise a daily de hoje comparando com o histórico do projeto.
 Identifique e categorize obrigatoriamente:
+- NÍVEL DE BLOQUEIO da equipe (1 a 5) avaliado PURAMENTE pelo conteúdo dos relatos: 1 = fluxo livre sem impedimentos, 2 = pequenos atritos, 3 = impedimentos relevantes mas contornáveis, 4 = bloqueios sérios afetando entregas, 5 = paralisia / múltiplos bloqueios críticos. Esse valor SUBSTITUI qualquer estimativa humana.
 - Avanços do dia e avanços consolidados ao longo da sprint
 - Riscos imediatos e prospecção de riscos futuros (baseado em tendências)
 - RECORRÊNCIAS: qualquer tarefa, impedimento ou ociosidade que apareça em 2+ dias seguidos é GARGALO PRIORITÁRIO
-- Colaboradores OCIOSOS: nomes citados como sem tarefas, parados, aguardando algo
-- Colaboradores SOBRECARREGADOS: nomes citados com excesso de tarefas, atrasos acumulados, sinais de estresse — atribua nível de risco baixo/medio/alto
+- Colaboradores OCIOSOS: use EXATAMENTE os nomes dos membros conforme aparecem no relato individual ("=== NOME ===") quando citados como sem tarefas, parados, aguardando algo
+- Colaboradores SOBRECARREGADOS: use EXATAMENTE os nomes dos membros conforme aparecem no relato individual quando citados com excesso de tarefas, atrasos acumulados, sinais de estresse — atribua nível de risco baixo/medio/alto
 - Dependências EXTERNAS (ex: Aguardando Cliente, TI, Financeiro, Fornecedor) vs INTERNAS (outras áreas internas)
 - Resumo curto de 1 frase (máx 140 chars) e resumo executivo completo
 - Próximos passos práticos para o coordenador
@@ -47,7 +47,7 @@ Retorne SEMPRE em JSON estruturado via tool call.`;
           .join("\n---\n")
       : "Nenhum histórico anterior.";
 
-    const userPrompt = `## DAILY DE HOJE\nMembros presentes: ${presentMembers.join(", ") || "—"}\nNível de bloqueio: ${blockerLevel}/5\nResumo:\n${todaySummary}\n\n## HISTÓRICO DE DAILYS ANTERIORES (mesmo projeto)\n${historyText}`;
+    const userPrompt = `## DAILY DE HOJE\nMembros presentes: ${presentMembers.join(", ") || "—"}\n\nRelatos:\n${todaySummary}\n\n## HISTÓRICO DE DAILYS ANTERIORES (mesmo projeto)\n${historyText}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -70,6 +70,10 @@ Retorne SEMPRE em JSON estruturado via tool call.`;
               parameters: {
                 type: "object",
                 properties: {
+                  blocker_level: {
+                    type: "number",
+                    description: "Nível de bloqueio da equipe (1 a 5) calculado APENAS a partir do conteúdo dos relatos.",
+                  },
                   avancos: {
                     type: "array",
                     items: { type: "string" },
