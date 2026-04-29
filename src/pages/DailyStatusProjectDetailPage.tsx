@@ -254,6 +254,7 @@ export default function DailyStatusProjectDetailPage() {
           <TabsContent value="historico" className="space-y-2">
             {dailies.map((d) => {
               const resumo = d.ai_insights?.resumo_curto ?? d.ai_insights?.resumo_executivo ?? d.summary;
+              const num = dailyNumberMap[d.id];
               return (
                 <motion.div key={d.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
                   <Card
@@ -262,6 +263,9 @@ export default function DailyStatusProjectDetailPage() {
                   >
                     <CardContent className="py-3 flex items-center justify-between gap-4">
                       <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <Badge className="flex-shrink-0 bg-primary/15 text-primary border-primary/30 hover:bg-primary/15">
+                          Daily #{num}
+                        </Badge>
                         <Badge variant="outline" className="flex-shrink-0">
                           {format(new Date(d.status_date), "dd/MM/yyyy", { locale: ptBR })}
                         </Badge>
@@ -280,6 +284,11 @@ export default function DailyStatusProjectDetailPage() {
 
           {/* EXECUTIVO – central de inteligência */}
           <TabsContent value="executivo" className="space-y-4">
+            <div className="flex items-center justify-end">
+              <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={!exec}>
+                <FileDown className="h-4 w-4 mr-2" /> Baixar Relatório PDF
+              </Button>
+            </div>
             {/* Métricas rápidas */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card>
