@@ -299,6 +299,48 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_status: {
+        Row: {
+          ai_insights: Json | null
+          blocker_level: number
+          created_at: string
+          created_by: string | null
+          id: string
+          present_member_ids: Json
+          product_id: string | null
+          sprint_id: string
+          status_date: string
+          summary: string
+          updated_at: string
+        }
+        Insert: {
+          ai_insights?: Json | null
+          blocker_level?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          present_member_ids?: Json
+          product_id?: string | null
+          sprint_id: string
+          status_date?: string
+          summary?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_insights?: Json | null
+          blocker_level?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          present_member_ids?: Json
+          product_id?: string | null
+          sprint_id?: string
+          status_date?: string
+          summary?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           color: string
