@@ -9,13 +9,19 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { documentation, productName } = await req.json() as {
-      documentation: string;
+    const { documentation, productName, attachmentText, attachmentUrl } = await req.json() as {
+      documentation?: string;
       productName?: string;
+      attachmentText?: string;
+      attachmentUrl?: string;
     };
 
-    if (!documentation || documentation.trim().length < 20) {
-      return new Response(JSON.stringify({ error: "Documentação muito curta para análise." }), {
+    const docText = (documentation ?? "").trim();
+    const attText = (attachmentText ?? "").trim();
+    const combined = [docText, attText].filter(Boolean).join("\n\n---\n\n");
+
+    if (combined.length < 20) {
+      return new Response(JSON.stringify({ error: "Conteúdo insuficiente: forneça documentação em texto OU um anexo legível (mínimo 20 caracteres extraídos)." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -34,7 +40,8 @@ Para cada item identifique:
 Também produza um SUMMARY executivo curto (3-5 frases) explicando o escopo geral do projeto.
 Seja exaustivo mas evite duplicatas. Mínimo 5, máximo 40 itens. Retorne SEMPRE via tool call.`;
 
-    const userPrompt = `Projeto: ${productName ?? "—"}\n\nDocumentação:\n${documentation}`;
+    const sourceLabel = docText && attText ? "Documentação + Anexo" : docText ? "Documentação" : "Anexo extraído";
+    const userPrompt = `Projeto: ${productName ?? "—"}\nFonte: ${sourceLabel}${attachmentUrl ? `\nAnexo: ${attachmentUrl}` : ""}\n\nConteúdo:\n${combined}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
