@@ -1,0 +1,231 @@
+import { useEffect, useMemo, useState } from "react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { CalendarIcon, Sparkles, Loader2, CheckCircle2, Star } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+
+import { useActiveProducts } from "@/hooks/useProducts";
+import { useSprints } from "@/hooks/useSprints";
+import { useTeamMembers } from "@/hooks/useTeamMembers";
+
+interface Props {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  lockedProductId?: string;
+  onSaved?: () => void;
+}
+
+function StarRating({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  return (
+    <div className="flex items-center gap-1">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button key={n} type="button" onClick={() => onChange(n)} className="p-1 transition-transform hover:scale-110">
+          <Star className={cn("h-6 w-6 transition-colors", n <= value ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40")} />
+        </button>
+      ))}
+      <span className="ml-2 text-sm text-muted-foreground">{value}/5</span>
+    </div>
+  );
+}
+
+export function NewDailyDialog({ open, onOpenChange, lockedProductId, onSaved }: Props) {
+  const qc = useQueryClient();
+  const { data: products = [] } = useActiveProducts();
+  const { data: sprints = [] } = useSprints();
+  const { data: teamMembers = [] } = useTeamMembers();
+
+  const [productId, setProductId] = useState<string>(lockedProductId ?? "");
+  const [sprintId, setSprintId] = useState<string>("");
+  const [date, setDate] = useState<Date>(new Date());
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [summary, setSummary] = useState("");
+  const [blockerLevel, setBlockerLevel] = useState(1);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setProductId(lockedProductId ?? "");
+      setSprintId("");
+      setDate(new Date());
+      setSelectedMembers([]);
+      setSummary("");
+      setBlockerLevel(1);
+    }
+  }, [open, lockedProductId]);
+
+  const sprintsForProduct = useMemo(
+    () => sprints.filter((s) => !productId || s.product_id === productId),
+    [sprints, productId],
+  );
+
+  const { data: history = [] } = useQuery({
+    queryKey: ["daily_status_history", productId],
+    enabled: !!productId && open,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("daily_status") as any)
+        .select("*").eq("product_id", productId).order("status_date", { ascending: false }).limit(30);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const memberNameMap = Object.fromEntries(teamMembers.map((m) => [m.id, m.name]));
+
+  const toggleMember = (id: string) =>
+    setSelectedMembers((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const handleSave = async () => {
+    if (!productId || !sprintId || !summary.trim()) {
+      toast.error("Preencha projeto, sprint e o resumo da daily.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const presentNames = selectedMembers.map((id) => memberNameMap[id] ?? id);
+      const { data: aiData, error: aiError } = await supabase.functions.invoke("analyze-daily-status", {
+        body: {
+          todaySummary: summary,
+          blockerLevel,
+          presentMembers: presentNames,
+          history: (history as any[]).map((h) => ({
+            status_date: h.status_date,
+            summary: h.summary,
+            blocker_level: h.blocker_level,
+            ai_insights: h.ai_insights,
+          })),
+        },
+      });
+      if (aiError) throw aiError;
+      const insights = aiData?.insights;
+
+      const { error: insertErr } = await (supabase.from("daily_status") as any).insert({
+        product_id: productId,
+        sprint_id: sprintId,
+        status_date: format(date, "yyyy-MM-dd"),
+        present_member_ids: selectedMembers,
+        summary,
+        blocker_level: blockerLevel,
+        ai_insights: insights,
+      });
+      if (insertErr) throw insertErr;
+
+      qc.invalidateQueries({ queryKey: ["daily_status_history", productId] });
+      qc.invalidateQueries({ queryKey: ["daily_status_all"] });
+      toast.success("Daily registrada e analisada pela IA!");
+      onSaved?.();
+      onOpenChange(false);
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message ?? "Erro ao salvar daily");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const lockedProduct = products.find((p) => p.id === lockedProductId);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Nova Daily</DialogTitle>
+          <DialogDescription>Preencha os dados do dia para gerar a análise da IA.</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-5 py-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Projeto</Label>
+              {lockedProductId ? (
+                <div className="h-10 px-3 flex items-center rounded-md border border-input bg-muted/40 text-sm">
+                  {lockedProduct?.name ?? "—"}
+                </div>
+              ) : (
+                <Select value={productId} onValueChange={(v) => { setProductId(v); setSprintId(""); }}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Sprint</Label>
+              <Select value={sprintId} onValueChange={setSprintId} disabled={!productId}>
+                <SelectTrigger><SelectValue placeholder={productId ? "Selecione" : "Escolha um projeto"} /></SelectTrigger>
+                <SelectContent>
+                  {sprintsForProduct.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Data</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(date, "PPP", { locale: ptBR })}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus className={cn("p-3 pointer-events-auto")} />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Membros presentes</Label>
+            <div className="flex flex-wrap gap-2 rounded-md border border-input bg-background p-3 min-h-[44px]">
+              {teamMembers.length === 0 && <span className="text-sm text-muted-foreground">Nenhum colaborador cadastrado</span>}
+              {teamMembers.map((m) => {
+                const active = selectedMembers.includes(m.id);
+                return (
+                  <button key={m.id} type="button" onClick={() => toggleMember(m.id)}
+                    className={cn("px-3 py-1 rounded-full text-xs font-medium border transition-all",
+                      active ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-accent border-border")}>
+                    {active && <CheckCircle2 className="inline h-3 w-3 mr-1" />}
+                    {m.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Resumo da Daily</Label>
+            <Textarea value={summary} onChange={(e) => setSummary(e.target.value)} rows={6}
+              placeholder="O que cada membro fez ontem, o que vai fazer hoje, impedimentos..." className="resize-none" />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Nível de bloqueio da equipe</Label>
+            <StarRating value={blockerLevel} onChange={setBlockerLevel} />
+          </div>
+
+          <div className="flex items-center justify-between pt-2">
+            <p className="text-xs text-muted-foreground">
+              {(history as any[]).length > 0
+                ? `${(history as any[]).length} daily(s) anteriores serão usadas como contexto.`
+                : "Sem histórico — primeira daily deste projeto."}
+            </p>
+            <Button onClick={handleSave} disabled={loading}>
+              {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Analisando...</> : <><Sparkles className="h-4 w-4 mr-2" />Salvar e analisar</>}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
