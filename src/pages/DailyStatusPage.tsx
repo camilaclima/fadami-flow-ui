@@ -64,6 +64,11 @@ export default function DailyStatusPage() {
     });
   }, [allDailies, products]);
 
+  const productsWithoutDailies = useMemo(() => {
+    const ids = new Set(projectCards.map((p) => p.productId));
+    return products.filter((p) => !ids.has(p.id));
+  }, [products, projectCards]);
+
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
@@ -143,6 +148,35 @@ export default function DailyStatusPage() {
               </motion.div>
             );
           })}
+        </div>
+      )}
+
+      {productsWithoutDailies.length > 0 && (
+        <div className="space-y-3 pt-2">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Projetos sem dailys ainda
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {productsWithoutDailies.map((p) => (
+              <Card key={p.id} className="border-dashed">
+                <CardContent className="py-3 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: p.color ?? "hsl(var(--primary))" }} />
+                    <span className="text-sm font-medium truncate">{p.name}</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => setConfigFor({ id: p.id, name: p.name })}
+                    title="Configuração do projeto"
+                  >
+                    <Settings className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       )}
 
