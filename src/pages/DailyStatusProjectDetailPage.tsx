@@ -6,6 +6,7 @@ import {
   ArrowLeft, Plus, CalendarCheck, TrendingUp, AlertTriangle, Flame,
   Sparkles, Activity, Smile, Frown, Meh, Heart, Loader2, ListChecks, CheckCircle2,
   UserMinus, UserPlus, Link2, Target, ShieldAlert, History, Pencil, Lock, FileDown,
+  Compass, GitBranch,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -30,6 +31,8 @@ interface AIRecorrencia { descricao: string; dias_consecutivos: number; responsa
 interface AIOcioso { nome: string; motivo: string; }
 interface AISobrecarregado { nome: string; motivo: string; nivel_risco: "baixo" | "medio" | "alto"; }
 interface AIDependencia { item: string; bloqueador: string; tipo: "externo" | "interno"; }
+interface AIExtraEscopo { descricao: string; responsavel: string; motivo: string; }
+interface AIProgressoBacklog { task: string; percentual_conclusao: number; status: "nao_iniciado" | "em_andamento" | "concluido" | "bloqueado"; evidencia: string; }
 interface AIInsights {
   avancos: string[];
   riscos: string[];
@@ -44,6 +47,8 @@ interface AIInsights {
   dependencias_externas?: AIDependencia[];
   avancos_consolidados?: string[];
   prospeccao_riscos?: string[];
+  tarefas_extra_escopo?: AIExtraEscopo[];
+  progresso_backlog?: AIProgressoBacklog[];
 }
 
 interface DailyRow {
@@ -540,6 +545,86 @@ export default function DailyStatusProjectDetailPage() {
                         <Badge variant="outline" className="text-xs">Aguardando {d.bloqueador}</Badge>
                       </li>
                     ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Tarefas Extra-Escopo */}
+            <Card className="border-fuchsia-500/30 bg-fuchsia-500/5">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-fuchsia-500/15 text-fuchsia-600"><Compass className="h-4 w-4" /></div>
+                  <CardTitle className="text-base">Tarefas Extra-Escopo</CardTitle>
+                </div>
+                <CardDescription>Risco de desvio: relatadas hoje, fora do Backlog Mestre</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!latestInsights?.tarefas_extra_escopo?.length ? (
+                  <p className="text-sm text-muted-foreground">Nenhuma tarefa fora do escopo. ✅</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {latestInsights.tarefas_extra_escopo.map((t, i) => (
+                      <li key={i} className="p-2 rounded-md bg-background/50 space-y-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-sm font-medium">{t.descricao}</span>
+                          <Badge variant="outline" className="text-xs flex-shrink-0">{t.responsavel || "—"}</Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{t.motivo}</p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Status do Backlog (progresso estimado) */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-primary/10 text-primary"><GitBranch className="h-4 w-4" /></div>
+                  <CardTitle className="text-base">Status do Backlog</CardTitle>
+                </div>
+                <CardDescription>Percentual de conclusão estimado pela IA com base nas dailys</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!latestInsights?.progresso_backlog?.length ? (
+                  <p className="text-sm text-muted-foreground">
+                    Nenhum progresso calculado. Cadastre o Backlog Mestre em "Configuração e Backlog".
+                  </p>
+                ) : (
+                  <ul className="space-y-3">
+                    {latestInsights.progresso_backlog
+                      .slice()
+                      .sort((a, b) => b.percentual_conclusao - a.percentual_conclusao)
+                      .map((p, i) => {
+                        const pct = Math.max(0, Math.min(100, Math.round(p.percentual_conclusao)));
+                        const statusCls =
+                          p.status === "concluido" ? "bg-emerald-500" :
+                          p.status === "bloqueado" ? "bg-red-500" :
+                          p.status === "em_andamento" ? "bg-primary" : "bg-muted-foreground/40";
+                        const statusLabel =
+                          p.status === "concluido" ? "Concluído" :
+                          p.status === "bloqueado" ? "Bloqueado" :
+                          p.status === "em_andamento" ? "Em andamento" : "Não iniciado";
+                        return (
+                          <li key={i} className="space-y-1">
+                            <div className="flex items-center justify-between gap-2 text-sm">
+                              <span className="truncate font-medium">{p.task}</span>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <Badge variant="outline" className="text-[10px]">{statusLabel}</Badge>
+                                <span className="text-xs text-muted-foreground tabular-nums">{pct}%</span>
+                              </div>
+                            </div>
+                            <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                              <div className={cn("h-full transition-all", statusCls)} style={{ width: `${pct}%` }} />
+                            </div>
+                            {p.evidencia && (
+                              <p className="text-[11px] text-muted-foreground italic line-clamp-1">{p.evidencia}</p>
+                            )}
+                          </li>
+                        );
+                      })}
                   </ul>
                 )}
               </CardContent>

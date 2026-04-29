@@ -67,6 +67,28 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, onSaved }:
     },
   });
 
+  const { data: masterContext } = useQuery({
+    queryKey: ["project_context", productId],
+    enabled: !!productId && open,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("project_contexts") as any)
+        .select("*").eq("product_id", productId).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: masterBacklog = [] } = useQuery({
+    queryKey: ["project_backlog", productId],
+    enabled: !!productId && open,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("project_backlog_items") as any)
+        .select("*").eq("product_id", productId).order("sort_order", { ascending: true });
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
   const memberNameMap = Object.fromEntries(teamMembers.map((m) => [m.id, m.name]));
 
   const toggleMember = (id: string) =>
@@ -123,6 +145,12 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, onSaved }:
             summary: h.summary,
             blocker_level: h.blocker_level,
             ai_insights: h.ai_insights,
+          })),
+          masterContext: (masterContext as any)?.ai_summary ?? (masterContext as any)?.documentation ?? "",
+          masterBacklog: (masterBacklog as any[]).map((b) => ({
+            task: b.task,
+            category: b.category,
+            likely_owner: b.likely_owner,
           })),
         },
       });

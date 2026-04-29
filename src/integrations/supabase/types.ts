@@ -516,6 +516,87 @@ export type Database = {
           },
         ]
       }
+      project_backlog_items: {
+        Row: {
+          category: string
+          created_at: string
+          deadline: string
+          id: string
+          likely_owner: string
+          product_id: string
+          project_context_id: string
+          risk_mitigation: string
+          sort_order: number
+          task: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          deadline?: string
+          id?: string
+          likely_owner?: string
+          product_id: string
+          project_context_id: string
+          risk_mitigation?: string
+          sort_order?: number
+          task: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          deadline?: string
+          id?: string
+          likely_owner?: string
+          product_id?: string
+          project_context_id?: string
+          risk_mitigation?: string
+          sort_order?: number
+          task?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      project_contexts: {
+        Row: {
+          ai_metadata: Json | null
+          ai_summary: string
+          attachment_url: string | null
+          created_at: string
+          documentation: string
+          id: string
+          product_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          ai_metadata?: Json | null
+          ai_summary?: string
+          attachment_url?: string | null
+          created_at?: string
+          documentation?: string
+          id?: string
+          product_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          ai_metadata?: Json | null
+          ai_summary?: string
+          attachment_url?: string | null
+          created_at?: string
+          documentation?: string
+          id?: string
+          product_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       roles: {
         Row: {
           created_at: string
