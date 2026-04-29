@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { format, differenceInCalendarDays } from "date-fns";
+import { format, differenceInCalendarDays, differenceInHours } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   ArrowLeft, Plus, CalendarCheck, TrendingUp, AlertTriangle, Flame,
   Sparkles, Activity, Smile, Frown, Meh, Heart, Loader2, ListChecks, CheckCircle2,
-  UserMinus, UserPlus, Link2, Target, ShieldAlert, History,
+  UserMinus, UserPlus, Link2, Target, ShieldAlert, History, Pencil, Lock, FileDown,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -23,6 +23,8 @@ import { useActiveProducts } from "@/hooks/useProducts";
 import { useSprints } from "@/hooks/useSprints";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { NewDailyDialog } from "@/components/daily/NewDailyDialog";
+import { EditDailyDialog } from "@/components/daily/EditDailyDialog";
+import { downloadExecutivePdf } from "@/lib/dailyExecutivePdf";
 
 interface AIRecorrencia { descricao: string; dias_consecutivos: number; responsavel?: string; }
 interface AIOcioso { nome: string; motivo: string; }
@@ -77,6 +79,7 @@ export default function DailyStatusProjectDetailPage() {
   const { data: teamMembers = [] } = useTeamMembers();
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedDaily, setSelectedDaily] = useState<DailyRow | null>(null);
+  const [editingDaily, setEditingDaily] = useState<DailyRow | null>(null);
 
   const product = products.find((p) => p.id === productId);
 
@@ -93,6 +96,14 @@ export default function DailyStatusProjectDetailPage() {
 
   const sprintNameMap = Object.fromEntries(sprints.map((s) => [s.id, s.name]));
   const memberNameMap = Object.fromEntries(teamMembers.map((m) => [m.id, m.name]));
+
+  // Sequential counter: order chronologically (oldest = #1)
+  const dailyNumberMap = useMemo(() => {
+    const sortedAsc = [...dailies].sort((a, b) => a.status_date.localeCompare(b.status_date));
+    const map: Record<string, number> = {};
+    sortedAsc.forEach((d, i) => { map[d.id] = i + 1; });
+    return map;
+  }, [dailies]);
 
   const latest = dailies[0];
   const latestInsights = latest?.ai_insights;
@@ -183,6 +194,24 @@ export default function DailyStatusProjectDetailPage() {
       eficienciaDesbloqueio,
     };
   }, [dailies, latest, latestInsights]);
+
+  const canEdit = (d: DailyRow) => differenceInHours(new Date(), new Date(d.created_at)) <= 72;
+
+  const handleExportPdf = () => {
+    if (!exec || !product) return;
+    downloadExecutivePdf({
+      productName: product.name,
+      total: exec.total,
+      avgBlocker: exec.avgBlocker,
+      eficienciaDesbloqueio: exec.eficienciaDesbloqueio,
+      vibe: latestInsights?.vibe_equipe ? VIBE_MAP[latestInsights.vibe_equipe].label : undefined,
+      historicoGargalos: exec.historicoGargalos,
+      ociosos: exec.ociosos,
+      sobrecarregados: exec.sobrecarregados.map((s) => ({ nome: s.nome, vezes: s.vezes, nivel_risco: s.nivel_risco })),
+      dependenciasExternas: exec.dependenciasExternas,
+      proximosPassos: latestInsights?.proximos_passos,
+    });
+  };
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
