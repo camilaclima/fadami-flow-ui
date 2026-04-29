@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarCheck, Plus, Sparkles, AlertTriangle, ShieldCheck, Flame, Loader2 } from "lucide-react";
+import { CalendarCheck, Plus, Sparkles, AlertTriangle, ShieldCheck, Flame, Loader2, Settings } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 
 import { useActiveProducts } from "@/hooks/useProducts";
 import { NewDailyDialog } from "@/components/daily/NewDailyDialog";
+import { ProjectConfigModal } from "@/components/daily/ProjectConfigModal";
 
 interface DailyRow {
   id: string;
@@ -36,6 +37,7 @@ export default function DailyStatusPage() {
   const navigate = useNavigate();
   const { data: products = [] } = useActiveProducts();
   const [openDialog, setOpenDialog] = useState(false);
+  const [configFor, setConfigFor] = useState<{ id: string; name: string } | null>(null);
 
   const { data: allDailies = [], isLoading } = useQuery({
     queryKey: ["daily_status_all"],
@@ -111,9 +113,23 @@ export default function DailyStatusPage() {
                         <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: p.productColor ?? "hsl(var(--primary))" }} />
                         <CardTitle className="text-base truncate group-hover:text-primary transition-colors">{p.productName}</CardTitle>
                       </div>
-                      <Badge className={cn("border flex-shrink-0", status.cls)}>
-                        <Icon className="h-3 w-3 mr-1" /> {status.label}
-                      </Badge>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <Badge className={cn("border", status.cls)}>
+                          <Icon className="h-3 w-3 mr-1" /> {status.label}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfigFor({ id: p.productId, name: p.productName });
+                          }}
+                          title="Configuração do projeto"
+                        >
+                          <Settings className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">
@@ -131,6 +147,14 @@ export default function DailyStatusPage() {
       )}
 
       <NewDailyDialog open={openDialog} onOpenChange={setOpenDialog} />
+      {configFor && (
+        <ProjectConfigModal
+          open={!!configFor}
+          onOpenChange={(o) => !o && setConfigFor(null)}
+          productId={configFor.id}
+          productName={configFor.name}
+        />
+      )}
     </div>
   );
 }
