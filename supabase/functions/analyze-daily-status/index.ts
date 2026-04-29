@@ -100,8 +100,63 @@ serve(async (req) => {
                     items: { type: "string" },
                     description: "3 a 5 próximos passos sugeridos para o coordenador.",
                   },
+                  resumo_curto: {
+                    type: "string",
+                    description: "Uma única frase curta (máx 140 caracteres) resumindo a daily de hoje.",
+                  },
+                  colaboradores_ociosos: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        nome: { type: "string" },
+                        motivo: { type: "string" },
+                      },
+                      required: ["nome", "motivo"],
+                      additionalProperties: false,
+                    },
+                    description: "Colaboradores citados como ociosos, sem tarefas ou aguardando algo.",
+                  },
+                  colaboradores_sobrecarregados: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        nome: { type: "string" },
+                        motivo: { type: "string" },
+                        nivel_risco: { type: "string", enum: ["baixo", "medio", "alto"] },
+                      },
+                      required: ["nome", "motivo", "nivel_risco"],
+                      additionalProperties: false,
+                    },
+                    description: "Colaboradores com sinais de sobrecarga, excesso de tarefas ou estresse.",
+                  },
+                  dependencias_externas: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        item: { type: "string" },
+                        bloqueador: { type: "string", description: "Quem está segurando: Cliente, TI, Financeiro, Fornecedor, etc." },
+                        tipo: { type: "string", enum: ["externo", "interno"] },
+                      },
+                      required: ["item", "bloqueador", "tipo"],
+                      additionalProperties: false,
+                    },
+                    description: "Itens travados aguardando agentes externos ou áreas internas.",
+                  },
+                  avancos_consolidados: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Principais marcos/conquistas consolidados ao longo da sprint considerando o histórico.",
+                  },
+                  prospeccao_riscos: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Previsão de possíveis atrasos ou problemas futuros baseado nas tendências.",
+                  },
                 },
-                required: ["avancos", "riscos", "recorrencias", "status_geral", "resumo_executivo", "vibe_equipe", "proximos_passos"],
+                required: ["avancos", "riscos", "recorrencias", "status_geral", "resumo_executivo", "vibe_equipe", "proximos_passos", "resumo_curto", "colaboradores_ociosos", "colaboradores_sobrecarregados", "dependencias_externas", "avancos_consolidados", "prospeccao_riscos"],
                 additionalProperties: false,
               },
             },
