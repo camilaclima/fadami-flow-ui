@@ -35,7 +35,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { title: "Equipe", url: "/team", icon: UsersRound, permission: "team" },
       { title: "Sprints", url: "/sprints", icon: Zap, permission: "sprints" },
-      { title: "Configuração e Backlog", url: "/project-context", icon: BookOpen, permission: "project_context" },
       { title: "Status Diário", url: "/daily-status", icon: CalendarCheck, permission: "daily" },
     ],
   },
