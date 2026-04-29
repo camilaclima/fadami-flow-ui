@@ -83,7 +83,7 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, onSaved }:
     enabled: !!productId && open,
     queryFn: async () => {
       const { data, error } = await (supabase.from("project_backlog_items") as any)
-        .select("*").eq("product_id", productId).order("sort_order", { ascending: true });
+        .select("*").eq("product_id", productId).eq("approved", true).order("sort_order", { ascending: true });
       if (error) throw error;
       return data as any[];
     },

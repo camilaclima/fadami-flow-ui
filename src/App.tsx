@@ -18,7 +18,6 @@ import TeamMembersPage from "./pages/TeamMembersPage";
 import SprintsPage from "./pages/SprintsPage";
 import DailyStatusPage from "./pages/DailyStatusPage";
 import DailyStatusProjectDetailPage from "./pages/DailyStatusProjectDetailPage";
-import ProjectContextPage from "./pages/ProjectContextPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,7 +36,6 @@ const App = () => (
                 <Route path="/backlogs" element={<BacklogsPage />} />
                 <Route path="/team" element={<TeamMembersPage />} />
                 <Route path="/sprints" element={<SprintsPage />} />
-                <Route path="/project-context" element={<ProjectContextPage />} />
                 <Route path="/daily-status" element={<DailyStatusPage />} />
                 <Route path="/daily-status/:productId" element={<DailyStatusProjectDetailPage />} />
                 <Route path="/products" element={<ProductsPage />} />
