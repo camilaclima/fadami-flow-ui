@@ -46,13 +46,21 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
 
   useEffect(() => {
     if (open) {
-      // Se não houver squad (Nova Squad), forçamos campos vazios
-      // Se houver squad (Edição), carregamos os dados persistidos
-      setName(squad?.name ?? "");
-      setLeaderId(squad?.leader_profile_id ?? "__none__");
-      setDescription(squad?.description ?? "");
-      setMemberIds(squad?.member_ids ?? []);
-      setProductIds(squad?.product_ids ?? []);
+      if (squad) {
+        // Modo Edição: Carrega os dados da squad selecionada
+        setName(squad.name ?? "");
+        setLeaderId(squad.leader_profile_id ?? "__none__");
+        setDescription(squad.description ?? "");
+        setMemberIds(squad.member_ids ?? []);
+        setProductIds(squad.product_ids ?? []);
+      } else {
+        // Modo Nova Squad: Reseta todos os campos para o estado inicial vazio
+        setName("");
+        setLeaderId("__none__");
+        setDescription("");
+        setMemberIds([]); // Garante que nenhum membro venha selecionado
+        setProductIds([]); // Garante que nenhum produto venha selecionado
+      }
       setNewMemberName("");
     }
   }, [open, squad]);
@@ -81,7 +89,6 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
         product_id: productIds[0] ?? null,
       } as any);
       setNewMemberName("");
-      // Adiciona o membro recém-criado à seleção da Squad atual
       if (created?.id) {
         setMemberIds((prev) => (prev.includes(created.id) ? prev : [...prev, created.id]));
       }
@@ -91,8 +98,7 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
   };
 
   const handleUnselectMember = (id: string) => {
-    // Apenas remove o ID da lista de seleção da squad,
-    // sem deletar o membro do banco de dados principal.
+    // Apenas desvincula o ID da seleção atual da squad
     setMemberIds((prev) => prev.filter((x) => x !== id));
   };
 
@@ -171,9 +177,7 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
             <Label className="flex items-center gap-2">
               <Users className="h-4 w-4" /> Membros da Squad
             </Label>
-            <p className="text-xs text-muted-foreground">
-              Selecione os membros abaixo ou adicione novos. O "X" apenas desmarca o membro desta squad.
-            </p>
+            <p className="text-xs text-muted-foreground">Selecione na lista abaixo quem fará parte desta squad.</p>
             <div className="flex gap-2">
               <Input
                 value={newMemberName}
@@ -203,13 +207,15 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
               {teamMembers
                 .filter((m) => (m as any).active !== false)
                 .map((m) => {
-                  const active = memberIds.includes(m.id);
+                  const isSelected = memberIds.includes(m.id);
                   return (
                     <div
                       key={m.id}
                       className={cn(
                         "group flex items-center gap-1 rounded-full border transition-all overflow-hidden",
-                        active ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border",
+                        isSelected
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background border-border",
                       )}
                     >
                       <button
@@ -217,13 +223,13 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
                         onClick={() => toggle(memberIds, setMemberIds, m.id)}
                         className={cn(
                           "px-3 py-1 text-xs font-medium flex items-center gap-1",
-                          !active && "hover:bg-accent",
+                          !isSelected && "hover:bg-accent",
                         )}
                       >
-                        {active && <CheckCircle2 className="h-3 w-3" />}
+                        {isSelected && <CheckCircle2 className="h-3 w-3" />}
                         {m.name}
                       </button>
-                      {active && (
+                      {isSelected && (
                         <button
                           type="button"
                           title="Desmarcar membro desta squad"
