@@ -43,16 +43,13 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
       setName(squad?.name ?? "");
       setLeaderId(squad?.leader_profile_id ?? "__none__");
       setDescription(squad?.description ?? "");
-      // Para uma nova squad: pré-seleciona todos os membros ativos cadastrados.
-      // Para edição: mantém a seleção atual já persistida.
-      if (squad) {
-        setMemberIds(squad.member_ids ?? []);
-      } else {
-        setMemberIds(teamMembers.filter((m: any) => m.active ?? true).map((m) => m.id));
-      }
+      // Edição: usa membros já persistidos. Nova squad: campo vazio
+      // para preenchimento manual (não interferir em squads existentes).
+      setMemberIds(squad?.member_ids ?? []);
       setProductIds(squad?.product_ids ?? []);
+      setNewMemberName("");
     }
-  }, [open, squad, teamMembers]);
+  }, [open, squad]);
 
   const toggle = (arr: string[], setArr: (v: string[]) => void, id: string) =>
     setArr(arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]);

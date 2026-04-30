@@ -7,6 +7,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
+import HomeRedirect from "./pages/HomeRedirect";
 import BacklogsPage from "./pages/BacklogsPage";
 import ProductsPage from "./pages/ProductsPage";
 import ClientsPage from "./pages/ClientsPage";
@@ -33,7 +34,8 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route element={<ProtectedRoute />}>
               <Route element={<AppLayout />}>
-                <Route path="/" element={<DashboardPage />} />
+                <Route path="/" element={<HomeRedirect />} />
+                <Route path="/cockpit" element={<DashboardPage />} />
                 <Route path="/backlogs" element={<BacklogsPage />} />
                 <Route path="/team" element={<TeamMembersPage />} />
                 <Route path="/sprints" element={<SprintsPage />} />

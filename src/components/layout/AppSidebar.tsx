@@ -25,7 +25,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Backlog",
     icon: ClipboardList,
     items: [
-      { title: "Dashboard", url: "/", icon: LayoutDashboard, permission: "dashboard" },
+      { title: "Dashboard", url: "/cockpit", icon: LayoutDashboard, permission: "dashboard" },
       { title: "Backlogs", url: "/backlogs", icon: ListTodo, permission: "backlogs" },
     ],
   },

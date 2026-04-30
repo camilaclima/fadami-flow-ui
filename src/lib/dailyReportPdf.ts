@@ -78,6 +78,21 @@ function buildAiHtml(d: DailyExportData): HTMLDivElement {
       ? `<div style="color:#94a3b8; font-style:italic;">—</div>`
       : `<ul style="margin:0; padding-left:18px;">${items.map((i) => `<li style="margin:3px 0;">${escapeHtml(i)}</li>`).join("")}</ul>`;
 
+  // Pílula compacta — sempre numa linha, fundo sólido, alinhada ao topo direito.
+  const pill = (text: string, bg: string, color = "#ffffff") =>
+    `<span style="display:inline-block; background:${bg}; color:${color}; border-radius:999px; padding:2px 8px; font-size:10px; line-height:1.3; font-weight:600; white-space:nowrap; flex-shrink:0;">${escapeHtml(text)}</span>`;
+
+  // Linha "rótulo + tag à direita" garantindo que o texto quebra mas a tag nunca corta.
+  const rowWithTag = (label: string, tagHtml: string, sub?: string) => `
+    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px; padding:6px 0; border-bottom:1px dashed #e2e8f0;">
+      <div style="flex:1 1 auto; min-width:0; word-break:break-word;">
+        <div style="font-size:12px; color:#0f172a;">${label}</div>
+        ${sub ? `<div style="font-size:10.5px; color:#64748b; margin-top:2px;">${sub}</div>` : ""}
+      </div>
+      <div style="flex:0 0 auto; display:flex; gap:4px; align-items:center;">${tagHtml}</div>
+    </div>
+  `;
+
   const header = `
     <div style="margin-bottom:18px; padding-bottom:12px; border-bottom:2px solid #e2e8f0;">
       <div style="font-size:20px; font-weight:800; color:#0f172a; margin-bottom:4px;">
@@ -108,8 +123,9 @@ function buildAiHtml(d: DailyExportData): HTMLDivElement {
     );
   }
 
-  // Three-column row: Avanços / Riscos / Recorrências
-  body += `<div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:12px;">
+  // Layout: Avanços/Riscos lado a lado (1fr 1fr), Recorrências em bloco separado
+  // para acomodar as tags "Xº dia" sem cortar.
+  body += `<div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px;">
     <div style="border:1px solid #d1fae5; border-radius:10px; padding:12px; background:#ecfdf5; page-break-inside: avoid;">
       <div style="font-weight:700; color:#047857; margin-bottom:6px; font-size:12px;">✅ Avanços</div>
       ${list(ins.avancos ?? [])}
@@ -118,29 +134,54 @@ function buildAiHtml(d: DailyExportData): HTMLDivElement {
       <div style="font-weight:700; color:#b45309; margin-bottom:6px; font-size:12px;">⚠️ Riscos</div>
       ${list(ins.riscos ?? [])}
     </div>
-    <div style="border:1px solid #fecaca; border-radius:10px; padding:12px; background:#fef2f2; page-break-inside: avoid;">
-      <div style="font-weight:700; color:#b91c1c; margin-bottom:6px; font-size:12px;">🔥 Recorrências</div>
-      ${(ins.recorrencias ?? []).length === 0
-        ? `<div style="color:#94a3b8; font-style:italic;">—</div>`
-        : `<ul style="margin:0; padding-left:16px;">${(ins.recorrencias ?? []).map((r) => `<li style="margin:3px 0;">${escapeHtml(r.descricao)} <span style="background:#dc2626;color:#fff;border-radius:999px;padding:1px 6px;font-size:10px;">${r.dias_consecutivos}d</span>${r.responsavel ? `<div style="font-size:10.5px;color:#64748b;">Resp: ${escapeHtml(r.responsavel)}</div>` : ""}</li>`).join("")}</ul>`}
-    </div>
   </div>`;
+
+  if ((ins.recorrencias ?? []).length) {
+    const rows = (ins.recorrencias ?? []).map((r) => rowWithTag(
+      escapeHtml(r.descricao),
+      pill(`${r.dias_consecutivos}º dia`, "#dc2626"),
+      r.responsavel ? `Responsável: ${escapeHtml(r.responsavel)}` : undefined,
+    )).join("");
+    body += `
+      <div style="border:1px solid #fecaca; border-left:4px solid #dc2626; border-radius:10px; padding:12px 14px; margin-bottom:12px; background:#fef2f2; page-break-inside: avoid;">
+        <div style="font-weight:700; color:#b91c1c; margin-bottom:4px; font-size:13px;">🔥 Recorrências (Gargalos)</div>
+        ${rows}
+      </div>
+    `;
+  }
 
   if (ins.colaboradores_ociosos?.length || ins.colaboradores_sobrecarregados?.length) {
     body += `<div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px;">`;
     if (ins.colaboradores_ociosos?.length) {
-      body += card(
-        "👤 Colaboradores Ociosos",
-        `<ul style="margin:0; padding-left:18px;">${ins.colaboradores_ociosos.map((o) => `<li style="margin:3px 0;"><strong>${escapeHtml(o.nome)}</strong> — ${escapeHtml(o.motivo)}</li>`).join("")}</ul>`,
-        "#3b82f6",
-      );
+      const rows = ins.colaboradores_ociosos.map((o) => rowWithTag(
+        `<strong>${escapeHtml(o.nome)}</strong>`,
+        pill("Ocioso", "#3b82f6"),
+        escapeHtml(o.motivo),
+      )).join("");
+      body += `
+        <div style="border:1px solid #bfdbfe; border-left:4px solid #3b82f6; border-radius:10px; padding:12px 14px; background:#eff6ff; page-break-inside: avoid;">
+          <div style="font-weight:700; color:#1d4ed8; margin-bottom:4px; font-size:13px;">👤 Colaboradores Ociosos</div>
+          ${rows}
+        </div>
+      `;
     }
     if (ins.colaboradores_sobrecarregados?.length) {
-      body += card(
-        "🔥 Sobrecarregados",
-        `<ul style="margin:0; padding-left:18px;">${ins.colaboradores_sobrecarregados.map((s) => `<li style="margin:3px 0;"><strong>${escapeHtml(s.nome)}</strong> — ${escapeHtml(s.motivo)} <span style="font-size:10px;background:#fed7aa;color:#9a3412;padding:1px 6px;border-radius:999px;">${escapeHtml(s.nivel_risco)}</span></li>`).join("")}</ul>`,
-        "#ea580c",
-      );
+      const riskBg: Record<string, string> = { alto: "#dc2626", medio: "#f59e0b", baixo: "#10b981" };
+      const rows = ins.colaboradores_sobrecarregados.map((s) => {
+        const riskKey = (s.nivel_risco || "").toLowerCase();
+        const bg = riskBg[riskKey] ?? "#ea580c";
+        return rowWithTag(
+          `<strong>${escapeHtml(s.nome)}</strong>`,
+          pill(`Risco ${escapeHtml(s.nivel_risco || "—")}`, bg),
+          escapeHtml(s.motivo),
+        );
+      }).join("");
+      body += `
+        <div style="border:1px solid #fed7aa; border-left:4px solid #ea580c; border-radius:10px; padding:12px 14px; background:#fff7ed; page-break-inside: avoid;">
+          <div style="font-weight:700; color:#c2410c; margin-bottom:4px; font-size:13px;">🔥 Colaboradores Sobrecarregados</div>
+          ${rows}
+        </div>
+      `;
     }
     body += `</div>`;
   }
