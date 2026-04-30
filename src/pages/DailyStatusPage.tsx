@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarCheck, Plus, Sparkles, AlertTriangle, ShieldCheck, Flame, Loader2, Settings } from "lucide-react";
+import { CalendarCheck, Plus, Sparkles, AlertTriangle, ShieldCheck, Flame, Loader2, Settings, UsersRound, Crown, Package } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,8 +13,10 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 import { useActiveProducts } from "@/hooks/useProducts";
-import { NewDailyDialog } from "@/components/daily/NewDailyDialog";
+import { useActiveSquads } from "@/hooks/useSquads";
+import { useProfiles } from "@/hooks/useProfiles";
 import { ProjectConfigModal } from "@/components/daily/ProjectConfigModal";
+import { SquadFormModal } from "@/components/squads/SquadFormModal";
 
 interface DailyRow {
   id: string;
@@ -36,7 +38,9 @@ function statusFromBlocker(level: number) {
 export default function DailyStatusPage() {
   const navigate = useNavigate();
   const { data: products = [] } = useActiveProducts();
-  const [openDialog, setOpenDialog] = useState(false);
+  const { data: squads = [], isLoading: squadsLoading } = useActiveSquads();
+  const { data: profiles = [] } = useProfiles();
+  const [openSquadDialog, setOpenSquadDialog] = useState(false);
   const [configFor, setConfigFor] = useState<{ id: string; name: string } | null>(null);
 
   const { data: allDailies = [], isLoading } = useQuery({
@@ -64,10 +68,9 @@ export default function DailyStatusPage() {
     });
   }, [allDailies, products]);
 
-  const productsWithoutDailies = useMemo(() => {
-    const ids = new Set(projectCards.map((p) => p.productId));
-    return products.filter((p) => !ids.has(p.id));
-  }, [products, projectCards]);
+  const productMap = Object.fromEntries(products.map((p) => [p.id, p]));
+  const profileMap = Object.fromEntries(profiles.map((p) => [p.id, p]));
+  const dailiesByProduct = useMemo(() => Object.fromEntries(projectCards.map((c) => [c.productId, c])), [projectCards]);
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -78,109 +81,110 @@ export default function DailyStatusPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold">Saúde do Projeto</h1>
-            <p className="text-sm text-muted-foreground">Dashboard evolutivo de squads e projetos.</p>
+            <p className="text-sm text-muted-foreground">Dashboard evolutivo organizado por Squads e seus produtos.</p>
           </div>
         </div>
-        <Button onClick={() => setOpenDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" /> Nova Daily
+        <Button onClick={() => setOpenSquadDialog(true)}>
+          <Plus className="h-4 w-4 mr-2" /> Adicionar Squad
         </Button>
       </motion.div>
 
-      {isLoading ? (
+      {(isLoading || squadsLoading) ? (
         <div className="flex items-center justify-center py-20 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin mr-2" /> Carregando...
         </div>
-      ) : projectCards.length === 0 ? (
+      ) : squads.length === 0 ? (
         <Card>
           <CardContent className="py-16 text-center space-y-3">
-            <Sparkles className="h-10 w-10 mx-auto text-muted-foreground/50" />
-            <p className="text-muted-foreground">Nenhuma daily registrada ainda.</p>
-            <Button onClick={() => setOpenDialog(true)}>
-              <Plus className="h-4 w-4 mr-2" /> Registrar primeira daily
+            <UsersRound className="h-10 w-10 mx-auto text-muted-foreground/50" />
+            <p className="text-muted-foreground">Nenhuma squad cadastrada ainda. Crie a primeira para começar a registrar dailys.</p>
+            <Button onClick={() => setOpenSquadDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" /> Adicionar Squad
             </Button>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {projectCards.map((p) => {
-            const status = statusFromBlocker(p.latest.blocker_level);
-            const Icon = status.icon;
-            const aiSummary = p.latest.ai_insights?.resumo_executivo ?? "Sem insight gerado ainda.";
+        <div className="space-y-6">
+          {squads.map((squad) => {
+            const leader = squad.leader_profile_id ? profileMap[squad.leader_profile_id] : null;
+            const squadProducts = squad.product_ids.map((pid) => productMap[pid]).filter(Boolean);
             return (
-              <motion.div key={p.productId} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-                <Card
-                  className="cursor-pointer hover:border-primary/50 transition-all group h-full"
-                  onClick={() => navigate(`/daily-status/${p.productId}`)}
-                >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: p.productColor ?? "hsl(var(--primary))" }} />
-                        <CardTitle className="text-base truncate group-hover:text-primary transition-colors">{p.productName}</CardTitle>
-                      </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <Badge className={cn("border", status.cls)}>
-                          <Icon className="h-3 w-3 mr-1" /> {status.label}
-                        </Badge>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setConfigFor({ id: p.productId, name: p.productName });
-                          }}
-                          title="Configuração do projeto"
+              <motion.div key={squad.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <UsersRound className="h-5 w-5 text-primary" />
+                    <h2 className="text-lg font-semibold">{squad.name}</h2>
+                    {leader && (
+                      <Badge variant="outline" className="text-xs gap-1">
+                        <Crown className="h-3 w-3 text-amber-500" /> {leader.first_name} {leader.last_name}
+                      </Badge>
+                    )}
+                    <Badge variant="secondary" className="text-xs">{squad.member_ids.length} membro(s)</Badge>
+                  </div>
+                </div>
+                {squadProducts.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardContent className="py-6 text-center text-sm text-muted-foreground">
+                      Esta squad ainda não tem produtos vinculados.
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {squadProducts.map((p) => {
+                      const card = dailiesByProduct[p.id];
+                      const hasDaily = !!card;
+                      const status = hasDaily ? statusFromBlocker(card.latest.blocker_level) : null;
+                      const Icon = status?.icon;
+                      const aiSummary = card?.latest.ai_insights?.resumo_executivo ?? "Sem dailys registradas ainda.";
+                      return (
+                        <Card
+                          key={p.id}
+                          className="cursor-pointer hover:border-primary/50 transition-all group h-full"
+                          onClick={() => navigate(`/daily-status/${p.id}`)}
                         >
-                          <Settings className="h-4 w-4 text-muted-foreground hover:text-primary" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <p className="text-sm text-muted-foreground line-clamp-3 italic">"{aiSummary}"</p>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/60">
-                      <span>{p.count} daily{p.count > 1 ? "s" : ""}</span>
-                      <span>Última: {format(new Date(p.latest.status_date), "dd/MM/yyyy", { locale: ptBR })}</span>
-                    </div>
-                  </CardContent>
-                </Card>
+                          <CardHeader className="pb-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: p.color ?? "hsl(var(--primary))" }} />
+                                <CardTitle className="text-sm truncate group-hover:text-primary transition-colors">{p.name}</CardTitle>
+                              </div>
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                {status && Icon && (
+                                  <Badge className={cn("border text-[10px]", status.cls)}>
+                                    <Icon className="h-3 w-3 mr-1" /> {status.label}
+                                  </Badge>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={(e) => { e.stopPropagation(); setConfigFor({ id: p.id, name: p.name }); }}
+                                  title="Configuração do projeto"
+                                >
+                                  <Settings className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <p className="text-xs text-muted-foreground line-clamp-3 italic">"{aiSummary}"</p>
+                            <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-border/60">
+                              <span>{card?.count ?? 0} daily{(card?.count ?? 0) === 1 ? "" : "s"}</span>
+                              {card && <span>Última: {format(new Date(card.latest.status_date), "dd/MM/yyyy", { locale: ptBR })}</span>}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
               </motion.div>
             );
           })}
         </div>
       )}
 
-      {productsWithoutDailies.length > 0 && (
-        <div className="space-y-3 pt-2">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Projetos sem dailys ainda
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {productsWithoutDailies.map((p) => (
-              <Card key={p.id} className="border-dashed">
-                <CardContent className="py-3 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: p.color ?? "hsl(var(--primary))" }} />
-                    <span className="text-sm font-medium truncate">{p.name}</span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => setConfigFor({ id: p.id, name: p.name })}
-                    title="Configuração do projeto"
-                  >
-                    <Settings className="h-4 w-4 text-muted-foreground hover:text-primary" />
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <NewDailyDialog open={openDialog} onOpenChange={setOpenDialog} />
+      <SquadFormModal open={openSquadDialog} onOpenChange={setOpenSquadDialog} />
       {configFor && (
         <ProjectConfigModal
           open={!!configFor}

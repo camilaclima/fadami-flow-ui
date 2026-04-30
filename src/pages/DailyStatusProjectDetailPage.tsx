@@ -6,7 +6,7 @@ import {
   ArrowLeft, Plus, CalendarCheck, TrendingUp, AlertTriangle, Flame,
   Sparkles, Activity, Smile, Frown, Meh, Heart, Loader2, ListChecks, CheckCircle2,
   UserMinus, UserPlus, Link2, Target, ShieldAlert, History, Pencil, Lock, FileDown,
-  Compass, GitBranch, BookOpen, Settings, BarChart3,
+  Compass, GitBranch, BookOpen, Settings, BarChart3, UsersRound,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { useActiveProducts } from "@/hooks/useProducts";
 import { useSprints } from "@/hooks/useSprints";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
+import { useSquads } from "@/hooks/useSquads";
 import { NewDailyDialog } from "@/components/daily/NewDailyDialog";
 import { EditDailyDialog } from "@/components/daily/EditDailyDialog";
 import { ProjectConfigModal } from "@/components/daily/ProjectConfigModal";
@@ -84,6 +85,7 @@ export default function DailyStatusProjectDetailPage() {
   const { data: products = [] } = useActiveProducts();
   const { data: sprints = [] } = useSprints();
   const { data: teamMembers = [] } = useTeamMembers();
+  const { data: squads = [] } = useSquads();
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedDaily, setSelectedDaily] = useState<DailyRow | null>(null);
   const [editingDaily, setEditingDaily] = useState<DailyRow | null>(null);
@@ -92,6 +94,30 @@ export default function DailyStatusProjectDetailPage() {
   const [sprintFilter, setSprintFilter] = useState<string>("all");
 
   const product = products.find((p) => p.id === productId);
+  // Identify which squad owns this product (multi-squad supported -> first match)
+  const ownerSquad = useMemo(
+    () => squads.find((s) => s.product_ids.includes(productId ?? "")),
+    [squads, productId],
+  );
+  const siblingProducts = useMemo(
+    () => (ownerSquad?.product_ids ?? []).filter((id) => id !== productId).map((id) => products.find((p) => p.id === id)).filter(Boolean) as typeof products,
+    [ownerSquad, productId, products],
+  );
+
+  // Cross-product allocation: load dailies of sibling products to detect multi-product overload
+  const siblingProductIds = siblingProducts.map((p) => p.id);
+  const { data: squadDailies = [] } = useQuery({
+    queryKey: ["daily_status_squad", ownerSquad?.id, siblingProductIds.join(",")],
+    enabled: !!ownerSquad && siblingProductIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("daily_status") as any)
+        .select("*").in("product_id", siblingProductIds);
+      if (error) throw error;
+      return data as DailyRow[];
+    },
+  });
+
+  const productNameMap = Object.fromEntries(products.map((p) => [p.id, p.name]));
 
   const { data: allDailies = [], isLoading } = useQuery({
     queryKey: ["daily_status_history", productId],
@@ -228,6 +254,35 @@ export default function DailyStatusProjectDetailPage() {
     };
   }, [dailies, latest, latestInsights]);
 
+  // Multi-product allocation radar (cross-product within the same Squad)
+  const multiProductAllocation = useMemo(() => {
+    if (!ownerSquad) return null;
+    const all = [...allDailies, ...squadDailies];
+    const idle = new Map<string, { nome: string; produtos: Set<string>; vezes: number }>();
+    const over = new Map<string, { nome: string; produtos: Set<string>; vezes: number; nivel: AISobrecarregado["nivel_risco"] }>();
+    const rank: Record<AISobrecarregado["nivel_risco"], number> = { baixo: 1, medio: 2, alto: 3 };
+    for (const d of all) {
+      const pname = productNameMap[d.product_id] ?? "—";
+      for (const o of d.ai_insights?.colaboradores_ociosos ?? []) {
+        const k = o.nome.toLowerCase().trim();
+        const cur = idle.get(k) ?? { nome: o.nome, produtos: new Set<string>(), vezes: 0 };
+        cur.produtos.add(pname); cur.vezes += 1;
+        idle.set(k, cur);
+      }
+      for (const s of d.ai_insights?.colaboradores_sobrecarregados ?? []) {
+        const k = s.nome.toLowerCase().trim();
+        const cur = over.get(k) ?? { nome: s.nome, produtos: new Set<string>(), vezes: 0, nivel: s.nivel_risco };
+        cur.produtos.add(pname); cur.vezes += 1;
+        if (rank[s.nivel_risco] > rank[cur.nivel]) cur.nivel = s.nivel_risco;
+        over.set(k, cur);
+      }
+    }
+    return {
+      ociosos: Array.from(idle.values()).map((v) => ({ ...v, produtos: Array.from(v.produtos) })).sort((a, b) => b.produtos.length - a.produtos.length || b.vezes - a.vezes),
+      sobrecarregados: Array.from(over.values()).map((v) => ({ ...v, produtos: Array.from(v.produtos) })).sort((a, b) => rank[b.nivel] - rank[a.nivel] || b.produtos.length - a.produtos.length),
+    };
+  }, [ownerSquad, allDailies, squadDailies, productNameMap]);
+
   // Comparativo entre sprints — sempre com base em todas as dailies do projeto
   const sprintComparison = useMemo(() => {
     const map = new Map<string, { sprintId: string; name: string; total: number; avgBlocker: number; gargalos: number; ociosos: number; sobrecarga: number; extraEscopo: number; ultimaData: string }>();
@@ -288,7 +343,15 @@ export default function DailyStatusProjectDetailPage() {
           </div>
           <div className="min-w-0">
             <h1 className="text-2xl font-bold truncate">{product?.name ?? "Projeto"}</h1>
-            <p className="text-sm text-muted-foreground">Saúde do Projeto · dashboard evolutivo</p>
+            <p className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
+              Saúde do Projeto · dashboard evolutivo
+              {ownerSquad && (
+                <Badge variant="outline" className="text-[10px] gap-1">
+                  <UsersRound className="h-3 w-3" /> Squad: {ownerSquad.name}
+                  {siblingProducts.length > 0 && <span className="text-muted-foreground">· +{siblingProducts.length} produto(s)</span>}
+                </Badge>
+              )}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -638,6 +701,68 @@ export default function DailyStatusProjectDetailPage() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Radar Multi-Produto (Squad) */}
+            {ownerSquad && siblingProducts.length > 0 && multiProductAllocation && (
+              <Card className="border-violet-500/30 bg-violet-500/5">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-violet-500/15 text-violet-600"><UsersRound className="h-4 w-4" /></div>
+                    <CardTitle className="text-base">Radar Multi-Produto · Squad {ownerSquad.name}</CardTitle>
+                  </div>
+                  <CardDescription>
+                    Detecta colaboradores acumulando tarefas em mais de um produto da mesma squad
+                    ({[product?.name, ...siblingProducts.map((p) => p.name)].filter(Boolean).join(", ")}).
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Sobrecarga cruzada</h4>
+                    {multiProductAllocation.sobrecarregados.filter((s) => s.produtos.length > 1).length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Nenhuma sobrecarga multi-produto detectada.</p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {multiProductAllocation.sobrecarregados.filter((s) => s.produtos.length > 1).map((s, i) => (
+                          <li key={i} className="p-2 rounded-md bg-background/60 space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-sm font-medium">{s.nome}</span>
+                              <Badge className={cn("border text-xs", RISK_CLS[s.nivel])}>Risco {s.nivel}</Badge>
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {s.produtos.map((pn, pi) => (
+                                <Badge key={pi} variant="outline" className="text-[10px]">{pn}</Badge>
+                              ))}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Ociosidade cruzada</h4>
+                    {multiProductAllocation.ociosos.filter((o) => o.produtos.length > 1).length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Nenhum colaborador ocioso em múltiplos produtos.</p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {multiProductAllocation.ociosos.filter((o) => o.produtos.length > 1).map((o, i) => (
+                          <li key={i} className="p-2 rounded-md bg-background/60 space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-sm font-medium">{o.nome}</span>
+                              <Badge variant="secondary" className="text-xs">{o.vezes}x</Badge>
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {o.produtos.map((pn, pi) => (
+                                <Badge key={pi} variant="outline" className="text-[10px]">{pn}</Badge>
+                              ))}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Visão Estratégica */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
