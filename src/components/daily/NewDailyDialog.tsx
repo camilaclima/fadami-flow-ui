@@ -94,7 +94,7 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
 
   const toggleMember = (id: string) =>
     setSelectedMembers((prev) => {
-      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [id, ...prev];
       if (!next.includes(id)) {
         setMemberReports((r) => {
           const { [id]: _, ...rest } = r;
