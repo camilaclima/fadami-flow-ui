@@ -64,6 +64,8 @@ function buildAiHtml(d: DailyExportData): HTMLDivElement {
     background: #ffffff; color: #0f172a;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-size: 13px; line-height: 1.5;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   `;
 
   const card = (title: string, body: string, accent = "#6366f1") => `
@@ -78,18 +80,20 @@ function buildAiHtml(d: DailyExportData): HTMLDivElement {
       ? `<div style="color:#94a3b8; font-style:italic;">—</div>`
       : `<ul style="margin:0; padding-left:18px;">${items.map((i) => `<li style="margin:3px 0;">${escapeHtml(i)}</li>`).join("")}</ul>`;
 
-  // Pílula compacta — sempre numa linha, fundo sólido, alinhada ao topo direito.
+  // Pílula compacta — sempre numa linha. Usa box-sizing/line-height fixos e
+  // vertical-align middle para o html2canvas não desalinhar o texto do fundo.
   const pill = (text: string, bg: string, color = "#ffffff") =>
-    `<span style="display:inline-block; background:${bg}; color:${color}; border-radius:999px; padding:2px 8px; font-size:10px; line-height:1.3; font-weight:600; white-space:nowrap; flex-shrink:0;">${escapeHtml(text)}</span>`;
+    `<span style="display:inline-block; background-color:${bg}; color:${color}; border-radius:999px; padding:3px 10px; font-size:10px; line-height:14px; font-weight:600; white-space:nowrap; flex-shrink:0; vertical-align:middle; box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; border:1px solid ${bg};">${escapeHtml(text)}</span>`;
 
-  // Linha "rótulo + tag à direita" garantindo que o texto quebra mas a tag nunca corta.
+  // Linha "rótulo + tag à direita". Usa align-items:center para centralizar
+  // a pílula com o texto e padding generoso para não cortar nada.
   const rowWithTag = (label: string, tagHtml: string, sub?: string) => `
-    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px; padding:6px 0; border-bottom:1px dashed #e2e8f0;">
-      <div style="flex:1 1 auto; min-width:0; word-break:break-word;">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px dashed #e2e8f0;">
+      <div style="flex:1 1 auto; min-width:0; word-break:break-word; line-height:1.4;">
         <div style="font-size:12px; color:#0f172a;">${label}</div>
         ${sub ? `<div style="font-size:10.5px; color:#64748b; margin-top:2px;">${sub}</div>` : ""}
       </div>
-      <div style="flex:0 0 auto; display:flex; gap:4px; align-items:center;">${tagHtml}</div>
+      <div style="flex:0 0 auto; display:inline-flex; gap:4px; align-items:center; line-height:1;">${tagHtml}</div>
     </div>
   `;
 
