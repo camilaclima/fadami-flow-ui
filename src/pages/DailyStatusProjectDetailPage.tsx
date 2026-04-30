@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { format, differenceInCalendarDays, differenceInHours, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -6,7 +6,7 @@ import {
   ArrowLeft, Plus, CalendarCheck, TrendingUp, AlertTriangle, Flame,
   Sparkles, Activity, Smile, Frown, Meh, Heart, Loader2, ListChecks, CheckCircle2,
   UserMinus, UserPlus, Link2, Target, ShieldAlert, History, Pencil, Lock, FileDown,
-  Compass, GitBranch, BookOpen, Settings, BarChart3, UsersRound,
+  Compass, GitBranch, BookOpen, Settings, BarChart3, UsersRound, Crown, Download,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -25,10 +25,13 @@ import { useActiveProducts } from "@/hooks/useProducts";
 import { useSprints } from "@/hooks/useSprints";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { useSquads } from "@/hooks/useSquads";
+import { useProfiles } from "@/hooks/useProfiles";
 import { NewDailyDialog } from "@/components/daily/NewDailyDialog";
 import { EditDailyDialog } from "@/components/daily/EditDailyDialog";
 import { ProjectConfigModal } from "@/components/daily/ProjectConfigModal";
-import { downloadExecutivePdf } from "@/lib/dailyExecutivePdf";
+import { downloadElementAsPdf } from "@/lib/visualPdf";
+import { downloadDailyReportPdf, parseRawReport } from "@/lib/dailyReportPdf";
+import { toast } from "sonner";
 
 interface AIRecorrencia { descricao: string; dias_consecutivos: number; responsavel?: string; }
 interface AIOcioso { nome: string; motivo: string; }
@@ -88,11 +91,15 @@ export default function DailyStatusProjectDetailPage() {
   const { data: sprints = [] } = useSprints();
   const { data: teamMembers = [] } = useTeamMembers();
   const { data: squads = [] } = useSquads();
+  const { data: profiles = [] } = useProfiles();
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedDaily, setSelectedDaily] = useState<DailyRow | null>(null);
   const [editingDaily, setEditingDaily] = useState<DailyRow | null>(null);
   const [openConfig, setOpenConfig] = useState(false);
   const [configFor, setConfigFor] = useState<{ id: string; name: string } | null>(null);
+  const [idleDetail, setIdleDetail] = useState<{ nome: string; ocorrencias: { date: string; motivo: string; product?: string }[] } | null>(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const executiveRef = useRef<HTMLDivElement>(null);
   // "all" = Geral (todas as sprints); senão sprintId
   const [sprintFilter, setSprintFilter] = useState<string>("all");
 
@@ -103,6 +110,10 @@ export default function DailyStatusProjectDetailPage() {
       ? squads.find((s) => s.id === squadId)
       : squads.find((s) => s.product_ids.includes(productId ?? "")),
     [squads, productId, squadId, isSquadMode],
+  );
+  const squadLeader = useMemo(
+    () => ownerSquad?.leader_profile_id ? profiles.find((p) => p.id === ownerSquad.leader_profile_id) : null,
+    [ownerSquad, profiles],
   );
   // Active product list for the current view (squad's products or single product)
   const viewProductIds = useMemo(
