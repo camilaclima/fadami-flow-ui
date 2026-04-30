@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { format, differenceInCalendarDays, differenceInHours, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -26,6 +26,7 @@ import { useSprints } from "@/hooks/useSprints";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { useSquads } from "@/hooks/useSquads";
 import { useProfiles } from "@/hooks/useProfiles";
+import { useAuthorizedProducts } from "@/hooks/useAuthorizedProducts";
 import { NewDailyDialog } from "@/components/daily/NewDailyDialog";
 import { EditDailyDialog } from "@/components/daily/EditDailyDialog";
 import { ProjectConfigModal } from "@/components/daily/ProjectConfigModal";
@@ -92,6 +93,7 @@ export default function DailyStatusProjectDetailPage() {
   const { data: teamMembers = [] } = useTeamMembers();
   const { data: squads = [] } = useSquads();
   const { data: profiles = [] } = useProfiles();
+  const { isAdmin, productIds: allowedIds, canAccessProduct, loading: authzLoading } = useAuthorizedProducts();
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedDaily, setSelectedDaily] = useState<DailyRow | null>(null);
   const [editingDaily, setEditingDaily] = useState<DailyRow | null>(null);
@@ -117,11 +119,37 @@ export default function DailyStatusProjectDetailPage() {
   );
   // Active product list for the current view (squad's products or single product)
   const viewProductIds = useMemo(
-    () => isSquadMode
-      ? (ownerSquad?.product_ids ?? [])
-      : (productId ? [productId] : []),
-    [isSquadMode, ownerSquad, productId],
+    () => {
+      const base = isSquadMode
+        ? (ownerSquad?.product_ids ?? [])
+        : (productId ? [productId] : []);
+      // Aplica trava por vínculo: filtra produtos não autorizados do escopo desta view.
+      if (isAdmin || !allowedIds) return base;
+      return base.filter((id) => allowedIds.includes(id));
+    },
+    [isSquadMode, ownerSquad, productId, isAdmin, allowedIds],
   );
+
+  // Bloqueio de acesso direto via URL: redireciona para a Saúde do Projeto
+  // se o usuário não tiver vínculo com o produto/squad solicitado.
+  useEffect(() => {
+    if (authzLoading) return;
+    if (isAdmin) return;
+    if (!squads.length && !products.length) return; // ainda carregando catálogos
+
+    if (isSquadMode) {
+      // Squad só é acessível se possuir ao menos um produto autorizado
+      const ownerProducts = ownerSquad?.product_ids ?? [];
+      const ok = ownerProducts.some((pid) => (allowedIds ?? []).includes(pid));
+      if (!ok) {
+        toast.error("Acesso não autorizado a este projeto.");
+        navigate("/daily-status", { replace: true });
+      }
+    } else if (productId && !canAccessProduct(productId)) {
+      toast.error("Acesso não autorizado a este projeto.");
+      navigate("/daily-status", { replace: true });
+    }
+  }, [authzLoading, isAdmin, allowedIds, isSquadMode, squadId, productId, ownerSquad, squads.length, products.length, canAccessProduct, navigate]);
   const viewProducts = useMemo(
     () => viewProductIds.map((id) => products.find((p) => p.id === id)).filter(Boolean) as typeof products,
     [viewProductIds, products],
