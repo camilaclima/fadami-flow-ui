@@ -58,6 +58,7 @@ interface DailyRow {
   id: string;
   product_id: string;
   sprint_id: string;
+  sprint_label?: string;
   status_date: string;
   present_member_ids: string[];
   summary: string;
