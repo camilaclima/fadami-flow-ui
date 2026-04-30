@@ -120,7 +120,8 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
   };
 
   const handleSave = async () => {
-    if (!productId) {
+    const effectiveProductId = productId || (allowedProductIds && allowedProductIds[0]) || "";
+    if (!effectiveProductId) {
       toast.error("Selecione o projeto.");
       return;
     }
@@ -160,7 +161,7 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
       const aiBlockerLevel = Math.min(5, Math.max(1, Math.round(Number(insights?.blocker_level ?? 1))));
 
       const { error: insertErr } = await (supabase.from("daily_status") as any).insert({
-        product_id: productId,
+        product_id: effectiveProductId,
         sprint_id: null,
         sprint_label: sprintLabel.trim(),
         status_date: format(date, "yyyy-MM-dd"),
