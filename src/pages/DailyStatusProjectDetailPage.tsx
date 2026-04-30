@@ -378,6 +378,11 @@ export default function DailyStatusProjectDetailPage() {
 
           {/* ESCOPO E BACKLOG – itens aprovados + status de entrega */}
           <TabsContent value="escopo" className="space-y-3">
+            <div className="flex items-center justify-end">
+              <Button variant="outline" size="sm" onClick={() => setOpenConfig(true)}>
+                <Settings className="h-4 w-4 mr-2" /> Configurar Metas/Backlog
+              </Button>
+            </div>
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between gap-2">
@@ -385,7 +390,7 @@ export default function DailyStatusProjectDetailPage() {
                     <div className="p-2 rounded-lg bg-primary/10 text-primary"><BookOpen className="h-4 w-4" /></div>
                     <div>
                       <CardTitle className="text-base">Escopo Aprovado do Projeto</CardTitle>
-                      <CardDescription>Itens do Contexto Mestre + status de entrega calculado pelas dailys</CardDescription>
+                      <CardDescription>Itens do Contexto Mestre + status de entrega calculado pelas dailys. Use "Configurar Metas/Backlog" para complementar o contexto a qualquer momento.</CardDescription>
                     </div>
                   </div>
                   <Badge variant="secondary">{approvedBacklog.length} item(ns)</Badge>
@@ -394,7 +399,7 @@ export default function DailyStatusProjectDetailPage() {
               <CardContent>
                 {approvedBacklog.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-8 text-center">
-                    Nenhum item aprovado ainda. Abra a engrenagem do projeto na página inicial de Status Diário e aprove os itens sugeridos pela IA.
+                    Nenhum item aprovado ainda. Clique em "Configurar Metas/Backlog" para enviar a documentação e aprovar os itens sugeridos pela IA.
                   </p>
                 ) : (
                   <ul className="space-y-2">
