@@ -24,10 +24,11 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   lockedProductId?: string;
   allowedProductIds?: string[];
+  allowedMemberIds?: string[];
   onSaved?: () => void;
 }
 
-export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedProductIds, onSaved }: Props) {
+export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedProductIds, allowedMemberIds, onSaved }: Props) {
   const qc = useQueryClient();
   const { data: allProducts = [] } = useActiveProducts();
   const products = useMemo(
@@ -36,7 +37,15 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
       : allProducts),
     [allProducts, allowedProductIds],
   );
-  const { data: teamMembers = [] } = useTeamMembers();
+  const { data: allTeamMembers = [] } = useTeamMembers();
+  const teamMembers = useMemo(
+    () =>
+      allowedMemberIds
+        ? allTeamMembers.filter((m) => allowedMemberIds.includes(m.id))
+        : allTeamMembers,
+    [allTeamMembers, allowedMemberIds],
+  );
+  const isSquadFiltered = Array.isArray(allowedMemberIds);
 
   const [productId, setProductId] = useState<string>(lockedProductId ?? "");
   const [date, setDate] = useState<Date>(new Date());
@@ -56,6 +65,19 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
       setGeneralNotes("");
     }
   }, [open, lockedProductId]);
+
+  // Clear member selections if the squad's member list changes mid-form
+  useEffect(() => {
+    if (!isSquadFiltered) return;
+    setSelectedMembers((prev) => prev.filter((id) => allowedMemberIds!.includes(id)));
+    setMemberReports((prev) => {
+      const next: Record<string, string> = {};
+      for (const [k, v] of Object.entries(prev)) {
+        if (allowedMemberIds!.includes(k)) next[k] = v;
+      }
+      return next;
+    });
+  }, [allowedMemberIds, isSquadFiltered]);
 
   const { data: history = [] } = useQuery({
     queryKey: ["daily_status_history", productId],
@@ -257,7 +279,13 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
           <div className="space-y-2">
             <Label className="flex items-center gap-2"><Users className="h-4 w-4" /> Membros presentes</Label>
             <div className="flex flex-wrap gap-2 rounded-md border border-input bg-background p-3 min-h-[44px]">
-              {teamMembers.length === 0 && <span className="text-sm text-muted-foreground">Nenhum colaborador cadastrado</span>}
+              {teamMembers.length === 0 && (
+                <span className="text-sm text-muted-foreground">
+                  {isSquadFiltered
+                    ? "Esta squad não possui membros vinculados. Configure-a no menu de Cadastros."
+                    : "Nenhum colaborador cadastrado"}
+                </span>
+              )}
               {teamMembers.map((m) => {
                 const active = selectedMembers.includes(m.id);
                 return (
