@@ -80,7 +80,8 @@ const RISK_CLS: Record<AISobrecarregado["nivel_risco"], string> = {
 };
 
 export default function DailyStatusProjectDetailPage() {
-  const { productId } = useParams<{ productId: string }>();
+  const { productId, squadId } = useParams<{ productId: string; squadId: string }>();
+  const isSquadMode = !!squadId;
   const navigate = useNavigate();
   const { data: products = [] } = useActiveProducts();
   const { data: sprints = [] } = useSprints();
@@ -90,25 +91,43 @@ export default function DailyStatusProjectDetailPage() {
   const [selectedDaily, setSelectedDaily] = useState<DailyRow | null>(null);
   const [editingDaily, setEditingDaily] = useState<DailyRow | null>(null);
   const [openConfig, setOpenConfig] = useState(false);
+  const [configFor, setConfigFor] = useState<{ id: string; name: string } | null>(null);
   // "all" = Geral (todas as sprints); senão sprintId
   const [sprintFilter, setSprintFilter] = useState<string>("all");
 
   const product = products.find((p) => p.id === productId);
-  // Identify which squad owns this product (multi-squad supported -> first match)
+  // Squad mode: identify squad from URL; Product mode: derive from product
   const ownerSquad = useMemo(
-    () => squads.find((s) => s.product_ids.includes(productId ?? "")),
-    [squads, productId],
+    () => isSquadMode
+      ? squads.find((s) => s.id === squadId)
+      : squads.find((s) => s.product_ids.includes(productId ?? "")),
+    [squads, productId, squadId, isSquadMode],
+  );
+  // Active product list for the current view (squad's products or single product)
+  const viewProductIds = useMemo(
+    () => isSquadMode
+      ? (ownerSquad?.product_ids ?? [])
+      : (productId ? [productId] : []),
+    [isSquadMode, ownerSquad, productId],
+  );
+  const viewProducts = useMemo(
+    () => viewProductIds.map((id) => products.find((p) => p.id === id)).filter(Boolean) as typeof products,
+    [viewProductIds, products],
   );
   const siblingProducts = useMemo(
-    () => (ownerSquad?.product_ids ?? []).filter((id) => id !== productId).map((id) => products.find((p) => p.id === id)).filter(Boolean) as typeof products,
-    [ownerSquad, productId, products],
+    () => isSquadMode
+      ? viewProducts // in squad mode, "siblings" = all squad products
+      : (ownerSquad?.product_ids ?? []).filter((id) => id !== productId).map((id) => products.find((p) => p.id === id)).filter(Boolean) as typeof products,
+    [ownerSquad, productId, products, isSquadMode, viewProducts],
   );
 
   // Cross-product allocation: load dailies of sibling products to detect multi-product overload
-  const siblingProductIds = siblingProducts.map((p) => p.id);
+  const siblingProductIds = isSquadMode
+    ? [] // squad mode already loads everything via allDailies
+    : siblingProducts.map((p) => p.id);
   const { data: squadDailies = [] } = useQuery({
     queryKey: ["daily_status_squad", ownerSquad?.id, siblingProductIds.join(",")],
-    enabled: !!ownerSquad && siblingProductIds.length > 0,
+    enabled: !isSquadMode && !!ownerSquad && siblingProductIds.length > 0,
     queryFn: async () => {
       const { data, error } = await (supabase.from("daily_status") as any)
         .select("*").in("product_id", siblingProductIds);
@@ -118,13 +137,14 @@ export default function DailyStatusProjectDetailPage() {
   });
 
   const productNameMap = Object.fromEntries(products.map((p) => [p.id, p.name]));
+  const productColorMap = Object.fromEntries(products.map((p) => [p.id, p.color]));
 
   const { data: allDailies = [], isLoading } = useQuery({
-    queryKey: ["daily_status_history", productId],
-    enabled: !!productId,
+    queryKey: ["daily_status_history", isSquadMode ? `squad:${squadId}` : productId, viewProductIds.join(",")],
+    enabled: viewProductIds.length > 0,
     queryFn: async () => {
       const { data, error } = await (supabase.from("daily_status") as any)
-        .select("*").eq("product_id", productId!).order("status_date", { ascending: false });
+        .select("*").in("product_id", viewProductIds).order("status_date", { ascending: false });
       if (error) throw error;
       return data as DailyRow[];
     },
@@ -143,13 +163,13 @@ export default function DailyStatusProjectDetailPage() {
   }, [allDailies, sprintFilter]);
 
   const { data: approvedBacklog = [] } = useQuery({
-    queryKey: ["project_backlog_approved", productId],
-    enabled: !!productId,
+    queryKey: ["project_backlog_approved", isSquadMode ? `squad:${squadId}` : productId, viewProductIds.join(",")],
+    enabled: viewProductIds.length > 0,
     queryFn: async () => {
       const { data, error } = await (supabase.from("project_backlog_items") as any)
-        .select("*").eq("product_id", productId!).eq("approved", true).order("sort_order", { ascending: true });
+        .select("*").in("product_id", viewProductIds).eq("approved", true).order("sort_order", { ascending: true });
       if (error) throw error;
-      return data as Array<{ id: string; task: string; likely_owner: string; deadline: string; risk_mitigation: string; category: string }>;
+      return data as Array<{ id: string; task: string; likely_owner: string; deadline: string; risk_mitigation: string; category: string; product_id: string }>;
     },
   });
 
@@ -316,9 +336,12 @@ export default function DailyStatusProjectDetailPage() {
   const canEdit = (d: DailyRow) => differenceInHours(new Date(), new Date(d.created_at)) <= 72;
 
   const handleExportPdf = () => {
-    if (!exec || !product) return;
+    if (!exec) return;
+    const reportName = isSquadMode
+      ? (ownerSquad?.name ?? "Squad")
+      : (product?.name ?? "Projeto");
     downloadExecutivePdf({
-      productName: product.name,
+      productName: reportName,
       total: exec.total,
       avgBlocker: exec.avgBlocker,
       eficienciaDesbloqueio: exec.eficienciaDesbloqueio,
@@ -342,16 +365,36 @@ export default function DailyStatusProjectDetailPage() {
             <CalendarCheck className="h-6 w-6" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold truncate">{product?.name ?? "Projeto"}</h1>
-            <p className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
-              Saúde do Projeto · dashboard evolutivo
-              {ownerSquad && (
-                <Badge variant="outline" className="text-[10px] gap-1">
-                  <UsersRound className="h-3 w-3" /> Squad: {ownerSquad.name}
-                  {siblingProducts.length > 0 && <span className="text-muted-foreground">· +{siblingProducts.length} produto(s)</span>}
-                </Badge>
+            <h1 className="text-2xl font-bold truncate">
+              {isSquadMode ? (ownerSquad?.name ?? "Squad") : (product?.name ?? "Projeto")}
+            </h1>
+            <div className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
+              {isSquadMode ? (
+                <>
+                  <span className="flex items-center gap-1">
+                    <UsersRound className="h-3.5 w-3.5" /> Squad consolidada · {viewProducts.length} produto(s)
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {viewProducts.map((p) => (
+                      <Badge key={p.id} variant="outline" className="text-[10px] gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full" style={{ background: p.color ?? "hsl(var(--primary))" }} />
+                        {p.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span>Saúde do Projeto · dashboard evolutivo</span>
+                  {ownerSquad && (
+                    <Badge variant="outline" className="text-[10px] gap-1">
+                      <UsersRound className="h-3 w-3" /> Squad: {ownerSquad.name}
+                      {siblingProducts.length > 0 && <span className="text-muted-foreground">· +{siblingProducts.length} produto(s)</span>}
+                    </Badge>
+                  )}
+                </>
               )}
-            </p>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -426,6 +469,12 @@ export default function DailyStatusProjectDetailPage() {
                         <Badge variant="outline" className="flex-shrink-0">
                           {format(new Date(d.status_date), "dd/MM/yyyy", { locale: ptBR })}
                         </Badge>
+                        {isSquadMode && (
+                          <Badge variant="outline" className="flex-shrink-0 text-[10px] gap-1">
+                            <span className="h-1.5 w-1.5 rounded-full" style={{ background: productColorMap[d.product_id] ?? "hsl(var(--primary))" }} />
+                            {productNameMap[d.product_id] ?? "Projeto"}
+                          </Badge>
+                        )}
                         <Badge variant="secondary" className="flex-shrink-0 text-xs">
                           {sprintNameMap[d.sprint_id] ?? "Sprint —"}
                         </Badge>
@@ -441,10 +490,25 @@ export default function DailyStatusProjectDetailPage() {
 
           {/* ESCOPO E BACKLOG – itens aprovados + status de entrega */}
           <TabsContent value="escopo" className="space-y-3">
-            <div className="flex items-center justify-end">
-              <Button variant="outline" size="sm" onClick={() => setOpenConfig(true)}>
-                <Settings className="h-4 w-4 mr-2" /> Configurar Metas/Backlog
-              </Button>
+            <div className="flex items-center justify-end gap-2 flex-wrap">
+              {isSquadMode ? (
+                viewProducts.map((p) => (
+                  <Button
+                    key={p.id}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setConfigFor({ id: p.id, name: p.name })}
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    <span className="h-1.5 w-1.5 rounded-full mr-1.5" style={{ background: p.color ?? "hsl(var(--primary))" }} />
+                    Configurar · {p.name}
+                  </Button>
+                ))
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => setOpenConfig(true)}>
+                  <Settings className="h-4 w-4 mr-2" /> Configurar Metas/Backlog
+                </Button>
+              )}
             </div>
             <Card>
               <CardHeader className="pb-3">
@@ -452,8 +516,14 @@ export default function DailyStatusProjectDetailPage() {
                   <div className="flex items-center gap-2">
                     <div className="p-2 rounded-lg bg-primary/10 text-primary"><BookOpen className="h-4 w-4" /></div>
                     <div>
-                      <CardTitle className="text-base">Escopo Aprovado do Projeto</CardTitle>
-                      <CardDescription>Itens do Contexto Mestre + status de entrega calculado pelas dailys. Use "Configurar Metas/Backlog" para complementar o contexto a qualquer momento.</CardDescription>
+                      <CardTitle className="text-base">
+                        {isSquadMode ? "Escopo Aprovado da Squad" : "Escopo Aprovado do Projeto"}
+                      </CardTitle>
+                      <CardDescription>
+                        {isSquadMode
+                          ? "Itens aprovados de todos os produtos da squad. Use os botões acima para configurar cada produto."
+                          : "Itens do Contexto Mestre + status de entrega calculado pelas dailys. Use \"Configurar Metas/Backlog\" para complementar o contexto a qualquer momento."}
+                      </CardDescription>
                     </div>
                   </div>
                   <Badge variant="secondary">{approvedBacklog.length} item(ns)</Badge>
@@ -485,6 +555,12 @@ export default function DailyStatusProjectDetailPage() {
                             <div className="min-w-0">
                               <p className="text-sm font-medium">{it.task}</p>
                               <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap mt-0.5">
+                                {isSquadMode && (
+                                  <Badge variant="outline" className="text-[10px] gap-1">
+                                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: productColorMap[it.product_id] ?? "hsl(var(--primary))" }} />
+                                    {productNameMap[it.product_id] ?? "—"}
+                                  </Badge>
+                                )}
                                 <span><strong>Resp:</strong> {it.likely_owner || "—"}</span>
                                 <span><strong>Prazo:</strong> {it.deadline || "—"}</span>
                                 {it.category && <Badge variant="outline" className="text-[10px]">{it.category}</Badge>}
@@ -712,7 +788,10 @@ export default function DailyStatusProjectDetailPage() {
                   </div>
                   <CardDescription>
                     Detecta colaboradores acumulando tarefas em mais de um produto da mesma squad
-                    ({[product?.name, ...siblingProducts.map((p) => p.name)].filter(Boolean).join(", ")}).
+                    ({(isSquadMode
+                      ? viewProducts.map((p) => p.name)
+                      : [product?.name, ...siblingProducts.map((p) => p.name)]
+                    ).filter(Boolean).join(", ")}).
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1008,14 +1087,27 @@ export default function DailyStatusProjectDetailPage() {
         </Tabs>
       )}
 
-      <NewDailyDialog open={openDialog} onOpenChange={setOpenDialog} lockedProductId={productId} />
+      <NewDailyDialog
+        open={openDialog}
+        onOpenChange={setOpenDialog}
+        lockedProductId={isSquadMode ? undefined : productId}
+        allowedProductIds={isSquadMode ? viewProductIds : undefined}
+      />
       <EditDailyDialog open={!!editingDaily} onOpenChange={(o) => !o && setEditingDaily(null)} daily={editingDaily} onSaved={() => setSelectedDaily(null)} />
-      {product && (
+      {!isSquadMode && product && (
         <ProjectConfigModal
           open={openConfig}
           onOpenChange={setOpenConfig}
           productId={product.id}
           productName={product.name}
+        />
+      )}
+      {configFor && (
+        <ProjectConfigModal
+          open={!!configFor}
+          onOpenChange={(o) => !o && setConfigFor(null)}
+          productId={configFor.id}
+          productName={configFor.name}
         />
       )}
 

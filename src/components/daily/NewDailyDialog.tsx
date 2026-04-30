@@ -23,12 +23,19 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   lockedProductId?: string;
+  allowedProductIds?: string[];
   onSaved?: () => void;
 }
 
-export function NewDailyDialog({ open, onOpenChange, lockedProductId, onSaved }: Props) {
+export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedProductIds, onSaved }: Props) {
   const qc = useQueryClient();
-  const { data: products = [] } = useActiveProducts();
+  const { data: allProducts = [] } = useActiveProducts();
+  const products = useMemo(
+    () => (allowedProductIds && allowedProductIds.length > 0
+      ? allProducts.filter((p) => allowedProductIds.includes(p.id))
+      : allProducts),
+    [allProducts, allowedProductIds],
+  );
   const { data: sprints = [] } = useSprints();
   const { data: teamMembers = [] } = useTeamMembers();
 
