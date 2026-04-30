@@ -1219,16 +1219,10 @@ export default function DailyStatusProjectDetailPage() {
 
                 <TabsContent value="bruto" className="flex-1 min-h-0">
                   <ScrollArea className="h-[55vh] pr-3">
-                    <div className="space-y-3">
-                      {(selectedDaily.present_member_ids ?? []).length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {(selectedDaily.present_member_ids ?? []).map((id, i) => (
-                            <Badge key={i} variant="secondary" className="text-xs">{memberNameMap[id] ?? id}</Badge>
-                          ))}
-                        </div>
-                      )}
-                      <p className="text-sm whitespace-pre-wrap leading-relaxed">{selectedDaily.summary || "Sem texto registrado."}</p>
-                    </div>
+                    <RawReportView
+                      summary={selectedDaily.summary}
+                      presentMembers={(selectedDaily.present_member_ids ?? []).map((id) => memberNameMap[id] ?? id)}
+                    />
                   </ScrollArea>
                 </TabsContent>
 
