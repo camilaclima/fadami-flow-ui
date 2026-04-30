@@ -66,11 +66,10 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
         product_id: productIds[0] ?? null,
       } as any);
       setNewMemberName("");
-      // The mutation doesn't return id; rely on next refetch and auto-select by name
-      setTimeout(() => {
-        const match = (teamMembers as any[]).find((m) => m.name === trimmed);
-        if (match && !memberIds.includes(match.id)) setMemberIds((prev) => [...prev, match.id]);
-      }, 300);
+      // Auto-select the freshly created member so it gets linked to the squad on save.
+      if (created?.id) {
+        setMemberIds((prev) => prev.includes(created.id) ? prev : [...prev, created.id]);
+      }
     } catch (e: any) {
       toast.error(e?.message ?? "Erro ao adicionar membro");
     }
