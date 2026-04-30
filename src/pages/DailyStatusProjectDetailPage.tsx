@@ -6,7 +6,7 @@ import {
   ArrowLeft, Plus, CalendarCheck, TrendingUp, AlertTriangle, Flame,
   Sparkles, Activity, Smile, Frown, Meh, Heart, Loader2, ListChecks, CheckCircle2,
   UserMinus, UserPlus, Link2, Target, ShieldAlert, History, Pencil, Lock, FileDown,
-  Compass, GitBranch, BookOpen, Settings, BarChart3,
+  Compass, GitBranch, BookOpen, Settings, BarChart3, UsersRound,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
