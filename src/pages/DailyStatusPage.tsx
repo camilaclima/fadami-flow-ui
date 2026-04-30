@@ -77,8 +77,8 @@ export default function DailyStatusPage() {
             <CalendarCheck className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Status Diário</h1>
-            <p className="text-sm text-muted-foreground">Dashboard inteligente das dailys por projeto.</p>
+            <h1 className="text-2xl font-bold">Saúde do Projeto</h1>
+            <p className="text-sm text-muted-foreground">Dashboard evolutivo de squads e projetos.</p>
           </div>
         </div>
         <Button onClick={() => setOpenDialog(true)}>
