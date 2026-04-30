@@ -194,8 +194,11 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
       });
       if (insertErr) throw insertErr;
 
-      qc.invalidateQueries({ queryKey: ["daily_status_history", productId] });
-      qc.invalidateQueries({ queryKey: ["daily_status_all"] });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["daily_status_history"] }),
+        qc.invalidateQueries({ queryKey: ["daily_status_all"] }),
+        qc.invalidateQueries({ queryKey: ["daily_status_squad"] }),
+      ]);
       toast.success(`Daily registrada! Nível de bloqueio (IA): ${aiBlockerLevel}/5`);
       onSaved?.();
       onOpenChange(false);
