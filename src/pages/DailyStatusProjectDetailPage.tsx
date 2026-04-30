@@ -816,12 +816,83 @@ export default function DailyStatusProjectDetailPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Comparativo entre sprints */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-primary/10 text-primary"><BarChart3 className="h-4 w-4" /></div>
+                  <CardTitle className="text-base">Comparativo entre Sprints</CardTitle>
+                </div>
+                <CardDescription>Evolução agregada por sprint (todas as dailys do projeto)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {sprintComparison.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhuma sprint comparável ainda.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-xs text-muted-foreground border-b border-border/60">
+                          <th className="py-2 pr-3 font-medium">Sprint</th>
+                          <th className="py-2 px-2 font-medium text-center">Dailys</th>
+                          <th className="py-2 px-2 font-medium text-center">Bloqueio médio</th>
+                          <th className="py-2 px-2 font-medium text-center">Gargalos</th>
+                          <th className="py-2 px-2 font-medium text-center">Ociosos</th>
+                          <th className="py-2 px-2 font-medium text-center">Sobrecarga</th>
+                          <th className="py-2 px-2 font-medium text-center">Extra-escopo</th>
+                          <th className="py-2 pl-2 font-medium">Última</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sprintComparison.map((s) => {
+                          const blockerCls =
+                            s.avgBlocker >= 4 ? "text-red-600" :
+                            s.avgBlocker >= 3 ? "text-amber-600" : "text-emerald-600";
+                          const isCurrent = sprintFilter === s.sprintId;
+                          return (
+                            <tr key={s.sprintId} className={cn("border-b border-border/40 hover:bg-accent/30 transition-colors", isCurrent && "bg-primary/5")}>
+                              <td className="py-2 pr-3 font-medium">
+                                <button
+                                  className="text-left hover:text-primary transition-colors"
+                                  onClick={() => setSprintFilter(s.sprintId)}
+                                  title="Filtrar por esta sprint"
+                                >
+                                  {s.name}
+                                </button>
+                              </td>
+                              <td className="py-2 px-2 text-center tabular-nums">{s.total}</td>
+                              <td className={cn("py-2 px-2 text-center tabular-nums font-medium", blockerCls)}>{s.avgBlocker.toFixed(1)}</td>
+                              <td className="py-2 px-2 text-center tabular-nums">{s.gargalos}</td>
+                              <td className="py-2 px-2 text-center tabular-nums">{s.ociosos}</td>
+                              <td className="py-2 px-2 text-center tabular-nums">{s.sobrecarga}</td>
+                              <td className="py-2 px-2 text-center tabular-nums">{s.extraEscopo}</td>
+                              <td className="py-2 pl-2 text-xs text-muted-foreground">
+                                {format(new Date(s.ultimaData), "dd/MM/yyyy", { locale: ptBR })}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       )}
 
       <NewDailyDialog open={openDialog} onOpenChange={setOpenDialog} lockedProductId={productId} />
       <EditDailyDialog open={!!editingDaily} onOpenChange={(o) => !o && setEditingDaily(null)} daily={editingDaily} onSaved={() => setSelectedDaily(null)} />
+      {product && (
+        <ProjectConfigModal
+          open={openConfig}
+          onOpenChange={setOpenConfig}
+          productId={product.id}
+          productName={product.name}
+        />
+      )}
 
       {/* Modal de detalhe da daily */}
       <Dialog open={!!selectedDaily} onOpenChange={(o) => !o && setSelectedDaily(null)}>
