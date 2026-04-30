@@ -1139,6 +1139,7 @@ export default function DailyStatusProjectDetailPage() {
                 )}
               </CardContent>
             </Card>
+            </div>
           </TabsContent>
         </Tabs>
       )}
