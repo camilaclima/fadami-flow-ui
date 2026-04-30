@@ -254,6 +254,35 @@ export default function DailyStatusProjectDetailPage() {
     };
   }, [dailies, latest, latestInsights]);
 
+  // Multi-product allocation radar (cross-product within the same Squad)
+  const multiProductAllocation = useMemo(() => {
+    if (!ownerSquad) return null;
+    const all = [...allDailies, ...squadDailies];
+    const idle = new Map<string, { nome: string; produtos: Set<string>; vezes: number }>();
+    const over = new Map<string, { nome: string; produtos: Set<string>; vezes: number; nivel: AISobrecarregado["nivel_risco"] }>();
+    const rank: Record<AISobrecarregado["nivel_risco"], number> = { baixo: 1, medio: 2, alto: 3 };
+    for (const d of all) {
+      const pname = productNameMap[d.product_id] ?? "—";
+      for (const o of d.ai_insights?.colaboradores_ociosos ?? []) {
+        const k = o.nome.toLowerCase().trim();
+        const cur = idle.get(k) ?? { nome: o.nome, produtos: new Set<string>(), vezes: 0 };
+        cur.produtos.add(pname); cur.vezes += 1;
+        idle.set(k, cur);
+      }
+      for (const s of d.ai_insights?.colaboradores_sobrecarregados ?? []) {
+        const k = s.nome.toLowerCase().trim();
+        const cur = over.get(k) ?? { nome: s.nome, produtos: new Set<string>(), vezes: 0, nivel: s.nivel_risco };
+        cur.produtos.add(pname); cur.vezes += 1;
+        if (rank[s.nivel_risco] > rank[cur.nivel]) cur.nivel = s.nivel_risco;
+        over.set(k, cur);
+      }
+    }
+    return {
+      ociosos: Array.from(idle.values()).map((v) => ({ ...v, produtos: Array.from(v.produtos) })).sort((a, b) => b.produtos.length - a.produtos.length || b.vezes - a.vezes),
+      sobrecarregados: Array.from(over.values()).map((v) => ({ ...v, produtos: Array.from(v.produtos) })).sort((a, b) => rank[b.nivel] - rank[a.nivel] || b.produtos.length - a.produtos.length),
+    };
+  }, [ownerSquad, allDailies, squadDailies, productNameMap]);
+
   // Comparativo entre sprints — sempre com base em todas as dailies do projeto
   const sprintComparison = useMemo(() => {
     const map = new Map<string, { sprintId: string; name: string; total: number; avgBlocker: number; gargalos: number; ociosos: number; sobrecarga: number; extraEscopo: number; ultimaData: string }>();
