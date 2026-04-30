@@ -1,0 +1,1 @@
+ALTER TABLE public.daily_status ADD COLUMN IF NOT EXISTS sprint_label text NOT NULL DEFAULT '';

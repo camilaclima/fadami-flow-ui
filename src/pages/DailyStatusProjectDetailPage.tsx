@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { format, differenceInCalendarDays, differenceInHours } from "date-fns";
+import { format, differenceInCalendarDays, differenceInHours, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   ArrowLeft, Plus, CalendarCheck, TrendingUp, AlertTriangle, Flame,
@@ -58,6 +58,7 @@ interface DailyRow {
   id: string;
   product_id: string;
   sprint_id: string;
+  sprint_label?: string;
   status_date: string;
   present_member_ids: string[];
   summary: string;
@@ -265,7 +266,7 @@ export default function DailyStatusProjectDetailPage() {
       avgBlocker,
       total: dailies.length,
       latestDate: latest?.status_date,
-      daysSinceLatest: latest ? differenceInCalendarDays(new Date(), new Date(latest.status_date)) : 0,
+      daysSinceLatest: latest ? differenceInCalendarDays(new Date(), parseISO(latest.status_date)) : 0,
       historicoGargalos,
       ociosos,
       sobrecarregados,
@@ -467,7 +468,7 @@ export default function DailyStatusProjectDetailPage() {
                           Daily #{num}
                         </Badge>
                         <Badge variant="outline" className="flex-shrink-0">
-                          {format(new Date(d.status_date), "dd/MM/yyyy", { locale: ptBR })}
+                          {format(parseISO(d.status_date), "dd/MM/yyyy", { locale: ptBR })}
                         </Badge>
                         {isSquadMode && (
                           <Badge variant="outline" className="flex-shrink-0 text-[10px] gap-1">
@@ -476,7 +477,7 @@ export default function DailyStatusProjectDetailPage() {
                           </Badge>
                         )}
                         <Badge variant="secondary" className="flex-shrink-0 text-xs">
-                          {sprintNameMap[d.sprint_id] ?? "Sprint —"}
+                          {d.sprint_label?.trim() ? d.sprint_label : (sprintNameMap[d.sprint_id] ?? "Sprint —")}
                         </Badge>
                         <p className="text-sm text-muted-foreground truncate italic">"{resumo}"</p>
                       </div>
@@ -608,7 +609,7 @@ export default function DailyStatusProjectDetailPage() {
                 <CardContent>
                   <div className="text-3xl font-bold">{exec?.total ?? 0}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Última: {latest && format(new Date(latest.status_date), "dd/MM/yyyy", { locale: ptBR })}
+                    Última: {latest && format(parseISO(latest.status_date), "dd/MM/yyyy", { locale: ptBR })}
                   </p>
                 </CardContent>
               </Card>
@@ -1122,7 +1123,7 @@ export default function DailyStatusProjectDetailPage() {
                     <DialogTitle className="flex items-center gap-2 flex-wrap">
                       <CalendarCheck className="h-5 w-5 text-primary" />
                       Daily #{dailyNumberMap[selectedDaily.id]} —{" "}
-                      {format(new Date(selectedDaily.status_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                      {format(parseISO(selectedDaily.status_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                     </DialogTitle>
                   </div>
                   <div className="flex items-center gap-2">

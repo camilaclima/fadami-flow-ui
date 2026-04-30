@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -39,6 +40,7 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
 
   const [productId, setProductId] = useState<string>(lockedProductId ?? "");
   const [date, setDate] = useState<Date>(new Date());
+  const [sprintLabel, setSprintLabel] = useState("");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [memberReports, setMemberReports] = useState<Record<string, string>>({});
   const [generalNotes, setGeneralNotes] = useState("");
@@ -48,6 +50,7 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
     if (open) {
       setProductId(lockedProductId ?? "");
       setDate(new Date());
+      setSprintLabel("");
       setSelectedMembers([]);
       setMemberReports({});
       setGeneralNotes("");
@@ -117,7 +120,8 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
   };
 
   const handleSave = async () => {
-    if (!productId) {
+    const effectiveProductId = productId || (allowedProductIds && allowedProductIds[0]) || "";
+    if (!effectiveProductId) {
       toast.error("Selecione o projeto.");
       return;
     }
@@ -157,8 +161,9 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
       const aiBlockerLevel = Math.min(5, Math.max(1, Math.round(Number(insights?.blocker_level ?? 1))));
 
       const { error: insertErr } = await (supabase.from("daily_status") as any).insert({
-        product_id: productId,
+        product_id: effectiveProductId,
         sprint_id: null,
+        sprint_label: sprintLabel.trim(),
         status_date: format(date, "yyyy-MM-dd"),
         present_member_ids: selectedMembers,
         summary: compositeSummary,
@@ -181,6 +186,10 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
   };
 
   const lockedProduct = products.find((p) => p.id === lockedProductId);
+  const lockedProducts = allowedProductIds && allowedProductIds.length > 0
+    ? allProducts.filter((p) => allowedProductIds.includes(p.id))
+    : [];
+  const isSquadMode = !lockedProductId && lockedProducts.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -193,12 +202,24 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
         </DialogHeader>
 
         <div className="space-y-5 py-2">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Projeto</Label>
               {lockedProductId ? (
                 <div className="h-10 px-3 flex items-center rounded-md border border-input bg-muted/40 text-sm">
                   {lockedProduct?.name ?? "—"}
+                </div>
+              ) : isSquadMode ? (
+                <div className="min-h-10 px-3 py-2 flex flex-wrap items-center gap-1.5 rounded-md border border-input bg-muted/40 text-sm">
+                  {lockedProducts.map((p) => (
+                    <span
+                      key={p.id}
+                      className="px-2 py-0.5 rounded-full text-xs font-medium border"
+                      style={{ backgroundColor: `${p.color}20`, borderColor: `${p.color}55`, color: p.color }}
+                    >
+                      {p.name}
+                    </span>
+                  ))}
                 </div>
               ) : (
                 <Select value={productId} onValueChange={(v) => setProductId(v)}>
@@ -222,6 +243,14 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
                   <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus className={cn("p-3 pointer-events-auto")} />
                 </PopoverContent>
               </Popover>
+            </div>
+            <div className="space-y-2">
+              <Label>Sprint</Label>
+              <Input
+                value={sprintLabel}
+                onChange={(e) => setSprintLabel(e.target.value)}
+                placeholder="Ex: Sprint 12"
+              />
             </div>
           </div>
 
