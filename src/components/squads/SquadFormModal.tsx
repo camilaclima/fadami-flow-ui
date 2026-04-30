@@ -40,13 +40,13 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
 
   useEffect(() => {
     if (open) {
+      // Reset completo do formulário sempre que o modal abre. Para "Nova Squad"
+      // todos os campos vêm vazios; para edição, carregam os dados da squad.
       setName(squad?.name ?? "");
       setLeaderId(squad?.leader_profile_id ?? "__none__");
       setDescription(squad?.description ?? "");
-      // Edição: usa membros já persistidos. Nova squad: campo vazio
-      // para preenchimento manual (não interferir em squads existentes).
-      setMemberIds(squad?.member_ids ?? []);
-      setProductIds(squad?.product_ids ?? []);
+      setMemberIds(squad ? (squad.member_ids ?? []) : []);
+      setProductIds(squad ? (squad.product_ids ?? []) : []);
       setNewMemberName("");
     }
   }, [open, squad]);
