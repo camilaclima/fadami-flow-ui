@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { useActiveProducts } from "@/hooks/useProducts";
 import { useSprints } from "@/hooks/useSprints";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
+import { useSquads } from "@/hooks/useSquads";
 import { NewDailyDialog } from "@/components/daily/NewDailyDialog";
 import { EditDailyDialog } from "@/components/daily/EditDailyDialog";
 import { ProjectConfigModal } from "@/components/daily/ProjectConfigModal";
@@ -84,6 +85,7 @@ export default function DailyStatusProjectDetailPage() {
   const { data: products = [] } = useActiveProducts();
   const { data: sprints = [] } = useSprints();
   const { data: teamMembers = [] } = useTeamMembers();
+  const { data: squads = [] } = useSquads();
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedDaily, setSelectedDaily] = useState<DailyRow | null>(null);
   const [editingDaily, setEditingDaily] = useState<DailyRow | null>(null);
@@ -92,6 +94,60 @@ export default function DailyStatusProjectDetailPage() {
   const [sprintFilter, setSprintFilter] = useState<string>("all");
 
   const product = products.find((p) => p.id === productId);
+  // Identify which squad owns this product (multi-squad supported -> first match)
+  const ownerSquad = useMemo(
+    () => squads.find((s) => s.product_ids.includes(productId ?? "")),
+    [squads, productId],
+  );
+  const siblingProducts = useMemo(
+    () => (ownerSquad?.product_ids ?? []).filter((id) => id !== productId).map((id) => products.find((p) => p.id === id)).filter(Boolean) as typeof products,
+    [ownerSquad, productId, products],
+  );
+
+  // Cross-product allocation: load dailies of sibling products to detect multi-product overload
+  const siblingProductIds = siblingProducts.map((p) => p.id);
+  const { data: squadDailies = [] } = useQuery({
+    queryKey: ["daily_status_squad", ownerSquad?.id, siblingProductIds.join(",")],
+    enabled: !!ownerSquad && siblingProductIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("daily_status") as any)
+        .select("*").in("product_id", siblingProductIds);
+      if (error) throw error;
+      return data as DailyRow[];
+    },
+  });
+
+  const productNameMap = Object.fromEntries(products.map((p) => [p.id, p.name]));
+
+  // Multi-product allocation radar: aggregate idle/overload by member, tracking which products
+  const multiProductAllocation = useMemo(() => {
+    if (!ownerSquad) return null;
+    const all = [...allDailies, ...squadDailies];
+    const idle = new Map<string, { nome: string; produtos: Set<string>; vezes: number }>();
+    const over = new Map<string, { nome: string; produtos: Set<string>; vezes: number; nivel: AISobrecarregado["nivel_risco"] }>();
+    const rank: Record<AISobrecarregado["nivel_risco"], number> = { baixo: 1, medio: 2, alto: 3 };
+    for (const d of all) {
+      const pname = productNameMap[d.product_id] ?? "—";
+      for (const o of d.ai_insights?.colaboradores_ociosos ?? []) {
+        const k = o.nome.toLowerCase().trim();
+        const cur = idle.get(k) ?? { nome: o.nome, produtos: new Set<string>(), vezes: 0 };
+        cur.produtos.add(pname); cur.vezes += 1;
+        idle.set(k, cur);
+      }
+      for (const s of d.ai_insights?.colaboradores_sobrecarregados ?? []) {
+        const k = s.nome.toLowerCase().trim();
+        const cur = over.get(k) ?? { nome: s.nome, produtos: new Set<string>(), vezes: 0, nivel: s.nivel_risco };
+        cur.produtos.add(pname); cur.vezes += 1;
+        if (rank[s.nivel_risco] > rank[cur.nivel]) cur.nivel = s.nivel_risco;
+        over.set(k, cur);
+      }
+    }
+    return {
+      ociosos: Array.from(idle.values()).map((v) => ({ ...v, produtos: Array.from(v.produtos) })).sort((a, b) => b.produtos.length - a.produtos.length || b.vezes - a.vezes),
+      sobrecarregados: Array.from(over.values()).map((v) => ({ ...v, produtos: Array.from(v.produtos) })).sort((a, b) => rank[b.nivel] - rank[a.nivel] || b.produtos.length - a.produtos.length),
+    };
+  }, [ownerSquad, allDailies, squadDailies, productNameMap]);
+
 
   const { data: allDailies = [], isLoading } = useQuery({
     queryKey: ["daily_status_history", productId],
