@@ -228,6 +228,36 @@ export default function DailyStatusProjectDetailPage() {
     };
   }, [dailies, latest, latestInsights]);
 
+  // Comparativo entre sprints — sempre com base em todas as dailies do projeto
+  const sprintComparison = useMemo(() => {
+    const map = new Map<string, { sprintId: string; name: string; total: number; avgBlocker: number; gargalos: number; ociosos: number; sobrecarga: number; extraEscopo: number; ultimaData: string }>();
+    for (const d of allDailies) {
+      const key = d.sprint_id;
+      if (!key) continue;
+      const cur = map.get(key) ?? {
+        sprintId: key,
+        name: sprintNameMap[key] ?? "Sprint —",
+        total: 0,
+        avgBlocker: 0,
+        gargalos: 0,
+        ociosos: 0,
+        sobrecarga: 0,
+        extraEscopo: 0,
+        ultimaData: d.status_date,
+      };
+      cur.total += 1;
+      cur.avgBlocker += d.blocker_level;
+      cur.gargalos += d.ai_insights?.recorrencias?.length ?? 0;
+      cur.ociosos += d.ai_insights?.colaboradores_ociosos?.length ?? 0;
+      cur.sobrecarga += d.ai_insights?.colaboradores_sobrecarregados?.length ?? 0;
+      cur.extraEscopo += d.ai_insights?.tarefas_extra_escopo?.length ?? 0;
+      if (d.status_date > cur.ultimaData) cur.ultimaData = d.status_date;
+      map.set(key, cur);
+    }
+    return Array.from(map.values()).map((s) => ({ ...s, avgBlocker: s.total ? s.avgBlocker / s.total : 0 }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [allDailies, sprintNameMap]);
+
   const canEdit = (d: DailyRow) => differenceInHours(new Date(), new Date(d.created_at)) <= 72;
 
   const handleExportPdf = () => {
