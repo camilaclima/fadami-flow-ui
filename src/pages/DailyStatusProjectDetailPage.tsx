@@ -790,14 +790,15 @@ export default function DailyStatusProjectDetailPage() {
                   ) : (
                     <ul className="space-y-2">
                       {exec.ociosos.map((o, i) => (
-                        <li key={i} className="p-2 rounded-md bg-background/50 space-y-1">
-                          <div className="flex items-center justify-between gap-2">
+                        <li key={i}>
+                          <button
+                            type="button"
+                            onClick={() => openIdleDetail(o.nome)}
+                            className="w-full text-left p-2 rounded-md bg-background/50 hover:bg-accent/50 transition-colors flex items-center justify-between gap-2"
+                          >
                             <span className="text-sm font-medium">{o.nome}</span>
                             <Badge variant="secondary" className="text-xs">{o.vezes}x ocioso</Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Datas: {o.datas.map((d) => format(new Date(d), "dd/MM", { locale: ptBR })).join(", ")}
-                          </p>
+                          </button>
                         </li>
                       ))}
                     </ul>
