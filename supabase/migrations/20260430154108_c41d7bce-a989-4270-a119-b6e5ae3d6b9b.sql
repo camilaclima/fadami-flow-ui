@@ -1,0 +1,1 @@
+ALTER TABLE public.daily_status ALTER COLUMN sprint_id DROP NOT NULL;
