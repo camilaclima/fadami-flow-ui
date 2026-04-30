@@ -87,10 +87,13 @@ export default function DailyStatusProjectDetailPage() {
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedDaily, setSelectedDaily] = useState<DailyRow | null>(null);
   const [editingDaily, setEditingDaily] = useState<DailyRow | null>(null);
+  const [openConfig, setOpenConfig] = useState(false);
+  // "all" = Geral (todas as sprints); senão sprintId
+  const [sprintFilter, setSprintFilter] = useState<string>("all");
 
   const product = products.find((p) => p.id === productId);
 
-  const { data: dailies = [], isLoading } = useQuery({
+  const { data: allDailies = [], isLoading } = useQuery({
     queryKey: ["daily_status_history", productId],
     enabled: !!productId,
     queryFn: async () => {
@@ -100,6 +103,18 @@ export default function DailyStatusProjectDetailPage() {
       return data as DailyRow[];
     },
   });
+
+  // Sprints que possuem ao menos uma daily neste projeto (para popular o filtro)
+  const sprintsWithDailies = useMemo(() => {
+    const ids = new Set(allDailies.map((d) => d.sprint_id).filter(Boolean));
+    return sprints.filter((s) => ids.has(s.id));
+  }, [allDailies, sprints]);
+
+  // Dailies filtradas conforme filtro de sprint (persistente entre abas)
+  const dailies = useMemo(() => {
+    if (sprintFilter === "all") return allDailies;
+    return allDailies.filter((d) => d.sprint_id === sprintFilter);
+  }, [allDailies, sprintFilter]);
 
   const { data: approvedBacklog = [] } = useQuery({
     queryKey: ["project_backlog_approved", productId],
