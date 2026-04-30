@@ -1150,6 +1150,7 @@ export default function DailyStatusProjectDetailPage() {
         onOpenChange={setOpenDialog}
         lockedProductId={isSquadMode ? undefined : productId}
         allowedProductIds={isSquadMode ? viewProductIds : undefined}
+        allowedMemberIds={ownerSquad?.member_ids}
       />
       <EditDailyDialog open={!!editingDaily} onOpenChange={(o) => !o && setEditingDaily(null)} daily={editingDaily} onSaved={() => setSelectedDaily(null)} />
       {!isSquadMode && product && (
