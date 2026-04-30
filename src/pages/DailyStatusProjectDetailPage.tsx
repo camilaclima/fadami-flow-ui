@@ -347,23 +347,50 @@ export default function DailyStatusProjectDetailPage() {
 
   const canEdit = (d: DailyRow) => differenceInHours(new Date(), new Date(d.created_at)) <= 72;
 
-  const handleExportPdf = () => {
-    if (!exec) return;
+  const handleExportPdf = async () => {
+    if (!executiveRef.current) return;
     const reportName = isSquadMode
       ? (ownerSquad?.name ?? "Squad")
       : (product?.name ?? "Projeto");
-    downloadExecutivePdf({
-      productName: reportName,
-      total: exec.total,
-      avgBlocker: exec.avgBlocker,
-      eficienciaDesbloqueio: exec.eficienciaDesbloqueio,
-      vibe: latestInsights?.vibe_equipe ? VIBE_MAP[latestInsights.vibe_equipe].label : undefined,
-      historicoGargalos: exec.historicoGargalos,
-      ociosos: exec.ociosos,
-      sobrecarregados: exec.sobrecarregados.map((s) => ({ nome: s.nome, vezes: s.vezes, nivel_risco: s.nivel_risco })),
-      dependenciasExternas: exec.dependenciasExternas,
-      proximosPassos: latestInsights?.proximos_passos,
+    setExportingPdf(true);
+    try {
+      await downloadElementAsPdf(
+        executiveRef.current,
+        `dashboard-executivo-${reportName.replace(/\s+/g, "_")}-${format(new Date(), "yyyyMMdd-HHmm")}.pdf`,
+      );
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao gerar PDF");
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
+  const handleDownloadDaily = (d: DailyRow, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const productName = productNameMap[d.product_id] ?? (product?.name ?? "Projeto");
+    downloadDailyReportPdf({
+      productName,
+      dailyNumber: dailyNumberMap[d.id] ?? 0,
+      statusDate: d.status_date,
+      sprintLabel: d.sprint_label?.trim() || (sprintNameMap[d.sprint_id] ?? "—"),
+      blockerLevel: d.blocker_level,
+      presentMembers: (d.present_member_ids ?? []).map((id) => memberNameMap[id] ?? id),
+      rawSummary: d.summary ?? "",
+      insights: d.ai_insights,
     });
+  };
+
+  const openIdleDetail = (nome: string) => {
+    const occ: { date: string; motivo: string; product?: string }[] = [];
+    for (const d of dailies) {
+      for (const o of d.ai_insights?.colaboradores_ociosos ?? []) {
+        if (o.nome.toLowerCase().trim() === nome.toLowerCase().trim()) {
+          occ.push({ date: d.status_date, motivo: o.motivo, product: productNameMap[d.product_id] });
+        }
+      }
+    }
+    occ.sort((a, b) => b.date.localeCompare(a.date));
+    setIdleDetail({ nome, ocorrencias: occ });
   };
 
   return (
