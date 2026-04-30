@@ -47,19 +47,18 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
   useEffect(() => {
     if (open) {
       if (squad) {
-        // Modo Edição: Carrega os dados da squad selecionada
         setName(squad.name ?? "");
         setLeaderId(squad.leader_profile_id ?? "__none__");
         setDescription(squad.description ?? "");
         setMemberIds(squad.member_ids ?? []);
         setProductIds(squad.product_ids ?? []);
       } else {
-        // Modo Nova Squad: Reseta todos os campos para o estado inicial vazio
+        // Reset total para Nova Squad
         setName("");
         setLeaderId("__none__");
         setDescription("");
-        setMemberIds([]); // Garante que nenhum membro venha selecionado
-        setProductIds([]); // Garante que nenhum produto venha selecionado
+        setMemberIds([]);
+        setProductIds([]);
       }
       setNewMemberName("");
     }
@@ -90,7 +89,7 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
       } as any);
       setNewMemberName("");
       if (created?.id) {
-        setMemberIds((prev) => (prev.includes(created.id) ? prev : [...prev, created.id]));
+        setMemberIds((prev) => [...prev, created.id]);
       }
     } catch (e: any) {
       toast.error(e?.message ?? "Erro ao adicionar membro");
@@ -98,7 +97,6 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
   };
 
   const handleUnselectMember = (id: string) => {
-    // Apenas desvincula o ID da seleção atual da squad
     setMemberIds((prev) => prev.filter((x) => x !== id));
   };
 
@@ -155,7 +153,7 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
                     .filter((p) => p.active)
                     .map((p) => (
                       <SelectItem key={p.id} value={p.id}>
-                        {p.first_name} {p.last_name} {p.email ? `· ${p.email}` : ""}
+                        {p.first_name} {p.last_name}
                       </SelectItem>
                     ))}
                 </SelectContent>
@@ -177,7 +175,7 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
             <Label className="flex items-center gap-2">
               <Users className="h-4 w-4" /> Membros da Squad
             </Label>
-            <p className="text-xs text-muted-foreground">Selecione na lista abaixo quem fará parte desta squad.</p>
+            <p className="text-xs text-muted-foreground">Adicione os membros que farão parte desta squad.</p>
             <div className="flex gap-2">
               <Input
                 value={newMemberName}
@@ -200,51 +198,32 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
                 )}
               </Button>
             </div>
+
             <div className="flex flex-wrap gap-2 rounded-md border border-input bg-background p-3 min-h-[44px]">
-              {teamMembers.length === 0 && (
-                <span className="text-sm text-muted-foreground">Nenhum colaborador cadastrado</span>
+              {/* FILTRO CRÍTICO: Só mostra quem foi selecionado (memberIds) */}
+              {memberIds.length === 0 && (
+                <span className="text-sm text-muted-foreground">Nenhum membro adicionado a esta squad</span>
               )}
               {teamMembers
-                .filter((m) => (m as any).active !== false)
-                .map((m) => {
-                  const isSelected = memberIds.includes(m.id);
-                  return (
-                    <div
-                      key={m.id}
-                      className={cn(
-                        "group flex items-center gap-1 rounded-full border transition-all overflow-hidden",
-                        isSelected
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background border-border",
-                      )}
+                .filter((m) => memberIds.includes(m.id))
+                .map((m) => (
+                  <div
+                    key={m.id}
+                    className="flex items-center gap-1 rounded-full border bg-primary text-primary-foreground border-primary overflow-hidden"
+                  >
+                    <span className="px-3 py-1 text-xs font-medium flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" />
+                      {m.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleUnselectMember(m.id)}
+                      className="px-1.5 py-1 border-l border-primary-foreground/30 opacity-70 hover:opacity-100 hover:bg-destructive/20"
                     >
-                      <button
-                        type="button"
-                        onClick={() => toggle(memberIds, setMemberIds, m.id)}
-                        className={cn(
-                          "px-3 py-1 text-xs font-medium flex items-center gap-1",
-                          !isSelected && "hover:bg-accent",
-                        )}
-                      >
-                        {isSelected && <CheckCircle2 className="h-3 w-3" />}
-                        {m.name}
-                      </button>
-                      {isSelected && (
-                        <button
-                          type="button"
-                          title="Desmarcar membro desta squad"
-                          onClick={() => handleUnselectMember(m.id)}
-                          className={cn(
-                            "px-1.5 py-1 border-l opacity-60 hover:opacity-100 hover:bg-destructive/20",
-                            "border-primary-foreground/30",
-                          )}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
             </div>
           </div>
 
@@ -253,9 +232,6 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
               <Package className="h-4 w-4" /> Produtos Vinculados *
             </Label>
             <div className="flex flex-wrap gap-2 rounded-md border border-input bg-background p-3 min-h-[44px]">
-              {products.length === 0 && (
-                <span className="text-sm text-muted-foreground">Nenhum produto cadastrado</span>
-              )}
               {products.map((p) => {
                 const active = productIds.includes(p.id);
                 return (
@@ -277,11 +253,6 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
                 );
               })}
             </div>
-            {productIds.length > 0 && (
-              <Badge variant="secondary" className="text-xs">
-                {productIds.length} produto(s) selecionado(s)
-              </Badge>
-            )}
           </div>
         </div>
 
