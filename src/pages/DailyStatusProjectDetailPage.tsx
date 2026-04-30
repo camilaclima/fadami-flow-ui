@@ -523,7 +523,18 @@ export default function DailyStatusProjectDetailPage() {
                         </Badge>
                         <p className="text-sm text-muted-foreground truncate italic">"{resumo}"</p>
                       </div>
-                      <Badge variant="outline" className="flex-shrink-0 text-xs">Bloqueio {d.blocker_level}/5</Badge>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Badge variant="outline" className="text-xs">Bloqueio {d.blocker_level}/5</Badge>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          title="Baixar relatório PDF desta daily"
+                          onClick={(e) => handleDownloadDaily(d, e)}
+                          className="h-8 w-8"
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 </motion.div>
