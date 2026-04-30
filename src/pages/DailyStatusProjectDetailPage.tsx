@@ -469,6 +469,12 @@ export default function DailyStatusProjectDetailPage() {
                         <Badge variant="outline" className="flex-shrink-0">
                           {format(new Date(d.status_date), "dd/MM/yyyy", { locale: ptBR })}
                         </Badge>
+                        {isSquadMode && (
+                          <Badge variant="outline" className="flex-shrink-0 text-[10px] gap-1">
+                            <span className="h-1.5 w-1.5 rounded-full" style={{ background: productColorMap[d.product_id] ?? "hsl(var(--primary))" }} />
+                            {productNameMap[d.product_id] ?? "Projeto"}
+                          </Badge>
+                        )}
                         <Badge variant="secondary" className="flex-shrink-0 text-xs">
                           {sprintNameMap[d.sprint_id] ?? "Sprint —"}
                         </Badge>
