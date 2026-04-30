@@ -1184,6 +1184,9 @@ export default function DailyStatusProjectDetailPage() {
                     </DialogTitle>
                   </div>
                   <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" onClick={() => handleDownloadDaily(selectedDaily)}>
+                      <Download className="h-4 w-4 mr-2" /> Baixar PDF
+                    </Button>
                     {canEdit(selectedDaily) ? (
                       <Button size="sm" variant="outline" onClick={() => setEditingDaily(selectedDaily)}>
                         <Pencil className="h-4 w-4 mr-2" /> Editar
