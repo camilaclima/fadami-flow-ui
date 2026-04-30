@@ -288,22 +288,36 @@ export default function DailyStatusProjectDetailPage() {
           </div>
           <div className="min-w-0">
             <h1 className="text-2xl font-bold truncate">{product?.name ?? "Projeto"}</h1>
-            <p className="text-sm text-muted-foreground">Dashboard inteligente de dailys</p>
+            <p className="text-sm text-muted-foreground">Saúde do Projeto · dashboard evolutivo</p>
           </div>
         </div>
-        <Button onClick={() => setOpenDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" /> Nova Daily
-        </Button>
+        <div className="flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          <Select value={sprintFilter} onValueChange={setSprintFilter}>
+            <SelectTrigger className="w-[180px] h-9">
+              <SelectValue placeholder="Filtrar sprint" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Geral (todas)</SelectItem>
+              {sprintsWithDailies.map((s) => (
+                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </motion.div>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-20 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin mr-2" /> Carregando...
         </div>
-      ) : dailies.length === 0 ? (
+      ) : allDailies.length === 0 ? (
         <Card>
           <CardContent className="py-16 text-center text-muted-foreground">
-            Nenhuma daily registrada para este projeto ainda.
+            <p className="mb-4">Nenhuma daily registrada para este projeto ainda.</p>
+            <Button onClick={() => setOpenDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" /> Nova Daily
+            </Button>
           </CardContent>
         </Card>
       ) : (
