@@ -788,7 +788,10 @@ export default function DailyStatusProjectDetailPage() {
                   </div>
                   <CardDescription>
                     Detecta colaboradores acumulando tarefas em mais de um produto da mesma squad
-                    ({[product?.name, ...siblingProducts.map((p) => p.name)].filter(Boolean).join(", ")}).
+                    ({(isSquadMode
+                      ? viewProducts.map((p) => p.name)
+                      : [product?.name, ...siblingProducts.map((p) => p.name)]
+                    ).filter(Boolean).join(", ")}).
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
