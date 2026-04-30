@@ -27,6 +27,8 @@ const LIGHT_RESET_CSS = `
     border-color: #e2e8f0 !important;
     box-shadow: none !important;
     text-shadow: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
   .__pdf-export {
     background: #ffffff !important;
@@ -67,6 +69,23 @@ const LIGHT_RESET_CSS = `
     text-overflow: clip !important;
     white-space: normal !important;
   }
+  /* Badge / pill hardening: html2canvas tende a desalinhar texto x fundo em
+     spans inline-block com line-height curto. Forçamos line-height fixo,
+     vertical-align middle e padding um pouco mais generoso. */
+  .__pdf-export [class*="rounded-full"],
+  .__pdf-export [data-badge],
+  .__pdf-export .badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+    vertical-align: middle !important;
+    white-space: nowrap !important;
+    padding: 4px 10px !important;
+    box-sizing: border-box !important;
+  }
+  /* Garante que containers de badges não cortem o conteúdo. */
+  .__pdf-export [class*="gap-"] { align-items: center !important; }
 `;
 
 /**
