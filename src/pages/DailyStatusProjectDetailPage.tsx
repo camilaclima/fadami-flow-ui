@@ -702,6 +702,68 @@ export default function DailyStatusProjectDetailPage() {
               </Card>
             </div>
 
+            {/* Radar Multi-Produto (Squad) */}
+            {ownerSquad && siblingProducts.length > 0 && multiProductAllocation && (
+              <Card className="border-violet-500/30 bg-violet-500/5">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-violet-500/15 text-violet-600"><UsersRound className="h-4 w-4" /></div>
+                    <CardTitle className="text-base">Radar Multi-Produto · Squad {ownerSquad.name}</CardTitle>
+                  </div>
+                  <CardDescription>
+                    Detecta colaboradores acumulando tarefas em mais de um produto da mesma squad
+                    ({[product?.name, ...siblingProducts.map((p) => p.name)].filter(Boolean).join(", ")}).
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Sobrecarga cruzada</h4>
+                    {multiProductAllocation.sobrecarregados.filter((s) => s.produtos.length > 1).length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Nenhuma sobrecarga multi-produto detectada.</p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {multiProductAllocation.sobrecarregados.filter((s) => s.produtos.length > 1).map((s, i) => (
+                          <li key={i} className="p-2 rounded-md bg-background/60 space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-sm font-medium">{s.nome}</span>
+                              <Badge className={cn("border text-xs", RISK_CLS[s.nivel])}>Risco {s.nivel}</Badge>
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {s.produtos.map((pn, pi) => (
+                                <Badge key={pi} variant="outline" className="text-[10px]">{pn}</Badge>
+                              ))}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Ociosidade cruzada</h4>
+                    {multiProductAllocation.ociosos.filter((o) => o.produtos.length > 1).length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Nenhum colaborador ocioso em múltiplos produtos.</p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {multiProductAllocation.ociosos.filter((o) => o.produtos.length > 1).map((o, i) => (
+                          <li key={i} className="p-2 rounded-md bg-background/60 space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-sm font-medium">{o.nome}</span>
+                              <Badge variant="secondary" className="text-xs">{o.vezes}x</Badge>
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {o.produtos.map((pn, pi) => (
+                                <Badge key={pi} variant="outline" className="text-[10px]">{pn}</Badge>
+                              ))}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Visão Estratégica */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <Card className="border-emerald-500/30 bg-emerald-500/5">
