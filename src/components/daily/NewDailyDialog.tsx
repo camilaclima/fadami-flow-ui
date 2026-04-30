@@ -16,7 +16,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 
 import { useActiveProducts } from "@/hooks/useProducts";
-import { useSprints } from "@/hooks/useSprints";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 
 interface Props {
@@ -36,11 +35,9 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
       : allProducts),
     [allProducts, allowedProductIds],
   );
-  const { data: sprints = [] } = useSprints();
   const { data: teamMembers = [] } = useTeamMembers();
 
   const [productId, setProductId] = useState<string>(lockedProductId ?? "");
-  const [sprintId, setSprintId] = useState<string>("");
   const [date, setDate] = useState<Date>(new Date());
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [memberReports, setMemberReports] = useState<Record<string, string>>({});
@@ -50,18 +47,12 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
   useEffect(() => {
     if (open) {
       setProductId(lockedProductId ?? "");
-      setSprintId("");
       setDate(new Date());
       setSelectedMembers([]);
       setMemberReports({});
       setGeneralNotes("");
     }
   }, [open, lockedProductId]);
-
-  const sprintsForProduct = useMemo(
-    () => sprints.filter((s) => !productId || s.product_id === productId),
-    [sprints, productId],
-  );
 
   const { data: history = [] } = useQuery({
     queryKey: ["daily_status_history", productId],
@@ -126,8 +117,8 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
   };
 
   const handleSave = async () => {
-    if (!productId || !sprintId) {
-      toast.error("Selecione projeto e sprint.");
+    if (!productId) {
+      toast.error("Selecione o projeto.");
       return;
     }
     if (selectedMembers.length === 0) {
@@ -167,7 +158,7 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
 
       const { error: insertErr } = await (supabase.from("daily_status") as any).insert({
         product_id: productId,
-        sprint_id: sprintId,
+        sprint_id: null,
         status_date: format(date, "yyyy-MM-dd"),
         present_member_ids: selectedMembers,
         summary: compositeSummary,
@@ -202,7 +193,7 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
         </DialogHeader>
 
         <div className="space-y-5 py-2">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Projeto</Label>
               {lockedProductId ? (
@@ -210,22 +201,13 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
                   {lockedProduct?.name ?? "—"}
                 </div>
               ) : (
-                <Select value={productId} onValueChange={(v) => { setProductId(v); setSprintId(""); }}>
+                <Select value={productId} onValueChange={(v) => setProductId(v)}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
                     {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               )}
-            </div>
-            <div className="space-y-2">
-              <Label>Sprint</Label>
-              <Select value={sprintId} onValueChange={setSprintId} disabled={!productId}>
-                <SelectTrigger><SelectValue placeholder={productId ? "Selecione" : "Escolha um projeto"} /></SelectTrigger>
-                <SelectContent>
-                  {sprintsForProduct.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
             </div>
             <div className="space-y-2">
               <Label>Data</Label>
