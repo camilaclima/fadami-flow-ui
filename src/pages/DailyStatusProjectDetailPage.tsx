@@ -6,7 +6,7 @@ import {
   ArrowLeft, Plus, CalendarCheck, TrendingUp, AlertTriangle, Flame,
   Sparkles, Activity, Smile, Frown, Meh, Heart, Loader2, ListChecks, CheckCircle2,
   UserMinus, UserPlus, Link2, Target, ShieldAlert, History, Pencil, Lock, FileDown,
-  Compass, GitBranch, BookOpen,
+  Compass, GitBranch, BookOpen, Settings, BarChart3,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 import { useActiveProducts } from "@/hooks/useProducts";
@@ -25,6 +26,7 @@ import { useSprints } from "@/hooks/useSprints";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { NewDailyDialog } from "@/components/daily/NewDailyDialog";
 import { EditDailyDialog } from "@/components/daily/EditDailyDialog";
+import { ProjectConfigModal } from "@/components/daily/ProjectConfigModal";
 import { downloadExecutivePdf } from "@/lib/dailyExecutivePdf";
 
 interface AIRecorrencia { descricao: string; dias_consecutivos: number; responsavel?: string; }
@@ -85,10 +87,13 @@ export default function DailyStatusProjectDetailPage() {
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedDaily, setSelectedDaily] = useState<DailyRow | null>(null);
   const [editingDaily, setEditingDaily] = useState<DailyRow | null>(null);
+  const [openConfig, setOpenConfig] = useState(false);
+  // "all" = Geral (todas as sprints); senão sprintId
+  const [sprintFilter, setSprintFilter] = useState<string>("all");
 
   const product = products.find((p) => p.id === productId);
 
-  const { data: dailies = [], isLoading } = useQuery({
+  const { data: allDailies = [], isLoading } = useQuery({
     queryKey: ["daily_status_history", productId],
     enabled: !!productId,
     queryFn: async () => {
@@ -98,6 +103,18 @@ export default function DailyStatusProjectDetailPage() {
       return data as DailyRow[];
     },
   });
+
+  // Sprints que possuem ao menos uma daily neste projeto (para popular o filtro)
+  const sprintsWithDailies = useMemo(() => {
+    const ids = new Set(allDailies.map((d) => d.sprint_id).filter(Boolean));
+    return sprints.filter((s) => ids.has(s.id));
+  }, [allDailies, sprints]);
+
+  // Dailies filtradas conforme filtro de sprint (persistente entre abas)
+  const dailies = useMemo(() => {
+    if (sprintFilter === "all") return allDailies;
+    return allDailies.filter((d) => d.sprint_id === sprintFilter);
+  }, [allDailies, sprintFilter]);
 
   const { data: approvedBacklog = [] } = useQuery({
     queryKey: ["project_backlog_approved", productId],
@@ -211,6 +228,36 @@ export default function DailyStatusProjectDetailPage() {
     };
   }, [dailies, latest, latestInsights]);
 
+  // Comparativo entre sprints — sempre com base em todas as dailies do projeto
+  const sprintComparison = useMemo(() => {
+    const map = new Map<string, { sprintId: string; name: string; total: number; avgBlocker: number; gargalos: number; ociosos: number; sobrecarga: number; extraEscopo: number; ultimaData: string }>();
+    for (const d of allDailies) {
+      const key = d.sprint_id;
+      if (!key) continue;
+      const cur = map.get(key) ?? {
+        sprintId: key,
+        name: sprintNameMap[key] ?? "Sprint —",
+        total: 0,
+        avgBlocker: 0,
+        gargalos: 0,
+        ociosos: 0,
+        sobrecarga: 0,
+        extraEscopo: 0,
+        ultimaData: d.status_date,
+      };
+      cur.total += 1;
+      cur.avgBlocker += d.blocker_level;
+      cur.gargalos += d.ai_insights?.recorrencias?.length ?? 0;
+      cur.ociosos += d.ai_insights?.colaboradores_ociosos?.length ?? 0;
+      cur.sobrecarga += d.ai_insights?.colaboradores_sobrecarregados?.length ?? 0;
+      cur.extraEscopo += d.ai_insights?.tarefas_extra_escopo?.length ?? 0;
+      if (d.status_date > cur.ultimaData) cur.ultimaData = d.status_date;
+      map.set(key, cur);
+    }
+    return Array.from(map.values()).map((s) => ({ ...s, avgBlocker: s.total ? s.avgBlocker / s.total : 0 }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [allDailies, sprintNameMap]);
+
   const canEdit = (d: DailyRow) => differenceInHours(new Date(), new Date(d.created_at)) <= 72;
 
   const handleExportPdf = () => {
@@ -241,22 +288,36 @@ export default function DailyStatusProjectDetailPage() {
           </div>
           <div className="min-w-0">
             <h1 className="text-2xl font-bold truncate">{product?.name ?? "Projeto"}</h1>
-            <p className="text-sm text-muted-foreground">Dashboard inteligente de dailys</p>
+            <p className="text-sm text-muted-foreground">Saúde do Projeto · dashboard evolutivo</p>
           </div>
         </div>
-        <Button onClick={() => setOpenDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" /> Nova Daily
-        </Button>
+        <div className="flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          <Select value={sprintFilter} onValueChange={setSprintFilter}>
+            <SelectTrigger className="w-[180px] h-9">
+              <SelectValue placeholder="Filtrar sprint" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Geral (todas)</SelectItem>
+              {sprintsWithDailies.map((s) => (
+                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </motion.div>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-20 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin mr-2" /> Carregando...
         </div>
-      ) : dailies.length === 0 ? (
+      ) : allDailies.length === 0 ? (
         <Card>
           <CardContent className="py-16 text-center text-muted-foreground">
-            Nenhuma daily registrada para este projeto ainda.
+            <p className="mb-4">Nenhuma daily registrada para este projeto ainda.</p>
+            <Button onClick={() => setOpenDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" /> Nova Daily
+            </Button>
           </CardContent>
         </Card>
       ) : (
@@ -269,7 +330,23 @@ export default function DailyStatusProjectDetailPage() {
 
           {/* HISTORICO – cards resumidos */}
           <TabsContent value="historico" className="space-y-2">
-            {dailies.map((d) => {
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-muted-foreground">
+                {sprintFilter === "all"
+                  ? `Mostrando todas as ${dailies.length} daily(s) do projeto.`
+                  : `Mostrando ${dailies.length} daily(s) da ${sprintNameMap[sprintFilter] ?? "sprint"}.`}
+              </p>
+              <Button onClick={() => setOpenDialog(true)} size="sm">
+                <Plus className="h-4 w-4 mr-2" /> Nova Daily
+              </Button>
+            </div>
+            {dailies.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center text-sm text-muted-foreground">
+                  Nenhuma daily nesta sprint. Selecione "Geral" ou registre uma nova daily.
+                </CardContent>
+              </Card>
+            ) : dailies.map((d) => {
               const resumo = d.ai_insights?.resumo_curto ?? d.ai_insights?.resumo_executivo ?? d.summary;
               const num = dailyNumberMap[d.id];
               return (
@@ -301,6 +378,11 @@ export default function DailyStatusProjectDetailPage() {
 
           {/* ESCOPO E BACKLOG – itens aprovados + status de entrega */}
           <TabsContent value="escopo" className="space-y-3">
+            <div className="flex items-center justify-end">
+              <Button variant="outline" size="sm" onClick={() => setOpenConfig(true)}>
+                <Settings className="h-4 w-4 mr-2" /> Configurar Metas/Backlog
+              </Button>
+            </div>
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between gap-2">
@@ -308,7 +390,7 @@ export default function DailyStatusProjectDetailPage() {
                     <div className="p-2 rounded-lg bg-primary/10 text-primary"><BookOpen className="h-4 w-4" /></div>
                     <div>
                       <CardTitle className="text-base">Escopo Aprovado do Projeto</CardTitle>
-                      <CardDescription>Itens do Contexto Mestre + status de entrega calculado pelas dailys</CardDescription>
+                      <CardDescription>Itens do Contexto Mestre + status de entrega calculado pelas dailys. Use "Configurar Metas/Backlog" para complementar o contexto a qualquer momento.</CardDescription>
                     </div>
                   </div>
                   <Badge variant="secondary">{approvedBacklog.length} item(ns)</Badge>
@@ -317,7 +399,7 @@ export default function DailyStatusProjectDetailPage() {
               <CardContent>
                 {approvedBacklog.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-8 text-center">
-                    Nenhum item aprovado ainda. Abra a engrenagem do projeto na página inicial de Status Diário e aprove os itens sugeridos pela IA.
+                    Nenhum item aprovado ainda. Clique em "Configurar Metas/Backlog" para enviar a documentação e aprovar os itens sugeridos pela IA.
                   </p>
                 ) : (
                   <ul className="space-y-2">
@@ -367,7 +449,10 @@ export default function DailyStatusProjectDetailPage() {
 
           {/* EXECUTIVO – central de inteligência */}
           <TabsContent value="executivo" className="space-y-4">
-            <div className="flex items-center justify-end">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <Badge variant="secondary" className="text-xs">
+                Visão: {sprintFilter === "all" ? "Geral (todas as sprints)" : sprintNameMap[sprintFilter] ?? "Sprint"}
+              </Badge>
               <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={!exec}>
                 <FileDown className="h-4 w-4 mr-2" /> Baixar Relatório PDF
               </Button>
@@ -731,12 +816,83 @@ export default function DailyStatusProjectDetailPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Comparativo entre sprints */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-primary/10 text-primary"><BarChart3 className="h-4 w-4" /></div>
+                  <CardTitle className="text-base">Comparativo entre Sprints</CardTitle>
+                </div>
+                <CardDescription>Evolução agregada por sprint (todas as dailys do projeto)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {sprintComparison.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhuma sprint comparável ainda.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-xs text-muted-foreground border-b border-border/60">
+                          <th className="py-2 pr-3 font-medium">Sprint</th>
+                          <th className="py-2 px-2 font-medium text-center">Dailys</th>
+                          <th className="py-2 px-2 font-medium text-center">Bloqueio médio</th>
+                          <th className="py-2 px-2 font-medium text-center">Gargalos</th>
+                          <th className="py-2 px-2 font-medium text-center">Ociosos</th>
+                          <th className="py-2 px-2 font-medium text-center">Sobrecarga</th>
+                          <th className="py-2 px-2 font-medium text-center">Extra-escopo</th>
+                          <th className="py-2 pl-2 font-medium">Última</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sprintComparison.map((s) => {
+                          const blockerCls =
+                            s.avgBlocker >= 4 ? "text-red-600" :
+                            s.avgBlocker >= 3 ? "text-amber-600" : "text-emerald-600";
+                          const isCurrent = sprintFilter === s.sprintId;
+                          return (
+                            <tr key={s.sprintId} className={cn("border-b border-border/40 hover:bg-accent/30 transition-colors", isCurrent && "bg-primary/5")}>
+                              <td className="py-2 pr-3 font-medium">
+                                <button
+                                  className="text-left hover:text-primary transition-colors"
+                                  onClick={() => setSprintFilter(s.sprintId)}
+                                  title="Filtrar por esta sprint"
+                                >
+                                  {s.name}
+                                </button>
+                              </td>
+                              <td className="py-2 px-2 text-center tabular-nums">{s.total}</td>
+                              <td className={cn("py-2 px-2 text-center tabular-nums font-medium", blockerCls)}>{s.avgBlocker.toFixed(1)}</td>
+                              <td className="py-2 px-2 text-center tabular-nums">{s.gargalos}</td>
+                              <td className="py-2 px-2 text-center tabular-nums">{s.ociosos}</td>
+                              <td className="py-2 px-2 text-center tabular-nums">{s.sobrecarga}</td>
+                              <td className="py-2 px-2 text-center tabular-nums">{s.extraEscopo}</td>
+                              <td className="py-2 pl-2 text-xs text-muted-foreground">
+                                {format(new Date(s.ultimaData), "dd/MM/yyyy", { locale: ptBR })}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       )}
 
       <NewDailyDialog open={openDialog} onOpenChange={setOpenDialog} lockedProductId={productId} />
       <EditDailyDialog open={!!editingDaily} onOpenChange={(o) => !o && setEditingDaily(null)} daily={editingDaily} onSaved={() => setSelectedDaily(null)} />
+      {product && (
+        <ProjectConfigModal
+          open={openConfig}
+          onOpenChange={setOpenConfig}
+          productId={product.id}
+          productName={product.name}
+        />
+      )}
 
       {/* Modal de detalhe da daily */}
       <Dialog open={!!selectedDaily} onOpenChange={(o) => !o && setSelectedDaily(null)}>
