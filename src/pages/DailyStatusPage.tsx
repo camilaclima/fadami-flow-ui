@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarCheck, Plus, Sparkles, AlertTriangle, ShieldCheck, Flame, Loader2, Settings, UsersRound, Crown, Package } from "lucide-react";
+import { CalendarCheck, Plus, Sparkles, AlertTriangle, ShieldCheck, Flame, Loader2, Settings, UsersRound, Crown, Package, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -42,6 +42,7 @@ export default function DailyStatusPage() {
   const { data: profiles = [] } = useProfiles();
   const [openSquadDialog, setOpenSquadDialog] = useState(false);
   const [configFor, setConfigFor] = useState<{ id: string; name: string } | null>(null);
+  const [expandedSquadId, setExpandedSquadId] = useState<string | null>(null);
 
   const { data: allDailies = [], isLoading } = useQuery({
     queryKey: ["daily_status_all"],
@@ -104,25 +105,72 @@ export default function DailyStatusPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {squads.map((squad) => {
             const leader = squad.leader_profile_id ? profileMap[squad.leader_profile_id] : null;
             const squadProducts = squad.product_ids.map((pid) => productMap[pid]).filter(Boolean);
+            const expanded = expandedSquadId === squad.id;
+            const totalDailies = squadProducts.reduce((sum, p) => sum + (dailiesByProduct[p.id]?.count ?? 0), 0);
             return (
               <motion.div key={squad.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <UsersRound className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg font-semibold">{squad.name}</h2>
-                    {leader && (
+                <Card
+                  className={cn(
+                    "cursor-pointer transition-all hover:border-primary/50",
+                    expanded && "border-primary/60 bg-primary/[0.02]",
+                  )}
+                  onClick={() => setExpandedSquadId(expanded ? null : squad.id)}
+                >
+                  <CardContent className="p-4 flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="p-2 rounded-lg bg-primary/10 text-primary flex-shrink-0">
+                        <UsersRound className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <h2 className="text-base font-semibold truncate">{squad.name}</h2>
+                        {squad.description && (
+                          <p className="text-xs text-muted-foreground truncate">{squad.description}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="outline" className="text-xs gap-1">
-                        <Crown className="h-3 w-3 text-amber-500" /> {leader.first_name} {leader.last_name}
+                        <Crown className="h-3 w-3 text-amber-500" />
+                        {leader ? `${leader.first_name} ${leader.last_name}` : "Sem líder"}
                       </Badge>
+                      <Badge variant="secondary" className="text-xs gap-1">
+                        <UsersRound className="h-3 w-3" />
+                        {squad.member_ids.length} membro{squad.member_ids.length === 1 ? "" : "s"}
+                      </Badge>
+                      <Badge variant="secondary" className="text-xs gap-1">
+                        <Package className="h-3 w-3" />
+                        {squadProducts.length} produto{squadProducts.length === 1 ? "" : "s"}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {totalDailies} daily{totalDailies === 1 ? "" : "s"}
+                      </Badge>
+                      <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", expanded && "rotate-180")} />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {expanded && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="pl-2 border-l-2 border-primary/30 ml-3 space-y-3"
+                  >
+                    {squadProducts.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 px-2">
+                        <span className="text-[11px] text-muted-foreground mr-1">Produtos da squad:</span>
+                        {squadProducts.map((p) => (
+                          <Badge key={p.id} variant="outline" className="text-[10px] gap-1">
+                            <span className="h-1.5 w-1.5 rounded-full" style={{ background: p.color ?? "hsl(var(--primary))" }} />
+                            {p.name}
+                          </Badge>
+                        ))}
+                      </div>
                     )}
-                    <Badge variant="secondary" className="text-xs">{squad.member_ids.length} membro(s)</Badge>
-                  </div>
-                </div>
-                {squadProducts.length === 0 ? (
+                    {squadProducts.length === 0 ? (
                   <Card className="border-dashed">
                     <CardContent className="py-6 text-center text-sm text-muted-foreground">
                       Esta squad ainda não tem produtos vinculados.
@@ -177,6 +225,8 @@ export default function DailyStatusPage() {
                       );
                     })}
                   </div>
+                )}
+                  </motion.div>
                 )}
               </motion.div>
             );
