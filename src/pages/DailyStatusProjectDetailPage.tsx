@@ -330,7 +330,23 @@ export default function DailyStatusProjectDetailPage() {
 
           {/* HISTORICO – cards resumidos */}
           <TabsContent value="historico" className="space-y-2">
-            {dailies.map((d) => {
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-muted-foreground">
+                {sprintFilter === "all"
+                  ? `Mostrando todas as ${dailies.length} daily(s) do projeto.`
+                  : `Mostrando ${dailies.length} daily(s) da ${sprintNameMap[sprintFilter] ?? "sprint"}.`}
+              </p>
+              <Button onClick={() => setOpenDialog(true)} size="sm">
+                <Plus className="h-4 w-4 mr-2" /> Nova Daily
+              </Button>
+            </div>
+            {dailies.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center text-sm text-muted-foreground">
+                  Nenhuma daily nesta sprint. Selecione "Geral" ou registre uma nova daily.
+                </CardContent>
+              </Card>
+            ) : dailies.map((d) => {
               const resumo = d.ai_insights?.resumo_curto ?? d.ai_insights?.resumo_executivo ?? d.summary;
               const num = dailyNumberMap[d.id];
               return (
