@@ -80,7 +80,8 @@ const RISK_CLS: Record<AISobrecarregado["nivel_risco"], string> = {
 };
 
 export default function DailyStatusProjectDetailPage() {
-  const { productId } = useParams<{ productId: string }>();
+  const { productId, squadId } = useParams<{ productId: string; squadId: string }>();
+  const isSquadMode = !!squadId;
   const navigate = useNavigate();
   const { data: products = [] } = useActiveProducts();
   const { data: sprints = [] } = useSprints();
@@ -90,25 +91,43 @@ export default function DailyStatusProjectDetailPage() {
   const [selectedDaily, setSelectedDaily] = useState<DailyRow | null>(null);
   const [editingDaily, setEditingDaily] = useState<DailyRow | null>(null);
   const [openConfig, setOpenConfig] = useState(false);
+  const [configFor, setConfigFor] = useState<{ id: string; name: string } | null>(null);
   // "all" = Geral (todas as sprints); senão sprintId
   const [sprintFilter, setSprintFilter] = useState<string>("all");
 
   const product = products.find((p) => p.id === productId);
-  // Identify which squad owns this product (multi-squad supported -> first match)
+  // Squad mode: identify squad from URL; Product mode: derive from product
   const ownerSquad = useMemo(
-    () => squads.find((s) => s.product_ids.includes(productId ?? "")),
-    [squads, productId],
+    () => isSquadMode
+      ? squads.find((s) => s.id === squadId)
+      : squads.find((s) => s.product_ids.includes(productId ?? "")),
+    [squads, productId, squadId, isSquadMode],
+  );
+  // Active product list for the current view (squad's products or single product)
+  const viewProductIds = useMemo(
+    () => isSquadMode
+      ? (ownerSquad?.product_ids ?? [])
+      : (productId ? [productId] : []),
+    [isSquadMode, ownerSquad, productId],
+  );
+  const viewProducts = useMemo(
+    () => viewProductIds.map((id) => products.find((p) => p.id === id)).filter(Boolean) as typeof products,
+    [viewProductIds, products],
   );
   const siblingProducts = useMemo(
-    () => (ownerSquad?.product_ids ?? []).filter((id) => id !== productId).map((id) => products.find((p) => p.id === id)).filter(Boolean) as typeof products,
-    [ownerSquad, productId, products],
+    () => isSquadMode
+      ? viewProducts // in squad mode, "siblings" = all squad products
+      : (ownerSquad?.product_ids ?? []).filter((id) => id !== productId).map((id) => products.find((p) => p.id === id)).filter(Boolean) as typeof products,
+    [ownerSquad, productId, products, isSquadMode, viewProducts],
   );
 
   // Cross-product allocation: load dailies of sibling products to detect multi-product overload
-  const siblingProductIds = siblingProducts.map((p) => p.id);
+  const siblingProductIds = isSquadMode
+    ? [] // squad mode already loads everything via allDailies
+    : siblingProducts.map((p) => p.id);
   const { data: squadDailies = [] } = useQuery({
     queryKey: ["daily_status_squad", ownerSquad?.id, siblingProductIds.join(",")],
-    enabled: !!ownerSquad && siblingProductIds.length > 0,
+    enabled: !isSquadMode && !!ownerSquad && siblingProductIds.length > 0,
     queryFn: async () => {
       const { data, error } = await (supabase.from("daily_status") as any)
         .select("*").in("product_id", siblingProductIds);
@@ -118,13 +137,14 @@ export default function DailyStatusProjectDetailPage() {
   });
 
   const productNameMap = Object.fromEntries(products.map((p) => [p.id, p.name]));
+  const productColorMap = Object.fromEntries(products.map((p) => [p.id, p.color]));
 
   const { data: allDailies = [], isLoading } = useQuery({
-    queryKey: ["daily_status_history", productId],
-    enabled: !!productId,
+    queryKey: ["daily_status_history", isSquadMode ? `squad:${squadId}` : productId, viewProductIds.join(",")],
+    enabled: viewProductIds.length > 0,
     queryFn: async () => {
       const { data, error } = await (supabase.from("daily_status") as any)
-        .select("*").eq("product_id", productId!).order("status_date", { ascending: false });
+        .select("*").in("product_id", viewProductIds).order("status_date", { ascending: false });
       if (error) throw error;
       return data as DailyRow[];
     },
@@ -143,13 +163,13 @@ export default function DailyStatusProjectDetailPage() {
   }, [allDailies, sprintFilter]);
 
   const { data: approvedBacklog = [] } = useQuery({
-    queryKey: ["project_backlog_approved", productId],
-    enabled: !!productId,
+    queryKey: ["project_backlog_approved", isSquadMode ? `squad:${squadId}` : productId, viewProductIds.join(",")],
+    enabled: viewProductIds.length > 0,
     queryFn: async () => {
       const { data, error } = await (supabase.from("project_backlog_items") as any)
-        .select("*").eq("product_id", productId!).eq("approved", true).order("sort_order", { ascending: true });
+        .select("*").in("product_id", viewProductIds).eq("approved", true).order("sort_order", { ascending: true });
       if (error) throw error;
-      return data as Array<{ id: string; task: string; likely_owner: string; deadline: string; risk_mitigation: string; category: string }>;
+      return data as Array<{ id: string; task: string; likely_owner: string; deadline: string; risk_mitigation: string; category: string; product_id: string }>;
     },
   });
 
