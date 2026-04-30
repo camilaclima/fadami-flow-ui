@@ -34,8 +34,10 @@ export function useAddTeamMember() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (member: Omit<TeamMember, "id" | "created_at" | "active">) => {
-      const { error } = await (supabase.from("team_members") as any).insert(member);
+      const { data, error } = await (supabase.from("team_members") as any)
+        .insert(member).select("*").single();
       if (error) throw error;
+      return data as TeamMember;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["team_members"] });

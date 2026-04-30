@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarCheck, Plus, AlertTriangle, ShieldCheck, Flame, Loader2, UsersRound, Crown, Package, ChevronRight } from "lucide-react";
+import { CalendarCheck, Plus, AlertTriangle, ShieldCheck, Flame, Loader2, UsersRound, Crown, Package, ChevronRight, Settings, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 import { useActiveProducts } from "@/hooks/useProducts";
-import { useActiveSquads } from "@/hooks/useSquads";
+import { useActiveSquads, type Squad } from "@/hooks/useSquads";
 import { useProfiles } from "@/hooks/useProfiles";
 import { SquadFormModal } from "@/components/squads/SquadFormModal";
 
@@ -40,6 +40,7 @@ export default function DailyStatusPage() {
   const { data: squads = [], isLoading: squadsLoading } = useActiveSquads();
   const { data: profiles = [] } = useProfiles();
   const [openSquadDialog, setOpenSquadDialog] = useState(false);
+  const [editingSquad, setEditingSquad] = useState<Squad | null>(null);
 
   const { data: allDailies = [], isLoading } = useQuery({
     queryKey: ["daily_status_all"],
@@ -69,6 +70,18 @@ export default function DailyStatusPage() {
   const productMap = Object.fromEntries(products.map((p) => [p.id, p]));
   const profileMap = Object.fromEntries(profiles.map((p) => [p.id, p]));
   const dailiesByProduct = useMemo(() => Object.fromEntries(projectCards.map((c) => [c.productId, c])), [projectCards]);
+
+  // Aggregate insights per product for quick metrics on the squad cards
+  const insightsByProduct = useMemo(() => {
+    const map = new Map<string, { gargalos: number; avancos: number }>();
+    for (const d of allDailies) {
+      const cur = map.get(d.product_id) ?? { gargalos: 0, avancos: 0 };
+      cur.gargalos += d.ai_insights?.recorrencias?.length ?? 0;
+      cur.avancos += (d.ai_insights?.avancos?.length ?? 0) + (d.ai_insights?.avancos_consolidados?.length ?? 0);
+      map.set(d.product_id, cur);
+    }
+    return map;
+  }, [allDailies]);
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -114,6 +127,8 @@ export default function DailyStatusPage() {
             }, 0);
             const status = worstLevel > 0 ? statusFromBlocker(worstLevel) : null;
             const StatusIcon = status?.icon;
+            const totalGargalos = squadProducts.reduce((s, p) => s + (insightsByProduct.get(p.id)?.gargalos ?? 0), 0);
+            const totalAvancos = squadProducts.reduce((s, p) => s + (insightsByProduct.get(p.id)?.avancos ?? 0), 0);
             return (
               <motion.div key={squad.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
                 <Card
@@ -141,6 +156,15 @@ export default function DailyStatusPage() {
                             <StatusIcon className="h-3 w-3 mr-1" /> {status.label}
                           </Badge>
                         )}
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          title="Configurar squad"
+                          className="h-7 w-7"
+                          onClick={(e) => { e.stopPropagation(); setEditingSquad(squad); }}
+                        >
+                          <Settings className="h-4 w-4" />
+                        </Button>
                         <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                       </div>
                     </div>
@@ -157,6 +181,12 @@ export default function DailyStatusPage() {
                       </Badge>
                       <Badge variant="outline" className="text-xs">
                         {totalDailies} daily{totalDailies === 1 ? "" : "s"}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs gap-1 border-emerald-500/40 text-emerald-700 bg-emerald-500/10">
+                        <TrendingUp className="h-3 w-3" /> {totalAvancos} avanço{totalAvancos === 1 ? "" : "s"}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs gap-1 border-red-500/40 text-red-700 bg-red-500/10">
+                        <Flame className="h-3 w-3" /> {totalGargalos} gargalo{totalGargalos === 1 ? "" : "s"}
                       </Badge>
                     </div>
                     <div className="space-y-1.5">
@@ -185,6 +215,11 @@ export default function DailyStatusPage() {
       )}
 
       <SquadFormModal open={openSquadDialog} onOpenChange={setOpenSquadDialog} />
+      <SquadFormModal
+        open={!!editingSquad}
+        onOpenChange={(o) => !o && setEditingSquad(null)}
+        squad={editingSquad}
+      />
     </div>
   );
 }

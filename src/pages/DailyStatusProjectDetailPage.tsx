@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { format, differenceInCalendarDays, differenceInHours, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -6,7 +6,7 @@ import {
   ArrowLeft, Plus, CalendarCheck, TrendingUp, AlertTriangle, Flame,
   Sparkles, Activity, Smile, Frown, Meh, Heart, Loader2, ListChecks, CheckCircle2,
   UserMinus, UserPlus, Link2, Target, ShieldAlert, History, Pencil, Lock, FileDown,
-  Compass, GitBranch, BookOpen, Settings, BarChart3, UsersRound,
+  Compass, GitBranch, BookOpen, Settings, BarChart3, UsersRound, Crown, Download,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -25,10 +25,13 @@ import { useActiveProducts } from "@/hooks/useProducts";
 import { useSprints } from "@/hooks/useSprints";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { useSquads } from "@/hooks/useSquads";
+import { useProfiles } from "@/hooks/useProfiles";
 import { NewDailyDialog } from "@/components/daily/NewDailyDialog";
 import { EditDailyDialog } from "@/components/daily/EditDailyDialog";
 import { ProjectConfigModal } from "@/components/daily/ProjectConfigModal";
-import { downloadExecutivePdf } from "@/lib/dailyExecutivePdf";
+import { downloadElementAsPdf } from "@/lib/visualPdf";
+import { downloadDailyReportPdf, parseRawReport } from "@/lib/dailyReportPdf";
+import { toast } from "sonner";
 
 interface AIRecorrencia { descricao: string; dias_consecutivos: number; responsavel?: string; }
 interface AIOcioso { nome: string; motivo: string; }
@@ -88,11 +91,15 @@ export default function DailyStatusProjectDetailPage() {
   const { data: sprints = [] } = useSprints();
   const { data: teamMembers = [] } = useTeamMembers();
   const { data: squads = [] } = useSquads();
+  const { data: profiles = [] } = useProfiles();
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedDaily, setSelectedDaily] = useState<DailyRow | null>(null);
   const [editingDaily, setEditingDaily] = useState<DailyRow | null>(null);
   const [openConfig, setOpenConfig] = useState(false);
   const [configFor, setConfigFor] = useState<{ id: string; name: string } | null>(null);
+  const [idleDetail, setIdleDetail] = useState<{ nome: string; ocorrencias: { date: string; motivo: string; product?: string }[] } | null>(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const executiveRef = useRef<HTMLDivElement>(null);
   // "all" = Geral (todas as sprints); senão sprintId
   const [sprintFilter, setSprintFilter] = useState<string>("all");
 
@@ -103,6 +110,10 @@ export default function DailyStatusProjectDetailPage() {
       ? squads.find((s) => s.id === squadId)
       : squads.find((s) => s.product_ids.includes(productId ?? "")),
     [squads, productId, squadId, isSquadMode],
+  );
+  const squadLeader = useMemo(
+    () => ownerSquad?.leader_profile_id ? profiles.find((p) => p.id === ownerSquad.leader_profile_id) : null,
+    [ownerSquad, profiles],
   );
   // Active product list for the current view (squad's products or single product)
   const viewProductIds = useMemo(
@@ -336,23 +347,50 @@ export default function DailyStatusProjectDetailPage() {
 
   const canEdit = (d: DailyRow) => differenceInHours(new Date(), new Date(d.created_at)) <= 72;
 
-  const handleExportPdf = () => {
-    if (!exec) return;
+  const handleExportPdf = async () => {
+    if (!executiveRef.current) return;
     const reportName = isSquadMode
       ? (ownerSquad?.name ?? "Squad")
       : (product?.name ?? "Projeto");
-    downloadExecutivePdf({
-      productName: reportName,
-      total: exec.total,
-      avgBlocker: exec.avgBlocker,
-      eficienciaDesbloqueio: exec.eficienciaDesbloqueio,
-      vibe: latestInsights?.vibe_equipe ? VIBE_MAP[latestInsights.vibe_equipe].label : undefined,
-      historicoGargalos: exec.historicoGargalos,
-      ociosos: exec.ociosos,
-      sobrecarregados: exec.sobrecarregados.map((s) => ({ nome: s.nome, vezes: s.vezes, nivel_risco: s.nivel_risco })),
-      dependenciasExternas: exec.dependenciasExternas,
-      proximosPassos: latestInsights?.proximos_passos,
+    setExportingPdf(true);
+    try {
+      await downloadElementAsPdf(
+        executiveRef.current,
+        `dashboard-executivo-${reportName.replace(/\s+/g, "_")}-${format(new Date(), "yyyyMMdd-HHmm")}.pdf`,
+      );
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao gerar PDF");
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
+  const handleDownloadDaily = (d: DailyRow, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const productName = productNameMap[d.product_id] ?? (product?.name ?? "Projeto");
+    downloadDailyReportPdf({
+      productName,
+      dailyNumber: dailyNumberMap[d.id] ?? 0,
+      statusDate: d.status_date,
+      sprintLabel: d.sprint_label?.trim() || (sprintNameMap[d.sprint_id] ?? "—"),
+      blockerLevel: d.blocker_level,
+      presentMembers: (d.present_member_ids ?? []).map((id) => memberNameMap[id] ?? id),
+      rawSummary: d.summary ?? "",
+      insights: d.ai_insights,
     });
+  };
+
+  const openIdleDetail = (nome: string) => {
+    const occ: { date: string; motivo: string; product?: string }[] = [];
+    for (const d of dailies) {
+      for (const o of d.ai_insights?.colaboradores_ociosos ?? []) {
+        if (o.nome.toLowerCase().trim() === nome.toLowerCase().trim()) {
+          occ.push({ date: d.status_date, motivo: o.motivo, product: productNameMap[d.product_id] });
+        }
+      }
+    }
+    occ.sort((a, b) => b.date.localeCompare(a.date));
+    setIdleDetail({ nome, ocorrencias: occ });
   };
 
   return (
@@ -375,6 +413,10 @@ export default function DailyStatusProjectDetailPage() {
                   <span className="flex items-center gap-1">
                     <UsersRound className="h-3.5 w-3.5" /> Squad consolidada · {viewProducts.length} produto(s)
                   </span>
+                  <Badge variant="outline" className="text-[10px] gap-1">
+                    <Crown className="h-3 w-3 text-amber-500" />
+                    {squadLeader ? `${squadLeader.first_name} ${squadLeader.last_name}` : "Sem líder"}
+                  </Badge>
                   <div className="flex flex-wrap gap-1">
                     {viewProducts.map((p) => (
                       <Badge key={p.id} variant="outline" className="text-[10px] gap-1">
@@ -481,7 +523,18 @@ export default function DailyStatusProjectDetailPage() {
                         </Badge>
                         <p className="text-sm text-muted-foreground truncate italic">"{resumo}"</p>
                       </div>
-                      <Badge variant="outline" className="flex-shrink-0 text-xs">Bloqueio {d.blocker_level}/5</Badge>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Badge variant="outline" className="text-xs">Bloqueio {d.blocker_level}/5</Badge>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          title="Baixar relatório PDF desta daily"
+                          onClick={(e) => handleDownloadDaily(d, e)}
+                          className="h-8 w-8"
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -593,10 +646,12 @@ export default function DailyStatusProjectDetailPage() {
               <Badge variant="secondary" className="text-xs">
                 Visão: {sprintFilter === "all" ? "Geral (todas as sprints)" : sprintNameMap[sprintFilter] ?? "Sprint"}
               </Badge>
-              <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={!exec}>
-                <FileDown className="h-4 w-4 mr-2" /> Baixar Relatório PDF
+              <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={!exec || exportingPdf}>
+                {exportingPdf ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
+                {exportingPdf ? "Gerando..." : "Baixar Relatório PDF"}
               </Button>
             </div>
+            <div ref={executiveRef} className="space-y-4 bg-background">
             {/* Métricas rápidas */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card>
@@ -735,14 +790,15 @@ export default function DailyStatusProjectDetailPage() {
                   ) : (
                     <ul className="space-y-2">
                       {exec.ociosos.map((o, i) => (
-                        <li key={i} className="p-2 rounded-md bg-background/50 space-y-1">
-                          <div className="flex items-center justify-between gap-2">
+                        <li key={i}>
+                          <button
+                            type="button"
+                            onClick={() => openIdleDetail(o.nome)}
+                            className="w-full text-left p-2 rounded-md bg-background/50 hover:bg-accent/50 transition-colors flex items-center justify-between gap-2"
+                          >
                             <span className="text-sm font-medium">{o.nome}</span>
                             <Badge variant="secondary" className="text-xs">{o.vezes}x ocioso</Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Datas: {o.datas.map((d) => format(new Date(d), "dd/MM", { locale: ptBR })).join(", ")}
-                          </p>
+                          </button>
                         </li>
                       ))}
                     </ul>
@@ -1084,6 +1140,7 @@ export default function DailyStatusProjectDetailPage() {
                 )}
               </CardContent>
             </Card>
+            </div>
           </TabsContent>
         </Tabs>
       )}
@@ -1127,6 +1184,9 @@ export default function DailyStatusProjectDetailPage() {
                     </DialogTitle>
                   </div>
                   <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" onClick={() => handleDownloadDaily(selectedDaily)}>
+                      <Download className="h-4 w-4 mr-2" /> Baixar PDF
+                    </Button>
                     {canEdit(selectedDaily) ? (
                       <Button size="sm" variant="outline" onClick={() => setEditingDaily(selectedDaily)}>
                         <Pencil className="h-4 w-4 mr-2" /> Editar
@@ -1162,16 +1222,10 @@ export default function DailyStatusProjectDetailPage() {
 
                 <TabsContent value="bruto" className="flex-1 min-h-0">
                   <ScrollArea className="h-[55vh] pr-3">
-                    <div className="space-y-3">
-                      {(selectedDaily.present_member_ids ?? []).length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {(selectedDaily.present_member_ids ?? []).map((id, i) => (
-                            <Badge key={i} variant="secondary" className="text-xs">{memberNameMap[id] ?? id}</Badge>
-                          ))}
-                        </div>
-                      )}
-                      <p className="text-sm whitespace-pre-wrap leading-relaxed">{selectedDaily.summary || "Sem texto registrado."}</p>
-                    </div>
+                    <RawReportView
+                      summary={selectedDaily.summary}
+                      presentMembers={(selectedDaily.present_member_ids ?? []).map((id) => memberNameMap[id] ?? id)}
+                    />
                   </ScrollArea>
                 </TabsContent>
 
@@ -1189,6 +1243,91 @@ export default function DailyStatusProjectDetailPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal de detalhe de ociosidade */}
+      <Dialog open={!!idleDetail} onOpenChange={(o) => !o && setIdleDetail(null)}>
+        <DialogContent className="max-w-2xl">
+          {idleDetail && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <UserMinus className="h-5 w-5 text-blue-600" /> Ociosidade · {idleDetail.nome}
+                </DialogTitle>
+                <DialogDescription>
+                  {idleDetail.ocorrencias.length} ocorrência(s) registrada(s) pela IA. Veja os motivos e datas.
+                </DialogDescription>
+              </DialogHeader>
+              <ScrollArea className="max-h-[60vh] pr-3">
+                <ul className="space-y-2">
+                  {idleDetail.ocorrencias.map((occ, i) => (
+                    <li key={i} className="rounded-md border border-border/60 bg-muted/30 p-3 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className="text-xs">
+                          {format(parseISO(occ.date), "dd/MM/yyyy", { locale: ptBR })}
+                        </Badge>
+                        {occ.product && (
+                          <Badge variant="secondary" className="text-[10px]">{occ.product}</Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">{occ.motivo || "—"}</p>
+                    </li>
+                  ))}
+                </ul>
+              </ScrollArea>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function RawReportView({ summary, presentMembers }: { summary: string; presentMembers: string[] }) {
+  const blocks = parseRawReport(summary || "");
+  const initials = (name: string) =>
+    name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
+
+  if (!summary?.trim()) {
+    return <p className="text-sm text-muted-foreground italic">Sem texto registrado.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {presentMembers.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {presentMembers.map((n, i) => (
+            <Badge key={i} variant="secondary" className="text-xs">{n}</Badge>
+          ))}
+        </div>
+      )}
+      <div className="space-y-2.5">
+        {blocks.map((b, i) => {
+          const isMeta = /observa|coordena/i.test(b.name);
+          return (
+            <Card key={i} className={cn(
+              "border-l-4",
+              isMeta ? "border-l-amber-500/60 bg-amber-500/5" : "border-l-primary/60 bg-card/40",
+            )}>
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <div className={cn(
+                    "h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0",
+                    isMeta ? "bg-amber-500/20 text-amber-700" : "bg-primary/15 text-primary",
+                  )}>
+                    {isMeta ? "📝" : initials(b.name)}
+                  </div>
+                  <CardTitle className="text-sm">{b.name}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground/90">
+                  {b.text || "—"}
+                </p>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }
