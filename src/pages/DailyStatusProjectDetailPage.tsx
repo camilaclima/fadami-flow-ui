@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { format, differenceInCalendarDays, differenceInHours } from "date-fns";
+import { format, differenceInCalendarDays, differenceInHours, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   ArrowLeft, Plus, CalendarCheck, TrendingUp, AlertTriangle, Flame,
