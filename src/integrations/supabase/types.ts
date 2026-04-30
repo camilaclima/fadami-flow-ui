@@ -308,7 +308,7 @@ export type Database = {
           id: string
           present_member_ids: Json
           product_id: string | null
-          sprint_id: string
+          sprint_id: string | null
           status_date: string
           summary: string
           updated_at: string
@@ -321,7 +321,7 @@ export type Database = {
           id?: string
           present_member_ids?: Json
           product_id?: string | null
-          sprint_id: string
+          sprint_id?: string | null
           status_date?: string
           summary?: string
           updated_at?: string
@@ -334,7 +334,7 @@ export type Database = {
           id?: string
           present_member_ids?: Json
           product_id?: string | null
-          sprint_id?: string
+          sprint_id?: string | null
           status_date?: string
           summary?: string
           updated_at?: string
