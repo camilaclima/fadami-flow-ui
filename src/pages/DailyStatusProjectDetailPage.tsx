@@ -343,7 +343,15 @@ export default function DailyStatusProjectDetailPage() {
           </div>
           <div className="min-w-0">
             <h1 className="text-2xl font-bold truncate">{product?.name ?? "Projeto"}</h1>
-            <p className="text-sm text-muted-foreground">Saúde do Projeto · dashboard evolutivo</p>
+            <p className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
+              Saúde do Projeto · dashboard evolutivo
+              {ownerSquad && (
+                <Badge variant="outline" className="text-[10px] gap-1">
+                  <UsersRound className="h-3 w-3" /> Squad: {ownerSquad.name}
+                  {siblingProducts.length > 0 && <span className="text-muted-foreground">· +{siblingProducts.length} produto(s)</span>}
+                </Badge>
+              )}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
