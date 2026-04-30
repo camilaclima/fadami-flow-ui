@@ -214,12 +214,23 @@ export default function DailyStatusPage() {
         </div>
       )}
 
-      <SquadFormModal open={openSquadDialog} onOpenChange={setOpenSquadDialog} />
-      <SquadFormModal
-        open={!!editingSquad}
-        onOpenChange={(o) => !o && setEditingSquad(null)}
-        squad={editingSquad}
-      />
+      {/* key força unmount/remount entre aberturas, garantindo estado 100% limpo
+          ao abrir "Nova Squad" depois de salvar/editar outra. */}
+      {openSquadDialog && (
+        <SquadFormModal
+          key={`new-${openSquadDialog}`}
+          open={openSquadDialog}
+          onOpenChange={setOpenSquadDialog}
+        />
+      )}
+      {editingSquad && (
+        <SquadFormModal
+          key={`edit-${editingSquad.id}`}
+          open={!!editingSquad}
+          onOpenChange={(o) => !o && setEditingSquad(null)}
+          squad={editingSquad}
+        />
+      )}
     </div>
   );
 }

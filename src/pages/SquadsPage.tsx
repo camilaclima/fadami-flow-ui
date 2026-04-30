@@ -126,7 +126,14 @@ export default function SquadsPage() {
         </div>
       )}
 
-      <SquadFormModal open={openForm} onOpenChange={setOpenForm} squad={editing} />
+      {openForm && (
+        <SquadFormModal
+          key={editing?.id ?? "new-squad"}
+          open={openForm}
+          onOpenChange={setOpenForm}
+          squad={editing}
+        />
+      )}
 
       <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
         <AlertDialogContent>
