@@ -1084,14 +1084,27 @@ export default function DailyStatusProjectDetailPage() {
         </Tabs>
       )}
 
-      <NewDailyDialog open={openDialog} onOpenChange={setOpenDialog} lockedProductId={productId} />
+      <NewDailyDialog
+        open={openDialog}
+        onOpenChange={setOpenDialog}
+        lockedProductId={isSquadMode ? undefined : productId}
+        allowedProductIds={isSquadMode ? viewProductIds : undefined}
+      />
       <EditDailyDialog open={!!editingDaily} onOpenChange={(o) => !o && setEditingDaily(null)} daily={editingDaily} onSaved={() => setSelectedDaily(null)} />
-      {product && (
+      {!isSquadMode && product && (
         <ProjectConfigModal
           open={openConfig}
           onOpenChange={setOpenConfig}
           productId={product.id}
           productName={product.name}
+        />
+      )}
+      {configFor && (
+        <ProjectConfigModal
+          open={!!configFor}
+          onOpenChange={(o) => !o && setConfigFor(null)}
+          productId={configFor.id}
+          productName={configFor.name}
         />
       )}
 
