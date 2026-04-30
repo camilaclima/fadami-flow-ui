@@ -43,10 +43,16 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
       setName(squad?.name ?? "");
       setLeaderId(squad?.leader_profile_id ?? "__none__");
       setDescription(squad?.description ?? "");
-      setMemberIds(squad?.member_ids ?? []);
+      // Para uma nova squad: pré-seleciona todos os membros ativos cadastrados.
+      // Para edição: mantém a seleção atual já persistida.
+      if (squad) {
+        setMemberIds(squad.member_ids ?? []);
+      } else {
+        setMemberIds(teamMembers.filter((m: any) => m.active ?? true).map((m) => m.id));
+      }
       setProductIds(squad?.product_ids ?? []);
     }
-  }, [open, squad]);
+  }, [open, squad, teamMembers]);
 
   const toggle = (arr: string[], setArr: (v: string[]) => void, id: string) =>
     setArr(arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]);
