@@ -490,10 +490,25 @@ export default function DailyStatusProjectDetailPage() {
 
           {/* ESCOPO E BACKLOG – itens aprovados + status de entrega */}
           <TabsContent value="escopo" className="space-y-3">
-            <div className="flex items-center justify-end">
-              <Button variant="outline" size="sm" onClick={() => setOpenConfig(true)}>
-                <Settings className="h-4 w-4 mr-2" /> Configurar Metas/Backlog
-              </Button>
+            <div className="flex items-center justify-end gap-2 flex-wrap">
+              {isSquadMode ? (
+                viewProducts.map((p) => (
+                  <Button
+                    key={p.id}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setConfigFor({ id: p.id, name: p.name })}
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    <span className="h-1.5 w-1.5 rounded-full mr-1.5" style={{ background: p.color ?? "hsl(var(--primary))" }} />
+                    Configurar · {p.name}
+                  </Button>
+                ))
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => setOpenConfig(true)}>
+                  <Settings className="h-4 w-4 mr-2" /> Configurar Metas/Backlog
+                </Button>
+              )}
             </div>
             <Card>
               <CardHeader className="pb-3">
@@ -501,8 +516,14 @@ export default function DailyStatusProjectDetailPage() {
                   <div className="flex items-center gap-2">
                     <div className="p-2 rounded-lg bg-primary/10 text-primary"><BookOpen className="h-4 w-4" /></div>
                     <div>
-                      <CardTitle className="text-base">Escopo Aprovado do Projeto</CardTitle>
-                      <CardDescription>Itens do Contexto Mestre + status de entrega calculado pelas dailys. Use "Configurar Metas/Backlog" para complementar o contexto a qualquer momento.</CardDescription>
+                      <CardTitle className="text-base">
+                        {isSquadMode ? "Escopo Aprovado da Squad" : "Escopo Aprovado do Projeto"}
+                      </CardTitle>
+                      <CardDescription>
+                        {isSquadMode
+                          ? "Itens aprovados de todos os produtos da squad. Use os botões acima para configurar cada produto."
+                          : "Itens do Contexto Mestre + status de entrega calculado pelas dailys. Use \"Configurar Metas/Backlog\" para complementar o contexto a qualquer momento."}
+                      </CardDescription>
                     </div>
                   </div>
                   <Badge variant="secondary">{approvedBacklog.length} item(ns)</Badge>
@@ -534,6 +555,12 @@ export default function DailyStatusProjectDetailPage() {
                             <div className="min-w-0">
                               <p className="text-sm font-medium">{it.task}</p>
                               <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap mt-0.5">
+                                {isSquadMode && (
+                                  <Badge variant="outline" className="text-[10px] gap-1">
+                                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: productColorMap[it.product_id] ?? "hsl(var(--primary))" }} />
+                                    {productNameMap[it.product_id] ?? "—"}
+                                  </Badge>
+                                )}
                                 <span><strong>Resp:</strong> {it.likely_owner || "—"}</span>
                                 <span><strong>Prazo:</strong> {it.deadline || "—"}</span>
                                 {it.category && <Badge variant="outline" className="text-[10px]">{it.category}</Badge>}
