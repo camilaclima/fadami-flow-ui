@@ -449,7 +449,10 @@ export default function DailyStatusProjectDetailPage() {
 
           {/* EXECUTIVO – central de inteligência */}
           <TabsContent value="executivo" className="space-y-4">
-            <div className="flex items-center justify-end">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <Badge variant="secondary" className="text-xs">
+                Visão: {sprintFilter === "all" ? "Geral (todas as sprints)" : sprintNameMap[sprintFilter] ?? "Sprint"}
+              </Badge>
               <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={!exec}>
                 <FileDown className="h-4 w-4 mr-2" /> Baixar Relatório PDF
               </Button>
