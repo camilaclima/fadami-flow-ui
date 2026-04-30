@@ -279,7 +279,13 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
           <div className="space-y-2">
             <Label className="flex items-center gap-2"><Users className="h-4 w-4" /> Membros presentes</Label>
             <div className="flex flex-wrap gap-2 rounded-md border border-input bg-background p-3 min-h-[44px]">
-              {teamMembers.length === 0 && <span className="text-sm text-muted-foreground">Nenhum colaborador cadastrado</span>}
+              {teamMembers.length === 0 && (
+                <span className="text-sm text-muted-foreground">
+                  {isSquadFiltered
+                    ? "Esta squad não possui membros vinculados. Configure-a no menu de Cadastros."
+                    : "Nenhum colaborador cadastrado"}
+                </span>
+              )}
               {teamMembers.map((m) => {
                 const active = selectedMembers.includes(m.id);
                 return (
