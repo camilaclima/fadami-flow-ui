@@ -15,7 +15,6 @@ import { cn } from "@/lib/utils";
 import { useActiveProducts } from "@/hooks/useProducts";
 import { useActiveSquads } from "@/hooks/useSquads";
 import { useProfiles } from "@/hooks/useProfiles";
-import { ProjectConfigModal } from "@/components/daily/ProjectConfigModal";
 import { SquadFormModal } from "@/components/squads/SquadFormModal";
 
 interface DailyRow {
@@ -41,7 +40,6 @@ export default function DailyStatusPage() {
   const { data: squads = [], isLoading: squadsLoading } = useActiveSquads();
   const { data: profiles = [] } = useProfiles();
   const [openSquadDialog, setOpenSquadDialog] = useState(false);
-  const [configFor, setConfigFor] = useState<{ id: string; name: string } | null>(null);
 
   const { data: allDailies = [], isLoading } = useQuery({
     queryKey: ["daily_status_all"],
@@ -187,14 +185,6 @@ export default function DailyStatusPage() {
       )}
 
       <SquadFormModal open={openSquadDialog} onOpenChange={setOpenSquadDialog} />
-      {configFor && (
-        <ProjectConfigModal
-          open={!!configFor}
-          onOpenChange={(o) => !o && setConfigFor(null)}
-          productId={configFor.id}
-          productName={configFor.name}
-        />
-      )}
     </div>
   );
 }
