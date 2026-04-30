@@ -885,6 +885,97 @@ export type Database = {
           },
         ]
       }
+      squad_members: {
+        Row: {
+          created_at: string
+          id: string
+          squad_id: string
+          team_member_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          squad_id: string
+          team_member_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          squad_id?: string
+          team_member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "squad_members_squad_id_fkey"
+            columns: ["squad_id"]
+            isOneToOne: false
+            referencedRelation: "squads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      squad_products: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          squad_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          squad_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          squad_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "squad_products_squad_id_fkey"
+            columns: ["squad_id"]
+            isOneToOne: false
+            referencedRelation: "squads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      squads: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string
+          id: string
+          leader_profile_id: string | null
+          name: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string
+          id?: string
+          leader_profile_id?: string | null
+          name: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string
+          id?: string
+          leader_profile_id?: string | null
+          name?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       team_members: {
         Row: {
           active: boolean
