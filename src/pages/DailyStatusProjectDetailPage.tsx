@@ -1243,6 +1243,91 @@ export default function DailyStatusProjectDetailPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal de detalhe de ociosidade */}
+      <Dialog open={!!idleDetail} onOpenChange={(o) => !o && setIdleDetail(null)}>
+        <DialogContent className="max-w-2xl">
+          {idleDetail && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <UserMinus className="h-5 w-5 text-blue-600" /> Ociosidade · {idleDetail.nome}
+                </DialogTitle>
+                <DialogDescription>
+                  {idleDetail.ocorrencias.length} ocorrência(s) registrada(s) pela IA. Veja os motivos e datas.
+                </DialogDescription>
+              </DialogHeader>
+              <ScrollArea className="max-h-[60vh] pr-3">
+                <ul className="space-y-2">
+                  {idleDetail.ocorrencias.map((occ, i) => (
+                    <li key={i} className="rounded-md border border-border/60 bg-muted/30 p-3 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className="text-xs">
+                          {format(parseISO(occ.date), "dd/MM/yyyy", { locale: ptBR })}
+                        </Badge>
+                        {occ.product && (
+                          <Badge variant="secondary" className="text-[10px]">{occ.product}</Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">{occ.motivo || "—"}</p>
+                    </li>
+                  ))}
+                </ul>
+              </ScrollArea>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function RawReportView({ summary, presentMembers }: { summary: string; presentMembers: string[] }) {
+  const blocks = parseRawReport(summary || "");
+  const initials = (name: string) =>
+    name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
+
+  if (!summary?.trim()) {
+    return <p className="text-sm text-muted-foreground italic">Sem texto registrado.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {presentMembers.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {presentMembers.map((n, i) => (
+            <Badge key={i} variant="secondary" className="text-xs">{n}</Badge>
+          ))}
+        </div>
+      )}
+      <div className="space-y-2.5">
+        {blocks.map((b, i) => {
+          const isMeta = /observa|coordena/i.test(b.name);
+          return (
+            <Card key={i} className={cn(
+              "border-l-4",
+              isMeta ? "border-l-amber-500/60 bg-amber-500/5" : "border-l-primary/60 bg-card/40",
+            )}>
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <div className={cn(
+                    "h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0",
+                    isMeta ? "bg-amber-500/20 text-amber-700" : "bg-primary/15 text-primary",
+                  )}>
+                    {isMeta ? "📝" : initials(b.name)}
+                  </div>
+                  <CardTitle className="text-sm">{b.name}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground/90">
+                  {b.text || "—"}
+                </p>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }
