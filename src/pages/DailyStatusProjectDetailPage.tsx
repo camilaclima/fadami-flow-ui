@@ -476,7 +476,7 @@ export default function DailyStatusProjectDetailPage() {
                           </Badge>
                         )}
                         <Badge variant="secondary" className="flex-shrink-0 text-xs">
-                          {sprintNameMap[d.sprint_id] ?? "Sprint —"}
+                          {d.sprint_label?.trim() ? d.sprint_label : (sprintNameMap[d.sprint_id] ?? "Sprint —")}
                         </Badge>
                         <p className="text-sm text-muted-foreground truncate italic">"{resumo}"</p>
                       </div>
