@@ -646,10 +646,12 @@ export default function DailyStatusProjectDetailPage() {
               <Badge variant="secondary" className="text-xs">
                 Visão: {sprintFilter === "all" ? "Geral (todas as sprints)" : sprintNameMap[sprintFilter] ?? "Sprint"}
               </Badge>
-              <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={!exec}>
-                <FileDown className="h-4 w-4 mr-2" /> Baixar Relatório PDF
+              <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={!exec || exportingPdf}>
+                {exportingPdf ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
+                {exportingPdf ? "Gerando..." : "Baixar Relatório PDF"}
               </Button>
             </div>
+            <div ref={executiveRef} className="space-y-4 bg-background">
             {/* Métricas rápidas */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card>
