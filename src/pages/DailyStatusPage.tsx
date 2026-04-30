@@ -16,6 +16,7 @@ import { useActiveProducts } from "@/hooks/useProducts";
 import { useActiveSquads, type Squad } from "@/hooks/useSquads";
 import { useProfiles } from "@/hooks/useProfiles";
 import { SquadFormModal } from "@/components/squads/SquadFormModal";
+import { useAuthorizedProducts } from "@/hooks/useAuthorizedProducts";
 
 interface DailyRow {
   id: string;
@@ -36,18 +37,35 @@ function statusFromBlocker(level: number) {
 
 export default function DailyStatusPage() {
   const navigate = useNavigate();
-  const { data: products = [] } = useActiveProducts();
-  const { data: squads = [], isLoading: squadsLoading } = useActiveSquads();
+  const { data: allProducts = [] } = useActiveProducts();
+  const { data: allSquads = [], isLoading: squadsLoading } = useActiveSquads();
   const { data: profiles = [] } = useProfiles();
+  const { isAdmin, productIds: allowedIds } = useAuthorizedProducts();
   const [openSquadDialog, setOpenSquadDialog] = useState(false);
   const [editingSquad, setEditingSquad] = useState<Squad | null>(null);
 
+  // Aplica trava por vínculo: admin vê tudo; demais veem apenas produtos vinculados.
+  const products = useMemo(
+    () => isAdmin || !allowedIds ? allProducts : allProducts.filter((p) => allowedIds.includes(p.id)),
+    [allProducts, allowedIds, isAdmin],
+  );
+  // Squad só aparece se possuir ao menos um produto autorizado para o usuário.
+  const squads = useMemo(() => {
+    if (isAdmin || !allowedIds) return allSquads;
+    return allSquads.filter((s) => s.product_ids.some((pid) => allowedIds.includes(pid)));
+  }, [allSquads, allowedIds, isAdmin]);
+
   const { data: allDailies = [], isLoading } = useQuery({
-    queryKey: ["daily_status_all"],
+    queryKey: ["daily_status_all", isAdmin ? "admin" : (allowedIds ?? []).join(",")],
     queryFn: async () => {
-      const { data, error } = await (supabase.from("daily_status") as any)
+      let q = (supabase.from("daily_status") as any)
         .select("*")
         .order("status_date", { ascending: false });
+      if (!isAdmin && allowedIds) {
+        if (allowedIds.length === 0) return [] as DailyRow[];
+        q = q.in("product_id", allowedIds);
+      }
+      const { data, error } = await q;
       if (error) throw error;
       return data as DailyRow[];
     },
