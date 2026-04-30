@@ -6,7 +6,7 @@ import {
   ArrowLeft, Plus, CalendarCheck, TrendingUp, AlertTriangle, Flame,
   Sparkles, Activity, Smile, Frown, Meh, Heart, Loader2, ListChecks, CheckCircle2,
   UserMinus, UserPlus, Link2, Target, ShieldAlert, History, Pencil, Lock, FileDown,
-  Compass, GitBranch, BookOpen,
+  Compass, GitBranch, BookOpen, Settings, BarChart3,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -25,6 +25,7 @@ import { useSprints } from "@/hooks/useSprints";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { NewDailyDialog } from "@/components/daily/NewDailyDialog";
 import { EditDailyDialog } from "@/components/daily/EditDailyDialog";
+import { ProjectConfigModal } from "@/components/daily/ProjectConfigModal";
 import { downloadExecutivePdf } from "@/lib/dailyExecutivePdf";
 
 interface AIRecorrencia { descricao: string; dias_consecutivos: number; responsavel?: string; }
