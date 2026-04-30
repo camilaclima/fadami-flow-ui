@@ -309,6 +309,7 @@ export type Database = {
           present_member_ids: Json
           product_id: string | null
           sprint_id: string | null
+          sprint_label: string
           status_date: string
           summary: string
           updated_at: string
@@ -322,6 +323,7 @@ export type Database = {
           present_member_ids?: Json
           product_id?: string | null
           sprint_id?: string | null
+          sprint_label?: string
           status_date?: string
           summary?: string
           updated_at?: string
@@ -335,6 +337,7 @@ export type Database = {
           present_member_ids?: Json
           product_id?: string | null
           sprint_id?: string | null
+          sprint_label?: string
           status_date?: string
           summary?: string
           updated_at?: string
