@@ -413,6 +413,10 @@ export default function DailyStatusProjectDetailPage() {
                   <span className="flex items-center gap-1">
                     <UsersRound className="h-3.5 w-3.5" /> Squad consolidada · {viewProducts.length} produto(s)
                   </span>
+                  <Badge variant="outline" className="text-[10px] gap-1">
+                    <Crown className="h-3 w-3 text-amber-500" />
+                    {squadLeader ? `${squadLeader.first_name} ${squadLeader.last_name}` : "Sem líder"}
+                  </Badge>
                   <div className="flex flex-wrap gap-1">
                     {viewProducts.map((p) => (
                       <Badge key={p.id} variant="outline" className="text-[10px] gap-1">
