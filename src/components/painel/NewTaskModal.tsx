@@ -53,7 +53,9 @@ export function NewTaskModal({
 
   const visibleSprints = useMemo(() => {
     if (productId === NONE) return sprints;
-    return sprints.filter((s) => (s as any).product_id === productId);
+    const filtered = sprints.filter((s) => (s as any).product_id === productId);
+    // Fallback: if no sprint matches the selected product, show all so the user is never stuck with an empty list.
+    return filtered.length ? filtered : sprints;
   }, [sprints, productId]);
 
   const submit = async () => {

@@ -34,7 +34,7 @@ export default function PainelTarefasPage() {
   const { data: members = [] } = useTeamMembers();
   const generate = useGenerateAITasks();
 
-  const [tab, setTab] = useState("blockers");
+  const [tab, setTab] = useState("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<CoordinatorTask | null>(null);
 
@@ -70,59 +70,48 @@ export default function PainelTarefasPage() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
+          <TabsTrigger value="all" className="gap-2">📋 Todas <span className="text-xs opacity-70">({pending.length})</span></TabsTrigger>
+          <TabsTrigger value="activities" className="gap-2">🧩 Atividades <span className="text-xs opacity-70">({activityTasks.length})</span></TabsTrigger>
           <TabsTrigger value="blockers" className="gap-2">🚨 Bloqueios e Gargalos <span className="text-xs opacity-70">({blockerTasks.length})</span></TabsTrigger>
           <TabsTrigger value="risks" className="gap-2">📅 Riscos de Cronograma <span className="text-xs opacity-70">({riskTasks.length})</span></TabsTrigger>
-          <TabsTrigger value="activities" className="gap-2">🧩 Atividades <span className="text-xs opacity-70">({activityTasks.length})</span></TabsTrigger>
         </TabsList>
 
-        <TabsContent value="blockers" className="mt-4 space-y-3">
-          {isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
-          {!isLoading && blockerTasks.length === 0 && (
-            <Card className="neu-card"><CardContent className="p-8 text-center text-sm text-muted-foreground">
-              Nenhum bloqueio ativo. Use “Gerar análise com IA” para que o sistema leia as últimas dailys e crie ações automáticas.
-            </CardContent></Card>
-          )}
-          {blockerTasks.map((t) => (
-            <TaskCard key={t.id} task={t}
-              productName={prodName(t.product_id)}
-              sprintName={sprintName(t.sprint_id)}
-              memberName={memberName(t.responsible_member_id)}
-              onEdit={t.source === "manual" ? openEdit : undefined}
-            />
-          ))}
-        </TabsContent>
-
-        <TabsContent value="risks" className="mt-4 space-y-3">
-          {!isLoading && riskTasks.length === 0 && (
-            <Card className="neu-card"><CardContent className="p-8 text-center text-sm text-muted-foreground">
-              Sem riscos detectados no momento.
-            </CardContent></Card>
-          )}
-          {riskTasks.map((t) => (
-            <TaskCard key={t.id} task={t}
-              productName={prodName(t.product_id)}
-              sprintName={sprintName(t.sprint_id)}
-              memberName={memberName(t.responsible_member_id)}
-              onEdit={t.source === "manual" ? openEdit : undefined}
-            />
-          ))}
-        </TabsContent>
-
-        <TabsContent value="activities" className="mt-4 space-y-3">
-          {!isLoading && activityTasks.length === 0 && (
-            <Card className="neu-card"><CardContent className="p-8 text-center text-sm text-muted-foreground">
-              Nenhuma atividade cadastrada nesta categoria.
-            </CardContent></Card>
-          )}
-          {activityTasks.map((t) => (
-            <TaskCard key={t.id} task={t}
-              productName={prodName(t.product_id)}
-              sprintName={sprintName(t.sprint_id)}
-              memberName={memberName(t.responsible_member_id)}
-              onEdit={t.source === "manual" ? openEdit : undefined}
-            />
-          ))}
-        </TabsContent>
+        {(() => {
+          const renderGrid = (items: CoordinatorTask[], emptyMsg: string) => {
+            if (isLoading) return <p className="text-sm text-muted-foreground">Carregando…</p>;
+            if (!items.length) return (
+              <Card className="neu-card"><CardContent className="p-8 text-center text-sm text-muted-foreground">{emptyMsg}</CardContent></Card>
+            );
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {items.map((t) => (
+                  <TaskCard key={t.id} task={t}
+                    productName={prodName(t.product_id)}
+                    sprintName={sprintName(t.sprint_id)}
+                    memberName={memberName(t.responsible_member_id)}
+                    onEdit={t.source === "manual" ? openEdit : undefined}
+                  />
+                ))}
+              </div>
+            );
+          };
+          return (
+            <>
+              <TabsContent value="all" className="mt-4">
+                {renderGrid(pending, "Nenhuma tarefa pendente no momento.")}
+              </TabsContent>
+              <TabsContent value="activities" className="mt-4">
+                {renderGrid(activityTasks, "Nenhuma atividade cadastrada nesta categoria.")}
+              </TabsContent>
+              <TabsContent value="blockers" className="mt-4">
+                {renderGrid(blockerTasks, "Nenhum bloqueio ativo. Use “Gerar análise com IA” para que o sistema leia as últimas dailys e crie ações automáticas.")}
+              </TabsContent>
+              <TabsContent value="risks" className="mt-4">
+                {renderGrid(riskTasks, "Sem riscos detectados no momento.")}
+              </TabsContent>
+            </>
+          );
+        })()}
       </Tabs>
 
       <NewTaskModal open={modalOpen} onOpenChange={setModalOpen} productIds={productIds} editing={editing} />
