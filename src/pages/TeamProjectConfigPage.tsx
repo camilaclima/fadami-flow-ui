@@ -81,12 +81,14 @@ function ProjectsSection() {
   const qc = useQueryClient();
 
   const [editing, setEditing] = useState<Product | null>(null);
+  const [showProjectForm, setShowProjectForm] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [clientId, setClientId] = useState<string>("__none__");
   const [status, setStatus] = useState<string>("active");
 
   // Stakeholder form
+  const [showShForm, setShowShForm] = useState(false);
   const [shProductId, setShProductId] = useState<string>("");
   const [shName, setShName] = useState("");
   const [shContact, setShContact] = useState("");
@@ -164,49 +166,55 @@ function ProjectsSection() {
 
   return (
     <div className="space-y-6">
-      {/* Project form */}
-      <Card className="rounded-2xl">
-        <CardHeader>
-          <CardTitle className="text-lg">{editing ? "Editar Projeto" : "Novo Projeto"}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmitProject} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Nome do Projeto</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Portal do Cliente" required />
-            </div>
-            <div className="space-y-2">
-              <Label>Cliente / Área</Label>
-              <Select value={clientId} onValueChange={setClientId}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Nenhum</SelectItem>
-                  {clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>Descrição Breve</Label>
-              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Resumo do projeto" />
-            </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {PROJECT_STATUS_OPTIONS.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="md:col-span-2 flex justify-end gap-2">
-              {editing && <Button type="button" variant="outline" onClick={resetProject}>Cancelar</Button>}
-              <Button type="submit" className="gap-2"><Plus className="w-4 h-4" /> {editing ? "Salvar" : "Cadastrar Projeto"}</Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+      {/* Project form toggle */}
+      {(showProjectForm || editing) ? (
+        <Card className="rounded-2xl">
+          <CardHeader>
+            <CardTitle className="text-lg">{editing ? "Editar Projeto" : "Novo Projeto"}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmitProject} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Nome do Projeto</Label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Portal do Cliente" required />
+              </div>
+              <div className="space-y-2">
+                <Label>Cliente / Área</Label>
+                <Select value={clientId} onValueChange={setClientId}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Nenhum</SelectItem>
+                    {clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label>Descrição Breve</Label>
+                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Resumo do projeto" />
+              </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={status} onValueChange={setStatus}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PROJECT_STATUS_OPTIONS.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="md:col-span-2 flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => { resetProject(); setShowProjectForm(false); }}>Cancelar</Button>
+                <Button type="submit" className="gap-2"><Plus className="w-4 h-4" /> {editing ? "Salvar" : "Cadastrar Projeto"}</Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="flex justify-end">
+          <Button className="gap-2" onClick={() => setShowProjectForm(true)}><Plus className="w-4 h-4" /> Novo Projeto</Button>
+        </div>
+      )}
 
       {/* Project cards */}
       <div>
@@ -262,81 +270,59 @@ function ProjectsSection() {
         </div>
       </div>
 
-      {/* Stakeholders */}
-      <Card className="rounded-2xl">
-        <CardHeader>
-          <CardTitle className="text-lg">Stakeholders</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmitStakeholder} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Projeto</Label>
-              <Select value={shProductId || "__none__"} onValueChange={(v) => setShProductId(v === "__none__" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__" disabled>Selecione</SelectItem>
-                  {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Nome</Label>
-              <Input value={shName} onChange={(e) => setShName(e.target.value)} placeholder="Nome do stakeholder" />
-            </div>
-            <div className="space-y-2">
-              <Label>Contato</Label>
-              <Input value={shContact} onChange={(e) => setShContact(e.target.value)} placeholder="E-mail ou telefone" />
-            </div>
-            <div className="space-y-2">
-              <Label>Área</Label>
-              <Input value={shArea} onChange={(e) => setShArea(e.target.value)} placeholder="Ex: Infra, Produto, Negócio" />
-            </div>
-            <div className="space-y-2">
-              <Label>Importância</Label>
-              <Select value={shImportance} onValueChange={(v) => setShImportance(v as StakeholderImportance)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(IMPORTANCE_LABELS) as StakeholderImportance[]).map((k) => (
-                    <SelectItem key={k} value={k}>{IMPORTANCE_LABELS[k]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-end gap-2">
-              {shEditing && <Button type="button" variant="outline" onClick={resetStakeholder}>Cancelar</Button>}
-              <Button type="submit" className="gap-2 flex-1"><Plus className="w-4 h-4" /> {shEditing ? "Salvar" : "Adicionar"}</Button>
-            </div>
-          </form>
-
-          <div className="mt-6 space-y-2">
-            {stakeholders.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-6">Nenhum stakeholder cadastrado.</p>
-            )}
-            {stakeholders.map((s) => {
-              const product = products.find((p) => p.id === s.product_id);
-              return (
-                <div key={s.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border bg-card/50">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-foreground text-sm">{s.name}</span>
-                      <Badge variant="outline" className={IMPORTANCE_STYLES[s.importance]}>{IMPORTANCE_LABELS[s.importance]}</Badge>
-                      {product && <Badge variant="outline" className="text-xs">{product.name}</Badge>}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1 truncate">
-                      {s.area && <span className="mr-2">Área: {s.area}</span>}
-                      {s.contact && <span>• {s.contact}</span>}
-                    </div>
-                  </div>
-                  <div className="flex gap-1 flex-shrink-0">
-                    <Button size="sm" variant="ghost" onClick={() => handleEditStakeholder(s)}><Pencil className="w-4 h-4" /></Button>
-                    <Button size="sm" variant="ghost" onClick={() => deleteStakeholder.mutate(s.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Stakeholders toggle */}
+      {(showShForm || shEditing) ? (
+        <Card className="rounded-2xl">
+          <CardHeader>
+            <CardTitle className="text-lg">Stakeholders</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmitStakeholder} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Projeto</Label>
+                <Select value={shProductId || "__none__"} onValueChange={(v) => setShProductId(v === "__none__" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" disabled>Selecione</SelectItem>
+                    {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Nome</Label>
+                <Input value={shName} onChange={(e) => setShName(e.target.value)} placeholder="Nome do stakeholder" />
+              </div>
+              <div className="space-y-2">
+                <Label>Contato</Label>
+                <Input value={shContact} onChange={(e) => setShContact(e.target.value)} placeholder="E-mail ou telefone" />
+              </div>
+              <div className="space-y-2">
+                <Label>Área</Label>
+                <Input value={shArea} onChange={(e) => setShArea(e.target.value)} placeholder="Ex: Infra, Produto, Negócio" />
+              </div>
+              <div className="space-y-2">
+                <Label>Importância</Label>
+                <Select value={shImportance} onValueChange={(v) => setShImportance(v as StakeholderImportance)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(IMPORTANCE_LABELS) as StakeholderImportance[]).map((k) => (
+                      <SelectItem key={k} value={k}>{IMPORTANCE_LABELS[k]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end gap-2">
+                <Button type="button" variant="outline" onClick={() => { resetStakeholder(); setShowShForm(false); }}>Cancelar</Button>
+                <Button type="submit" className="gap-2 flex-1"><Plus className="w-4 h-4" /> {shEditing ? "Salvar" : "Adicionar"}</Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="flex justify-end">
+          <Button className="gap-2" variant="outline" onClick={() => setShowShForm(true)}><Plus className="w-4 h-4" /> Novo Stakeholder</Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -352,6 +338,7 @@ function TeamSection() {
   const qc = useQueryClient();
 
   const [editing, setEditing] = useState<TeamMember | null>(null);
+  const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [role, setRole] = useState<TeamRole>("dev");
   const [seniority, setSeniority] = useState<Seniority>("pleno");
@@ -362,7 +349,7 @@ function TeamSection() {
   const productMap = useMemo(() => Object.fromEntries(products.map((p) => [p.id, p.name])), [products]);
 
   const reset = () => {
-    setEditing(null); setName(""); setRole("dev"); setSeniority("pleno");
+    setEditing(null); setShowForm(false); setName(""); setRole("dev"); setSeniority("pleno");
     setSpecialty("fullstack"); setAllocation(100); setProductId("__none__");
   };
 
@@ -406,69 +393,76 @@ function TeamSection() {
 
   return (
     <div className="space-y-6">
-      <Card className="rounded-2xl">
-        <CardHeader>
-          <CardTitle className="text-lg">{editing ? "Editar Colaborador" : "Novo Colaborador"}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="space-y-2 lg:col-span-2">
-              <Label>Nome Completo</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do colaborador" required />
-            </div>
-            <div className="space-y-2">
-              <Label>Cargo / Função</Label>
-              <Select value={role} onValueChange={(v) => setRole(v as TeamRole)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(TEAM_ROLE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Senioridade</Label>
-              <Select value={seniority} onValueChange={(v) => setSeniority(v as Seniority)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(SENIORITY_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Especialidade</Label>
-              <Select value={specialty} onValueChange={(v) => setSpecialty(v as Specialty)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(SPECIALTY_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Fator de Carga / Disponibilidade</Label>
-              <Select value={String(allocation)} onValueChange={(v) => setAllocation(Number(v))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {ALLOCATION_OPTIONS.map((a) => <SelectItem key={a} value={String(a)}>{a}% Alocado</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Projeto Principal</Label>
-              <Select value={productId} onValueChange={setProductId}>
-                <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Nenhum</SelectItem>
-                  {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="md:col-span-2 lg:col-span-3 flex justify-end gap-2">
-              {editing && <Button type="button" variant="outline" onClick={reset}>Cancelar</Button>}
-              <Button type="submit" className="gap-2"><Plus className="w-4 h-4" /> {editing ? "Salvar" : "Adicionar Colaborador"}</Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+      {/* Team member form toggle */}
+      {(showForm || editing) ? (
+        <Card className="rounded-2xl">
+          <CardHeader>
+            <CardTitle className="text-lg">{editing ? "Editar Colaborador" : "Novo Colaborador"}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-2 lg:col-span-2">
+                <Label>Nome Completo</Label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do colaborador" required />
+              </div>
+              <div className="space-y-2">
+                <Label>Cargo / Função</Label>
+                <Select value={role} onValueChange={(v) => setRole(v as TeamRole)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(TEAM_ROLE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Senioridade</Label>
+                <Select value={seniority} onValueChange={(v) => setSeniority(v as Seniority)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(SENIORITY_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Especialidade</Label>
+                <Select value={specialty} onValueChange={(v) => setSpecialty(v as Specialty)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(SPECIALTY_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Fator de Carga / Disponibilidade</Label>
+                <Select value={String(allocation)} onValueChange={(v) => setAllocation(Number(v))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {ALLOCATION_OPTIONS.map((a) => <SelectItem key={a} value={String(a)}>{a}% Alocado</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Projeto Principal</Label>
+                <Select value={productId} onValueChange={setProductId}>
+                  <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Nenhum</SelectItem>
+                    {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="md:col-span-2 lg:col-span-3 flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={reset}>Cancelar</Button>
+                <Button type="submit" className="gap-2"><Plus className="w-4 h-4" /> {editing ? "Salvar" : "Adicionar Colaborador"}</Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="flex justify-end">
+          <Button className="gap-2" onClick={() => setShowForm(true)}><Plus className="w-4 h-4" /> Novo Colaborador</Button>
+        </div>
+      )}
 
       <div>
         <h2 className="text-sm font-semibold text-foreground/80 mb-3">Membros do Time</h2>
