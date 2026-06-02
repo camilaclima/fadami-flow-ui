@@ -35,8 +35,8 @@ export function useActiveProducts() {
 export function useAddProduct() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (p: { name: string; description: string; color: string }) => {
-      const { error } = await supabase.from("products").insert({ ...p, status: "active" });
+    mutationFn: async (p: { name: string; description: string; color: string; status?: string }) => {
+      const { error } = await supabase.from("products").insert({ status: "active", ...p });
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["products"] }); toast.success("Produto criado!"); },
@@ -46,7 +46,7 @@ export function useAddProduct() {
 export function useUpdateProduct() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...data }: { id: string; name?: string; description?: string; color?: string }) => {
+    mutationFn: async ({ id, ...data }: { id: string; name?: string; description?: string; color?: string; status?: string }) => {
       const { error } = await supabase.from("products").update(data).eq("id", id);
       if (error) throw error;
     },
