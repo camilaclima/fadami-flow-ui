@@ -8,7 +8,6 @@ export interface Product {
   description: string;
   status: string;
   color: string;
-  created_by?: string | null;
 }
 
 export function useProducts() {
@@ -37,8 +36,7 @@ export function useAddProduct() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (p: { name: string; description: string; color: string; status?: string }) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase.from("products").insert({ status: "active", ...p, created_by: user?.id ?? null });
+      const { error } = await supabase.from("products").insert({ status: "active", ...p });
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["products"] }); toast.success("Produto criado!"); },
