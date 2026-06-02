@@ -538,7 +538,7 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
 
 /* -------------------------------------- TEAM -------------------------------------- */
 
-function TeamSection() {
+function TeamSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm: (v: boolean) => void }) {
   const { user } = useAuth();
   const { data: members = [] } = useAllTeamMembers();
   const { data: products = [] } = useProducts();
@@ -547,29 +547,27 @@ function TeamSection() {
   const qc = useQueryClient();
 
   const [editing, setEditing] = useState<TeamMember | null>(null);
-  const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
-  const [role, setRole] = useState<TeamRole>("dev");
-  const [seniority, setSeniority] = useState<Seniority>("pleno");
-  const [specialty, setSpecialty] = useState<Specialty>("fullstack");
-  const [allocation, setAllocation] = useState<number>(100);
+  const [role, setRole] = useState<string>("");
+  const [seniority, setSeniority] = useState<string>("");
+  const [specialty, setSpecialty] = useState<string>("");
   const [productId, setProductId] = useState<string>("__none__");
 
   const productMap = useMemo(() => Object.fromEntries(products.map((p) => [p.id, p.name])), [products]);
 
   const reset = () => {
-    setEditing(null); setShowForm(false); setName(""); setRole("dev"); setSeniority("pleno");
-    setSpecialty("fullstack"); setAllocation(100); setProductId("__none__");
+    setEditing(null); setOpenForm(false); setName(""); setRole(""); setSeniority("");
+    setSpecialty(""); setProductId("__none__");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    const dailyHours = +(8 * (allocation / 100)).toFixed(2);
+    if (!role || !seniority || !specialty) { toast.error("Preencha cargo, senioridade e especialidade"); return; }
     const payload = {
       name: name.trim(), role, seniority, specialty,
-      daily_capacity_hours: dailyHours,
-      allocation_percent: allocation,
+      daily_capacity_hours: 8,
+      allocation_percent: 100,
       product_id: productId === "__none__" ? null : productId,
       coordinator_id: user?.id ?? "",
     } as any;
@@ -584,11 +582,11 @@ function TeamSection() {
   const handleEdit = (m: TeamMember) => {
     setEditing(m);
     setName(m.name);
-    setRole(m.role as TeamRole);
-    setSeniority(m.seniority as Seniority);
-    setSpecialty(m.specialty as Specialty);
-    setAllocation(((m as any).allocation_percent as number) ?? Math.round((m.daily_capacity_hours / 8) * 100));
+    setRole(m.role);
+    setSeniority(m.seniority);
+    setSpecialty(m.specialty);
     setProductId(m.product_id ?? "__none__");
+    setOpenForm(true);
   };
 
   const handleDelete = async (m: TeamMember) => {
@@ -602,67 +600,62 @@ function TeamSection() {
 
   return (
     <div className="space-y-6">
-      {/* Team member form toggle */}
-      {(showForm || editing) ? (
-        <Card className="rounded-2xl">
-          <CardHeader>
-            <CardTitle className="text-lg">{editing ? "Editar Colaborador" : "Novo Colaborador"}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="space-y-2 lg:col-span-2">
-                <Label>Nome Completo</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do colaborador" required />
-              </div>
-              <div className="space-y-2">
-                <Label>Cargo / Função</Label>
-                <Select value={role} onValueChange={(v) => setRole(v as TeamRole)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(TEAM_ROLE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Senioridade</Label>
-                <Select value={seniority} onValueChange={(v) => setSeniority(v as Seniority)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(SENIORITY_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Especialidade</Label>
-                <Select value={specialty} onValueChange={(v) => setSpecialty(v as Specialty)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(SPECIALTY_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Projeto Principal</Label>
-                <Select value={productId} onValueChange={setProductId}>
-                  <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Nenhum</SelectItem>
-                    {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="md:col-span-2 lg:col-span-3 flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={reset}>Cancelar</Button>
-                <Button type="submit" className="gap-2"><Plus className="w-4 h-4" /> {editing ? "Salvar" : "Adicionar Colaborador"}</Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="flex justify-end">
-          <Button className="gap-2" onClick={() => setShowForm(true)}><Plus className="w-4 h-4" /> Novo Colaborador</Button>
-        </div>
-      )}
+      {/* Team member modal */}
+      <Dialog open={openForm} onOpenChange={(o) => { if (!o) reset(); else setOpenForm(true); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Editar Colaborador" : "Novo Colaborador"}</DialogTitle>
+            <DialogDescription>Preencha as informações do colaborador.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2 md:col-span-2">
+              <Label>Nome Completo</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do colaborador" required autoFocus />
+            </div>
+            <div className="space-y-2">
+              <Label>Cargo / Função</Label>
+              <Select value={role} onValueChange={setRole}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(TEAM_ROLE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Senioridade</Label>
+              <Select value={seniority} onValueChange={setSeniority}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(SENIORITY_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Especialidade</Label>
+              <Select value={specialty} onValueChange={setSpecialty}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(SPECIALTY_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Projeto Principal</Label>
+              <Select value={productId} onValueChange={setProductId}>
+                <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Nenhum</SelectItem>
+                  {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="md:col-span-2 flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={reset}>Cancelar</Button>
+              <Button type="submit" className="gap-2"><Plus className="w-4 h-4" /> {editing ? "Salvar" : "Adicionar Colaborador"}</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <div>
         <h2 className="text-sm font-semibold text-foreground/80 mb-3">Membros do Time</h2>
