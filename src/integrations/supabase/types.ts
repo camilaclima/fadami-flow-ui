@@ -561,7 +561,7 @@ export type Database = {
           impact: string
           likely_owner: string
           product_id: string
-          project_context_id: string
+          project_context_id: string | null
           responsible_id: string | null
           risk_mitigation: string
           sort_order: number
@@ -582,7 +582,7 @@ export type Database = {
           impact?: string
           likely_owner?: string
           product_id: string
-          project_context_id: string
+          project_context_id?: string | null
           responsible_id?: string | null
           risk_mitigation?: string
           sort_order?: number
@@ -603,7 +603,7 @@ export type Database = {
           impact?: string
           likely_owner?: string
           product_id?: string
-          project_context_id?: string
+          project_context_id?: string | null
           responsible_id?: string | null
           risk_mitigation?: string
           sort_order?: number
