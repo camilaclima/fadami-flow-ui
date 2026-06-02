@@ -1,4 +1,4 @@
-import { LayoutDashboard, ListTodo, Package, Users, Settings, ChevronLeft, ChevronDown, Briefcase, Shield, UserCog, ClipboardList, ShieldCheck, UsersRound, Zap, CalendarCheck, Users2 } from "lucide-react";
+import { LayoutDashboard, ListTodo, Package, Users, Settings, ChevronLeft, ChevronDown, Briefcase, Shield, UserCog, ClipboardList, ShieldCheck, UsersRound, Zap, CalendarCheck, Users2, KeyRound } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { FadamiFlowLogo } from "@/components/FadamiFlowLogo";
 import menuIcon from "@/assets/menu-icon.png";
@@ -11,7 +11,7 @@ interface NavItem {
   title: string;
   url: string;
   icon: typeof LayoutDashboard;
-  permission: SystemPage;
+  permission: SystemPage | "__always__";
 }
 
 interface NavGroup {
@@ -54,6 +54,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Sistema",
     icon: Settings,
     items: [
+      { title: "Alterar Senha", url: "/change-password", icon: KeyRound, permission: "__always__" },
       { title: "Configurações", url: "/settings", icon: Settings, permission: "settings" },
     ],
   },
@@ -70,7 +71,9 @@ export function AppSidebar() {
     return NAV_GROUPS
       .map((group) => ({
         ...group,
-        items: group.items.filter((item) => permissions.includes(item.permission)),
+        items: group.items.filter(
+          (item) => item.permission === "__always__" || permissions.includes(item.permission as SystemPage)
+        ),
       }))
       .filter((group) => group.items.length > 0);
   }, [permissions]);
