@@ -664,6 +664,9 @@ function TeamSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm
                         <div className="text-xs text-muted-foreground">
                           {TEAM_ROLE_LABELS[m.role as TeamRole]} • {SPECIALTY_LABELS[m.specialty as Specialty]}
                         </div>
+                        {(m as any).email && (
+                          <div className="text-[11px] text-muted-foreground truncate">{(m as any).email}</div>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
