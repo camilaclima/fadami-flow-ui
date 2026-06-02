@@ -423,10 +423,7 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {allocatedMembers.map((m) => {
-                    const memberProjects = (allocByMember[m.id] ?? [])
-                      .filter((pid) => pid !== project.id)
-                      .map((pid) => productMap[pid])
-                      .filter(Boolean);
+                    const memberProjects = otherProjectsFor(m);
                     return (
                       <div key={m.id} className="p-3 rounded-lg border border-border bg-muted/30 space-y-1.5">
                         <div className="flex items-start justify-between gap-2">
@@ -474,7 +471,7 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
               <p className="text-xs text-muted-foreground text-center py-4">Todos os colaboradores já estão alocados aqui.</p>
             )}
             {availableMembers.map((m) => {
-              const memberProjects = (allocByMember[m.id] ?? []).map((pid) => productMap[pid]).filter(Boolean);
+              const memberProjects = otherProjectsFor(m);
               return (
                 <div key={m.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border">
                   <div className="min-w-0 flex-1">
