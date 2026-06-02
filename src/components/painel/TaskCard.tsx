@@ -1,8 +1,11 @@
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Pencil, Trash2, Sparkles, User as UserIcon } from "lucide-react";
+import { CheckCircle2, Pencil, Trash2, Sparkles, User as UserIcon, Calendar, AlertTriangle, Puzzle, Megaphone, CalendarClock } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { differenceInCalendarDays, format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { CoordinatorTask, useResolveTask, useDeleteTask } from "@/hooks/useCoordinatorTasks";
 import { CobrancaPopover } from "./CobrancaPopover";
 import { RealocacaoPopover } from "./RealocacaoPopover";
@@ -19,11 +22,18 @@ function relTime(iso: string) {
   return `há ${d}d`;
 }
 
-const URGENCY: Record<string, { label: string; cls: string }> = {
-  critical: { label: "Crítico", cls: "bg-destructive text-destructive-foreground animate-pulse" },
-  high: { label: "Alto", cls: "bg-orange-500 text-white" },
-  medium: { label: "Médio", cls: "bg-yellow-500 text-black" },
-  low: { label: "Baixo", cls: "bg-muted text-foreground" },
+const URGENCY: Record<string, { label: string; cls: string; bar: string }> = {
+  critical: { label: "Crítico", cls: "bg-destructive text-destructive-foreground animate-pulse", bar: "bg-destructive" },
+  high: { label: "Alto", cls: "bg-orange-500 text-white", bar: "bg-orange-500" },
+  medium: { label: "Médio", cls: "bg-yellow-500 text-black", bar: "bg-yellow-500" },
+  low: { label: "Baixo", cls: "bg-muted text-foreground", bar: "bg-muted-foreground/40" },
+};
+
+const CATEGORY_META: Record<string, { label: string; icon: any; cls: string }> = {
+  blocker: { label: "Bloqueio", icon: AlertTriangle, cls: "bg-red-500/15 text-red-700 border-red-500/30" },
+  schedule_risk: { label: "Risco", icon: CalendarClock, cls: "bg-amber-500/15 text-amber-700 border-amber-500/30" },
+  activity: { label: "Atividade", icon: Puzzle, cls: "bg-violet-500/15 text-violet-700 border-violet-500/30" },
+  custom: { label: "Personalizada", icon: Megaphone, cls: "bg-blue-500/15 text-blue-700 border-blue-500/30" },
 };
 
 export function TaskCard({
@@ -49,33 +59,91 @@ export function TaskCard({
   };
 
   const u = URGENCY[task.urgency] ?? URGENCY.medium;
+  const cat = CATEGORY_META[task.category] ?? CATEGORY_META.custom;
+  const CatIcon = cat.icon;
   const sourceLabel = task.source === "ai" ? "Gerado pela IA" : "Manual";
   const dailyHint = task.daily_status_id ? " após a Daily" : "";
 
+  let dlTone: "danger" | "warning" | "info" | "muted" = "muted";
+  let dlLabel: string | null = null;
+  if (task.deadline_date) {
+    try {
+      const d = parseISO(task.deadline_date);
+      const days = differenceInCalendarDays(d, new Date());
+      const date = format(d, "dd MMM", { locale: ptBR });
+      if (days < 0) { dlTone = "danger"; dlLabel = `${date} · atrasada ${Math.abs(days)}d`; }
+      else if (days === 0) { dlTone = "danger"; dlLabel = `${date} · hoje`; }
+      else if (days <= 3) { dlTone = "warning"; dlLabel = `${date} · ${days}d`; }
+      else if (days <= 7) { dlTone = "info"; dlLabel = `${date} · ${days}d`; }
+      else { dlTone = "muted"; dlLabel = date; }
+    } catch { dlLabel = task.deadline_date; }
+  }
+  const dlClass = {
+    danger: "text-red-700 bg-red-500/10 border-red-500/30",
+    warning: "text-amber-700 bg-amber-500/10 border-amber-500/30",
+    info: "text-blue-700 bg-blue-500/10 border-blue-500/30",
+    muted: "text-muted-foreground bg-muted/40 border-border",
+  }[dlTone];
+
   return (
-    <Card className={`transition-all ${leaving ? "opacity-0 scale-95" : "animate-fade-in"} neu-card`}>
-      <CardContent className="p-4 space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
-              <Badge className={u.cls}>{u.label}</Badge>
-              {productName && <Badge variant="outline">{productName}</Badge>}
-              {sprintName && <Badge variant="secondary">Sprint: {sprintName}</Badge>}
-              {task.source === "ai" && (
-                <Badge variant="outline" className="gap-1"><Sparkles className="w-3 h-3" /> {sourceLabel}</Badge>
-              )}
-            </div>
-            <p className="font-semibold leading-tight">{task.title}</p>
-            {task.description && <p className="text-sm text-muted-foreground mt-1 whitespace-pre-line">{task.description}</p>}
-            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-2">
-              <span>Gerado {relTime(task.created_at)}{task.source === "ai" ? dailyHint : ""}</span>
-              {memberName && <span className="flex items-center gap-1"><UserIcon className="w-3 h-3" /> {memberName}</span>}
-              {task.deadline_date && <span>Prazo: {new Date(task.deadline_date).toLocaleDateString("pt-BR")}</span>}
-            </div>
+    <Card
+      className={cn(
+        "relative p-0 overflow-hidden transition-all neu-card group",
+        leaving ? "opacity-0 scale-95" : "animate-fade-in"
+      )}
+    >
+      <div className={cn("absolute left-0 top-0 bottom-0 w-1", u.bar)} />
+      <div className="p-4 pl-5 space-y-3">
+        {/* Top: category + urgency */}
+        <div className="flex items-center justify-between gap-2">
+          <Badge variant="outline" className={cn("text-[10px] border h-5 px-2 gap-1", cat.cls)}>
+            <CatIcon className="w-3 h-3" /> {cat.label}
+          </Badge>
+          <Badge className={cn("h-5 px-2 text-[10px]", u.cls)}>{u.label}</Badge>
+        </div>
+
+        {/* Title */}
+        <h3 className="text-base font-semibold leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+          {task.title}
+        </h3>
+
+        {/* Description */}
+        {task.description && (
+          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed whitespace-pre-line">
+            {task.description}
+          </p>
+        )}
+
+        {/* Deadline */}
+        {dlLabel && (
+          <div className={cn("inline-flex items-center gap-1.5 text-xs font-medium rounded-md border px-2 py-1", dlClass)}>
+            <Calendar className="w-3 h-3" />
+            {dlLabel}
+          </div>
+        )}
+
+        {/* Meta footer */}
+        <div className="pt-2 border-t border-border/60 space-y-1.5">
+          <div className="flex items-center gap-2 text-xs flex-wrap">
+            {productName && <span className="font-medium text-foreground truncate">{productName}</span>}
+            {sprintName && <span className="text-muted-foreground truncate">· {sprintName}</span>}
+            {task.source === "ai" && (
+              <Badge variant="outline" className="ml-auto gap-1 h-5 px-1.5 text-[10px]">
+                <Sparkles className="w-3 h-3" /> {sourceLabel}
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1 truncate">
+              <UserIcon className="w-3 h-3 shrink-0" />
+              <span className="truncate">{memberName ?? "Não atribuído"}</span>
+            </span>
+            <span className="shrink-0">Gerado {relTime(task.created_at)}{task.source === "ai" ? dailyHint : ""}</span>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 pt-1">
+        {/* Actions */}
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/60">
           {task.category === "blocker" && (
             <CobrancaPopover message={task.ai_message} title={task.title} />
           )}
@@ -86,18 +154,18 @@ export function TaskCard({
             </>
           )}
           {onEdit && (
-            <Button size="sm" variant="outline" onClick={() => onEdit(task)} className="gap-1">
+            <Button size="sm" variant="outline" onClick={() => onEdit(task)} className="gap-1 h-8">
               <Pencil className="w-3.5 h-3.5" /> Editar
             </Button>
           )}
-          <Button size="sm" variant="ghost" onClick={handleResolve} className="gap-1 ml-auto">
-            <CheckCircle2 className="w-4 h-4" /> Marcar como Resolvido
+          <Button size="sm" variant="ghost" onClick={handleResolve} className="gap-1 ml-auto h-8 text-emerald-700 hover:text-emerald-800 hover:bg-emerald-500/10">
+            <CheckCircle2 className="w-4 h-4" /> Resolver
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => del.mutate(task.id)} className="text-muted-foreground">
+          <Button size="sm" variant="ghost" onClick={() => del.mutate(task.id)} className="text-muted-foreground h-8 px-2">
             <Trash2 className="w-4 h-4" />
           </Button>
         </div>
-      </CardContent>
+      </div>
     </Card>
   );
 }
