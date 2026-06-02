@@ -227,6 +227,43 @@ export default function DailyStatusProjectDetailPage() {
   const latest = dailies[0];
   const latestInsights = latest?.ai_insights;
 
+  // Sprints deste projeto
+  const productSprints = useMemo(
+    () => sprints.filter((s) => viewProductIds.includes(s.product_id ?? "")),
+    [sprints, viewProductIds],
+  );
+
+  // Sprint atual: status 'active'/'in_progress' OU contendo a data de hoje, senão a mais recente
+  const currentSprint = useMemo(() => {
+    if (!productSprints.length) return null;
+    const today = format(new Date(), "yyyy-MM-dd");
+    const active = productSprints.find((s) => ["active", "in_progress"].includes(s.status));
+    if (active) return active;
+    const inRange = productSprints.find((s) => s.start_date <= today && today <= s.end_date);
+    if (inRange) return inRange;
+    return [...productSprints].sort((a, b) => b.start_date.localeCompare(a.start_date))[0] ?? null;
+  }, [productSprints]);
+
+  // Avanços/gargalos da sprint atual
+  const currentSprintStats = useMemo(() => {
+    if (!currentSprint) return { avancos: 0, gargalos: 0, dailies: 0 };
+    const ds = allDailies.filter((d) => d.sprint_id === currentSprint.id);
+    const avancos = ds.reduce((s, d) => s + (d.ai_insights?.avancos?.length ?? 0) + (d.ai_insights?.avancos_consolidados?.length ?? 0), 0);
+    const gargalos = ds.reduce((s, d) => s + (d.ai_insights?.recorrencias?.length ?? 0), 0);
+    return { avancos, gargalos, dailies: ds.length };
+  }, [currentSprint, allDailies]);
+
+  // Membros do projeto: usa squad vinculada quando existe
+  const projectMemberCount = ownerSquad?.member_ids.length ?? 0;
+
+  // Status do produto (somente product mode)
+  const productStatus = product?.status ?? "active";
+  const productStatusMeta: Record<string, { label: string; cls: string }> = {
+    active: { label: "Ativo", cls: "bg-emerald-500/15 text-emerald-600 border-emerald-500/30" },
+    paused: { label: "Em Pausa", cls: "bg-amber-500/15 text-amber-600 border-amber-500/30" },
+    inactive: { label: "Concluído", cls: "bg-muted text-muted-foreground border-border" },
+  };
+
   // Aggregated stats across all dailies of the project
   const exec = useMemo(() => {
     if (!dailies.length) return null;
