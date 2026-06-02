@@ -2,8 +2,10 @@ import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Link2, User, Calendar } from "lucide-react";
+import { Link2, User, Calendar, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { differenceInCalendarDays, format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { useActivities, IMPACT_LABELS, STATUS_LABELS, type Activity, type ActivityStatus } from "@/hooks/useActivities";
 import { useSprints } from "@/hooks/useSprints";
 import { useProducts } from "@/hooks/useProducts";
@@ -11,10 +13,17 @@ import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { CreateActivityModal } from "@/components/metas/CreateActivityModal";
 
 const STATUS_STYLES: Record<ActivityStatus, string> = {
-  todo: "bg-blue-500/15 text-blue-600 border-blue-500/20",
-  in_progress: "bg-amber-500/15 text-amber-600 border-amber-500/20",
-  blocked: "bg-red-500/15 text-red-600 border-red-500/20",
-  done: "bg-emerald-500/15 text-emerald-600 border-emerald-500/20",
+  todo: "bg-blue-500/15 text-blue-700 border-blue-500/30",
+  in_progress: "bg-amber-500/15 text-amber-700 border-amber-500/30",
+  blocked: "bg-red-500/15 text-red-700 border-red-500/30",
+  done: "bg-emerald-500/15 text-emerald-700 border-emerald-500/30",
+};
+
+const STATUS_BAR: Record<ActivityStatus, string> = {
+  todo: "bg-blue-500",
+  in_progress: "bg-amber-500",
+  blocked: "bg-red-500",
+  done: "bg-emerald-500",
 };
 
 interface Props {
