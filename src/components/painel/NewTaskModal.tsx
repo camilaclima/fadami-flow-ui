@@ -90,6 +90,7 @@ export function NewTaskModal({
                 <SelectContent>
                   <SelectItem value="blocker">🚨 Bloqueio</SelectItem>
                   <SelectItem value="schedule_risk">📅 Risco de cronograma</SelectItem>
+                  <SelectItem value="activity">🧩 Atividade</SelectItem>
                   <SelectItem value="custom">Personalizada</SelectItem>
                 </SelectContent>
               </Select>
