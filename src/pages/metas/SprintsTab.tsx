@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { useSprints } from "@/hooks/useSprints";
 import { useActivities } from "@/hooks/useActivities";
 import { useProducts } from "@/hooks/useProducts";
+import { useSprintProducts } from "@/hooks/useSprintProducts";
 import { SPRINT_STATUS_LABELS, type Sprint } from "@/types/sprint";
 import { CreateSprintModal } from "@/components/metas/CreateSprintModal";
 import { SprintDetailDrawer } from "@/components/metas/SprintDetailDrawer";
@@ -19,16 +20,23 @@ export function SprintsTab({ productIds, selectedProductId }: Props) {
   const { data: products = [] } = useProducts();
   const { data: sprints = [] } = useSprints();
   const { data: activities = [] } = useActivities(productIds);
+  const { data: sprintProducts = [] } = useSprintProducts();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<Sprint | null>(null);
 
   const visibleSprints = useMemo(() => {
+    const sprintToProds = new Map<string, string[]>();
+    sprintProducts.forEach((sp) => {
+      if (!sprintToProds.has(sp.sprint_id)) sprintToProds.set(sp.sprint_id, []);
+      sprintToProds.get(sp.sprint_id)!.push(sp.product_id);
+    });
+    const prodIdsFor = (s: Sprint) => sprintToProds.get(s.id) ?? (s.product_id ? [s.product_id] : []);
     let list = sprints;
-    if (productIds) list = list.filter((s) => s.product_id && productIds.includes(s.product_id));
-    if (selectedProductId) list = list.filter((s) => s.product_id === selectedProductId);
+    if (productIds) list = list.filter((s) => prodIdsFor(s).some((pid) => productIds.includes(pid)));
+    if (selectedProductId) list = list.filter((s) => prodIdsFor(s).includes(selectedProductId));
     return list;
-  }, [sprints, productIds, selectedProductId]);
+  }, [sprints, sprintProducts, productIds, selectedProductId]);
 
   const unassigned = useMemo(() => activities.filter((a) => !a.sprint_id), [activities]);
   const sprintActivities = (sid: string) => activities.filter((a) => a.sprint_id === sid);
