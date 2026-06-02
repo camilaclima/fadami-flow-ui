@@ -42,10 +42,104 @@ export const STATUS_LABELS: Record<ActivityStatus, string> = {
   done: "Concluído",
 };
 
+export type ActivitySyncTaskInput = {
+  id?: string;
+  title: string;
+  description?: string | null;
+  product_id: string | null;
+  sprint_id?: string | null;
+  responsible_member_id?: string | null;
+  deadline_date?: string | null;
+  urgency?: "critical" | "high" | "medium" | "low";
+  status?: "pending" | "resolved";
+  activity_id?: string | null;
+};
+
+const URGENCY_TO_IMPACT: Record<NonNullable<ActivitySyncTaskInput["urgency"]>, ActivityImpact> = {
+  critical: "critical",
+  high: "high",
+  medium: "medium",
+  low: "low",
+};
+
+const TASK_STATUS_TO_ACTIVITY_STATUS: Record<NonNullable<ActivitySyncTaskInput["status"]>, ActivityStatus> = {
+  pending: "todo",
+  resolved: "done",
+};
+
+export async function syncCoordinatorTaskToActivity(task: ActivitySyncTaskInput) {
+  if (!task.product_id) return null;
+
+  const basePayload: any = {
+    product_id: task.product_id,
+    task: task.title.trim(),
+    deadline_date: task.deadline_date ?? null,
+    deadline: task.deadline_date ?? "",
+    impact: URGENCY_TO_IMPACT[task.urgency ?? "medium"],
+    status: TASK_STATUS_TO_ACTIVITY_STATUS[task.status ?? "pending"],
+    sprint_id: task.sprint_id ?? null,
+    responsible_ids: task.responsible_member_id ? [task.responsible_member_id] : [],
+    responsible_id: task.responsible_member_id ?? null,
+    description: task.description ?? "",
+  };
+
+  if (task.activity_id) {
+    const { error } = await (supabase.from("project_backlog_items") as any)
+      .update(basePayload)
+      .eq("id", task.activity_id);
+    if (error) throw error;
+    return task.activity_id;
+  }
+
+  const insertPayload = {
+    ...basePayload,
+    dependency_id: null,
+    category: "",
+    likely_owner: "",
+    risk_mitigation: "",
+    approved: false,
+    sort_order: 0,
+  };
+
+  const { data, error } = await (supabase.from("project_backlog_items") as any)
+    .insert(insertPayload)
+    .select("id")
+    .single();
+  if (error) throw error;
+
+  if (task.id) {
+    const { error: linkError } = await (supabase.from("coordinator_tasks") as any)
+      .update({ activity_id: data.id })
+      .eq("id", task.id);
+    if (linkError) throw linkError;
+  }
+
+  return data.id as string;
+}
+
 export function useActivities(productIds: string[] | null) {
   return useQuery({
     queryKey: ["activities", productIds ?? "all"],
     queryFn: async () => {
+      let taskQuery = (supabase.from("coordinator_tasks") as any)
+        .select("id, title, description, product_id, sprint_id, responsible_member_id, deadline_date, urgency, status, activity_id")
+        .eq("category", "activity")
+        .is("activity_id", null);
+      if (productIds) {
+        if (productIds.length === 0) return [] as Activity[];
+        taskQuery = taskQuery.in("product_id", productIds);
+      }
+      const { data: unsyncedTasks, error: taskError } = await taskQuery;
+      if (taskError) throw taskError;
+
+      if (unsyncedTasks?.length) {
+        await Promise.all(
+          unsyncedTasks
+            .filter((task: ActivitySyncTaskInput) => !!task.product_id)
+            .map((task: ActivitySyncTaskInput) => syncCoordinatorTaskToActivity(task)),
+        );
+      }
+
       let q = (supabase.from("project_backlog_items") as any).select("*");
       if (productIds) {
         if (productIds.length === 0) return [] as Activity[];

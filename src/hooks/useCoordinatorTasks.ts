@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { syncCoordinatorTaskToActivity } from "@/hooks/useActivities";
 
 export type TaskCategory = "blocker" | "schedule_risk" | "activity" | "custom";
 export type TaskUrgency = "critical" | "high" | "medium" | "low";
@@ -101,9 +102,15 @@ export function useUpsertTask() {
       const { data: u } = await supabase.auth.getUser();
       if (input.id) {
         const { id, ...patch } = input;
-        const { error } = await (supabase.from("coordinator_tasks") as any)
-          .update({ ...patch, updated_by: u?.user?.id ?? null }).eq("id", id);
+        const { data, error } = await (supabase.from("coordinator_tasks") as any)
+          .update({ ...patch, updated_by: u?.user?.id ?? null })
+          .eq("id", id)
+          .select("*")
+          .single();
         if (error) throw error;
+        if (data?.category === "activity" && data?.product_id) {
+          await syncCoordinatorTaskToActivity(data);
+        }
         return id;
       }
       const { data, error } = await (supabase.from("coordinator_tasks") as any).insert({
@@ -118,12 +125,16 @@ export function useUpsertTask() {
         deadline_date: input.deadline_date ?? null,
         responsible_member_id: input.responsible_member_id ?? null,
         created_by: u?.user?.id ?? null,
-      }).select("id").single();
+      }).select("*").single();
       if (error) throw error;
+      if (data?.category === "activity" && data?.product_id) {
+        await syncCoordinatorTaskToActivity(data);
+      }
       return data.id as string;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["coordinator_tasks"] });
+      qc.invalidateQueries({ queryKey: ["activities"] });
       toast.success("Tarefa salva!");
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
