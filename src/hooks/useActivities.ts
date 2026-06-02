@@ -111,11 +111,57 @@ export function useUpdateActivity() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...patch }: { id: string } & Partial<Activity>) => {
+      // Fetch current values to compute diff for history
+      const { data: before } = await (supabase.from("project_backlog_items") as any)
+        .select("*").eq("id", id).maybeSingle();
       const { error } = await (supabase.from("project_backlog_items") as any).update(patch).eq("id", id);
       if (error) throw error;
+      // Build diff
+      const changes: Record<string, { old: any; new: any }> = {};
+      if (before) {
+        for (const k of Object.keys(patch)) {
+          const ov = (before as any)[k];
+          const nv = (patch as any)[k];
+          if (JSON.stringify(ov) !== JSON.stringify(nv)) changes[k] = { old: ov, new: nv };
+        }
+      }
+      if (Object.keys(changes).length > 0) {
+        const { data: u } = await supabase.auth.getUser();
+        await (supabase.from("activity_history") as any).insert({
+          activity_id: id,
+          changed_by: u?.user?.id ?? null,
+          changed_by_email: u?.user?.email ?? "",
+          changes,
+        });
+      }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["activities"] }),
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["activities"] });
+      qc.invalidateQueries({ queryKey: ["activity_history", vars.id] });
+    },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao atualizar"),
+  });
+}
+
+export interface ActivityHistoryEntry {
+  id: string;
+  activity_id: string;
+  changed_by: string | null;
+  changed_by_email: string;
+  changes: Record<string, { old: any; new: any }>;
+  created_at: string;
+}
+
+export function useActivityHistory(activityId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["activity_history", activityId],
+    enabled: !!activityId,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("activity_history") as any)
+        .select("*").eq("activity_id", activityId!).order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as ActivityHistoryEntry[];
+    },
   });
 }
 
