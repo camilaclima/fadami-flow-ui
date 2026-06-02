@@ -2,6 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart3, ClipboardList, Kanban, FolderKanban, Settings } from "lucide-react";
 import DailyStatusPage from "./DailyStatusPage";
 import TeamProjectConfigPage from "./TeamProjectConfigPage";
+import MetasCronogramasPage from "./MetasCronogramasPage";
 
 function EmptyTab({ title }: { title: string }) {
   return (
@@ -49,7 +50,7 @@ export default function ControleGestaoPage() {
           <EmptyTab title="Painel de Tarefas" />
         </TabsContent>
         <TabsContent value="projects">
-          <EmptyTab title="Metas e Cronogramas" />
+          <MetasCronogramasPage />
         </TabsContent>
         <TabsContent value="settings">
           <TeamProjectConfigPage embedded />
