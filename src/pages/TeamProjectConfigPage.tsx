@@ -9,9 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useProducts, useAddProduct, useUpdateProduct, type Product } from "@/hooks/useProducts";
 import { useClients } from "@/hooks/useClients";
-import { useAllTeamMembers, useAddTeamMember, useUpdateTeamMember } from "@/hooks/useTeamMembers";
+import { useAllTeamMembers, useAddTeamMember, useUpdateTeamMember, useTeamMembers } from "@/hooks/useTeamMembers";
 import {
   useStakeholders, useSaveStakeholder, useDeleteStakeholder,
   IMPORTANCE_LABELS, IMPORTANCE_STYLES, type Stakeholder, type StakeholderImportance,
@@ -87,14 +89,8 @@ function ProjectsSection() {
   const [clientId, setClientId] = useState<string>("__none__");
   const [status, setStatus] = useState<string>("active");
 
-  // Stakeholder form
-  const [showShForm, setShowShForm] = useState(false);
-  const [shProductId, setShProductId] = useState<string>("");
-  const [shName, setShName] = useState("");
-  const [shContact, setShContact] = useState("");
-  const [shArea, setShArea] = useState("");
-  const [shImportance, setShImportance] = useState<StakeholderImportance>("medium");
-  const [shEditing, setShEditing] = useState<Stakeholder | null>(null);
+  // Project details modal
+  const [detailProject, setDetailProject] = useState<Product | null>(null);
 
   const clientMap = useMemo(() => Object.fromEntries(clients.map((c) => [c.id, c.name])), [clients]);
 
@@ -126,36 +122,6 @@ function ProjectsSection() {
 
   const handleArchive = (p: Product) => {
     updateProduct.mutate({ id: p.id, status: p.status === "inactive" ? "active" : "inactive" });
-  };
-
-  const resetStakeholder = () => {
-    setShEditing(null); setShName(""); setShContact(""); setShArea(""); setShImportance("medium");
-  };
-
-  const handleSubmitStakeholder = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!shProductId || !shName.trim()) {
-      toast.error("Selecione um projeto e informe o nome");
-      return;
-    }
-    saveStakeholder.mutate({
-      id: shEditing?.id,
-      product_id: shProductId,
-      name: shName.trim(),
-      contact: shContact.trim(),
-      area: shArea.trim(),
-      importance: shImportance,
-      updated_by: user?.id,
-    } as any, { onSuccess: resetStakeholder });
-  };
-
-  const handleEditStakeholder = (s: Stakeholder) => {
-    setShEditing(s);
-    setShProductId(s.product_id);
-    setShName(s.name);
-    setShContact(s.contact);
-    setShArea(s.area);
-    setShImportance(s.importance);
   };
 
   const getCleanDesc = (d: string) => d.replace(/^\[Cliente:[^\]]+\]\s?/, "");
@@ -227,7 +193,10 @@ function ProjectsSection() {
             const projectStakeholders = stakeholders.filter((s) => s.product_id === p.id);
             return (
               <motion.div key={p.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-                <Card className="rounded-2xl h-full flex flex-col">
+                <Card
+                  className="rounded-2xl h-full flex flex-col cursor-pointer hover:border-primary/40 hover:shadow-md transition"
+                  onClick={() => setDetailProject(p)}
+                >
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
@@ -247,11 +216,11 @@ function ProjectsSection() {
                         <span className="font-medium text-foreground/70">{projectStakeholders.length}</span> stakeholder(s)
                       </div>
                     )}
-                    <div className="flex gap-2 mt-auto pt-2">
-                      <Button size="sm" variant="outline" className="flex-1 gap-2" onClick={() => handleEditProject(p)}>
+                    <div className="flex gap-2 mt-auto pt-2" onClick={(e) => e.stopPropagation()}>
+                      <Button size="sm" variant="outline" className="flex-1 gap-2" onClick={(e) => { e.stopPropagation(); handleEditProject(p); }}>
                         <Pencil className="w-3.5 h-3.5" /> Editar
                       </Button>
-                      <Button size="sm" variant="outline" className="flex-1 gap-2" onClick={() => handleArchive(p)}>
+                      <Button size="sm" variant="outline" className="flex-1 gap-2" onClick={(e) => { e.stopPropagation(); handleArchive(p); }}>
                         <Archive className="w-3.5 h-3.5" /> {p.status === "inactive" ? "Reativar" : "Arquivar"}
                       </Button>
                     </div>
@@ -270,60 +239,175 @@ function ProjectsSection() {
         </div>
       </div>
 
-      {/* Stakeholders toggle */}
-      {(showShForm || shEditing) ? (
-        <Card className="rounded-2xl">
-          <CardHeader>
-            <CardTitle className="text-lg">Stakeholders</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmitStakeholder} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Projeto</Label>
-                <Select value={shProductId || "__none__"} onValueChange={(v) => setShProductId(v === "__none__" ? "" : v)}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__" disabled>Selecione</SelectItem>
-                    {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Nome</Label>
-                <Input value={shName} onChange={(e) => setShName(e.target.value)} placeholder="Nome do stakeholder" />
-              </div>
-              <div className="space-y-2">
-                <Label>Contato</Label>
-                <Input value={shContact} onChange={(e) => setShContact(e.target.value)} placeholder="E-mail ou telefone" />
-              </div>
-              <div className="space-y-2">
-                <Label>Área</Label>
-                <Input value={shArea} onChange={(e) => setShArea(e.target.value)} placeholder="Ex: Infra, Produto, Negócio" />
-              </div>
-              <div className="space-y-2">
-                <Label>Importância</Label>
-                <Select value={shImportance} onValueChange={(v) => setShImportance(v as StakeholderImportance)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(IMPORTANCE_LABELS) as StakeholderImportance[]).map((k) => (
-                      <SelectItem key={k} value={k}>{IMPORTANCE_LABELS[k]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-end gap-2">
-                <Button type="button" variant="outline" onClick={() => { resetStakeholder(); setShowShForm(false); }}>Cancelar</Button>
-                <Button type="submit" className="gap-2 flex-1"><Plus className="w-4 h-4" /> {shEditing ? "Salvar" : "Adicionar"}</Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="flex justify-end">
-          <Button className="gap-2" variant="outline" onClick={() => setShowShForm(true)}><Plus className="w-4 h-4" /> Novo Stakeholder</Button>
-        </div>
-      )}
+      <ProjectDetailsModal
+        project={detailProject}
+        onClose={() => setDetailProject(null)}
+      />
     </div>
+  );
+}
+
+/* -------------------------------------- PROJECT DETAILS MODAL -------------------------------------- */
+
+function ProjectDetailsModal({ project, onClose }: { project: Product | null; onClose: () => void }) {
+  const { user } = useAuth();
+  const { data: stakeholders = [] } = useStakeholders();
+  const { data: members = [] } = useTeamMembers();
+  const saveStakeholder = useSaveStakeholder();
+  const deleteStakeholder = useDeleteStakeholder();
+  const updateMember = useUpdateTeamMember();
+
+  const [shEditing, setShEditing] = useState<Stakeholder | null>(null);
+  const [shName, setShName] = useState("");
+  const [shContact, setShContact] = useState("");
+  const [shArea, setShArea] = useState("");
+  const [shImportance, setShImportance] = useState<StakeholderImportance>("medium");
+
+  const projectStakeholders = useMemo(
+    () => stakeholders.filter((s) => s.product_id === project?.id),
+    [stakeholders, project?.id],
+  );
+
+  const reset = () => {
+    setShEditing(null); setShName(""); setShContact(""); setShArea(""); setShImportance("medium");
+  };
+
+  const handleEdit = (s: Stakeholder) => {
+    setShEditing(s); setShName(s.name); setShContact(s.contact); setShArea(s.area); setShImportance(s.importance);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!project || !shName.trim()) { toast.error("Informe o nome"); return; }
+    saveStakeholder.mutate({
+      id: shEditing?.id,
+      product_id: project.id,
+      name: shName.trim(),
+      contact: shContact.trim(),
+      area: shArea.trim(),
+      importance: shImportance,
+      updated_by: user?.id,
+    } as any, { onSuccess: reset });
+  };
+
+  const toggleMember = (memberId: string, assigned: boolean) => {
+    if (!project) return;
+    updateMember.mutate({
+      id: memberId,
+      product_id: assigned ? project.id : null,
+    } as any);
+  };
+
+  return (
+    <Dialog open={!!project} onOpenChange={(open) => { if (!open) { reset(); onClose(); } }}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{project?.name}</DialogTitle>
+          <DialogDescription>Gerencie stakeholders e colaboradores alocados neste projeto.</DialogDescription>
+        </DialogHeader>
+
+        {project && (
+          <div className="space-y-6 pt-2">
+            {/* Stakeholders */}
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">Stakeholders</h3>
+              <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-xl border border-border bg-muted/30">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Nome</Label>
+                  <Input value={shName} onChange={(e) => setShName(e.target.value)} placeholder="Nome do stakeholder" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Contato</Label>
+                  <Input value={shContact} onChange={(e) => setShContact(e.target.value)} placeholder="E-mail ou telefone" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Área</Label>
+                  <Input value={shArea} onChange={(e) => setShArea(e.target.value)} placeholder="Ex: Infra, Produto" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Importância</Label>
+                  <Select value={shImportance} onValueChange={(v) => setShImportance(v as StakeholderImportance)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(IMPORTANCE_LABELS) as StakeholderImportance[]).map((k) => (
+                        <SelectItem key={k} value={k}>{IMPORTANCE_LABELS[k]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="md:col-span-2 flex justify-end gap-2">
+                  {shEditing && <Button type="button" variant="outline" size="sm" onClick={reset}>Cancelar</Button>}
+                  <Button type="submit" size="sm" className="gap-2">
+                    <Plus className="w-4 h-4" /> {shEditing ? "Salvar" : "Adicionar"}
+                  </Button>
+                </div>
+              </form>
+
+              <div className="space-y-2">
+                {projectStakeholders.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-3">Nenhum stakeholder cadastrado.</p>
+                )}
+                {projectStakeholders.map((s) => (
+                  <div key={s.id} className="flex items-center justify-between gap-2 p-2 rounded-lg border border-border">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium truncate">{s.name}</span>
+                        <Badge variant="outline" className={IMPORTANCE_STYLES[s.importance]}>{IMPORTANCE_LABELS[s.importance]}</Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {[s.area, s.contact].filter(Boolean).join(" · ") || "—"}
+                      </div>
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={() => handleEdit(s)}><Pencil className="w-3.5 h-3.5" /></Button>
+                    <Button size="sm" variant="ghost" onClick={() => deleteStakeholder.mutate(s.id)}><Trash2 className="w-3.5 h-3.5 text-destructive" /></Button>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Team allocation */}
+            <section className="space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Colaboradores Alocados</h3>
+                <p className="text-xs text-muted-foreground">Selecione os membros do time que atuam neste projeto.</p>
+              </div>
+              <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                {members.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-3">Nenhum colaborador cadastrado.</p>
+                )}
+                {members.map((m) => {
+                  const assignedHere = m.product_id === project.id;
+                  const assignedElsewhere = !!m.product_id && m.product_id !== project.id;
+                  return (
+                    <label key={m.id} className="flex items-center gap-3 p-2 rounded-lg border border-border hover:bg-muted/40 cursor-pointer">
+                      <Checkbox
+                        checked={assignedHere}
+                        onCheckedChange={(v) => toggleMember(m.id, !!v)}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium truncate">{m.name}</span>
+                          <Badge variant="outline" className={SENIORITY_BADGE[m.seniority as Seniority]}>
+                            {SENIORITY_LABELS[m.seniority as Seniority]}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">{TEAM_ROLE_LABELS[m.role as TeamRole]}</span>
+                        </div>
+                        {assignedElsewhere && (
+                          <p className="text-[11px] text-amber-600 mt-0.5">
+                            Atualmente em outro projeto — marcar irá realocar.
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">{(m as any).allocation_percent ?? 100}%</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </section>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
