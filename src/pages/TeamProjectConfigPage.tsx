@@ -34,6 +34,43 @@ const PROJECT_STATUS_OPTIONS = [
 
 const ALLOCATION_OPTIONS = [100, 75, 50, 25];
 
+/* Hook: project allocations via team_member_products junction */
+function useTeamMemberProducts() {
+  return useQuery({
+    queryKey: ["team_member_products"],
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("team_member_products" as any) as any).select("*");
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; team_member_id: string; product_id: string }>;
+    },
+  });
+}
+
+function useAddMemberToProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ team_member_id, product_id }: { team_member_id: string; product_id: string }) => {
+      const { error } = await (supabase.from("team_member_products" as any) as any).insert({ team_member_id, product_id });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["team_member_products"] }),
+    onError: (e: any) => toast.error(e.message ?? "Erro ao alocar"),
+  });
+}
+
+function useRemoveMemberFromProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ team_member_id, product_id }: { team_member_id: string; product_id: string }) => {
+      const { error } = await (supabase.from("team_member_products" as any) as any)
+        .delete().eq("team_member_id", team_member_id).eq("product_id", product_id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["team_member_products"] }),
+    onError: (e: any) => toast.error(e.message ?? "Erro ao remover"),
+  });
+}
+
 function maskPhone(value: string): string {
   const digits = value.replace(/\D/g, "").slice(0, 11);
   if (digits.length <= 2) return digits;
