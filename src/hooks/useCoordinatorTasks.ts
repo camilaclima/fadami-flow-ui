@@ -116,6 +116,7 @@ export function useUpsertTask() {
         product_id: input.product_id ?? null,
         sprint_id: input.sprint_id ?? null,
         deadline_date: input.deadline_date ?? null,
+        responsible_member_id: input.responsible_member_id ?? null,
         created_by: u?.user?.id ?? null,
       }).select("id").single();
       if (error) throw error;
