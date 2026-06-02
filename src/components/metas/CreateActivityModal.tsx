@@ -140,6 +140,80 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
     return String(v);
   };
 
+  const productName = (id: any) => products.find((p) => p.id === id)?.name ?? "—";
+  const sprintName = (id: any) => sprints.find((s) => s.id === id)?.name ?? "—";
+  const activityName = (id: any) => activities.find((a) => a.id === id)?.task ?? "—";
+  const memberNames = (ids: any) => {
+    const arr = Array.isArray(ids) ? ids : ids ? [ids] : [];
+    if (!arr.length) return "—";
+    return arr.map((id: string) => members.find((m) => m.id === id)?.name ?? id).join(", ");
+  };
+
+  const prettyVal = (key: string, v: any) => {
+    if (v === null || v === undefined || v === "" || (Array.isArray(v) && v.length === 0)) return "—";
+    switch (key) {
+      case "product_id": return productName(v);
+      case "sprint_id": return sprintName(v);
+      case "dependency_id": return activityName(v);
+      case "responsible_ids":
+      case "responsible_id": return memberNames(v);
+      case "impact": return IMPACT_LABELS[v as ActivityImpact] ?? String(v);
+      case "status": return STATUS_LABELS[v as ActivityStatus] ?? String(v);
+      case "deadline_date":
+      case "deadline": {
+        try { return format(new Date(String(v)), "dd/MM/yyyy"); } catch { return String(v); }
+      }
+      default: return String(v);
+    }
+  };
+
+  // Reconstruct the originally-registered values by overlaying the oldest known "old"
+  // for each field on top of the current activity.
+  const originalValues = useMemo(() => {
+    if (!editing) return null as any;
+    const base: Record<string, any> = { ...editing };
+    const asc = [...history].sort((a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    const seen = new Set<string>();
+    for (const h of asc) {
+      for (const [k, v] of Object.entries(h.changes)) {
+        if (seen.has(k)) continue;
+        seen.add(k);
+        base[k] = (v as any).old;
+      }
+    }
+    return base;
+  }, [editing, history]);
+
+  const [mode, setMode] = useState<"view" | "edit">("view");
+  const [notes, setNotes] = useState("");
+  const [savingNotes, setSavingNotes] = useState(false);
+
+  useEffect(() => {
+    if (open && editing) {
+      setMode("view");
+      setNotes(editing.description ?? "");
+    }
+  }, [open, editing]);
+
+  const saveNotes = async () => {
+    if (!editing) return;
+    setSavingNotes(true);
+    try {
+      await update.mutateAsync({ id: editing.id, description: notes } as any);
+    } finally {
+      setSavingNotes(false);
+    }
+  };
+
+  const OriginalRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
+    <div className="flex items-start gap-3 py-2 border-b border-border/40 last:border-0">
+      <div className="w-32 shrink-0 text-xs uppercase tracking-wide text-muted-foreground pt-0.5">{label}</div>
+      <div className="flex-1 text-sm text-foreground">{value}</div>
+    </div>
+  );
+
   const formContent = (
     <form onSubmit={submit} className="space-y-4">
       <div>
