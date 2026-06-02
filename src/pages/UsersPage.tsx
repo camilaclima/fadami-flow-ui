@@ -4,13 +4,15 @@ import { useRoles } from "@/hooks/useRoles";
 import { useAccessGroups } from "@/hooks/useAccessGroups";
 import { useProfileProducts, useProfileGroups } from "@/hooks/useProfileRelations";
 import { useState } from "react";
-import { UserPlus, Pencil, Copy, UserX, UserCheck } from "lucide-react";
+import { UserPlus, Pencil, Copy, UserX, UserCheck, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { motion } from "framer-motion";
 import { useToggleProfileActive } from "@/hooks/useProfiles";
 import { UserFormModalSupabase } from "@/components/admin/UserFormModalSupabase";
+import { AdminChangePasswordModal } from "@/components/admin/AdminChangePasswordModal";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function UsersPage() {
   const { data: profiles = [] } = useProfiles();
@@ -24,6 +26,10 @@ export default function UsersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Profile | null>(null);
   const [cloneData, setCloneData] = useState<any | null>(null);
+  const [pwModalOpen, setPwModalOpen] = useState(false);
+  const [pwTarget, setPwTarget] = useState<Profile | null>(null);
+  const { permissions } = useAuth();
+  const isAdmin = permissions.includes("users");
 
   const handleNew = () => {
     setEditing(null);
@@ -57,6 +63,11 @@ export default function UsersPage() {
 
   const handleToggle = (u: Profile) => {
     toggleActive.mutate({ id: u.id, active: u.active });
+  };
+
+  const handleChangePassword = (u: Profile) => {
+    setPwTarget(u);
+    setPwModalOpen(true);
   };
 
   const getProductNames = (profileId: string) => {
@@ -140,6 +151,11 @@ export default function UsersPage() {
                     <Button size="sm" variant="ghost" onClick={() => handleClone(u)} title="Clonar">
                       <Copy className="w-4 h-4" />
                     </Button>
+                    {isAdmin && (
+                      <Button size="sm" variant="ghost" onClick={() => handleChangePassword(u)} title="Alterar senha">
+                        <KeyRound className="w-4 h-4" />
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="ghost"
@@ -157,6 +173,7 @@ export default function UsersPage() {
       </motion.div>
 
       <UserFormModalSupabase open={modalOpen} onOpenChange={setModalOpen} profile={editing} cloneData={cloneData} />
+      <AdminChangePasswordModal open={pwModalOpen} onOpenChange={setPwModalOpen} profile={pwTarget} />
     </div>
   );
 }
