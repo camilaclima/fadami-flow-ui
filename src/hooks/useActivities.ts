@@ -62,6 +62,11 @@ const URGENCY_TO_IMPACT: Record<NonNullable<ActivitySyncTaskInput["urgency"]>, A
   low: "low",
 };
 
+const TASK_STATUS_TO_ACTIVITY_STATUS: Record<NonNullable<ActivitySyncTaskInput["status"]>, ActivityStatus> = {
+  pending: "todo",
+  resolved: "done",
+};
+
 export async function syncCoordinatorTaskToActivity(task: ActivitySyncTaskInput) {
   if (!task.product_id) return null;
 
@@ -71,6 +76,7 @@ export async function syncCoordinatorTaskToActivity(task: ActivitySyncTaskInput)
     deadline_date: task.deadline_date ?? null,
     deadline: task.deadline_date ?? "",
     impact: URGENCY_TO_IMPACT[task.urgency ?? "medium"],
+    status: TASK_STATUS_TO_ACTIVITY_STATUS[task.status ?? "pending"],
     sprint_id: task.sprint_id ?? null,
     responsible_ids: task.responsible_member_id ? [task.responsible_member_id] : [],
     responsible_id: task.responsible_member_id ?? null,
@@ -87,7 +93,6 @@ export async function syncCoordinatorTaskToActivity(task: ActivitySyncTaskInput)
 
   const insertPayload = {
     ...basePayload,
-    status: task.status === "resolved" ? "done" : "todo",
     dependency_id: null,
     category: "",
     likely_owner: "",
