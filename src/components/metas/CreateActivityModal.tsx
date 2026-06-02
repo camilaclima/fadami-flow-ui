@@ -487,51 +487,131 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
               )}
             </TabsContent>
 
-            <TabsContent value="updates" className="mt-3">
+            <TabsContent value="updates" className="mt-3 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-card p-3">
+                <div className="text-xs text-muted-foreground">
+                  Registre observações ou puxe automaticamente as menções desta atividade nas dailies da sprint.
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" size="sm" variant="outline" className="gap-1.5 h-8" onClick={() => setShowAddNote((v) => !v)}>
+                    <Plus className="w-3.5 h-3.5" /> Atualizar informações
+                  </Button>
+                  <Button type="button" size="sm" className="gap-1.5 h-8" onClick={syncFromDaily} disabled={syncingDaily || !editing?.sprint_id}>
+                    {syncingDaily ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                    Buscar atualizações da Daily
+                  </Button>
+                </div>
+              </div>
+
+              {showAddNote && (
+                <div className="space-y-2 rounded-xl border border-primary/30 bg-primary/5 p-3">
+                  <Label className="text-xs">Nova observação</Label>
+                  <Textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    rows={3}
+                    placeholder="Escreva uma atualização livre..."
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" size="sm" variant="ghost" onClick={() => { setShowAddNote(false); setNotes(""); }}>Cancelar</Button>
+                    <Button type="button" size="sm" className="gap-1.5" onClick={async () => { await saveNotes(); setShowAddNote(false); }} disabled={savingNotes || !notes.trim()}>
+                      <Save className="w-3.5 h-3.5" /> Registrar
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {history.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-border p-8 text-center">
+                <div className="rounded-xl border border-dashed border-border p-8 text-center">
                   <History className="w-8 h-8 mx-auto mb-2 text-muted-foreground/60" />
                   <p className="text-sm text-muted-foreground">Nenhuma atualização registrada ainda.</p>
-                  <p className="text-xs text-muted-foreground/70 mt-1">Edições aparecem aqui automaticamente.</p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">Edições, observações e insights da IA aparecem aqui.</p>
                 </div>
               ) : (
                 <div className="relative pl-6 space-y-4">
                   <div className="absolute left-[9px] top-1 bottom-1 w-px bg-border" />
-                  {history.map((h) => (
-                    <div key={h.id} className="relative">
-                      <div className="absolute -left-[18px] top-1.5 w-3 h-3 rounded-full bg-primary ring-4 ring-background" />
-                      <div className="rounded-lg border border-border bg-card p-3 space-y-2 shadow-sm">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-medium text-foreground">{h.changed_by_email || "Sistema"}</span>
-                          <span className="text-muted-foreground">
-                            {format(new Date(h.created_at), "dd/MM/yyyy 'às' HH:mm")}
-                          </span>
-                        </div>
-                        <div className="space-y-1.5">
-                          {Object.entries(h.changes).map(([k, v]) => (
-                            <div key={k} className="text-xs rounded-md bg-muted/40 p-2">
-                              <div className="font-medium text-foreground mb-1">{fieldLabel(k)}</div>
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                <span className={cn(
-                                  "px-2 py-0.5 rounded border text-[11px]",
-                                  "bg-red-500/10 text-red-700 border-red-500/30 line-through decoration-red-500/60"
-                                )}>
-                                  {prettyVal(k, v.old)}
-                                </span>
-                                <ArrowRight className="w-3 h-3 text-muted-foreground" />
-                                <span className={cn(
-                                  "px-2 py-0.5 rounded border text-[11px] font-medium",
-                                  "bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
-                                )}>
-                                  {prettyVal(k, v.new)}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
+                  {history.map((h) => {
+                    const entries = Object.entries(h.changes);
+                    const isAi = entries.some(([k]) => k === "__ai_note__");
+                    const isNote = entries.some(([k]) => k === "__note__");
+                    const dotClass = isAi
+                      ? "bg-violet-500"
+                      : isNote
+                        ? "bg-amber-500"
+                        : "bg-primary";
+                    return (
+                      <div key={h.id} className="relative">
+                        <div className={cn("absolute -left-[18px] top-1.5 w-3 h-3 rounded-full ring-4 ring-background", dotClass)} />
+                        <div className={cn(
+                          "rounded-xl border bg-card p-3 space-y-2 shadow-sm",
+                          isAi && "border-violet-500/30 bg-violet-500/5",
+                          isNote && "border-amber-500/30 bg-amber-500/5"
+                        )}>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-medium text-foreground flex items-center gap-1.5">
+                              {isAi && <Sparkles className="w-3 h-3 text-violet-600" />}
+                              {isNote && <MessageSquare className="w-3 h-3 text-amber-600" />}
+                              {h.changed_by_email || "Sistema"}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {format(new Date(h.created_at), "dd/MM/yyyy 'às' HH:mm")}
+                            </span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {entries.map(([k, v]) => {
+                              if (k === "__note__") {
+                                return (
+                                  <p key={k} className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                                    {String(v.new)}
+                                  </p>
+                                );
+                              }
+                              if (k === "__ai_note__") {
+                                const typeIcon = {
+                                  avanco: <CheckCircle2 className="w-3 h-3 text-emerald-600" />,
+                                  bloqueio: <AlertTriangle className="w-3 h-3 text-red-600" />,
+                                  decisao: <GitBranch className="w-3 h-3 text-blue-600" />,
+                                  risco: <AlertTriangle className="w-3 h-3 text-amber-600" />,
+                                  mudanca: <Lightbulb className="w-3 h-3 text-violet-600" />,
+                                }[(v as any).type as string] ?? <Sparkles className="w-3 h-3 text-violet-600" />;
+                                return (
+                                  <div key={k} className="text-sm text-foreground space-y-1">
+                                    <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+                                      {typeIcon}
+                                      <span>{(v as any).type}</span>
+                                      <span>·</span>
+                                      <span>Daily {String(v.old)}</span>
+                                    </div>
+                                    <p className="leading-relaxed">{String(v.new)}</p>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div key={k} className="text-xs rounded-md bg-muted/40 p-2">
+                                  <div className="font-medium text-foreground mb-1">{fieldLabel(k)}</div>
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <span className={cn(
+                                      "px-2 py-0.5 rounded border text-[11px]",
+                                      "bg-red-500/10 text-red-700 border-red-500/30 line-through decoration-red-500/60"
+                                    )}>
+                                      {prettyVal(k, v.old)}
+                                    </span>
+                                    <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                                    <span className={cn(
+                                      "px-2 py-0.5 rounded border text-[11px] font-medium",
+                                      "bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
+                                    )}>
+                                      {prettyVal(k, v.new)}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </TabsContent>
