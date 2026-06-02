@@ -134,7 +134,11 @@ export default function TeamProjectConfigPage({ embedded = false }: { embedded?:
 
 function ProjectsSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm: (v: boolean) => void }) {
   const { user } = useAuth();
-  const { data: products = [] } = useProducts();
+  const { data: allProducts = [] } = useProducts();
+  const products = useMemo(
+    () => allProducts.filter((p: any) => p.created_by === user?.id),
+    [allProducts, user?.id],
+  );
   const { data: stakeholders = [] } = useStakeholders();
   const { data: allMembers = [] } = useAllTeamMembers();
   const { data: allocations = [] } = useTeamMemberProducts();
