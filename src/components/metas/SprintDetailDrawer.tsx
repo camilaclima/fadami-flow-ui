@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Loader2, Sparkles, Plus, Calendar, User } from "lucide-react";
+import { Loader2, Sparkles, Plus, Calendar, User, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
@@ -11,6 +11,8 @@ import { IMPACT_LABELS, STATUS_LABELS, type Activity, type ActivityStatus } from
 import type { Sprint } from "@/types/sprint";
 import { CreateActivityModal } from "./CreateActivityModal";
 import type { Product } from "@/hooks/useProducts";
+import { useDeleteSprint } from "@/hooks/useSprints";
+import { useSprintProducts } from "@/hooks/useSprintProducts";
 
 interface HealthResult {
   saude: "verde" | "amarelo" | "vermelho";
@@ -43,6 +45,8 @@ interface Props {
 
 export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, allActivities, sprints, products }: Props) {
   const { data: members = [] } = useTeamMembers();
+  const { data: sprintProducts = [] } = useSprintProducts();
+  const deleteSprint = useDeleteSprint();
   const [health, setHealth] = useState<HealthResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -65,15 +69,36 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
 
   if (!sprint) return null;
 
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle>{sprint.name}</SheetTitle>
-          <p className="text-xs text-muted-foreground">{sprint.start_date} → {sprint.end_date}</p>
-        </SheetHeader>
+  const linkedProductIds = sprintProducts.filter((sp) => sp.sprint_id === sprint.id).map((sp) => sp.product_id);
+  const sprintProductList = linkedProductIds.length
+    ? products.filter((p) => linkedProductIds.includes(p.id))
+    : products.filter((p) => p.id === sprint.product_id);
 
-        <div className="mt-6 space-y-4">
+  const handleDelete = async () => {
+    if (!confirm("Tem certeza que deseja excluir esta sprint?")) return;
+    await deleteSprint.mutateAsync(sprint.id);
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl max-h-[88vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{sprint.name}</DialogTitle>
+          <p className="text-xs text-muted-foreground">{sprint.start_date} → {sprint.end_date}</p>
+          {sprintProductList.length > 0 && (
+            <div className="flex flex-wrap gap-1 pt-2">
+              {sprintProductList.map((p) => (
+                <Badge key={p.id} variant="outline" className="text-[10px] gap-1">
+                  <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+                  {p.name}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </DialogHeader>
+
+        <div className="mt-4 space-y-4">
           <Card className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -139,6 +164,12 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
           </div>
         </div>
 
+        <div className="mt-6 pt-4 border-t border-border flex justify-end">
+          <Button variant="ghost" size="sm" onClick={handleDelete} className="text-xs text-muted-foreground hover:text-destructive gap-1">
+            <Trash2 className="w-3 h-3" /> Excluir sprint
+          </Button>
+        </div>
+
         <CreateActivityModal
           open={createOpen}
           onOpenChange={setCreateOpen}
@@ -148,7 +179,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
           defaultProductId={sprint.product_id}
           defaultSprintId={sprint.id}
         />
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
