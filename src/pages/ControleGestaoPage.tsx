@@ -22,19 +22,19 @@ export default function ControleGestaoPage() {
 
       <Tabs defaultValue="dashboard" className="w-full">
         <TabsList className="mb-6 flex-wrap h-auto">
-          <TabsTrigger value="dashboard" className="gap-2">
+          <TabsTrigger value="dashboard" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <BarChart3 className="h-4 w-4" /> Dashboard Geral
           </TabsTrigger>
-          <TabsTrigger value="dailys" className="gap-2">
+          <TabsTrigger value="dailys" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <ClipboardList className="h-4 w-4" /> Registro de Dailys
           </TabsTrigger>
-          <TabsTrigger value="tasks" className="gap-2">
+          <TabsTrigger value="tasks" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Kanban className="h-4 w-4" /> Painel de Tarefas
           </TabsTrigger>
-          <TabsTrigger value="projects" className="gap-2">
-            <FolderKanban className="h-4 w-4" /> Projetos
+          <TabsTrigger value="projects" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <FolderKanban className="h-4 w-4" /> Metas e Cronogramas
           </TabsTrigger>
-          <TabsTrigger value="settings" className="gap-2">
+          <TabsTrigger value="settings" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Settings className="h-4 w-4" /> Configurações
           </TabsTrigger>
         </TabsList>
@@ -49,7 +49,7 @@ export default function ControleGestaoPage() {
           <EmptyTab title="Painel de Tarefas" />
         </TabsContent>
         <TabsContent value="projects">
-          <EmptyTab title="Projetos" />
+          <EmptyTab title="Metas e Cronogramas" />
         </TabsContent>
         <TabsContent value="settings">
           <TeamProjectConfigPage embedded />

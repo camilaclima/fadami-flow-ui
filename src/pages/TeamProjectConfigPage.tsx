@@ -88,6 +88,10 @@ const SENIORITY_BADGE: Record<Seniority, string> = {
 };
 
 export default function TeamProjectConfigPage({ embedded = false }: { embedded?: boolean } = {}) {
+  const [tab, setTab] = useState<"projects" | "team">("projects");
+  const [openProjectModal, setOpenProjectModal] = useState(false);
+  const [openMemberModal, setOpenMemberModal] = useState(false);
+
   return (
     <div className="fade-in space-y-6">
       {!embedded && (
@@ -99,16 +103,27 @@ export default function TeamProjectConfigPage({ embedded = false }: { embedded?:
         </div>
       )}
 
-      <Tabs defaultValue="projects" className="w-full">
-        <TabsList>
-          <TabsTrigger value="projects" className="gap-2"><Package className="w-4 h-4" /> Projetos</TabsTrigger>
-          <TabsTrigger value="team" className="gap-2"><Users className="w-4 h-4" /> Time</TabsTrigger>
-        </TabsList>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="w-full">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <TabsList>
+            <TabsTrigger value="projects" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Package className="w-4 h-4" /> Projetos</TabsTrigger>
+            <TabsTrigger value="team" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Users className="w-4 h-4" /> Time</TabsTrigger>
+          </TabsList>
+          {tab === "projects" ? (
+            <Button className="gap-2" onClick={() => setOpenProjectModal(true)}>
+              <Plus className="w-4 h-4" /> Novo Projeto
+            </Button>
+          ) : (
+            <Button className="gap-2" onClick={() => setOpenMemberModal(true)}>
+              <Plus className="w-4 h-4" /> Novo Colaborador
+            </Button>
+          )}
+        </div>
         <TabsContent value="projects" className="mt-6">
-          <ProjectsSection />
+          <ProjectsSection openForm={openProjectModal} setOpenForm={setOpenProjectModal} />
         </TabsContent>
         <TabsContent value="team" className="mt-6">
-          <TeamSection />
+          <TeamSection openForm={openMemberModal} setOpenForm={setOpenMemberModal} />
         </TabsContent>
       </Tabs>
     </div>
@@ -117,11 +132,12 @@ export default function TeamProjectConfigPage({ embedded = false }: { embedded?:
 
 /* -------------------------------------- PROJECTS -------------------------------------- */
 
-function ProjectsSection() {
+function ProjectsSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm: (v: boolean) => void }) {
   const { user } = useAuth();
   const { data: products = [] } = useProducts();
-  const { data: clients = [] } = useClients();
   const { data: stakeholders = [] } = useStakeholders();
+  const { data: allMembers = [] } = useAllTeamMembers();
+  const { data: allocations = [] } = useTeamMemberProducts();
   const addProduct = useAddProduct();
   const updateProduct = useUpdateProduct();
   const saveStakeholder = useSaveStakeholder();
@@ -129,41 +145,41 @@ function ProjectsSection() {
   const qc = useQueryClient();
 
   const [editing, setEditing] = useState<Product | null>(null);
-  const [showProjectForm, setShowProjectForm] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [clientId, setClientId] = useState<string>("__none__");
-  const [status, setStatus] = useState<string>("active");
 
   // Project details modal
   const [detailProject, setDetailProject] = useState<Product | null>(null);
 
-  const clientMap = useMemo(() => Object.fromEntries(clients.map((c) => [c.id, c.name])), [clients]);
+  const allocationCount = useMemo(() => {
+    const map: Record<string, number> = {};
+    allocations.forEach((a) => { map[a.product_id] = (map[a.product_id] ?? 0) + 1; });
+    return map;
+  }, [allocations]);
 
   const resetProject = () => {
-    setEditing(null); setName(""); setDescription(""); setClientId("__none__"); setStatus("active");
+    setEditing(null); setName(""); setDescription("");
   };
+
+  const closeProjectModal = () => { resetProject(); setOpenForm(false); };
 
   const handleSubmitProject = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    const desc = clientId !== "__none__"
-      ? `[Cliente:${clientId}] ${description}`
-      : description;
     if (editing) {
-      updateProduct.mutate({ id: editing.id, name: name.trim(), description: desc, status });
+      updateProduct.mutate({ id: editing.id, name: name.trim(), description });
     } else {
-      addProduct.mutate({ name: name.trim(), description: desc, color: "hsl(243 75% 59%)", status });
+      addProduct.mutate({ name: name.trim(), description, color: "hsl(243 75% 59%)", status: "active" });
     }
-    resetProject();
+    closeProjectModal();
   };
 
   const handleEditProject = (p: Product) => {
     setEditing(p);
     setName(p.name);
-    const m = p.description.match(/^\[Cliente:([^\]]+)\]\s?(.*)$/);
-    if (m) { setClientId(m[1]); setDescription(m[2]); } else { setClientId("__none__"); setDescription(p.description); }
-    setStatus(p.status);
+    const m = p.description.match(/^\[Cliente:[^\]]+\]\s?(.*)$/);
+    setDescription(m ? m[1] : p.description);
+    setOpenForm(true);
   };
 
   const handleArchive = (p: Product) => {
@@ -171,62 +187,32 @@ function ProjectsSection() {
   };
 
   const getCleanDesc = (d: string) => d.replace(/^\[Cliente:[^\]]+\]\s?/, "");
-  const getProjectClient = (d: string) => {
-    const m = d.match(/^\[Cliente:([^\]]+)\]/);
-    return m ? clientMap[m[1]] : null;
-  };
 
   return (
     <div className="space-y-6">
-      {/* Project form toggle */}
-      {(showProjectForm || editing) ? (
-        <Card className="rounded-2xl">
-          <CardHeader>
-            <CardTitle className="text-lg">{editing ? "Editar Projeto" : "Novo Projeto"}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmitProject} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Nome do Projeto</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Portal do Cliente" required />
-              </div>
-              <div className="space-y-2">
-                <Label>Cliente / Área</Label>
-                <Select value={clientId} onValueChange={setClientId}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Nenhum</SelectItem>
-                    {clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label>Descrição Breve</Label>
-                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Resumo do projeto" />
-              </div>
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PROJECT_STATUS_OPTIONS.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="md:col-span-2 flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => { resetProject(); setShowProjectForm(false); }}>Cancelar</Button>
-                <Button type="submit" className="gap-2"><Plus className="w-4 h-4" /> {editing ? "Salvar" : "Cadastrar Projeto"}</Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="flex justify-end">
-          <Button className="gap-2" onClick={() => setShowProjectForm(true)}><Plus className="w-4 h-4" /> Novo Projeto</Button>
-        </div>
-      )}
+      {/* Project form modal */}
+      <Dialog open={openForm} onOpenChange={(o) => { if (!o) closeProjectModal(); else setOpenForm(true); }}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Editar Projeto" : "Novo Projeto"}</DialogTitle>
+            <DialogDescription>Informe os dados do projeto.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmitProject} className="grid grid-cols-1 gap-4">
+            <div className="space-y-2">
+              <Label>Nome do Projeto</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Portal do Cliente" required autoFocus />
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição Breve</Label>
+              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Resumo do projeto" />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={closeProjectModal}>Cancelar</Button>
+              <Button type="submit" className="gap-2"><Plus className="w-4 h-4" /> {editing ? "Salvar" : "Cadastrar Projeto"}</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Project cards */}
       <div>
@@ -234,9 +220,9 @@ function ProjectsSection() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {products.map((p) => {
             const statusCfg = PROJECT_STATUS_OPTIONS.find((s) => s.value === p.status) ?? PROJECT_STATUS_OPTIONS[0];
-            const client = getProjectClient(p.description);
             const desc = getCleanDesc(p.description);
             const projectStakeholders = stakeholders.filter((s) => s.product_id === p.id);
+            const memberCount = allocationCount[p.id] ?? 0;
             return (
               <motion.div key={p.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
                 <Card
@@ -255,13 +241,15 @@ function ProjectsSection() {
                     </div>
                   </CardHeader>
                   <CardContent className="flex-1 flex flex-col gap-3">
-                    {client && <div className="text-xs text-muted-foreground"><span className="font-medium text-foreground/70">Cliente:</span> {client}</div>}
                     <p className="text-sm text-muted-foreground line-clamp-3 min-h-[40px]">{desc || "Sem descrição."}</p>
-                    {projectStakeholders.length > 0 && (
-                      <div className="text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground/70">{projectStakeholders.length}</span> stakeholder(s)
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className="gap-1">
+                        <Users className="w-3 h-3" /> {memberCount} colaborador(es)
+                      </Badge>
+                      <Badge variant="outline" className="gap-1">
+                        <UserCircle2 className="w-3 h-3" /> {projectStakeholders.length} stakeholder(s)
+                      </Badge>
+                    </div>
                     <div className="flex gap-2 mt-auto pt-2" onClick={(e) => e.stopPropagation()}>
                       <Button size="sm" variant="outline" className="flex-1 gap-2" onClick={(e) => { e.stopPropagation(); handleEditProject(p); }}>
                         <Pencil className="w-3.5 h-3.5" /> Editar
@@ -383,42 +371,46 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
             <section className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-foreground">Stakeholders</h3>
-                {!showShForm && (
-                  <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowShForm(true)}>
-                    <Plus className="w-4 h-4" /> Adicionar Stakeholder
-                  </Button>
-                )}
+                <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowShForm(true)}>
+                  <Plus className="w-4 h-4" /> Adicionar Stakeholder
+                </Button>
               </div>
-              {showShForm && (
-                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-xl border border-border bg-muted/30">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Nome</Label>
-                    <Input value={shName} onChange={(e) => setShName(e.target.value)} placeholder="Nome do stakeholder" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Área</Label>
-                    <Input value={shArea} onChange={(e) => setShArea(e.target.value)} placeholder="Ex: Infra, Produto" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">E-mail</Label>
-                    <Input type="email" value={shEmail} onChange={(e) => setShEmail(e.target.value)} placeholder="email@empresa.com" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Telefone</Label>
-                    <Input value={shPhone} onChange={(e) => setShPhone(maskPhone(e.target.value))} placeholder="(99) 99999-9999" />
-                  </div>
-                  <div className="space-y-1.5 md:col-span-2">
-                    <Label className="text-xs">Concessão</Label>
-                    <Input value={shConcession} onChange={(e) => setShConcession(e.target.value)} placeholder="Concessão / vínculo" />
-                  </div>
-                  <div className="md:col-span-2 flex justify-end gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={reset}>Cancelar</Button>
-                    <Button type="submit" size="sm" className="gap-2">
-                      <Plus className="w-4 h-4" /> {shEditing ? "Salvar" : "Adicionar"}
-                    </Button>
-                  </div>
-                </form>
-              )}
+              <Dialog open={showShForm} onOpenChange={(o) => { if (!o) reset(); else setShowShForm(true); }}>
+                <DialogContent className="max-w-xl">
+                  <DialogHeader>
+                    <DialogTitle>{shEditing ? "Editar Stakeholder" : "Adicionar Stakeholder"}</DialogTitle>
+                    <DialogDescription>Cadastre os dados de contato do stakeholder.</DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Nome</Label>
+                      <Input value={shName} onChange={(e) => setShName(e.target.value)} placeholder="Nome do stakeholder" autoFocus />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Área</Label>
+                      <Input value={shArea} onChange={(e) => setShArea(e.target.value)} placeholder="Ex: Infra, Produto" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">E-mail</Label>
+                      <Input type="email" value={shEmail} onChange={(e) => setShEmail(e.target.value)} placeholder="email@empresa.com" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Telefone</Label>
+                      <Input value={shPhone} onChange={(e) => setShPhone(maskPhone(e.target.value))} placeholder="(99) 99999-9999" />
+                    </div>
+                    <div className="space-y-1.5 md:col-span-2">
+                      <Label className="text-xs">Concessão</Label>
+                      <Input value={shConcession} onChange={(e) => setShConcession(e.target.value)} placeholder="Concessão / vínculo" />
+                    </div>
+                    <div className="md:col-span-2 flex justify-end gap-2 pt-2">
+                      <Button type="button" variant="outline" size="sm" onClick={reset}>Cancelar</Button>
+                      <Button type="submit" size="sm" className="gap-2">
+                        <Plus className="w-4 h-4" /> {shEditing ? "Salvar" : "Adicionar"}
+                      </Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
 
               <div className="space-y-2">
                 {projectStakeholders.length === 0 && (
@@ -550,7 +542,7 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
 
 /* -------------------------------------- TEAM -------------------------------------- */
 
-function TeamSection() {
+function TeamSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm: (v: boolean) => void }) {
   const { user } = useAuth();
   const { data: members = [] } = useAllTeamMembers();
   const { data: products = [] } = useProducts();
@@ -559,29 +551,27 @@ function TeamSection() {
   const qc = useQueryClient();
 
   const [editing, setEditing] = useState<TeamMember | null>(null);
-  const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
-  const [role, setRole] = useState<TeamRole>("dev");
-  const [seniority, setSeniority] = useState<Seniority>("pleno");
-  const [specialty, setSpecialty] = useState<Specialty>("fullstack");
-  const [allocation, setAllocation] = useState<number>(100);
+  const [role, setRole] = useState<string>("");
+  const [seniority, setSeniority] = useState<string>("");
+  const [specialty, setSpecialty] = useState<string>("");
   const [productId, setProductId] = useState<string>("__none__");
 
   const productMap = useMemo(() => Object.fromEntries(products.map((p) => [p.id, p.name])), [products]);
 
   const reset = () => {
-    setEditing(null); setShowForm(false); setName(""); setRole("dev"); setSeniority("pleno");
-    setSpecialty("fullstack"); setAllocation(100); setProductId("__none__");
+    setEditing(null); setOpenForm(false); setName(""); setRole(""); setSeniority("");
+    setSpecialty(""); setProductId("__none__");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    const dailyHours = +(8 * (allocation / 100)).toFixed(2);
+    if (!role || !seniority || !specialty) { toast.error("Preencha cargo, senioridade e especialidade"); return; }
     const payload = {
       name: name.trim(), role, seniority, specialty,
-      daily_capacity_hours: dailyHours,
-      allocation_percent: allocation,
+      daily_capacity_hours: 8,
+      allocation_percent: 100,
       product_id: productId === "__none__" ? null : productId,
       coordinator_id: user?.id ?? "",
     } as any;
@@ -596,11 +586,11 @@ function TeamSection() {
   const handleEdit = (m: TeamMember) => {
     setEditing(m);
     setName(m.name);
-    setRole(m.role as TeamRole);
-    setSeniority(m.seniority as Seniority);
-    setSpecialty(m.specialty as Specialty);
-    setAllocation(((m as any).allocation_percent as number) ?? Math.round((m.daily_capacity_hours / 8) * 100));
+    setRole(m.role);
+    setSeniority(m.seniority);
+    setSpecialty(m.specialty);
     setProductId(m.product_id ?? "__none__");
+    setOpenForm(true);
   };
 
   const handleDelete = async (m: TeamMember) => {
@@ -614,67 +604,62 @@ function TeamSection() {
 
   return (
     <div className="space-y-6">
-      {/* Team member form toggle */}
-      {(showForm || editing) ? (
-        <Card className="rounded-2xl">
-          <CardHeader>
-            <CardTitle className="text-lg">{editing ? "Editar Colaborador" : "Novo Colaborador"}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="space-y-2 lg:col-span-2">
-                <Label>Nome Completo</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do colaborador" required />
-              </div>
-              <div className="space-y-2">
-                <Label>Cargo / Função</Label>
-                <Select value={role} onValueChange={(v) => setRole(v as TeamRole)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(TEAM_ROLE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Senioridade</Label>
-                <Select value={seniority} onValueChange={(v) => setSeniority(v as Seniority)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(SENIORITY_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Especialidade</Label>
-                <Select value={specialty} onValueChange={(v) => setSpecialty(v as Specialty)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(SPECIALTY_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Projeto Principal</Label>
-                <Select value={productId} onValueChange={setProductId}>
-                  <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Nenhum</SelectItem>
-                    {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="md:col-span-2 lg:col-span-3 flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={reset}>Cancelar</Button>
-                <Button type="submit" className="gap-2"><Plus className="w-4 h-4" /> {editing ? "Salvar" : "Adicionar Colaborador"}</Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="flex justify-end">
-          <Button className="gap-2" onClick={() => setShowForm(true)}><Plus className="w-4 h-4" /> Novo Colaborador</Button>
-        </div>
-      )}
+      {/* Team member modal */}
+      <Dialog open={openForm} onOpenChange={(o) => { if (!o) reset(); else setOpenForm(true); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Editar Colaborador" : "Novo Colaborador"}</DialogTitle>
+            <DialogDescription>Preencha as informações do colaborador.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2 md:col-span-2">
+              <Label>Nome Completo</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do colaborador" required autoFocus />
+            </div>
+            <div className="space-y-2">
+              <Label>Cargo / Função</Label>
+              <Select value={role} onValueChange={setRole}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(TEAM_ROLE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Senioridade</Label>
+              <Select value={seniority} onValueChange={setSeniority}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(SENIORITY_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Especialidade</Label>
+              <Select value={specialty} onValueChange={setSpecialty}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(SPECIALTY_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Projeto Principal</Label>
+              <Select value={productId} onValueChange={setProductId}>
+                <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Nenhum</SelectItem>
+                  {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="md:col-span-2 flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={reset}>Cancelar</Button>
+              <Button type="submit" className="gap-2"><Plus className="w-4 h-4" /> {editing ? "Salvar" : "Adicionar Colaborador"}</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <div>
         <h2 className="text-sm font-semibold text-foreground/80 mb-3">Membros do Time</h2>
