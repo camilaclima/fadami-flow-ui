@@ -113,6 +113,22 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
         responsible_ids: responsibleIds,
         responsible_id: responsibleIds[0] ?? null,
       } as any);
+      // Salvar observação livre junto, se preenchida
+      if (notes.trim()) {
+        try {
+          const { data: u } = await supabase.auth.getUser();
+          await (supabase.from("activity_history") as any).insert({
+            activity_id: editing.id,
+            changed_by: u?.user?.id ?? null,
+            changed_by_email: u?.user?.email ?? "",
+            changes: { __note__: { old: "", new: notes.trim() } },
+          });
+          qc.invalidateQueries({ queryKey: ["activity_history", editing.id] });
+          setNotes("");
+        } catch (err) {
+          console.error("note save error", err);
+        }
+      }
     } else {
       const payload: NewActivityInput = {
         task: task.trim(),
