@@ -88,12 +88,12 @@ export function TaskCard({
   return (
     <Card
       className={cn(
-        "relative p-0 overflow-hidden transition-all neu-card group",
+        "relative p-0 overflow-hidden transition-all neu-card group h-full flex flex-col",
         leaving ? "opacity-0 scale-95" : "animate-fade-in"
       )}
     >
       <div className={cn("absolute left-0 top-0 bottom-0 w-1", u.bar)} />
-      <div className="p-4 pl-5 space-y-3">
+      <div className="p-4 pl-5 flex flex-col flex-1 gap-3">
         {/* Top: category + urgency */}
         <div className="flex items-center justify-between gap-2">
           <Badge variant="outline" className={cn("text-[10px] border h-5 px-2 gap-1", cat.cls)}>
@@ -115,7 +115,7 @@ export function TaskCard({
         )}
 
         {/* Chips: deadline + project + sprint + assignee — all unified visual treatment */}
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5 mt-auto">
           {dlLabel && (
             <span className={cn("inline-flex items-center gap-1.5 text-xs font-medium rounded-md border px-2 py-1", dlClass)}>
               <Calendar className="w-3 h-3" /> {dlLabel}
