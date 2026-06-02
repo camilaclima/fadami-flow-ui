@@ -231,6 +231,7 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
   const { user } = useAuth();
   const { data: stakeholders = [] } = useStakeholders();
   const { data: members = [] } = useTeamMembers();
+  const { data: allMembersAll = [] } = useAllTeamMembers();
   const { data: products = [] } = useProducts();
   const { data: allocations = [] } = useTeamMemberProducts();
   const saveStakeholder = useSaveStakeholder();
@@ -248,6 +249,11 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
   const [showMemberPicker, setShowMemberPicker] = useState(false);
 
   const productMap = useMemo(() => Object.fromEntries(products.map((p) => [p.id, p.name])), [products]);
+  // Squad do usuário logado = membros que ele cadastrou
+  const squadMembers = useMemo(
+    () => members.filter((m) => m.coordinator_id === user?.id),
+    [members, user?.id],
+  );
   const allocByMember = useMemo(() => {
     const map: Record<string, string[]> = {};
     allocations.forEach((a) => {
@@ -256,13 +262,36 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
     return map;
   }, [allocations]);
 
+  // Mapa de projetos por e-mail (cross-squad): identifica a mesma pessoa entre coordenadores diferentes
+  const projectsByEmail = useMemo(() => {
+    const map: Record<string, Set<string>> = {};
+    allMembersAll.forEach((m: any) => {
+      const key = (m.email ?? "").trim().toLowerCase();
+      if (!key) return;
+      (allocByMember[m.id] ?? []).forEach((pid) => {
+        (map[key] ??= new Set<string>()).add(pid);
+      });
+    });
+    return map;
+  }, [allMembersAll, allocByMember]);
+
+  const otherProjectsFor = (m: any) => {
+    const key = (m.email ?? "").trim().toLowerCase();
+    const set = key ? projectsByEmail[key] : null;
+    if (!set) return [] as string[];
+    return Array.from(set)
+      .filter((pid) => pid !== project?.id)
+      .map((pid) => productMap[pid])
+      .filter(Boolean) as string[];
+  };
+
   const allocatedMembers = useMemo(
-    () => members.filter((m) => project && allocByMember[m.id]?.includes(project.id)),
-    [members, allocByMember, project],
+    () => squadMembers.filter((m) => project && allocByMember[m.id]?.includes(project.id)),
+    [squadMembers, allocByMember, project],
   );
   const availableMembers = useMemo(
-    () => members.filter((m) => !project || !allocByMember[m.id]?.includes(project.id)),
-    [members, allocByMember, project],
+    () => squadMembers.filter((m) => !project || !allocByMember[m.id]?.includes(project.id)),
+    [squadMembers, allocByMember, project],
   );
 
   const projectStakeholders = useMemo(
