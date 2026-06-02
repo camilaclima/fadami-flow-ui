@@ -326,6 +326,81 @@ export type Database = {
         }
         Relationships: []
       }
+      coordinator_tasks: {
+        Row: {
+          activity_id: string | null
+          ai_message: string
+          category: string
+          context_payload: Json | null
+          created_at: string
+          created_by: string | null
+          daily_status_id: string | null
+          deadline_date: string | null
+          dedup_hash: string | null
+          description: string
+          id: string
+          product_id: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          responsible_member_id: string | null
+          source: string
+          sprint_id: string | null
+          status: string
+          title: string
+          updated_at: string
+          updated_by: string | null
+          urgency: string
+        }
+        Insert: {
+          activity_id?: string | null
+          ai_message?: string
+          category?: string
+          context_payload?: Json | null
+          created_at?: string
+          created_by?: string | null
+          daily_status_id?: string | null
+          deadline_date?: string | null
+          dedup_hash?: string | null
+          description?: string
+          id?: string
+          product_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          responsible_member_id?: string | null
+          source?: string
+          sprint_id?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+          urgency?: string
+        }
+        Update: {
+          activity_id?: string | null
+          ai_message?: string
+          category?: string
+          context_payload?: Json | null
+          created_at?: string
+          created_by?: string | null
+          daily_status_id?: string | null
+          deadline_date?: string | null
+          dedup_hash?: string | null
+          description?: string
+          id?: string
+          product_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          responsible_member_id?: string | null
+          source?: string
+          sprint_id?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+          urgency?: string
+        }
+        Relationships: []
+      }
       daily_status: {
         Row: {
           ai_insights: Json | null
