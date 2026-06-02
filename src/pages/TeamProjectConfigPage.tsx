@@ -352,7 +352,7 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Telefone</Label>
-                    <Input value={shPhone} onChange={(e) => setShPhone(e.target.value)} placeholder="(99) 99999-9999" />
+                    <Input value={shPhone} onChange={(e) => setShPhone(maskPhone(e.target.value))} placeholder="(99) 99999-9999" />
                   </div>
                   <div className="space-y-1.5 md:col-span-2">
                     <Label className="text-xs">Concessão</Label>
