@@ -3,6 +3,7 @@ import { BarChart3, ClipboardList, Kanban, FolderKanban, Settings } from "lucide
 import DailyStatusPage from "./DailyStatusPage";
 import TeamProjectConfigPage from "./TeamProjectConfigPage";
 import MetasCronogramasPage from "./MetasCronogramasPage";
+import PainelTarefasPage from "./PainelTarefasPage";
 
 function EmptyTab({ title }: { title: string }) {
   return (
@@ -47,7 +48,7 @@ export default function ControleGestaoPage() {
           <DailyStatusPage embedded />
         </TabsContent>
         <TabsContent value="tasks">
-          <EmptyTab title="Painel de Tarefas" />
+          <PainelTarefasPage />
         </TabsContent>
         <TabsContent value="projects">
           <MetasCronogramasPage />
