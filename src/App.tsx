@@ -6,6 +6,9 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
+import ChangePasswordPage from "./pages/ChangePasswordPage";
 import DashboardPage from "./pages/DashboardPage";
 import HomeRedirect from "./pages/HomeRedirect";
 import BacklogsPage from "./pages/BacklogsPage";
@@ -32,10 +35,13 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route element={<ProtectedRoute />}>
               <Route element={<AppLayout />}>
                 <Route path="/" element={<HomeRedirect />} />
                 <Route path="/cockpit" element={<DashboardPage />} />
+                <Route path="/change-password" element={<ChangePasswordPage />} />
                 <Route path="/backlogs" element={<BacklogsPage />} />
                 <Route path="/team" element={<TeamMembersPage />} />
                 <Route path="/sprints" element={<SprintsPage />} />
