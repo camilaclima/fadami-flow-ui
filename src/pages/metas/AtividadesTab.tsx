@@ -177,15 +177,11 @@ export function AtividadesTab({ productIds, createOpen, onCreateOpenChange }: Pr
           <TabsTrigger value="linked">Vinculadas à sprint ({linked.length})</TabsTrigger>
           <TabsTrigger value="unlinked">Sem sprint ({unlinked.length})</TabsTrigger>
         </TabsList>
-        <TabsContent value="linked" className="mt-3 space-y-2">
-          {linked.length ? linked.map(renderActivity) : (
-            <Card className="p-8 text-center text-sm text-muted-foreground">Nenhuma atividade vinculada a sprint.</Card>
-          )}
+        <TabsContent value="linked" className="mt-3">
+          {renderGrid(linked, "Nenhuma atividade vinculada a sprint.")}
         </TabsContent>
-        <TabsContent value="unlinked" className="mt-3 space-y-2">
-          {unlinked.length ? unlinked.map(renderActivity) : (
-            <Card className="p-8 text-center text-sm text-muted-foreground">Todas as atividades estão vinculadas a sprints.</Card>
-          )}
+        <TabsContent value="unlinked" className="mt-3">
+          {renderGrid(unlinked, "Todas as atividades estão vinculadas a sprints.")}
         </TabsContent>
       </Tabs>
 
