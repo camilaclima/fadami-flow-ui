@@ -8,6 +8,7 @@ import { useActivities, STATUS_LABELS, type Activity, type ActivityStatus } from
 import { useSprints } from "@/hooks/useSprints";
 import { useProducts } from "@/hooks/useProducts";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
+import { useSprintProducts } from "@/hooks/useSprintProducts";
 import { CreateActivityModal } from "@/components/metas/CreateActivityModal";
 
 interface Props {
@@ -39,6 +40,7 @@ export function CronogramaTab({ productIds }: Props) {
   const { data: sprints = [] } = useSprints();
   const { data: activities = [] } = useActivities(productIds);
   const { data: members = [] } = useTeamMembers();
+  const { data: sprintProducts = [] } = useSprintProducts();
   const [editing, setEditing] = useState<Activity | null>(null);
 
   const today = new Date().toISOString().slice(0, 10);
@@ -97,8 +99,16 @@ export function CronogramaTab({ productIds }: Props) {
   return (
     <div className="space-y-4">
       {visibleProducts.map((prod) => {
-        const prodSprints = sprints.filter((s) => s.product_id === prod.id);
         const prodActivities = activities.filter((a) => a.product_id === prod.id);
+        const linkedSprintIds = new Set(
+          sprintProducts.filter((sp) => sp.product_id === prod.id).map((sp) => sp.sprint_id),
+        );
+        // Include sprints linked directly via product_id OR via the sprint_products join,
+        // OR any sprint actually referenced by an activity of this product.
+        prodActivities.forEach((a) => a.sprint_id && linkedSprintIds.add(a.sprint_id));
+        const prodSprints = sprints.filter(
+          (s) => s.product_id === prod.id || linkedSprintIds.has(s.id),
+        );
         const total = prodActivities.length;
         const done = prodActivities.filter((a) => a.status === "done").length;
         const overdue = prodActivities.filter((a) => a.deadline_date && a.deadline_date < today && a.status !== "done").length;
