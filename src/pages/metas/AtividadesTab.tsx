@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Link2, User, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useActivities, IMPACT_LABELS, STATUS_LABELS, type Activity, type ActivityStatus } from "@/hooks/useActivities";
@@ -19,30 +20,31 @@ const STATUS_STYLES: Record<ActivityStatus, string> = {
 
 interface Props {
   productIds: string[] | null;
-  selectedProductId: string | null;
 }
 
-export function AtividadesTab({ productIds, selectedProductId }: Props) {
+export function AtividadesTab({ productIds }: Props) {
   const { data: products = [] } = useProducts();
   const { data: sprints = [] } = useSprints();
   const { data: members = [] } = useTeamMembers();
   const { data: activities = [] } = useActivities(productIds);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Activity | null>(null);
 
   const visibleProducts = useMemo(
     () => (productIds ? products.filter((p) => productIds.includes(p.id)) : products),
     [products, productIds]
   );
 
-  const filtered = useMemo(() => {
-    let list = activities;
-    if (selectedProductId) list = list.filter((a) => a.product_id === selectedProductId);
-    return [...list].sort((a, b) => {
+  const sorted = useMemo(
+    () => [...activities].sort((a, b) => {
       const da = a.deadline_date ?? "9999-12-31";
       const db = b.deadline_date ?? "9999-12-31";
       return da.localeCompare(db);
-    });
-  }, [activities, selectedProductId]);
+    }),
+    [activities]
+  );
+  const linked = sorted.filter((a) => !!a.sprint_id);
+  const unlinked = sorted.filter((a) => !a.sprint_id);
 
   const sprintName = (id: string | null) => (id ? sprints.find((s) => s.id === id)?.name ?? "—" : "—");
   const productName = (id: string) => products.find((p) => p.id === id)?.name ?? "—";
@@ -54,7 +56,7 @@ export function AtividadesTab({ productIds, selectedProductId }: Props) {
   };
 
   const renderActivity = (a: Activity) => (
-    <Card key={a.id} className="p-3">
+    <Card key={a.id} className="p-3 cursor-pointer hover:border-primary/40 transition-colors" onClick={() => setEditing(a)}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -93,16 +95,27 @@ export function AtividadesTab({ productIds, selectedProductId }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button onClick={() => setOpen(true)} className="gap-2">
+        <Button onClick={() => { setEditing(null); setOpen(true); }} className="gap-2">
           <Plus className="w-4 h-4" /> Criar Atividade
         </Button>
       </div>
 
-      <div className="space-y-2">
-        {filtered.length ? filtered.map(renderActivity) : (
-          <Card className="p-8 text-center text-sm text-muted-foreground">Nenhuma atividade cadastrada.</Card>
-        )}
-      </div>
+      <Tabs defaultValue="linked" className="w-full">
+        <TabsList>
+          <TabsTrigger value="linked">Vinculadas à sprint ({linked.length})</TabsTrigger>
+          <TabsTrigger value="unlinked">Sem sprint ({unlinked.length})</TabsTrigger>
+        </TabsList>
+        <TabsContent value="linked" className="mt-3 space-y-2">
+          {linked.length ? linked.map(renderActivity) : (
+            <Card className="p-8 text-center text-sm text-muted-foreground">Nenhuma atividade vinculada a sprint.</Card>
+          )}
+        </TabsContent>
+        <TabsContent value="unlinked" className="mt-3 space-y-2">
+          {unlinked.length ? unlinked.map(renderActivity) : (
+            <Card className="p-8 text-center text-sm text-muted-foreground">Todas as atividades estão vinculadas a sprints.</Card>
+          )}
+        </TabsContent>
+      </Tabs>
 
       <CreateActivityModal
         open={open}
@@ -110,7 +123,14 @@ export function AtividadesTab({ productIds, selectedProductId }: Props) {
         products={visibleProducts}
         sprints={sprints}
         activities={activities}
-        defaultProductId={selectedProductId}
+      />
+      <CreateActivityModal
+        open={!!editing}
+        onOpenChange={(o) => !o && setEditing(null)}
+        products={visibleProducts}
+        sprints={sprints}
+        activities={activities}
+        editing={editing}
       />
     </div>
   );

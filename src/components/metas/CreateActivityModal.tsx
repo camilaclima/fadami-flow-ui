@@ -8,11 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import type { Activity, ActivityImpact, NewActivityInput } from "@/hooks/useActivities";
-import { IMPACT_LABELS, useAddActivity } from "@/hooks/useActivities";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import type { Activity, ActivityImpact, ActivityStatus, NewActivityInput } from "@/hooks/useActivities";
+import { IMPACT_LABELS, STATUS_LABELS, useAddActivity, useUpdateActivity, useActivityHistory } from "@/hooks/useActivities";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import type { Product } from "@/hooks/useProducts";
 import type { Sprint } from "@/types/sprint";
+import { format } from "date-fns";
 
 interface Props {
   open: boolean;
@@ -22,37 +24,57 @@ interface Props {
   activities: Activity[];
   defaultProductId?: string | null;
   defaultSprintId?: string | null;
+  editing?: Activity | null;
   onCreated?: (a: Activity) => void;
 }
 
-export function CreateActivityModal({ open, onOpenChange, products, sprints, activities, defaultProductId, defaultSprintId, onCreated }: Props) {
+export function CreateActivityModal({ open, onOpenChange, products, sprints, activities, defaultProductId, defaultSprintId, editing, onCreated }: Props) {
   const add = useAddActivity();
+  const update = useUpdateActivity();
   const { data: members = [] } = useTeamMembers();
+  const isEdit = !!editing;
+  const { data: history = [] } = useActivityHistory(isEdit ? editing!.id : null);
 
   const [task, setTask] = useState("");
   const [description, setDescription] = useState("");
   const [productId, setProductId] = useState<string>("");
   const [deadline, setDeadline] = useState<string>("");
   const [impact, setImpact] = useState<ActivityImpact>("medium");
+  const [status, setStatus] = useState<ActivityStatus>("todo");
   const [sprintId, setSprintId] = useState<string>("__none__");
   const [dependencyId, setDependencyId] = useState<string>("__none__");
   const [responsibleIds, setResponsibleIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (open) {
-      setTask("");
-      setDescription("");
-      setProductId(defaultProductId || (products[0]?.id ?? ""));
-      setDeadline("");
-      setImpact("medium");
-      setSprintId(defaultSprintId ?? "__none__");
-      setDependencyId("__none__");
-      setResponsibleIds([]);
+      if (editing) {
+        setTask(editing.task);
+        setDescription(editing.description ?? "");
+        setProductId(editing.product_id);
+        setDeadline(editing.deadline_date ?? "");
+        setImpact(editing.impact);
+        setStatus(editing.status);
+        setSprintId(editing.sprint_id ?? "__none__");
+        setDependencyId(editing.dependency_id ?? "__none__");
+        setResponsibleIds(
+          editing.responsible_ids?.length ? editing.responsible_ids : (editing.responsible_id ? [editing.responsible_id] : [])
+        );
+      } else {
+        setTask("");
+        setDescription("");
+        setProductId(defaultProductId || (products[0]?.id ?? ""));
+        setDeadline("");
+        setImpact("medium");
+        setStatus("todo");
+        setSprintId(defaultSprintId ?? "__none__");
+        setDependencyId("__none__");
+        setResponsibleIds([]);
+      }
     }
-  }, [open, defaultProductId, defaultSprintId, products]);
+  }, [open, defaultProductId, defaultSprintId, products, editing]);
 
   const sprintsForProduct = sprints.filter((s) => !productId || s.product_id === productId);
-  const depCandidates = activities.filter((a) => !productId || a.product_id === productId);
+  const depCandidates = activities.filter((a) => (!productId || a.product_id === productId) && (!editing || a.id !== editing.id));
 
   const toggleResp = (id: string) =>
     setResponsibleIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
@@ -60,114 +82,188 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!task.trim() || !productId) return;
-    const payload: NewActivityInput = {
-      task: task.trim(),
-      description: description.trim(),
-      product_id: productId,
-      deadline_date: deadline || null,
-      impact,
-      sprint_id: sprintId === "__none__" ? null : sprintId,
-      dependency_id: dependencyId === "__none__" ? null : dependencyId,
-      responsible_ids: responsibleIds,
-    };
-    const created = await add.mutateAsync(payload);
-    onCreated?.(created);
+    if (editing) {
+      await update.mutateAsync({
+        id: editing.id,
+        task: task.trim(),
+        description: description.trim(),
+        product_id: productId,
+        deadline_date: deadline || null,
+        deadline: deadline ?? "",
+        impact,
+        status,
+        sprint_id: sprintId === "__none__" ? null : sprintId,
+        dependency_id: dependencyId === "__none__" ? null : dependencyId,
+        responsible_ids: responsibleIds,
+        responsible_id: responsibleIds[0] ?? null,
+      } as any);
+    } else {
+      const payload: NewActivityInput = {
+        task: task.trim(),
+        description: description.trim(),
+        product_id: productId,
+        deadline_date: deadline || null,
+        impact,
+        sprint_id: sprintId === "__none__" ? null : sprintId,
+        dependency_id: dependencyId === "__none__" ? null : dependencyId,
+        responsible_ids: responsibleIds,
+        status,
+      };
+      const created = await add.mutateAsync(payload);
+      onCreated?.(created);
+    }
     onOpenChange(false);
   };
+
+  const fieldLabel = (k: string) => ({
+    task: "Título", description: "Descrição", product_id: "Projeto", deadline_date: "Prazo",
+    impact: "Impacto", status: "Status", sprint_id: "Sprint", dependency_id: "Dependência",
+    responsible_ids: "Responsáveis", responsible_id: "Responsável",
+  } as Record<string, string>)[k] ?? k;
+
+  const formatVal = (v: any) => {
+    if (v === null || v === undefined || v === "") return "—";
+    if (Array.isArray(v)) return v.length ? v.map((id) => members.find((m) => m.id === id)?.name ?? id).join(", ") : "—";
+    return String(v);
+  };
+
+  const formContent = (
+    <form onSubmit={submit} className="space-y-4">
+      <div>
+        <Label>Título</Label>
+        <Input value={task} onChange={(e) => setTask(e.target.value)} required />
+      </div>
+      <div>
+        <Label>Descrição</Label>
+        <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Detalhes da atividade (opcional)" />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label>Projeto</Label>
+          <Select value={productId} onValueChange={setProductId}>
+            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <SelectContent>
+              {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Prazo</Label>
+          <Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <Label>Impacto</Label>
+          <Select value={impact} onValueChange={(v) => setImpact(v as ActivityImpact)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {Object.entries(IMPACT_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Status</Label>
+          <Select value={status} onValueChange={(v) => setStatus(v as ActivityStatus)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {Object.entries(STATUS_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Responsáveis</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button type="button" variant="outline" className="w-full justify-start font-normal">
+                {responsibleIds.length === 0 ? "Nenhum (opcional)" : `${responsibleIds.length} selecionado(s)`}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-2 max-h-64 overflow-y-auto">
+              {members.length === 0 && <p className="text-xs text-muted-foreground p-2">Nenhum membro disponível.</p>}
+              {members.map((m) => (
+                <label key={m.id} className="flex items-center gap-2 p-1 rounded hover:bg-muted/50 cursor-pointer text-sm">
+                  <Checkbox checked={responsibleIds.includes(m.id)} onCheckedChange={() => toggleResp(m.id)} />
+                  <span className="flex-1 truncate">{m.name}</span>
+                </label>
+              ))}
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+      {responsibleIds.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {responsibleIds.map((id) => {
+            const m = members.find((x) => x.id === id);
+            return m ? <Badge key={id} variant="secondary" className="text-[10px]">{m.name}</Badge> : null;
+          })}
+        </div>
+      )}
+      <div>
+        <Label>Vincular à Sprint</Label>
+        <Select value={sprintId} onValueChange={setSprintId}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">Não vincular a nenhuma sprint</SelectItem>
+            {sprintsForProduct.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label>Dependência (opcional)</Label>
+        <Select value={dependencyId} onValueChange={setDependencyId}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">Sem dependência</SelectItem>
+            {depCandidates.map((a) => <SelectItem key={a.id} value={a.id}>{a.task}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+        <Button type="submit" disabled={add.isPending || update.isPending}>{isEdit ? "Salvar alterações" : "Criar"}</Button>
+      </DialogFooter>
+    </form>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Nova Atividade</DialogTitle>
+          <DialogTitle>{isEdit ? "Editar Atividade" : "Nova Atividade"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={submit} className="space-y-4">
-          <div>
-            <Label>Título</Label>
-            <Input value={task} onChange={(e) => setTask(e.target.value)} required />
-          </div>
-          <div>
-            <Label>Descrição</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Detalhes da atividade (opcional)" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Projeto</Label>
-              <Select value={productId} onValueChange={setProductId}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Prazo</Label>
-              <Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Impacto</Label>
-              <Select value={impact} onValueChange={(v) => setImpact(v as ActivityImpact)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(IMPACT_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Responsáveis</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button type="button" variant="outline" className="w-full justify-start font-normal">
-                    {responsibleIds.length === 0 ? "Nenhum (opcional)" : `${responsibleIds.length} selecionado(s)`}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-2 max-h-64 overflow-y-auto">
-                  {members.length === 0 && <p className="text-xs text-muted-foreground p-2">Nenhum membro disponível.</p>}
-                  {members.map((m) => (
-                    <label key={m.id} className="flex items-center gap-2 p-1 rounded hover:bg-muted/50 cursor-pointer text-sm">
-                      <Checkbox checked={responsibleIds.includes(m.id)} onCheckedChange={() => toggleResp(m.id)} />
-                      <span className="flex-1 truncate">{m.name}</span>
-                    </label>
-                  ))}
-                </PopoverContent>
-              </Popover>
-              {responsibleIds.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {responsibleIds.map((id) => {
-                    const m = members.find((x) => x.id === id);
-                    return m ? <Badge key={id} variant="secondary" className="text-[10px]">{m.name}</Badge> : null;
-                  })}
+        {isEdit ? (
+          <Tabs defaultValue="details" className="w-full">
+            <TabsList>
+              <TabsTrigger value="details">Detalhes</TabsTrigger>
+              <TabsTrigger value="history">Histórico ({history.length})</TabsTrigger>
+            </TabsList>
+            <TabsContent value="details" className="mt-3">{formContent}</TabsContent>
+            <TabsContent value="history" className="mt-3 space-y-2">
+              {history.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma alteração registrada ainda.</p>}
+              {history.map((h) => (
+                <div key={h.id} className="border border-border rounded-md p-2 text-xs space-y-1">
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>{h.changed_by_email || "—"}</span>
+                    <span>{format(new Date(h.created_at), "dd/MM/yyyy HH:mm")}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    {Object.entries(h.changes).map(([k, v]) => (
+                      <div key={k} className="flex flex-wrap items-center gap-1">
+                        <span className="font-medium">{fieldLabel(k)}:</span>
+                        <span className="line-through text-muted-foreground">{formatVal(v.old)}</span>
+                        <span>→</span>
+                        <span className="text-foreground font-medium">{formatVal(v.new)}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              )}
-            </div>
-          </div>
-          <div>
-            <Label>Vincular à Sprint</Label>
-            <Select value={sprintId} onValueChange={setSprintId}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Não vincular a nenhuma sprint</SelectItem>
-                {sprintsForProduct.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Dependência (opcional)</Label>
-            <Select value={dependencyId} onValueChange={setDependencyId}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Sem dependência</SelectItem>
-                {depCandidates.map((a) => <SelectItem key={a.id} value={a.id}>{a.task}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit" disabled={add.isPending}>Criar</Button>
-          </DialogFooter>
-        </form>
+              ))}
+            </TabsContent>
+          </Tabs>
+        ) : (
+          formContent
+        )}
       </DialogContent>
     </Dialog>
   );

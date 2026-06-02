@@ -8,45 +8,96 @@ import { useProducts } from "@/hooks/useProducts";
 
 type Granularity = "week" | "month" | "quarter";
 
-function periodKey(date: string, g: Granularity): string {
-  const d = new Date(date);
+/** Group key (top header) and sub key (sub-division) for an activity date. */
+function getGroupAndSub(date: string, g: Granularity): { group: string; groupLabel: string; sub: string; subLabel: string } {
+  const d = new Date(date + "T00:00:00");
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const day = d.getDate();
+  const dow = d.getDay(); // 0=Sun..6=Sat
   if (g === "week") {
-    const onejan = new Date(d.getFullYear(), 0, 1);
-    const wk = Math.ceil(((+d - +onejan) / 86400000 + onejan.getDay() + 1) / 7);
-    return `${d.getFullYear()}-S${String(wk).padStart(2, "0")}`;
+    // Group by ISO week (Mon start). Sub-divide by weekday (Mon-Fri).
+    const monday = new Date(d);
+    const diff = (dow === 0 ? -6 : 1 - dow);
+    monday.setDate(d.getDate() + diff);
+    const groupKey = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, "0")}-${String(monday.getDate()).padStart(2, "0")}`;
+    const groupLabel = `Sem. ${monday.getDate()}/${monday.getMonth() + 1}`;
+    const dayNames = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
+    return { group: groupKey, groupLabel, sub: String(dow), subLabel: dayNames[dow] };
   }
-  if (g === "quarter") return `${d.getFullYear()}-Q${Math.floor(d.getMonth() / 3) + 1}`;
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  if (g === "quarter") {
+    const q = Math.floor(m / 3) + 1;
+    return {
+      group: `${y}-Q${q}`,
+      groupLabel: `${y} Q${q}`,
+      sub: String(m),
+      subLabel: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"][m],
+    };
+  }
+  // month: sub-divide by week-of-month
+  const wom = Math.ceil((day + new Date(y, m, 1).getDay()) / 7);
+  const monthLabel = `${["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"][m]}/${y}`;
+  return { group: `${y}-${String(m + 1).padStart(2, "0")}`, groupLabel: monthLabel, sub: `w${wom}`, subLabel: `S${wom}` };
+}
+
+function subsForGranularity(g: Granularity): { sub: string; subLabel: string }[] {
+  if (g === "week") return [
+    { sub: "1", subLabel: "SEG" }, { sub: "2", subLabel: "TER" }, { sub: "3", subLabel: "QUA" },
+    { sub: "4", subLabel: "QUI" }, { sub: "5", subLabel: "SEX" },
+  ];
+  if (g === "quarter") return Array.from({ length: 3 }).map((_, i) => ({ sub: "", subLabel: "" })); // placeholder, will be derived per group
+  return [
+    { sub: "w1", subLabel: "S1" }, { sub: "w2", subLabel: "S2" }, { sub: "w3", subLabel: "S3" },
+    { sub: "w4", subLabel: "S4" }, { sub: "w5", subLabel: "S5" },
+  ];
 }
 
 interface Props {
   productIds: string[] | null;
-  selectedProductId: string | null;
 }
 
-export function RoadmapTab({ productIds, selectedProductId }: Props) {
+export function RoadmapTab({ productIds }: Props) {
   const { data: products = [] } = useProducts();
   const { data: activities = [] } = useActivities(productIds);
   const [granularity, setGranularity] = useState<Granularity>("month");
 
   const filtered = useMemo(
-    () => activities.filter((a) => a.deadline_date && (!selectedProductId || a.product_id === selectedProductId)),
-    [activities, selectedProductId]
+    () => activities.filter((a) => a.deadline_date),
+    [activities]
   );
 
-  const periods = useMemo(() => {
-    const set = new Set<string>();
-    filtered.forEach((a) => set.add(periodKey(a.deadline_date!, granularity)));
-    return Array.from(set).sort();
+  // Build groups -> ordered list of subs (each "cell" = group+sub)
+  const { groups, cells } = useMemo(() => {
+    const groupMap = new Map<string, { label: string; subs: Map<string, string> }>();
+    filtered.forEach((a) => {
+      const info = getGroupAndSub(a.deadline_date!, granularity);
+      if (!groupMap.has(info.group)) groupMap.set(info.group, { label: info.groupLabel, subs: new Map() });
+      groupMap.get(info.group)!.subs.set(info.sub, info.subLabel);
+    });
+    // Ensure each group has the full set of subs for stable columns
+    const groupArr = Array.from(groupMap.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => {
+      let fixedSubs: { sub: string; subLabel: string }[];
+      if (granularity === "week") fixedSubs = subsForGranularity("week");
+      else if (granularity === "month") fixedSubs = subsForGranularity("month");
+      else {
+        // quarter: build 3 months of the quarter
+        const [y, qStr] = k.split("-Q");
+        const startM = (parseInt(qStr) - 1) * 3;
+        const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+        fixedSubs = [0, 1, 2].map((i) => ({ sub: String(startM + i), subLabel: monthNames[startM + i] }));
+      }
+      return { key: k, label: v.label, subs: fixedSubs };
+    });
+    const cellList: { group: string; sub: string; label: string }[] = [];
+    groupArr.forEach((g) => g.subs.forEach((s) => cellList.push({ group: g.key, sub: s.sub, label: s.subLabel })));
+    return { groups: groupArr, cells: cellList };
   }, [filtered, granularity]);
 
   const visibleProducts = useMemo(() => {
-    let list = productIds ? products.filter((p) => productIds.includes(p.id)) : products;
-    if (selectedProductId) list = list.filter((p) => p.id === selectedProductId);
-    return list;
-  }, [products, productIds, selectedProductId]);
+    return productIds ? products.filter((p) => productIds.includes(p.id)) : products;
+  }, [products, productIds]);
 
-  const depTitle = (id: string | null) => (id ? activities.find((a) => a.id === id)?.task ?? "—" : "");
+  const COL = "minmax(110px, 1fr)";
 
   return (
     <div className="space-y-4">
@@ -54,43 +105,71 @@ export function RoadmapTab({ productIds, selectedProductId }: Props) {
         <Select value={granularity} onValueChange={(v) => setGranularity(v as Granularity)}>
           <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="week">Semanas</SelectItem>
-            <SelectItem value="month">Meses</SelectItem>
-            <SelectItem value="quarter">Trimestres</SelectItem>
+            <SelectItem value="week">Semanas (dias)</SelectItem>
+            <SelectItem value="month">Meses (semanas)</SelectItem>
+            <SelectItem value="quarter">Trimestres (meses)</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       <Card className="p-4 overflow-x-auto">
-        {periods.length === 0 ? (
+        {cells.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">Nenhuma atividade com prazo definido.</p>
         ) : (
           <div className="min-w-[720px]">
+            {/* Top header: groups */}
             <div
-              className="grid sticky top-0 bg-background z-10 border-b border-border"
-              style={{ gridTemplateColumns: `180px repeat(${periods.length}, minmax(160px, 1fr))` }}
+              className="grid sticky top-0 bg-background z-10"
+              style={{ gridTemplateColumns: `180px ${groups.map((g) => `repeat(${g.subs.length}, ${COL})`).join(" ")}` }}
             >
               <div className="px-2 py-2 text-xs font-semibold text-muted-foreground">Projeto</div>
-              {periods.map((p) => (
-                <div key={p} className="px-2 py-2 text-xs font-semibold text-center text-muted-foreground border-l border-border/60">
-                  {p}
+              {groups.map((g) => (
+                <div
+                  key={g.key}
+                  className="px-2 py-2 text-xs font-bold text-center text-foreground border-l-2 border-primary/30 bg-muted/30"
+                  style={{ gridColumn: `span ${g.subs.length}` }}
+                >
+                  {g.label}
                 </div>
               ))}
+            </div>
+            {/* Sub-header: subdivisions */}
+            <div
+              className="grid border-b border-border bg-background"
+              style={{ gridTemplateColumns: `180px ${groups.map((g) => `repeat(${g.subs.length}, ${COL})`).join(" ")}` }}
+            >
+              <div />
+              {cells.map((c, i) => {
+                const isGroupStart = i === 0 || cells[i - 1].group !== c.group;
+                return (
+                  <div
+                    key={`${c.group}-${c.sub}-${i}`}
+                    className={`px-1 py-1 text-[10px] font-medium text-center text-muted-foreground border-b ${isGroupStart ? "border-l-2 border-l-primary/30" : "border-l border-border/40"}`}
+                  >
+                    {c.label}
+                  </div>
+                );
+              })}
             </div>
             {visibleProducts.map((prod, rowIdx) => (
               <div
                 key={prod.id}
                 className={`grid items-start ${rowIdx % 2 === 0 ? "bg-muted/10" : ""}`}
-                style={{ gridTemplateColumns: `180px repeat(${periods.length}, minmax(160px, 1fr))` }}
+                style={{ gridTemplateColumns: `180px ${groups.map((g) => `repeat(${g.subs.length}, ${COL})`).join(" ")}` }}
               >
                 <div className="px-2 py-3 text-xs font-semibold flex items-center gap-2 border-b border-border/40">
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ background: prod.color }} />
                   <span className="truncate">{prod.name}</span>
                 </div>
-                {periods.map((p) => {
-                  const blocks = filtered.filter((a) => a.product_id === prod.id && periodKey(a.deadline_date!, granularity) === p);
+                {cells.map((c, i) => {
+                  const isGroupStart = i === 0 || cells[i - 1].group !== c.group;
+                  const blocks = filtered.filter((a) => {
+                    if (a.product_id !== prod.id) return false;
+                    const info = getGroupAndSub(a.deadline_date!, granularity);
+                    return info.group === c.group && info.sub === c.sub;
+                  });
                   return (
-                    <div key={p} className="px-1.5 py-2 space-y-1 min-h-[56px] border-l border-b border-border/40">
+                    <div key={`${prod.id}-${c.group}-${c.sub}-${i}`} className={`px-1.5 py-2 space-y-1 min-h-[56px] border-b border-border/40 ${isGroupStart ? "border-l-2 border-l-primary/30" : "border-l border-border/40"}`}>
                       {blocks.map((b) => (
                         <div
                           key={b.id}

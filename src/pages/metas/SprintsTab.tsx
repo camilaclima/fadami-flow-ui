@@ -1,8 +1,6 @@
 import { useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus } from "lucide-react";
 import { useSprints } from "@/hooks/useSprints";
 import { useActivities } from "@/hooks/useActivities";
 import { useProducts } from "@/hooks/useProducts";
@@ -13,16 +11,16 @@ import { SprintDetailDrawer } from "@/components/metas/SprintDetailDrawer";
 
 interface Props {
   productIds: string[] | null;
-  selectedProductId: string | null;
+  createOpen: boolean;
+  onCreateOpenChange: (o: boolean) => void;
 }
 
-export function SprintsTab({ productIds, selectedProductId }: Props) {
+export function SprintsTab({ productIds, createOpen, onCreateOpenChange }: Props) {
   const { data: products = [] } = useProducts();
   const { data: sprints = [] } = useSprints();
   const { data: activities = [] } = useActivities(productIds);
   const { data: sprintProducts = [] } = useSprintProducts();
 
-  const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<Sprint | null>(null);
 
   const visibleSprints = useMemo(() => {
@@ -34,9 +32,8 @@ export function SprintsTab({ productIds, selectedProductId }: Props) {
     const prodIdsFor = (s: Sprint) => sprintToProds.get(s.id) ?? (s.product_id ? [s.product_id] : []);
     let list = sprints;
     if (productIds) list = list.filter((s) => prodIdsFor(s).some((pid) => productIds.includes(pid)));
-    if (selectedProductId) list = list.filter((s) => prodIdsFor(s).includes(selectedProductId));
     return list;
-  }, [sprints, sprintProducts, productIds, selectedProductId]);
+  }, [sprints, sprintProducts, productIds]);
 
   const unassigned = useMemo(() => activities.filter((a) => !a.sprint_id), [activities]);
   const sprintActivities = (sid: string) => activities.filter((a) => a.sprint_id === sid);
@@ -48,12 +45,6 @@ export function SprintsTab({ productIds, selectedProductId }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={() => setCreateOpen(true)} className="gap-2">
-          <Plus className="w-4 h-4" /> Criar Sprint
-        </Button>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {visibleSprints.map((s) => {
           const acts = sprintActivities(s.id);
@@ -81,10 +72,10 @@ export function SprintsTab({ productIds, selectedProductId }: Props) {
 
       <CreateSprintModal
         open={createOpen}
-        onOpenChange={setCreateOpen}
+        onOpenChange={onCreateOpenChange}
         products={visibleProducts}
         unassignedActivities={unassigned}
-        defaultProductId={selectedProductId}
+        defaultProductId={null}
       />
       <SprintDetailDrawer
         open={!!selected}

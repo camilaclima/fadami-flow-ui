@@ -11,10 +11,9 @@ import { useTeamMembers } from "@/hooks/useTeamMembers";
 
 interface Props {
   productIds: string[] | null;
-  selectedProductId: string | null;
 }
 
-export function CronogramaTab({ productIds, selectedProductId }: Props) {
+export function CronogramaTab({ productIds }: Props) {
   const { data: products = [] } = useProducts();
   const { data: sprints = [] } = useSprints();
   const { data: activities = [] } = useActivities(productIds);
@@ -24,9 +23,8 @@ export function CronogramaTab({ productIds, selectedProductId }: Props) {
 
   const visibleProducts = useMemo(() => {
     let list = productIds ? products.filter((p) => productIds.includes(p.id)) : products;
-    if (selectedProductId) list = list.filter((p) => p.id === selectedProductId);
     return list;
-  }, [products, productIds, selectedProductId]);
+  }, [products, productIds]);
 
   const depTitle = (id: string | null) => (id ? activities.find((a) => a.id === id)?.task ?? "—" : "");
   const memberName = (id: string | null) => (id ? members.find((m) => m.id === id)?.name ?? "—" : "—");
