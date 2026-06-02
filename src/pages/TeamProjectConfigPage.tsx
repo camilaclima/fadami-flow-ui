@@ -19,6 +19,8 @@ import {
 } from "@/hooks/useStakeholders";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthorizedProducts } from "@/hooks/useAuthorizedProducts";
+import { useSquads } from "@/hooks/useSquads";
+import { useProfiles } from "@/hooks/useProfiles";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
