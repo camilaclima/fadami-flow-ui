@@ -342,8 +342,8 @@ export default function DashboardGeralPage() {
       </div>
 
       {/* Layer 2: Sprint vs Cascade */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="p-4 neu-card">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+        <Card className="p-4 neu-card xl:col-span-2">
           <div className="flex items-center justify-between mb-2">
             <div>
               <h3 className="text-sm font-semibold">Burndown — Sprint Atual</h3>
