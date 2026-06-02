@@ -18,6 +18,9 @@ import { cn } from "@/lib/utils";
 
 import { useActiveProducts } from "@/hooks/useProducts";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
+import { useSprints } from "@/hooks/useSprints";
+import { useSprintProducts } from "@/hooks/useSprintProducts";
+import { Badge } from "@/components/ui/badge";
 
 interface Props {
   open: boolean;
@@ -38,6 +41,8 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
     [allProducts, allowedProductIds],
   );
   const { data: allTeamMembers = [] } = useTeamMembers();
+  const { data: allSprints = [] } = useSprints();
+  const { data: sprintProductLinks = [] } = useSprintProducts();
   const teamMembers = useMemo(
     () =>
       allowedMemberIds
@@ -50,6 +55,7 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
   const [productId, setProductId] = useState<string>(lockedProductId ?? "");
   const [date, setDate] = useState<Date>(new Date());
   const [sprintLabel, setSprintLabel] = useState("");
+  const [sprintId, setSprintId] = useState<string>("__none__");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [memberReports, setMemberReports] = useState<Record<string, string>>({});
   const [generalNotes, setGeneralNotes] = useState("");
@@ -60,6 +66,7 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
       setProductId(lockedProductId ?? "");
       setDate(new Date());
       setSprintLabel("");
+      setSprintId("__none__");
       setSelectedMembers([]);
       setMemberReports({});
       setGeneralNotes("");
@@ -114,6 +121,16 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
 
   const memberNameMap = Object.fromEntries(teamMembers.map((m) => [m.id, m.name]));
 
+  const effectiveProductId = productId || (allowedProductIds && allowedProductIds[0]) || lockedProductId || "";
+  const todayStr = format(date, "yyyy-MM-dd");
+  const projectSprints = useMemo(() => {
+    if (!effectiveProductId) return [] as typeof allSprints;
+    const linked = new Set(sprintProductLinks.filter((sp) => sp.product_id === effectiveProductId).map((sp) => sp.sprint_id));
+    return allSprints.filter((s) => linked.has(s.id) || s.product_id === effectiveProductId);
+  }, [allSprints, sprintProductLinks, effectiveProductId]);
+  const isCurrentSprint = (s: { start_date: string; end_date: string }) =>
+    s.start_date <= todayStr && todayStr <= s.end_date;
+
   const toggleMember = (id: string) =>
     setSelectedMembers((prev) => {
       const next = prev.includes(id) ? prev.filter((x) => x !== id) : [id, ...prev];
@@ -142,7 +159,6 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
   };
 
   const handleSave = async () => {
-    const effectiveProductId = productId || (allowedProductIds && allowedProductIds[0]) || "";
     if (!effectiveProductId) {
       toast.error("Selecione o projeto.");
       return;
@@ -184,8 +200,8 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
 
       const { error: insertErr } = await (supabase.from("daily_status") as any).insert({
         product_id: effectiveProductId,
-        sprint_id: null,
-        sprint_label: sprintLabel.trim(),
+        sprint_id: sprintId === "__none__" ? null : sprintId,
+        sprint_label: sprintLabel.trim() || (sprintId !== "__none__" ? allSprints.find((s) => s.id === sprintId)?.name ?? "" : ""),
         status_date: format(date, "yyyy-MM-dd"),
         present_member_ids: selectedMembers,
         summary: compositeSummary,
@@ -271,11 +287,29 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
             </div>
             <div className="space-y-2">
               <Label>Sprint</Label>
-              <Input
-                value={sprintLabel}
-                onChange={(e) => setSprintLabel(e.target.value)}
-                placeholder="Ex: Sprint 12"
-              />
+              <Select value={sprintId} onValueChange={setSprintId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a sprint" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— Sem sprint —</SelectItem>
+                  {projectSprints.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      <span className="flex items-center gap-2">
+                        {s.name}
+                        {isCurrentSprint(s) && (
+                          <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[9px] px-1.5 py-0 h-4" variant="outline">
+                            Atual
+                          </Badge>
+                        )}
+                      </span>
+                    </SelectItem>
+                  ))}
+                  {projectSprints.length === 0 && effectiveProductId && (
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">Nenhuma sprint cadastrada para este projeto.</div>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
