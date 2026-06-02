@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -119,6 +119,15 @@ export default function LoginPage() {
                 <><LogIn className="w-4 h-4 mr-2" />Entrar</>
               )}
             </Button>
+
+            <div className="text-center pt-1">
+              <Link
+                to="/forgot-password"
+                className="text-xs text-muted-foreground hover:text-primary transition-colors"
+              >
+                Esqueci minha senha
+              </Link>
+            </div>
           </form>
         </div>
 
