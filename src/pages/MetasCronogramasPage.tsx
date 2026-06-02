@@ -25,8 +25,7 @@ export default function MetasCronogramasPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">Metas e Cronogramas</h2>
+      <div className="flex items-center justify-end gap-3">
         <Select value={productFilter} onValueChange={setProductFilter}>
           <SelectTrigger className="w-[240px]"><SelectValue /></SelectTrigger>
           <SelectContent>
