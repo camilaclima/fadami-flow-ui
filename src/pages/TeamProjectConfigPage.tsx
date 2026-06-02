@@ -259,9 +259,11 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
 
   const [shEditing, setShEditing] = useState<Stakeholder | null>(null);
   const [shName, setShName] = useState("");
-  const [shContact, setShContact] = useState("");
+  const [shEmail, setShEmail] = useState("");
+  const [shPhone, setShPhone] = useState("");
+  const [shConcession, setShConcession] = useState("");
   const [shArea, setShArea] = useState("");
-  const [shImportance, setShImportance] = useState<StakeholderImportance>("medium");
+  const [showShForm, setShowShForm] = useState(false);
 
   const projectStakeholders = useMemo(
     () => stakeholders.filter((s) => s.product_id === project?.id),
@@ -269,11 +271,18 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
   );
 
   const reset = () => {
-    setShEditing(null); setShName(""); setShContact(""); setShArea(""); setShImportance("medium");
+    setShEditing(null); setShName(""); setShEmail(""); setShPhone(""); setShConcession(""); setShArea("");
+    setShowShForm(false);
   };
 
   const handleEdit = (s: Stakeholder) => {
-    setShEditing(s); setShName(s.name); setShContact(s.contact); setShArea(s.area); setShImportance(s.importance);
+    setShEditing(s);
+    setShName(s.name);
+    setShEmail(s.email ?? "");
+    setShPhone(s.phone ?? "");
+    setShConcession(s.concession ?? "");
+    setShArea(s.area);
+    setShowShForm(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -283,9 +292,10 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
       id: shEditing?.id,
       product_id: project.id,
       name: shName.trim(),
-      contact: shContact.trim(),
+      email: shEmail.trim(),
+      phone: shPhone.trim(),
+      concession: shConcession.trim(),
       area: shArea.trim(),
-      importance: shImportance,
       updated_by: user?.id,
     } as any, { onSuccess: reset });
   };
@@ -310,38 +320,44 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
           <div className="space-y-6 pt-2">
             {/* Stakeholders */}
             <section className="space-y-3">
-              <h3 className="text-sm font-semibold text-foreground">Stakeholders</h3>
-              <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-xl border border-border bg-muted/30">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Nome</Label>
-                  <Input value={shName} onChange={(e) => setShName(e.target.value)} placeholder="Nome do stakeholder" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Contato</Label>
-                  <Input value={shContact} onChange={(e) => setShContact(e.target.value)} placeholder="E-mail ou telefone" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Área</Label>
-                  <Input value={shArea} onChange={(e) => setShArea(e.target.value)} placeholder="Ex: Infra, Produto" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Importância</Label>
-                  <Select value={shImportance} onValueChange={(v) => setShImportance(v as StakeholderImportance)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {(Object.keys(IMPORTANCE_LABELS) as StakeholderImportance[]).map((k) => (
-                        <SelectItem key={k} value={k}>{IMPORTANCE_LABELS[k]}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="md:col-span-2 flex justify-end gap-2">
-                  {shEditing && <Button type="button" variant="outline" size="sm" onClick={reset}>Cancelar</Button>}
-                  <Button type="submit" size="sm" className="gap-2">
-                    <Plus className="w-4 h-4" /> {shEditing ? "Salvar" : "Adicionar"}
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-foreground">Stakeholders</h3>
+                {!showShForm && (
+                  <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowShForm(true)}>
+                    <Plus className="w-4 h-4" /> Adicionar Stakeholder
                   </Button>
-                </div>
-              </form>
+                )}
+              </div>
+              {showShForm && (
+                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-xl border border-border bg-muted/30">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Nome</Label>
+                    <Input value={shName} onChange={(e) => setShName(e.target.value)} placeholder="Nome do stakeholder" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Área</Label>
+                    <Input value={shArea} onChange={(e) => setShArea(e.target.value)} placeholder="Ex: Infra, Produto" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">E-mail</Label>
+                    <Input type="email" value={shEmail} onChange={(e) => setShEmail(e.target.value)} placeholder="email@empresa.com" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Telefone</Label>
+                    <Input value={shPhone} onChange={(e) => setShPhone(e.target.value)} placeholder="(99) 99999-9999" />
+                  </div>
+                  <div className="space-y-1.5 md:col-span-2">
+                    <Label className="text-xs">Concessão</Label>
+                    <Input value={shConcession} onChange={(e) => setShConcession(e.target.value)} placeholder="Concessão / vínculo" />
+                  </div>
+                  <div className="md:col-span-2 flex justify-end gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={reset}>Cancelar</Button>
+                    <Button type="submit" size="sm" className="gap-2">
+                      <Plus className="w-4 h-4" /> {shEditing ? "Salvar" : "Adicionar"}
+                    </Button>
+                  </div>
+                </form>
+              )}
 
               <div className="space-y-2">
                 {projectStakeholders.length === 0 && (
@@ -352,10 +368,10 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-medium truncate">{s.name}</span>
-                        <Badge variant="outline" className={IMPORTANCE_STYLES[s.importance]}>{IMPORTANCE_LABELS[s.importance]}</Badge>
+                        {s.area && <Badge variant="outline">{s.area}</Badge>}
                       </div>
                       <div className="text-xs text-muted-foreground truncate">
-                        {[s.area, s.contact].filter(Boolean).join(" · ") || "—"}
+                        {[s.email, s.phone, s.concession].filter(Boolean).join(" · ") || "—"}
                       </div>
                     </div>
                     <Button size="sm" variant="ghost" onClick={() => handleEdit(s)}><Pencil className="w-3.5 h-3.5" /></Button>

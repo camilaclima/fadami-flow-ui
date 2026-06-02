@@ -633,33 +633,42 @@ export type Database = {
       project_stakeholders: {
         Row: {
           area: string
+          concession: string
           contact: string
           created_at: string
+          email: string
           id: string
           importance: string
           name: string
+          phone: string
           product_id: string
           updated_at: string
           updated_by: string | null
         }
         Insert: {
           area?: string
+          concession?: string
           contact?: string
           created_at?: string
+          email?: string
           id?: string
           importance?: string
           name: string
+          phone?: string
           product_id: string
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
           area?: string
+          concession?: string
           contact?: string
           created_at?: string
+          email?: string
           id?: string
           importance?: string
           name?: string
+          phone?: string
           product_id?: string
           updated_at?: string
           updated_by?: string | null

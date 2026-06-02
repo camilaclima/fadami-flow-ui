@@ -10,6 +10,9 @@ export interface Stakeholder {
   name: string;
   contact: string;
   area: string;
+  email: string;
+  phone: string;
+  concession: string;
   importance: StakeholderImportance;
   created_at: string;
   updated_at: string;
