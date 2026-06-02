@@ -88,6 +88,10 @@ const SENIORITY_BADGE: Record<Seniority, string> = {
 };
 
 export default function TeamProjectConfigPage({ embedded = false }: { embedded?: boolean } = {}) {
+  const [tab, setTab] = useState<"projects" | "team">("projects");
+  const [openProjectModal, setOpenProjectModal] = useState(false);
+  const [openMemberModal, setOpenMemberModal] = useState(false);
+
   return (
     <div className="fade-in space-y-6">
       {!embedded && (
@@ -99,16 +103,27 @@ export default function TeamProjectConfigPage({ embedded = false }: { embedded?:
         </div>
       )}
 
-      <Tabs defaultValue="projects" className="w-full">
-        <TabsList>
-          <TabsTrigger value="projects" className="gap-2"><Package className="w-4 h-4" /> Projetos</TabsTrigger>
-          <TabsTrigger value="team" className="gap-2"><Users className="w-4 h-4" /> Time</TabsTrigger>
-        </TabsList>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="w-full">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <TabsList>
+            <TabsTrigger value="projects" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Package className="w-4 h-4" /> Projetos</TabsTrigger>
+            <TabsTrigger value="team" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Users className="w-4 h-4" /> Time</TabsTrigger>
+          </TabsList>
+          {tab === "projects" ? (
+            <Button className="gap-2" onClick={() => setOpenProjectModal(true)}>
+              <Plus className="w-4 h-4" /> Novo Projeto
+            </Button>
+          ) : (
+            <Button className="gap-2" onClick={() => setOpenMemberModal(true)}>
+              <Plus className="w-4 h-4" /> Novo Colaborador
+            </Button>
+          )}
+        </div>
         <TabsContent value="projects" className="mt-6">
-          <ProjectsSection />
+          <ProjectsSection openForm={openProjectModal} setOpenForm={setOpenProjectModal} />
         </TabsContent>
         <TabsContent value="team" className="mt-6">
-          <TeamSection />
+          <TeamSection openForm={openMemberModal} setOpenForm={setOpenMemberModal} />
         </TabsContent>
       </Tabs>
     </div>
