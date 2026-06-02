@@ -291,6 +291,42 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
     </div>
   );
 
+  const IMPACT_TONE: Record<ActivityImpact, string> = {
+    critical: "bg-red-500 text-white border-0",
+    high: "bg-orange-500/15 text-orange-700 border-orange-500/40 dark:text-orange-300",
+    medium: "bg-blue-500/15 text-blue-700 border-blue-500/40 dark:text-blue-300",
+    low: "bg-emerald-500/15 text-emerald-700 border-emerald-500/40 dark:text-emerald-300",
+  };
+  const STATUS_TONE: Record<ActivityStatus, string> = {
+    todo: "bg-blue-500/15 text-blue-700 border-blue-500/40 dark:text-blue-300",
+    in_progress: "bg-amber-500/15 text-amber-700 border-amber-500/40 dark:text-amber-300",
+    blocked: "bg-red-500/15 text-red-700 border-red-500/40 dark:text-red-300",
+    done: "bg-emerald-500/15 text-emerald-700 border-emerald-500/40 dark:text-emerald-300",
+  };
+
+  const colorRowMeta: Record<string, { icon: React.ReactNode; bg: string }> = {
+    titulo: { icon: <FileText className="w-3.5 h-3.5" />, bg: "bg-primary/10 text-primary" },
+    descricao: { icon: <MessageSquare className="w-3.5 h-3.5" />, bg: "bg-violet-500/10 text-violet-600" },
+    projeto: { icon: <GitBranch className="w-3.5 h-3.5" />, bg: "bg-blue-500/10 text-blue-600" },
+    prazo: { icon: <CalendarIcon className="w-3.5 h-3.5" />, bg: "bg-amber-500/10 text-amber-600" },
+    impacto: { icon: <AlertTriangle className="w-3.5 h-3.5" />, bg: "bg-orange-500/10 text-orange-600" },
+    status: { icon: <CheckCircle2 className="w-3.5 h-3.5" />, bg: "bg-emerald-500/10 text-emerald-600" },
+    sprint: { icon: <Sparkles className="w-3.5 h-3.5" />, bg: "bg-violet-500/10 text-violet-600" },
+    dep: { icon: <GitBranch className="w-3.5 h-3.5" />, bg: "bg-amber-500/10 text-amber-600" },
+    resp: { icon: <UsersIcon className="w-3.5 h-3.5" />, bg: "bg-primary/10 text-primary" },
+  };
+
+  const ColorRow = ({ icon, label, value }: { icon: keyof typeof colorRowMeta; label: string; value: React.ReactNode }) => {
+    const m = colorRowMeta[icon];
+    return (
+      <div className="flex items-start gap-3 py-2.5 border-b border-border/40 last:border-0">
+        <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center shrink-0", m.bg)}>{m.icon}</div>
+        <div className="w-28 shrink-0 text-[11px] uppercase tracking-wider text-muted-foreground pt-1.5 font-semibold">{label}</div>
+        <div className="flex-1 text-sm text-foreground pt-1">{value}</div>
+      </div>
+    );
+  };
+
   const formContent = (
     <form onSubmit={submit} className="space-y-4">
       <div>
