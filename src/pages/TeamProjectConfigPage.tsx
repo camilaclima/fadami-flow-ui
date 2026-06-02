@@ -87,15 +87,17 @@ const SENIORITY_BADGE: Record<Seniority, string> = {
   especialista: "bg-amber-500/15 text-amber-600 border-amber-500/20",
 };
 
-export default function TeamProjectConfigPage() {
+export default function TeamProjectConfigPage({ embedded = false }: { embedded?: boolean } = {}) {
   return (
     <div className="fade-in space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Configuração do Time e do Projeto</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Gerencie projetos, stakeholders e colaboradores em um único lugar.
-        </p>
-      </div>
+      {!embedded && (
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Configuração do Time e do Projeto</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Gerencie projetos, stakeholders e colaboradores em um único lugar.
+          </p>
+        </div>
+      )}
 
       <Tabs defaultValue="projects" className="w-full">
         <TabsList>

@@ -1,54 +1,32 @@
+## Problema
+As páginas `DailyStatusPage` e `TeamProjectConfigPage` possuem cabeçalhos próprios (título + subtítulo + ícone). Quando embedadas nas abas de `ControleGestaoPage`, esses cabeçalhos competem com o título geral "Controle e Gestão", criando a sensação de "tela dentro da tela".
 
-## Objetivo
+## Solução
+Adicionar um prop opcional `embedded` às duas páginas filhas. Quando `embedded={true}`, o cabeçalho próprio é suprimido, deixando apenas o conteúdo funcional. A aba de `ControleGestaoPage` passa esse prop.
 
-Criar uma nova tela unificada **Controle e Gestão** dentro de um novo grupo de menu **Gestão de Projetos**, organizando funcionalidades existentes em abas.
+## Mudanças Técnicas
 
-## Mudanças
+1. **`src/pages/TeamProjectConfigPage.tsx`**
+   - Aceitar prop opcional `embedded?: boolean`.
+   - Quando `embedded === true`, não renderizar o bloco `<h1>` + `<p>` de cabeçalho.
+   - Manter o conteúdo das sub-abas (Projetos / Time) intacto.
 
-### 1. Novo grupo de menu na sidebar
-Em `src/components/layout/AppSidebar.tsx`, adicionar um novo `NavGroup` chamado **"Gestão de Projetos"** (ícone tipo `Briefcase` ou `KanbanSquare`) com um único item:
-- **Controle e Gestão** → `/controle-gestao`
+2. **`src/pages/DailyStatusPage.tsx`**
+   - Aceitar prop opcional `embedded?: boolean`.
+   - Quando `embedded === true`, não renderizar o cabeçalho com ícone, título, subtítulo e botão "Adicionar Squad".
+   - O botão de ação pode ser movido para dentro do conteúdo ou omitido se já houver outro mecanismo na aba pai.
 
-### 2. Nova página `ControleGestaoPage`
-Criar `src/pages/ControleGestaoPage.tsx` usando o componente `Tabs` (shadcn) com 5 abas nesta ordem:
+3. **`src/pages/ControleGestaoPage.tsx`**
+   - Passar `embedded` para ambas as páginas:
+     - `<DailyStatusPage embedded />`
+     - `<TeamProjectConfigPage embedded />`
+   - Os cabeçalhos das abas placeholder (`Dashboard`, `Tarefas`, `Projetos`) já estão limpos, nenhuma alteração necessária.
 
-| Ordem | Aba | Conteúdo |
-|-------|-----|----------|
-| 1 | Dashboard Geral | Placeholder vazio ("Em breve") |
-| 2 | Registro de Dailys | Conteúdo da `DailyStatusPage` |
-| 3 | Painel de Tarefas | Placeholder vazio ("Em breve") |
-| 4 | Projetos | Placeholder vazio ("Em breve") |
-| 5 | Configurações | Conteúdo da `TeamProjectConfigPage` |
+## Resultado Esperado
+- A única área de título visível em todas as abas será o cabeçalho geral "Controle e Gestão" + subtítulo.
+- O conteúdo das abas começa imediatamente com sua estrutura interna, eliminando a sensação de nesting.
+- As páginas continuam funcionando normalmente se acessadas diretamente via rotas antigas (o prop default é `false`).
 
-A aba padrão será **Dashboard Geral**.
-
-### 3. Refatoração para reaproveitar conteúdo
-Para evitar duplicação, extrair o conteúdo (JSX) atual de:
-- `DailyStatusPage` → componente `DailyStatusContent`
-- `TeamProjectConfigPage` → componente `TeamProjectConfigContent`
-
-As páginas originais continuam existindo apenas envolvendo esses componentes (mantém as rotas `/daily-status` e `/team-project-config` funcionando, sem quebrar navegações internas como `/daily-status/squad/:squadId`).
-
-Dentro das abas da nova tela, importamos diretamente esses componentes de conteúdo.
-
-### 4. Rota
-Adicionar em `src/App.tsx`:
-```tsx
-<Route path="/controle-gestao" element={<ControleGestaoPage />} />
-```
-
-Permissão: usar `"__always__"` por enquanto (mesmo padrão da entrada atual "Configuração Time/Projeto"), até definirmos permissão dedicada.
-
-### 5. O que NÃO muda agora
-- As páginas `DailyStatusPage` e `TeamProjectConfigPage` continuam acessíveis pelas rotas existentes.
-- As entradas atuais da sidebar ("Saúde do Projeto" e "Configuração Time/Projeto") **permanecem** por enquanto — posso removê-las se você quiser que a única porta de entrada seja a nova tela; me confirme.
-
-## Detalhes técnicos
-
-- Componente `Tabs` do shadcn já está disponível (`src/components/ui/tabs.tsx`).
-- Placeholders das abas vazias: card centralizado com texto "Em desenvolvimento" para manter consistência visual com o restante do app (tokens semânticos, neu-card, rounded-2xl).
-- Estado da aba ativa via `defaultValue="dashboard"` (sem persistência por enquanto).
-
-## Pergunta antes de implementar
-
-Devo **remover** da sidebar os itens antigos "Saúde do Projeto" e "Configuração Time/Projeto", já que agora estarão acessíveis pelas abas da nova tela? Ou manter ambos os acessos?
+## Riscos / Nenhum
+- Não envolve banco de dados, apenas props de componente.
+- Zero impacto em dados ou estado existente.
