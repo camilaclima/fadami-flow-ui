@@ -535,15 +535,20 @@ export default function DailyStatusProjectDetailPage() {
           </CardContent>
         </Card>
       ) : (
-        <Tabs defaultValue="historico" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="historico">Histórico</TabsTrigger>
-            <TabsTrigger value="escopo">Escopo e Backlog</TabsTrigger>
-            <TabsTrigger value="executivo">Dashboard Executivo</TabsTrigger>
-          </TabsList>
+        <div className="space-y-4">
+          {/* MINI DASHBOARD HORIZONTAL */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2">
+            <MiniStat icon={UsersRound} label="Membros" value={projectMemberCount} />
+            <MiniStat icon={CalendarCheck} label="Dailys" value={allDailies.length} />
+            <MiniStat icon={GitBranch} label="Sprints" value={productSprints.length} />
+            <MiniStat icon={Target} label="Sprint Atual" value={currentSprint?.name ?? "—"} valueClass="text-sm" />
+            <MiniStat icon={TrendingUp} label="Avanços (atual)" value={currentSprintStats.avancos} valueClass="text-emerald-600" />
+            <MiniStat icon={Flame} label="Gargalos (atual)" value={currentSprintStats.gargalos} valueClass="text-red-600" />
+            <MiniStat icon={Activity} label="Status" value={productStatusMeta[productStatus]?.label ?? productStatus} valueClass={cn("text-sm", productStatusMeta[productStatus]?.cls.split(" ")[1])} />
+          </div>
 
-          {/* HISTORICO – cards resumidos */}
-          <TabsContent value="historico" className="space-y-2">
+          {/* LISTA DE DAILYS */}
+          <div className="space-y-2">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs text-muted-foreground">
                 {sprintFilter === "all"
@@ -605,7 +610,8 @@ export default function DailyStatusProjectDetailPage() {
                 </motion.div>
               );
             })}
-          </TabsContent>
+          </div>
+        </div>
       )}
 
       <NewDailyDialog
