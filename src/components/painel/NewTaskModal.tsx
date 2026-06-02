@@ -8,6 +8,9 @@ import { Label } from "@/components/ui/label";
 import { useActiveProducts } from "@/hooks/useProducts";
 import { useSprints } from "@/hooks/useSprints";
 import { CoordinatorTask, TaskCategory, TaskUrgency, useUpsertTask } from "@/hooks/useCoordinatorTasks";
+import { useTeamMembers } from "@/hooks/useTeamMembers";
+import { useProfiles } from "@/hooks/useProfiles";
+import { useAuth } from "@/contexts/AuthContext";
 
 const NONE = "__none__";
 
@@ -24,6 +27,9 @@ export function NewTaskModal({
 }) {
   const { data: products = [] } = useActiveProducts();
   const { data: sprints = [] } = useSprints();
+  const { data: members = [] } = useTeamMembers();
+  const { data: profiles = [] } = useProfiles();
+  const { user } = useAuth();
   const upsert = useUpsertTask();
 
   const [title, setTitle] = useState("");
@@ -60,6 +66,12 @@ export function NewTaskModal({
 
   const submit = async () => {
     if (!title.trim()) return;
+    let responsible_member_id: string | null | undefined = undefined;
+    if (!editing && category === "activity") {
+      const myEmail = profiles.find((p) => p.user_id === user?.id)?.email?.toLowerCase();
+      const me = myEmail ? members.find((m) => m.email?.toLowerCase() === myEmail) : null;
+      responsible_member_id = me?.id ?? null;
+    }
     await upsert.mutateAsync({
       id: editing?.id,
       title: title.trim(),
@@ -69,6 +81,7 @@ export function NewTaskModal({
       product_id: productId === NONE ? null : productId,
       sprint_id: sprintId === NONE ? null : sprintId,
       deadline_date: deadline || null,
+      ...(responsible_member_id !== undefined ? { responsible_member_id } : {}),
     });
     onOpenChange(false);
   };

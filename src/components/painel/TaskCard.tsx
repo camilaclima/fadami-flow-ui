@@ -114,32 +114,37 @@ export function TaskCard({
           </p>
         )}
 
-        {/* Deadline */}
-        {dlLabel && (
-          <div className={cn("inline-flex items-center gap-1.5 text-xs font-medium rounded-md border px-2 py-1", dlClass)}>
-            <Calendar className="w-3 h-3" />
-            {dlLabel}
-          </div>
-        )}
-
-        {/* Meta footer */}
-        <div className="pt-2 border-t border-border/60 space-y-1.5">
-          <div className="flex items-center gap-2 text-xs flex-wrap">
-            {productName && <span className="font-medium text-foreground truncate">{productName}</span>}
-            {sprintName && <span className="text-muted-foreground truncate">· {sprintName}</span>}
-            {task.source === "ai" && (
-              <Badge variant="outline" className="ml-auto gap-1 h-5 px-1.5 text-[10px]">
-                <Sparkles className="w-3 h-3" /> {sourceLabel}
-              </Badge>
-            )}
-          </div>
-          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1 truncate">
-              <UserIcon className="w-3 h-3 shrink-0" />
-              <span className="truncate">{memberName ?? "Não atribuído"}</span>
+        {/* Chips: deadline + project + sprint + assignee — all unified visual treatment */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {dlLabel && (
+            <span className={cn("inline-flex items-center gap-1.5 text-xs font-medium rounded-md border px-2 py-1", dlClass)}>
+              <Calendar className="w-3 h-3" /> {dlLabel}
             </span>
-            <span className="shrink-0">Gerado {relTime(task.created_at)}{task.source === "ai" ? dailyHint : ""}</span>
-          </div>
+          )}
+          {productName && (
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium rounded-md border px-2 py-1 bg-primary/10 text-primary border-primary/30">
+              {productName}
+            </span>
+          )}
+          {sprintName && (
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium rounded-md border px-2 py-1 bg-violet-500/10 text-violet-700 border-violet-500/30">
+              {sprintName}
+            </span>
+          )}
+          <span className={cn(
+            "inline-flex items-center gap-1.5 text-xs font-medium rounded-md border px-2 py-1",
+            memberName ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30" : "bg-muted/40 text-muted-foreground border-border"
+          )}>
+            <UserIcon className="w-3 h-3" /> {memberName ?? "Não atribuído"}
+          </span>
+          {task.source === "ai" && (
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium rounded-md border px-2 py-1 bg-blue-500/10 text-blue-700 border-blue-500/30">
+              <Sparkles className="w-3 h-3" /> {sourceLabel}
+            </span>
+          )}
+          <span className="ml-auto text-[11px] text-muted-foreground">
+            {relTime(task.created_at)}{task.source === "ai" ? dailyHint : ""}
+          </span>
         </div>
 
         {/* Actions */}
