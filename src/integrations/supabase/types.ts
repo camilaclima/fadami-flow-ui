@@ -41,6 +41,33 @@ export type Database = {
         }
         Relationships: []
       }
+      activity_history: {
+        Row: {
+          activity_id: string
+          changed_by: string | null
+          changed_by_email: string
+          changes: Json
+          created_at: string
+          id: string
+        }
+        Insert: {
+          activity_id: string
+          changed_by?: string | null
+          changed_by_email?: string
+          changes?: Json
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          activity_id?: string
+          changed_by?: string | null
+          changed_by_email?: string
+          changes?: Json
+          created_at?: string
+          id?: string
+        }
+        Relationships: []
+      }
       backlog_phase_history: {
         Row: {
           backlog_id: string
