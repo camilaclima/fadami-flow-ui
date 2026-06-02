@@ -1,1 +1,4 @@
 project_id = "xtjkyoygbzromvzwfsfq"
+
+[functions.analyze-sprint-health]
+verify_jwt = false

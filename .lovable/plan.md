@@ -1,39 +1,69 @@
-## Objetivo
 
-Na aba **Configurações → Projetos** (dentro de Controle e Gestão), listar apenas os projetos vinculados ao usuário logado através do cadastro de usuários (vínculo `profile_products`), removendo a criação de projetos por esta tela.
+# Aba "Metas e Cronogramas" — 4 sub-abas
 
-## Mudanças
+Vou substituir o conteúdo "em desenvolvimento" da aba **Metas e Cronogramas** por uma nova página com 4 sub-abas, reutilizando o schema existente (`sprints`, `sprint_backlog_items`, `project_backlog_items`, `team_members`, `products`).
 
-### 1. Filtro de projetos por vínculo do usuário
-- Em `src/pages/TeamProjectConfigPage.tsx`, dentro de `ProjectsSection`, substituir o filtro atual (por `created_by`) por um filtro baseado nos produtos vinculados ao perfil do usuário logado.
-- Usar o hook já existente `useAuthorizedProducts` (`src/hooks/useAuthorizedProducts.ts`), que:
-  - retorna `productIds` carregados de `profile_products` (com fallback para `profiles.product_id`);
-  - retorna `null` quando o usuário é admin (permissão `users`) — nesse caso mostrar todos os projetos.
-- Resultado: o usuário vê exatamente os projetos atribuídos a ele no cadastro de usuários. Admins continuam vendo todos.
+## Filtro superior (compartilhado)
+Seletor "Projeto" no topo (Todos os Projetos / projeto específico) — limitado aos produtos autorizados do usuário (via `useAuthorizedProducts`). Todas as 4 abas respeitam este filtro.
 
-### 2. Remover criação de projetos
-- Remover o botão **"+ Novo Projeto"** da barra de abas em `TeamProjectConfigPage`.
-- Remover o `Dialog` de criação/edição de projeto dentro de `ProjectsSection` (estado `openProjectModal`, `editing`, `name`, `description`, handlers `handleSubmitProject`, `handleEditProject`, `resetProject`, `closeProjectModal`, props `openForm`/`setOpenForm`).
-- Remover também o botão de editar (lápis) nos cards de projeto, já que a criação/edição deve ocorrer apenas no cadastro de Projetos (`/products`).
+## 1. Sub-aba: Sprints
+- Botão `[+ Criar Sprint]` → modal com: Nome, Data Início, Data Fim, Produto (já filtrado), e seção "Atividades" onde o usuário pode:
+  - Criar novas atividades inline (mesmos campos da aba Atividades).
+  - Selecionar atividades existentes sem sprint vinculada (lista checkbox).
+- Sprints aparecem como **cards** (nome, datas, badge status, contador atividades, mini health).
+- Clicar no card abre **Sprint Detail Drawer**:
+  - **Dashboard Inteligente**: card de Saúde (Verde/Amarelo/Vermelho com base em % concluído vs % tempo decorrido, qtd impedidos).
+  - **Bloco IA** "Gargalos Detectados" + "Dicas de Recuperação" — gerado via edge function `analyze-sprint-health` (nova) usando Lovable AI (`google/gemini-2.5-flash`). Cache em estado local.
+  - **Lista de Atividades** (título, responsável, prazo, status com badges coloridos) + botão rápido "+ Atividade".
 
-### 3. Preservar o que já funciona
-- O clique no card do projeto continua abrindo o modal de detalhes (`ProjectDetailsModal`) com:
-  - lista e cadastro de **stakeholders** (modal próprio);
-  - alocação/desalocação de **colaboradores do time** ao projeto.
-- Nenhuma mudança no fluxo de stakeholders, colaboradores ou no restante do app.
+## 2. Sub-aba: Atividades
+- Botão `[+ Criar Atividade]` → modal: Título, Prazo (date), Nível de Impacto (Crítico/Alto/Médio/Baixo), Vincular à Sprint (dropdown + "Não vincular"), Dependência (dropdown opcional de outra atividade).
+- Lista dividida em 2 seções: **"Atividades Vinculadas a Sprints"** e **"Backlog (Sem Sprint)"**.
+- Ordenação por prazo mais próximo de vencer.
+- Atividades com impacto "Crítico" recebem badge vermelho com animação pulse (`animate-pulse`).
 
-### 4. Limpeza relacionada
-- Reverter a alteração feita anteriormente em `useAddProduct` que setava `created_by` (não é mais necessária para esta tela). A coluna `created_by` na tabela `products` permanece no banco, sem uso por enquanto — sem migração.
+## 3. Sub-aba: Roadmap
+- Filtro de granularidade: Semanas / Meses / Trimestres (default Meses).
+- Linha do tempo horizontal: colunas = períodos, linhas = projetos (ou um único projeto).
+- Cada atividade vira um bloco posicionado conforme seu prazo, com cor do produto e badge de impacto.
+- Atividades com dependência mostram badge amarelo "Bloqueado por: [nome]" e linha SVG conectora simples quando a dependência está visível.
 
-## Detalhes técnicos
+## 4. Sub-aba: Cronograma
+- Lista hierárquica colapsável: **Projeto → Sprints → Atividades**.
+- Cada linha mostra: título, responsável, prazo. Atividades atrasadas (`deadline < today` e não concluídas) com data em vermelho.
+- Ícone de corrente (`Link2`) ao lado de atividades com dependência, tooltip exibe a tarefa bloqueadora.
 
-- Hook usado: `useAuthorizedProducts()` → `{ productIds, isAdmin }`.
-- Filtro:
-  ```ts
-  const products = useMemo(() => {
-    if (isAdmin || productIds === null) return allProducts;
-    const set = new Set(productIds);
-    return allProducts.filter(p => set.has(p.id));
-  }, [allProducts, productIds, isAdmin]);
-  ```
-- Empty state: manter mensagem amigável quando o usuário não tem projetos vinculados (ex.: "Nenhum projeto vinculado ao seu usuário.").
+## Mudanças técnicas
+
+### Banco de dados
+Estender `project_backlog_items` para suportar o novo fluxo:
+- `impact` text default `'medium'` (critical/high/medium/low)
+- `sprint_id` uuid nullable (vincular a sprint)
+- `dependency_id` uuid nullable (auto-referência)
+- `status` text default `'todo'` (todo/in_progress/blocked/done)
+- `responsible_id` uuid nullable (team_member)
+- `deadline_date` date nullable (separado do `deadline` texto legado)
+
+Manter campos existentes para retrocompatibilidade.
+
+### Frontend
+Arquivos novos:
+- `src/pages/MetasCronogramasPage.tsx` — wrapper com filtro de projeto + sub-tabs.
+- `src/pages/metas/SprintsTab.tsx`
+- `src/pages/metas/AtividadesTab.tsx`
+- `src/pages/metas/RoadmapTab.tsx`
+- `src/pages/metas/CronogramaTab.tsx`
+- `src/components/metas/CreateSprintModal.tsx`
+- `src/components/metas/CreateActivityModal.tsx`
+- `src/components/metas/SprintDetailDrawer.tsx`
+- `src/hooks/useActivities.ts` (CRUD sobre `project_backlog_items` estendido)
+
+Edge function nova:
+- `supabase/functions/analyze-sprint-health/index.ts` — recebe sprint+atividades, retorna `{saude, gargalos[], dicas[]}` via Lovable AI.
+
+Atualizar `ControleGestaoPage.tsx` para apontar `<TabsContent value="projects">` para `<MetasCronogramasPage />`.
+
+## Fora de escopo
+- Drag-and-drop no roadmap (visualização estática por enquanto).
+- Gantt com bars de duração (uso apenas marcadores por data limite, conforme pedido "prazos rígidos").
+- Edição inline de atividades no cronograma (somente leitura + abrir modal).
