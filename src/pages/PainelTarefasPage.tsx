@@ -44,6 +44,7 @@ export default function PainelTarefasPage() {
 
   const blockerTasks = useMemo(() => pending.filter((t) => t.category === "blocker" || (t.source === "manual" && t.category === "custom")), [pending]);
   const riskTasks = useMemo(() => pending.filter((t) => t.category === "schedule_risk"), [pending]);
+  const activityTasks = useMemo(() => pending.filter((t) => t.category === "activity"), [pending]);
 
   const prodName = (id: string | null) => products.find((p) => p.id === id)?.name;
   const sprintName = (id: string | null) => (sprints.find((s) => s.id === id) as any)?.name;
@@ -71,6 +72,7 @@ export default function PainelTarefasPage() {
         <TabsList>
           <TabsTrigger value="blockers" className="gap-2">🚨 Bloqueios e Gargalos <span className="text-xs opacity-70">({blockerTasks.length})</span></TabsTrigger>
           <TabsTrigger value="risks" className="gap-2">📅 Riscos de Cronograma <span className="text-xs opacity-70">({riskTasks.length})</span></TabsTrigger>
+          <TabsTrigger value="activities" className="gap-2">🧩 Atividades <span className="text-xs opacity-70">({activityTasks.length})</span></TabsTrigger>
         </TabsList>
 
         <TabsContent value="blockers" className="mt-4 space-y-3">
@@ -97,6 +99,22 @@ export default function PainelTarefasPage() {
             </CardContent></Card>
           )}
           {riskTasks.map((t) => (
+            <TaskCard key={t.id} task={t}
+              productName={prodName(t.product_id)}
+              sprintName={sprintName(t.sprint_id)}
+              memberName={memberName(t.responsible_member_id)}
+              onEdit={t.source === "manual" ? openEdit : undefined}
+            />
+          ))}
+        </TabsContent>
+
+        <TabsContent value="activities" className="mt-4 space-y-3">
+          {!isLoading && activityTasks.length === 0 && (
+            <Card className="neu-card"><CardContent className="p-8 text-center text-sm text-muted-foreground">
+              Nenhuma atividade cadastrada nesta categoria.
+            </CardContent></Card>
+          )}
+          {activityTasks.map((t) => (
             <TaskCard key={t.id} task={t}
               productName={prodName(t.product_id)}
               sprintName={sprintName(t.sprint_id)}

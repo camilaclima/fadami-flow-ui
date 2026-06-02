@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-export type TaskCategory = "blocker" | "schedule_risk" | "custom";
+export type TaskCategory = "blocker" | "schedule_risk" | "activity" | "custom";
 export type TaskUrgency = "critical" | "high" | "medium" | "low";
 export type TaskStatus = "pending" | "resolved";
 export type TaskSource = "ai" | "manual";
