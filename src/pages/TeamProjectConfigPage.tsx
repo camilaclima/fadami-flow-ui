@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Plus, Pencil, Archive, Trash2, Users, Package, UserCircle2, Briefcase } from "lucide-react";
+import { Plus, Pencil, Archive, Trash2, Users, Package, UserCircle2, Briefcase, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useProducts, useAddProduct, useUpdateProduct, type Product } from "@/hooks/useProducts";
 import { useClients } from "@/hooks/useClients";
 import { useAllTeamMembers, useAddTeamMember, useUpdateTeamMember, useTeamMembers } from "@/hooks/useTeamMembers";
@@ -20,7 +19,7 @@ import {
 } from "@/hooks/useStakeholders";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   TEAM_ROLE_LABELS, SENIORITY_LABELS, SPECIALTY_LABELS,
@@ -34,6 +33,43 @@ const PROJECT_STATUS_OPTIONS = [
 ] as const;
 
 const ALLOCATION_OPTIONS = [100, 75, 50, 25];
+
+/* Hook: project allocations via team_member_products junction */
+function useTeamMemberProducts() {
+  return useQuery({
+    queryKey: ["team_member_products"],
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("team_member_products" as any) as any).select("*");
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; team_member_id: string; product_id: string }>;
+    },
+  });
+}
+
+function useAddMemberToProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ team_member_id, product_id }: { team_member_id: string; product_id: string }) => {
+      const { error } = await (supabase.from("team_member_products" as any) as any).insert({ team_member_id, product_id });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["team_member_products"] }),
+    onError: (e: any) => toast.error(e.message ?? "Erro ao alocar"),
+  });
+}
+
+function useRemoveMemberFromProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ team_member_id, product_id }: { team_member_id: string; product_id: string }) => {
+      const { error } = await (supabase.from("team_member_products" as any) as any)
+        .delete().eq("team_member_id", team_member_id).eq("product_id", product_id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["team_member_products"] }),
+    onError: (e: any) => toast.error(e.message ?? "Erro ao remover"),
+  });
+}
 
 function maskPhone(value: string): string {
   const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -261,9 +297,12 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
   const { user } = useAuth();
   const { data: stakeholders = [] } = useStakeholders();
   const { data: members = [] } = useTeamMembers();
+  const { data: products = [] } = useProducts();
+  const { data: allocations = [] } = useTeamMemberProducts();
   const saveStakeholder = useSaveStakeholder();
   const deleteStakeholder = useDeleteStakeholder();
-  const updateMember = useUpdateTeamMember();
+  const addToProject = useAddMemberToProject();
+  const removeFromProject = useRemoveMemberFromProject();
 
   const [shEditing, setShEditing] = useState<Stakeholder | null>(null);
   const [shName, setShName] = useState("");
@@ -272,6 +311,25 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
   const [shConcession, setShConcession] = useState("");
   const [shArea, setShArea] = useState("");
   const [showShForm, setShowShForm] = useState(false);
+  const [showMemberPicker, setShowMemberPicker] = useState(false);
+
+  const productMap = useMemo(() => Object.fromEntries(products.map((p) => [p.id, p.name])), [products]);
+  const allocByMember = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    allocations.forEach((a) => {
+      (map[a.team_member_id] ??= []).push(a.product_id);
+    });
+    return map;
+  }, [allocations]);
+
+  const allocatedMembers = useMemo(
+    () => members.filter((m) => project && allocByMember[m.id]?.includes(project.id)),
+    [members, allocByMember, project],
+  );
+  const availableMembers = useMemo(
+    () => members.filter((m) => !project || !allocByMember[m.id]?.includes(project.id)),
+    [members, allocByMember, project],
+  );
 
   const projectStakeholders = useMemo(
     () => stakeholders.filter((s) => s.product_id === project?.id),
@@ -308,13 +366,6 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
     } as any, { onSuccess: reset });
   };
 
-  const toggleMember = (memberId: string, assigned: boolean) => {
-    if (!project) return;
-    updateMember.mutate({
-      id: memberId,
-      product_id: assigned ? project.id : null,
-    } as any);
-  };
 
   return (
     <Dialog open={!!project} onOpenChange={(open) => { if (!open) { reset(); onClose(); } }}>
@@ -391,46 +442,106 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
 
             {/* Team allocation */}
             <section className="space-y-3">
-              <div>
+              <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-foreground">Colaboradores Alocados</h3>
-                <p className="text-xs text-muted-foreground">Selecione os membros do time que atuam neste projeto.</p>
+                <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowMemberPicker(true)}>
+                  <Plus className="w-4 h-4" /> Adicionar Colaborador
+                </Button>
               </div>
-              <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
-                {members.length === 0 && (
-                  <p className="text-xs text-muted-foreground text-center py-3">Nenhum colaborador cadastrado.</p>
-                )}
-                {members.map((m) => {
-                  const assignedHere = m.product_id === project.id;
-                  const assignedElsewhere = !!m.product_id && m.product_id !== project.id;
-                  return (
-                    <label key={m.id} className="flex items-center gap-3 p-2 rounded-lg border border-border hover:bg-muted/40 cursor-pointer">
-                      <Checkbox
-                        checked={assignedHere}
-                        onCheckedChange={(v) => toggleMember(m.id, !!v)}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-medium truncate">{m.name}</span>
+
+              {allocatedMembers.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-6 border border-dashed border-border rounded-lg">
+                  Nenhum colaborador alocado neste projeto ainda.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {allocatedMembers.map((m) => {
+                    const memberProjects = (allocByMember[m.id] ?? [])
+                      .filter((pid) => pid !== project.id)
+                      .map((pid) => productMap[pid])
+                      .filter(Boolean);
+                    return (
+                      <div key={m.id} className="p-3 rounded-lg border border-border bg-muted/30 space-y-1.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-semibold truncate">{m.name}</div>
+                            <div className="text-xs text-muted-foreground">{TEAM_ROLE_LABELS[m.role as TeamRole]}</div>
+                          </div>
+                          <Button
+                            size="sm" variant="ghost"
+                            onClick={() => removeFromProject.mutate({ team_member_id: m.id, product_id: project.id })}
+                            title="Remover deste projeto"
+                          >
+                            <X className="w-3.5 h-3.5 text-destructive" />
+                          </Button>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <Badge variant="outline" className={SENIORITY_BADGE[m.seniority as Seniority]}>
                             {SENIORITY_LABELS[m.seniority as Seniority]}
                           </Badge>
-                          <span className="text-xs text-muted-foreground">{TEAM_ROLE_LABELS[m.role as TeamRole]}</span>
                         </div>
-                        {assignedElsewhere && (
-                          <p className="text-[11px] text-amber-600 mt-0.5">
-                            Atualmente em outro projeto — marcar irá realocar.
-                          </p>
-                        )}
+                        <div className="text-[11px] text-muted-foreground">
+                          {memberProjects.length > 0
+                            ? <>Também em: <span className="text-foreground/80">{memberProjects.join(", ")}</span></>
+                            : <span className="italic">Apenas neste projeto</span>}
+                        </div>
                       </div>
-                      <span className="text-xs text-muted-foreground">{(m as any).allocation_percent ?? 100}%</span>
-                    </label>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </section>
           </div>
         )}
       </DialogContent>
+
+      {/* Member picker dialog */}
+      <Dialog open={showMemberPicker} onOpenChange={setShowMemberPicker}>
+        <DialogContent className="max-w-xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Adicionar Colaborador</DialogTitle>
+            <DialogDescription>Selecione um colaborador do time para alocar neste projeto.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 pt-2">
+            {availableMembers.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-4">Todos os colaboradores já estão alocados aqui.</p>
+            )}
+            {availableMembers.map((m) => {
+              const memberProjects = (allocByMember[m.id] ?? []).map((pid) => productMap[pid]).filter(Boolean);
+              return (
+                <div key={m.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold truncate">{m.name}</div>
+                    <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className={SENIORITY_BADGE[m.seniority as Seniority]}>
+                        {SENIORITY_LABELS[m.seniority as Seniority]}
+                      </Badge>
+                      <span>{TEAM_ROLE_LABELS[m.role as TeamRole]}</span>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground mt-1">
+                      {memberProjects.length > 0
+                        ? <>Já em: <span className="text-foreground/80">{memberProjects.join(", ")}</span></>
+                        : <span className="italic">Sem projetos</span>}
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      if (!project) return;
+                      addToProject.mutate(
+                        { team_member_id: m.id, product_id: project.id },
+                        { onSuccess: () => toast.success(`${m.name} adicionado`) },
+                      );
+                    }}
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1" /> Adicionar
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
@@ -537,15 +648,6 @@ function TeamSection() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {Object.entries(SPECIALTY_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Fator de Carga / Disponibilidade</Label>
-                <Select value={String(allocation)} onValueChange={(v) => setAllocation(Number(v))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {ALLOCATION_OPTIONS.map((a) => <SelectItem key={a} value={String(a)}>{a}% Alocado</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
