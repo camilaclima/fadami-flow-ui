@@ -20,14 +20,18 @@ const STATUS_STYLES: Record<ActivityStatus, string> = {
 
 interface Props {
   productIds: string[] | null;
+  createOpen?: boolean;
+  onCreateOpenChange?: (o: boolean) => void;
 }
 
-export function AtividadesTab({ productIds }: Props) {
+export function AtividadesTab({ productIds, createOpen, onCreateOpenChange }: Props) {
   const { data: products = [] } = useProducts();
   const { data: sprints = [] } = useSprints();
   const { data: members = [] } = useTeamMembers();
   const { data: activities = [] } = useActivities(productIds);
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = createOpen ?? internalOpen;
+  const setOpen = onCreateOpenChange ?? setInternalOpen;
   const [editing, setEditing] = useState<Activity | null>(null);
 
   const visibleProducts = useMemo(
@@ -94,12 +98,6 @@ export function AtividadesTab({ productIds }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={() => { setEditing(null); setOpen(true); }} className="gap-2">
-          <Plus className="w-4 h-4" /> Criar Atividade
-        </Button>
-      </div>
-
       <Tabs defaultValue="linked" className="w-full">
         <TabsList>
           <TabsTrigger value="linked">Vinculadas à sprint ({linked.length})</TabsTrigger>
