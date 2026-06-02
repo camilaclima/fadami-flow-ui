@@ -35,7 +35,7 @@ function statusFromBlocker(level: number) {
   return { label: "Crítico", icon: Flame, cls: "bg-red-500/15 text-red-600 border-red-500/30" };
 }
 
-export default function DailyStatusPage() {
+export default function DailyStatusPage({ embedded = false }: { embedded?: boolean } = {}) {
   const navigate = useNavigate();
   const { data: allProducts = [] } = useActiveProducts();
   const { data: allSquads = [], isLoading: squadsLoading } = useActiveSquads();
@@ -102,21 +102,29 @@ export default function DailyStatusPage() {
   }, [allDailies]);
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
-            <CalendarCheck className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">Saúde do Projeto</h1>
-            <p className="text-sm text-muted-foreground">Dashboard evolutivo organizado por Squads e seus produtos.</p>
-          </div>
+    <div className={embedded ? "space-y-6" : "p-6 space-y-6 max-w-7xl mx-auto"}>
+      {embedded ? (
+        <div className="flex justify-end">
+          <Button onClick={() => setOpenSquadDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Adicionar Squad
+          </Button>
         </div>
-        <Button onClick={() => setOpenSquadDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" /> Adicionar Squad
-        </Button>
-      </motion.div>
+      ) : (
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
+              <CalendarCheck className="h-6 w-6" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">Saúde do Projeto</h1>
+              <p className="text-sm text-muted-foreground">Dashboard evolutivo organizado por Squads e seus produtos.</p>
+            </div>
+          </div>
+          <Button onClick={() => setOpenSquadDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Adicionar Squad
+          </Button>
+        </motion.div>
+      )}
 
       {(isLoading || squadsLoading) ? (
         <div className="flex items-center justify-center py-20 text-muted-foreground">
