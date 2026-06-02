@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Plus, Pencil, Archive, Trash2, Users, Package, UserCircle2, Briefcase } from "lucide-react";
+import { Plus, Pencil, Archive, Trash2, Users, Package, UserCircle2, Briefcase, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useProducts, useAddProduct, useUpdateProduct, type Product } from "@/hooks/useProducts";
 import { useClients } from "@/hooks/useClients";
 import { useAllTeamMembers, useAddTeamMember, useUpdateTeamMember, useTeamMembers } from "@/hooks/useTeamMembers";
@@ -20,7 +19,7 @@ import {
 } from "@/hooks/useStakeholders";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   TEAM_ROLE_LABELS, SENIORITY_LABELS, SPECIALTY_LABELS,
