@@ -344,6 +344,33 @@ export type Database = {
         }
         Relationships: []
       }
+      password_change_logs: {
+        Row: {
+          changed_by: string | null
+          changed_by_email: string | null
+          created_at: string
+          id: string
+          target_email: string
+          target_user_id: string
+        }
+        Insert: {
+          changed_by?: string | null
+          changed_by_email?: string | null
+          created_at?: string
+          id?: string
+          target_email: string
+          target_user_id: string
+        }
+        Update: {
+          changed_by?: string | null
+          changed_by_email?: string | null
+          created_at?: string
+          id?: string
+          target_email?: string
+          target_user_id?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           color: string
