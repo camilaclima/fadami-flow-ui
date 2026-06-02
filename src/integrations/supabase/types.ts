@@ -555,12 +555,18 @@ export type Database = {
           category: string
           created_at: string
           deadline: string
+          deadline_date: string | null
+          dependency_id: string | null
           id: string
+          impact: string
           likely_owner: string
           product_id: string
           project_context_id: string
+          responsible_id: string | null
           risk_mitigation: string
           sort_order: number
+          sprint_id: string | null
+          status: string
           task: string
           updated_at: string
           updated_by: string | null
@@ -570,12 +576,18 @@ export type Database = {
           category?: string
           created_at?: string
           deadline?: string
+          deadline_date?: string | null
+          dependency_id?: string | null
           id?: string
+          impact?: string
           likely_owner?: string
           product_id: string
           project_context_id: string
+          responsible_id?: string | null
           risk_mitigation?: string
           sort_order?: number
+          sprint_id?: string | null
+          status?: string
           task: string
           updated_at?: string
           updated_by?: string | null
@@ -585,12 +597,18 @@ export type Database = {
           category?: string
           created_at?: string
           deadline?: string
+          deadline_date?: string | null
+          dependency_id?: string | null
           id?: string
+          impact?: string
           likely_owner?: string
           product_id?: string
           project_context_id?: string
+          responsible_id?: string | null
           risk_mitigation?: string
           sort_order?: number
+          sprint_id?: string | null
+          status?: string
           task?: string
           updated_at?: string
           updated_by?: string | null
