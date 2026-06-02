@@ -9,9 +9,14 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Trash2 } from "lucide-react";
 import type { Activity, ActivityImpact, ActivityStatus, NewActivityInput } from "@/hooks/useActivities";
-import { IMPACT_LABELS, STATUS_LABELS, useAddActivity, useUpdateActivity, useActivityHistory } from "@/hooks/useActivities";
-import { useTeamMembers } from "@/hooks/useTeamMembers";
+import { IMPACT_LABELS, STATUS_LABELS, useAddActivity, useUpdateActivity, useActivityHistory, useDeleteActivity } from "@/hooks/useActivities";
+import { useMyTeamMembers } from "@/hooks/useMyTeamMembers";
 import type { Product } from "@/hooks/useProducts";
 import type { Sprint } from "@/types/sprint";
 import { format } from "date-fns";
@@ -31,7 +36,8 @@ interface Props {
 export function CreateActivityModal({ open, onOpenChange, products, sprints, activities, defaultProductId, defaultSprintId, editing, onCreated }: Props) {
   const add = useAddActivity();
   const update = useUpdateActivity();
-  const { data: members = [] } = useTeamMembers();
+  const del = useDeleteActivity();
+  const { data: members = [] } = useMyTeamMembers();
   const isEdit = !!editing;
   const { data: history = [] } = useActivityHistory(isEdit ? editing!.id : null);
 
@@ -220,15 +226,53 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
         </Select>
       </div>
       <DialogFooter>
-        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-        <Button type="submit" disabled={add.isPending || update.isPending}>{isEdit ? "Salvar alterações" : "Criar"}</Button>
+        <div className="flex w-full items-center justify-between gap-2">
+          {isEdit ? (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground hover:text-destructive gap-1.5 h-8 px-2"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Excluir
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir atividade?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação não pode ser desfeita. A atividade "{editing!.task}" será removida permanentemente.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={async () => {
+                      await del.mutateAsync(editing!.id);
+                      onOpenChange(false);
+                    }}
+                  >
+                    Excluir
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ) : <span />}
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="submit" disabled={add.isPending || update.isPending}>{isEdit ? "Salvar alterações" : "Criar"}</Button>
+          </div>
+        </div>
       </DialogFooter>
     </form>
   );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Editar Atividade" : "Nova Atividade"}</DialogTitle>
         </DialogHeader>
