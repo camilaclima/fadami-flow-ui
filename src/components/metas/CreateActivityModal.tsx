@@ -434,10 +434,28 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
 
             <TabsContent value="original" className="mt-3 space-y-4">
               {mode === "edit" ? (
-                formContent
+                <div className="space-y-4">
+                  {formContent}
+                  <div className="space-y-2 rounded-xl border border-border bg-muted/10 p-4">
+                    <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Observações livres (opcional)
+                    </Label>
+                    <Textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      rows={3}
+                      placeholder="Adicione observações ou contexto. Será registrado na aba Atualizações."
+                    />
+                    <div className="flex justify-end">
+                      <Button type="button" size="sm" variant="outline" className="gap-1.5 h-8" onClick={saveNotes} disabled={savingNotes || !notes.trim()}>
+                        <Save className="w-3.5 h-3.5" /> Registrar observação
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <p className="text-xs text-muted-foreground">
                       Snapshot dos valores originalmente cadastrados.
                     </p>
@@ -446,7 +464,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
                     </Button>
                   </div>
 
-                  <div className="rounded-lg border border-border bg-muted/20 p-4">
+                  <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
                     <OriginalRow label="Título" value={<span className="font-medium">{originalValues?.task ?? "—"}</span>} />
                     <OriginalRow label="Descrição" value={
                       <span className="whitespace-pre-wrap text-muted-foreground">
@@ -464,21 +482,6 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
                     <OriginalRow label="Sprint" value={prettyVal("sprint_id", originalValues?.sprint_id)} />
                     <OriginalRow label="Dependência" value={prettyVal("dependency_id", originalValues?.dependency_id)} />
                     <OriginalRow label="Responsáveis" value={prettyVal("responsible_ids", originalValues?.responsible_ids ?? originalValues?.responsible_id)} />
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs">Observações livres</Label>
-                      <Button type="button" size="sm" variant="ghost" className="gap-1.5 h-7" onClick={saveNotes} disabled={savingNotes || notes === (editing?.description ?? "")}>
-                        <Save className="w-3.5 h-3.5" /> Salvar
-                      </Button>
-                    </div>
-                    <Textarea
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      rows={4}
-                      placeholder="Escreva observações, contexto ou notas livres sobre esta atividade..."
-                    />
                   </div>
                 </>
               )}
