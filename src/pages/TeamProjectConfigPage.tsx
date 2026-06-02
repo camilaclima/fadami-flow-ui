@@ -132,11 +132,12 @@ export default function TeamProjectConfigPage({ embedded = false }: { embedded?:
 
 /* -------------------------------------- PROJECTS -------------------------------------- */
 
-function ProjectsSection() {
+function ProjectsSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm: (v: boolean) => void }) {
   const { user } = useAuth();
   const { data: products = [] } = useProducts();
-  const { data: clients = [] } = useClients();
   const { data: stakeholders = [] } = useStakeholders();
+  const { data: allMembers = [] } = useAllTeamMembers();
+  const { data: allocations = [] } = useTeamMemberProducts();
   const addProduct = useAddProduct();
   const updateProduct = useUpdateProduct();
   const saveStakeholder = useSaveStakeholder();
@@ -144,41 +145,41 @@ function ProjectsSection() {
   const qc = useQueryClient();
 
   const [editing, setEditing] = useState<Product | null>(null);
-  const [showProjectForm, setShowProjectForm] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [clientId, setClientId] = useState<string>("__none__");
-  const [status, setStatus] = useState<string>("active");
 
   // Project details modal
   const [detailProject, setDetailProject] = useState<Product | null>(null);
 
-  const clientMap = useMemo(() => Object.fromEntries(clients.map((c) => [c.id, c.name])), [clients]);
+  const allocationCount = useMemo(() => {
+    const map: Record<string, number> = {};
+    allocations.forEach((a) => { map[a.product_id] = (map[a.product_id] ?? 0) + 1; });
+    return map;
+  }, [allocations]);
 
   const resetProject = () => {
-    setEditing(null); setName(""); setDescription(""); setClientId("__none__"); setStatus("active");
+    setEditing(null); setName(""); setDescription("");
   };
+
+  const closeProjectModal = () => { resetProject(); setOpenForm(false); };
 
   const handleSubmitProject = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    const desc = clientId !== "__none__"
-      ? `[Cliente:${clientId}] ${description}`
-      : description;
     if (editing) {
-      updateProduct.mutate({ id: editing.id, name: name.trim(), description: desc, status });
+      updateProduct.mutate({ id: editing.id, name: name.trim(), description });
     } else {
-      addProduct.mutate({ name: name.trim(), description: desc, color: "hsl(243 75% 59%)", status });
+      addProduct.mutate({ name: name.trim(), description, color: "hsl(243 75% 59%)", status: "active" });
     }
-    resetProject();
+    closeProjectModal();
   };
 
   const handleEditProject = (p: Product) => {
     setEditing(p);
     setName(p.name);
-    const m = p.description.match(/^\[Cliente:([^\]]+)\]\s?(.*)$/);
-    if (m) { setClientId(m[1]); setDescription(m[2]); } else { setClientId("__none__"); setDescription(p.description); }
-    setStatus(p.status);
+    const m = p.description.match(/^\[Cliente:[^\]]+\]\s?(.*)$/);
+    setDescription(m ? m[1] : p.description);
+    setOpenForm(true);
   };
 
   const handleArchive = (p: Product) => {
@@ -186,62 +187,32 @@ function ProjectsSection() {
   };
 
   const getCleanDesc = (d: string) => d.replace(/^\[Cliente:[^\]]+\]\s?/, "");
-  const getProjectClient = (d: string) => {
-    const m = d.match(/^\[Cliente:([^\]]+)\]/);
-    return m ? clientMap[m[1]] : null;
-  };
 
   return (
     <div className="space-y-6">
-      {/* Project form toggle */}
-      {(showProjectForm || editing) ? (
-        <Card className="rounded-2xl">
-          <CardHeader>
-            <CardTitle className="text-lg">{editing ? "Editar Projeto" : "Novo Projeto"}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmitProject} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Nome do Projeto</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Portal do Cliente" required />
-              </div>
-              <div className="space-y-2">
-                <Label>Cliente / Área</Label>
-                <Select value={clientId} onValueChange={setClientId}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Nenhum</SelectItem>
-                    {clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label>Descrição Breve</Label>
-                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Resumo do projeto" />
-              </div>
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PROJECT_STATUS_OPTIONS.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="md:col-span-2 flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => { resetProject(); setShowProjectForm(false); }}>Cancelar</Button>
-                <Button type="submit" className="gap-2"><Plus className="w-4 h-4" /> {editing ? "Salvar" : "Cadastrar Projeto"}</Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="flex justify-end">
-          <Button className="gap-2" onClick={() => setShowProjectForm(true)}><Plus className="w-4 h-4" /> Novo Projeto</Button>
-        </div>
-      )}
+      {/* Project form modal */}
+      <Dialog open={openForm} onOpenChange={(o) => { if (!o) closeProjectModal(); else setOpenForm(true); }}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Editar Projeto" : "Novo Projeto"}</DialogTitle>
+            <DialogDescription>Informe os dados do projeto.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmitProject} className="grid grid-cols-1 gap-4">
+            <div className="space-y-2">
+              <Label>Nome do Projeto</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Portal do Cliente" required autoFocus />
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição Breve</Label>
+              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Resumo do projeto" />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={closeProjectModal}>Cancelar</Button>
+              <Button type="submit" className="gap-2"><Plus className="w-4 h-4" /> {editing ? "Salvar" : "Cadastrar Projeto"}</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Project cards */}
       <div>
@@ -249,9 +220,9 @@ function ProjectsSection() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {products.map((p) => {
             const statusCfg = PROJECT_STATUS_OPTIONS.find((s) => s.value === p.status) ?? PROJECT_STATUS_OPTIONS[0];
-            const client = getProjectClient(p.description);
             const desc = getCleanDesc(p.description);
             const projectStakeholders = stakeholders.filter((s) => s.product_id === p.id);
+            const memberCount = allocationCount[p.id] ?? 0;
             return (
               <motion.div key={p.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
                 <Card
@@ -270,13 +241,15 @@ function ProjectsSection() {
                     </div>
                   </CardHeader>
                   <CardContent className="flex-1 flex flex-col gap-3">
-                    {client && <div className="text-xs text-muted-foreground"><span className="font-medium text-foreground/70">Cliente:</span> {client}</div>}
                     <p className="text-sm text-muted-foreground line-clamp-3 min-h-[40px]">{desc || "Sem descrição."}</p>
-                    {projectStakeholders.length > 0 && (
-                      <div className="text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground/70">{projectStakeholders.length}</span> stakeholder(s)
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className="gap-1">
+                        <Users className="w-3 h-3" /> {memberCount} colaborador(es)
+                      </Badge>
+                      <Badge variant="outline" className="gap-1">
+                        <UserCircle2 className="w-3 h-3" /> {projectStakeholders.length} stakeholder(s)
+                      </Badge>
+                    </div>
                     <div className="flex gap-2 mt-auto pt-2" onClick={(e) => e.stopPropagation()}>
                       <Button size="sm" variant="outline" className="flex-1 gap-2" onClick={(e) => { e.stopPropagation(); handleEditProject(p); }}>
                         <Pencil className="w-3.5 h-3.5" /> Editar
