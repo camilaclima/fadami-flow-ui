@@ -190,19 +190,83 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
   useEffect(() => {
     if (open && editing) {
       setMode("view");
-      setNotes(editing.description ?? "");
+      setNotes("");
     }
   }, [open, editing]);
 
   const saveNotes = async () => {
-    if (!editing) return;
+    if (!editing || !notes.trim()) return;
     setSavingNotes(true);
     try {
-      await update.mutateAsync({ id: editing.id, description: notes } as any);
+      const { data: u } = await supabase.auth.getUser();
+      const { error } = await (supabase.from("activity_history") as any).insert({
+        activity_id: editing.id,
+        changed_by: u?.user?.id ?? null,
+        changed_by_email: u?.user?.email ?? "",
+        changes: { __note__: { old: "", new: notes.trim() } },
+      });
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["activity_history", editing.id] });
+      setNotes("");
+      toast.success("Observação adicionada!");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao salvar observação");
     } finally {
       setSavingNotes(false);
     }
   };
+
+  const qc = useQueryClient();
+  const [syncingDaily, setSyncingDaily] = useState(false);
+
+  const syncFromDaily = async () => {
+    if (!editing || !editing.sprint_id) {
+      toast.error("Atividade precisa estar vinculada a uma sprint.");
+      return;
+    }
+    setSyncingDaily(true);
+    try {
+      const { data: dailies, error: derr } = await (supabase.from("daily_status") as any)
+        .select("status_date, summary")
+        .eq("sprint_id", editing.sprint_id)
+        .order("status_date", { ascending: true });
+      if (derr) throw derr;
+      if (!dailies || dailies.length === 0) {
+        toast.info("Nenhuma daily encontrada para esta sprint.");
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke("analyze-activity-from-daily", {
+        body: {
+          activityTask: editing.task,
+          activityDescription: editing.description,
+          dailies,
+        },
+      });
+      if (error) throw error;
+      const updates = (data as any)?.updates ?? [];
+      if (!updates.length) {
+        toast.info("Nenhuma menção relevante encontrada nas dailies.");
+        return;
+      }
+      const { data: u } = await supabase.auth.getUser();
+      const rows = updates.map((up: any) => ({
+        activity_id: editing.id,
+        changed_by: u?.user?.id ?? null,
+        changed_by_email: "IA · Daily",
+        changes: { __ai_note__: { old: up.date, new: up.text, type: up.type } },
+      }));
+      const { error: ierr } = await (supabase.from("activity_history") as any).insert(rows);
+      if (ierr) throw ierr;
+      qc.invalidateQueries({ queryKey: ["activity_history", editing.id] });
+      toast.success(`${updates.length} atualização(ões) da IA adicionada(s).`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao sincronizar com a daily");
+    } finally {
+      setSyncingDaily(false);
+    }
+  };
+
+  const [showAddNote, setShowAddNote] = useState(false);
 
   const OriginalRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
     <div className="flex items-start gap-3 py-2 border-b border-border/40 last:border-0">
