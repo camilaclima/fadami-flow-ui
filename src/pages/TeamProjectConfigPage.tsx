@@ -371,11 +371,9 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
             <section className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-foreground">Stakeholders</h3>
-                {!showShForm && (
-                  <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowShForm(true)}>
-                    <Plus className="w-4 h-4" /> Adicionar Stakeholder
-                  </Button>
-                )}
+                <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowShForm(true)}>
+                  <Plus className="w-4 h-4" /> Adicionar Stakeholder
+                </Button>
               </div>
               <Dialog open={showShForm} onOpenChange={(o) => { if (!o) reset(); else setShowShForm(true); }}>
                 <DialogContent className="max-w-xl">
