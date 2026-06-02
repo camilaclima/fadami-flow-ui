@@ -377,36 +377,42 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
                   </Button>
                 )}
               </div>
-              {showShForm && (
-                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-xl border border-border bg-muted/30">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Nome</Label>
-                    <Input value={shName} onChange={(e) => setShName(e.target.value)} placeholder="Nome do stakeholder" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Área</Label>
-                    <Input value={shArea} onChange={(e) => setShArea(e.target.value)} placeholder="Ex: Infra, Produto" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">E-mail</Label>
-                    <Input type="email" value={shEmail} onChange={(e) => setShEmail(e.target.value)} placeholder="email@empresa.com" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Telefone</Label>
-                    <Input value={shPhone} onChange={(e) => setShPhone(maskPhone(e.target.value))} placeholder="(99) 99999-9999" />
-                  </div>
-                  <div className="space-y-1.5 md:col-span-2">
-                    <Label className="text-xs">Concessão</Label>
-                    <Input value={shConcession} onChange={(e) => setShConcession(e.target.value)} placeholder="Concessão / vínculo" />
-                  </div>
-                  <div className="md:col-span-2 flex justify-end gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={reset}>Cancelar</Button>
-                    <Button type="submit" size="sm" className="gap-2">
-                      <Plus className="w-4 h-4" /> {shEditing ? "Salvar" : "Adicionar"}
-                    </Button>
-                  </div>
-                </form>
-              )}
+              <Dialog open={showShForm} onOpenChange={(o) => { if (!o) reset(); else setShowShForm(true); }}>
+                <DialogContent className="max-w-xl">
+                  <DialogHeader>
+                    <DialogTitle>{shEditing ? "Editar Stakeholder" : "Adicionar Stakeholder"}</DialogTitle>
+                    <DialogDescription>Cadastre os dados de contato do stakeholder.</DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Nome</Label>
+                      <Input value={shName} onChange={(e) => setShName(e.target.value)} placeholder="Nome do stakeholder" autoFocus />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Área</Label>
+                      <Input value={shArea} onChange={(e) => setShArea(e.target.value)} placeholder="Ex: Infra, Produto" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">E-mail</Label>
+                      <Input type="email" value={shEmail} onChange={(e) => setShEmail(e.target.value)} placeholder="email@empresa.com" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Telefone</Label>
+                      <Input value={shPhone} onChange={(e) => setShPhone(maskPhone(e.target.value))} placeholder="(99) 99999-9999" />
+                    </div>
+                    <div className="space-y-1.5 md:col-span-2">
+                      <Label className="text-xs">Concessão</Label>
+                      <Input value={shConcession} onChange={(e) => setShConcession(e.target.value)} placeholder="Concessão / vínculo" />
+                    </div>
+                    <div className="md:col-span-2 flex justify-end gap-2 pt-2">
+                      <Button type="button" variant="outline" size="sm" onClick={reset}>Cancelar</Button>
+                      <Button type="submit" size="sm" className="gap-2">
+                        <Plus className="w-4 h-4" /> {shEditing ? "Salvar" : "Adicionar"}
+                      </Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
 
               <div className="space-y-2">
                 {projectStakeholders.length === 0 && (
