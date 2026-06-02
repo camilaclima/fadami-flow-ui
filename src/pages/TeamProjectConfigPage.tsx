@@ -231,6 +231,7 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
   const { user } = useAuth();
   const { data: stakeholders = [] } = useStakeholders();
   const { data: members = [] } = useTeamMembers();
+  const { data: allMembersAll = [] } = useAllTeamMembers();
   const { data: products = [] } = useProducts();
   const { data: allocations = [] } = useTeamMemberProducts();
   const saveStakeholder = useSaveStakeholder();
@@ -248,6 +249,11 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
   const [showMemberPicker, setShowMemberPicker] = useState(false);
 
   const productMap = useMemo(() => Object.fromEntries(products.map((p) => [p.id, p.name])), [products]);
+  // Squad do usuário logado = membros que ele cadastrou
+  const squadMembers = useMemo(
+    () => members.filter((m) => m.coordinator_id === user?.id),
+    [members, user?.id],
+  );
   const allocByMember = useMemo(() => {
     const map: Record<string, string[]> = {};
     allocations.forEach((a) => {
@@ -256,13 +262,36 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
     return map;
   }, [allocations]);
 
+  // Mapa de projetos por e-mail (cross-squad): identifica a mesma pessoa entre coordenadores diferentes
+  const projectsByEmail = useMemo(() => {
+    const map: Record<string, Set<string>> = {};
+    allMembersAll.forEach((m: any) => {
+      const key = (m.email ?? "").trim().toLowerCase();
+      if (!key) return;
+      (allocByMember[m.id] ?? []).forEach((pid) => {
+        (map[key] ??= new Set<string>()).add(pid);
+      });
+    });
+    return map;
+  }, [allMembersAll, allocByMember]);
+
+  const otherProjectsFor = (m: any) => {
+    const key = (m.email ?? "").trim().toLowerCase();
+    const set = key ? projectsByEmail[key] : null;
+    if (!set) return [] as string[];
+    return Array.from(set)
+      .filter((pid) => pid !== project?.id)
+      .map((pid) => productMap[pid])
+      .filter(Boolean) as string[];
+  };
+
   const allocatedMembers = useMemo(
-    () => members.filter((m) => project && allocByMember[m.id]?.includes(project.id)),
-    [members, allocByMember, project],
+    () => squadMembers.filter((m) => project && allocByMember[m.id]?.includes(project.id)),
+    [squadMembers, allocByMember, project],
   );
   const availableMembers = useMemo(
-    () => members.filter((m) => !project || !allocByMember[m.id]?.includes(project.id)),
-    [members, allocByMember, project],
+    () => squadMembers.filter((m) => !project || !allocByMember[m.id]?.includes(project.id)),
+    [squadMembers, allocByMember, project],
   );
 
   const projectStakeholders = useMemo(
@@ -394,10 +423,7 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {allocatedMembers.map((m) => {
-                    const memberProjects = (allocByMember[m.id] ?? [])
-                      .filter((pid) => pid !== project.id)
-                      .map((pid) => productMap[pid])
-                      .filter(Boolean);
+                    const memberProjects = otherProjectsFor(m);
                     return (
                       <div key={m.id} className="p-3 rounded-lg border border-border bg-muted/30 space-y-1.5">
                         <div className="flex items-start justify-between gap-2">
@@ -445,7 +471,7 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
               <p className="text-xs text-muted-foreground text-center py-4">Todos os colaboradores já estão alocados aqui.</p>
             )}
             {availableMembers.map((m) => {
-              const memberProjects = (allocByMember[m.id] ?? []).map((pid) => productMap[pid]).filter(Boolean);
+              const memberProjects = otherProjectsFor(m);
               return (
                 <div key={m.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border">
                   <div className="min-w-0 flex-1">
@@ -488,7 +514,11 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
 
 function TeamSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm: (v: boolean) => void }) {
   const { user } = useAuth();
-  const { data: members = [] } = useAllTeamMembers();
+  const { data: allMembers = [] } = useAllTeamMembers();
+  const members = useMemo(
+    () => allMembers.filter((m) => m.coordinator_id === user?.id),
+    [allMembers, user?.id],
+  );
   const { data: products = [] } = useProducts();
   const addMember = useAddTeamMember();
   const updateMember = useUpdateTeamMember();
@@ -496,6 +526,7 @@ function TeamSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm
 
   const [editing, setEditing] = useState<TeamMember | null>(null);
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [role, setRole] = useState<string>("");
   const [seniority, setSeniority] = useState<string>("");
   const [specialty, setSpecialty] = useState<string>("");
@@ -504,16 +535,17 @@ function TeamSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm
   const productMap = useMemo(() => Object.fromEntries(products.map((p) => [p.id, p.name])), [products]);
 
   const reset = () => {
-    setEditing(null); setOpenForm(false); setName(""); setRole(""); setSeniority("");
+    setEditing(null); setOpenForm(false); setName(""); setEmail(""); setRole(""); setSeniority("");
     setSpecialty(""); setProductId("__none__");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+    if (!email.trim()) { toast.error("Informe o e-mail do colaborador"); return; }
     if (!role || !seniority || !specialty) { toast.error("Preencha cargo, senioridade e especialidade"); return; }
     const payload = {
-      name: name.trim(), role, seniority, specialty,
+      name: name.trim(), email: email.trim().toLowerCase(), role, seniority, specialty,
       daily_capacity_hours: 8,
       allocation_percent: 100,
       product_id: productId === "__none__" ? null : productId,
@@ -530,6 +562,7 @@ function TeamSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm
   const handleEdit = (m: TeamMember) => {
     setEditing(m);
     setName(m.name);
+    setEmail((m as any).email ?? "");
     setRole(m.role);
     setSeniority(m.seniority);
     setSpecialty(m.specialty);
@@ -559,6 +592,10 @@ function TeamSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm
             <div className="space-y-2 md:col-span-2">
               <Label>Nome Completo</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do colaborador" required autoFocus />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>E-mail</Label>
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@empresa.com" required />
             </div>
             <div className="space-y-2">
               <Label>Cargo / Função</Label>
@@ -627,6 +664,9 @@ function TeamSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm
                         <div className="text-xs text-muted-foreground">
                           {TEAM_ROLE_LABELS[m.role as TeamRole]} • {SPECIALTY_LABELS[m.specialty as Specialty]}
                         </div>
+                        {(m as any).email && (
+                          <div className="text-[11px] text-muted-foreground truncate">{(m as any).email}</div>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">

@@ -1082,6 +1082,7 @@ export type Database = {
           coordinator_id: string
           created_at: string
           daily_capacity_hours: number
+          email: string
           id: string
           name: string
           product_id: string | null
@@ -1097,6 +1098,7 @@ export type Database = {
           coordinator_id: string
           created_at?: string
           daily_capacity_hours?: number
+          email?: string
           id?: string
           name: string
           product_id?: string | null
@@ -1112,6 +1114,7 @@ export type Database = {
           coordinator_id?: string
           created_at?: string
           daily_capacity_hours?: number
+          email?: string
           id?: string
           name?: string
           product_id?: string | null
