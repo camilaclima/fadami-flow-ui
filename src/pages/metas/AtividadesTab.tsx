@@ -1,9 +1,8 @@
 import { useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Link2, User, Calendar } from "lucide-react";
+import { Link2, User, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useActivities, IMPACT_LABELS, STATUS_LABELS, type Activity, type ActivityStatus } from "@/hooks/useActivities";
 import { useSprints } from "@/hooks/useSprints";
