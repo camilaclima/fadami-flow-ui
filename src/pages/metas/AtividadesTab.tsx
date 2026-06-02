@@ -44,11 +44,14 @@ export function AtividadesTab({ productIds, selectedProductId }: Props) {
     });
   }, [activities, selectedProductId]);
 
-  const linked = filtered.filter((a) => a.sprint_id);
-  const backlog = filtered.filter((a) => !a.sprint_id);
-
   const sprintName = (id: string | null) => (id ? sprints.find((s) => s.id === id)?.name ?? "—" : "—");
-  const memberName = (id: string | null) => (id ? members.find((m) => m.id === id)?.name ?? "—" : "Não atribuído");
+  const productName = (id: string) => products.find((p) => p.id === id)?.name ?? "—";
+  const productColor = (id: string) => products.find((p) => p.id === id)?.color ?? "hsl(var(--muted))";
+  const memberLabel = (a: Activity) => {
+    const ids = a.responsible_ids?.length ? a.responsible_ids : (a.responsible_id ? [a.responsible_id] : []);
+    if (!ids.length) return "Não atribuído";
+    return ids.map((id) => members.find((m) => m.id === id)?.name ?? "—").join(", ");
+  };
 
   const renderActivity = (a: Activity) => (
     <Card key={a.id} className="p-3">
@@ -56,10 +59,19 @@ export function AtividadesTab({ productIds, selectedProductId }: Props) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-medium">{a.task}</p>
+            <Badge variant="outline" className="text-[10px] gap-1">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: productColor(a.product_id) }} />
+              {productName(a.product_id)}
+            </Badge>
             {a.impact === "critical" ? (
               <Badge className="bg-red-500 text-white animate-pulse border-0">Crítico</Badge>
             ) : (
               <Badge variant="outline" className="text-[10px]">{IMPACT_LABELS[a.impact]}</Badge>
+            )}
+            {a.sprint_id ? (
+              <Badge variant="outline" className="text-[10px] text-primary border-primary/40">Sprint: {sprintName(a.sprint_id)}</Badge>
+            ) : (
+              <Badge variant="outline" className="text-[10px] text-muted-foreground">Sem sprint</Badge>
             )}
             {a.dependency_id && (
               <Badge variant="outline" className="text-[10px] gap-1 text-amber-600 border-amber-500/40">
@@ -68,10 +80,10 @@ export function AtividadesTab({ productIds, selectedProductId }: Props) {
             )}
           </div>
           <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><User className="w-3 h-3" />{memberName(a.responsible_id)}</span>
+            <span className="flex items-center gap-1"><User className="w-3 h-3" />{memberLabel(a)}</span>
             <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{a.deadline_date ?? "—"}</span>
-            {a.sprint_id && <span>Sprint: {sprintName(a.sprint_id)}</span>}
           </div>
+          {a.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{a.description}</p>}
         </div>
         <Badge className={cn("text-[10px] border", STATUS_STYLES[a.status])} variant="outline">{STATUS_LABELS[a.status]}</Badge>
       </div>
@@ -86,14 +98,10 @@ export function AtividadesTab({ productIds, selectedProductId }: Props) {
         </Button>
       </div>
 
-      <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-muted-foreground">Atividades Vinculadas a Sprints ({linked.length})</h3>
-        <div className="space-y-2">{linked.length ? linked.map(renderActivity) : <p className="text-xs text-muted-foreground">—</p>}</div>
-      </div>
-
-      <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-muted-foreground">Backlog — Sem Sprint Definida ({backlog.length})</h3>
-        <div className="space-y-2">{backlog.length ? backlog.map(renderActivity) : <p className="text-xs text-muted-foreground">—</p>}</div>
+      <div className="space-y-2">
+        {filtered.length ? filtered.map(renderActivity) : (
+          <Card className="p-8 text-center text-sm text-muted-foreground">Nenhuma atividade cadastrada.</Card>
+        )}
       </div>
 
       <CreateActivityModal

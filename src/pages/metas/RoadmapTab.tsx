@@ -65,34 +65,49 @@ export function RoadmapTab({ productIds, selectedProductId }: Props) {
         {periods.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">Nenhuma atividade com prazo definido.</p>
         ) : (
-          <div className="min-w-[640px] space-y-3">
-            <div className="grid gap-2" style={{ gridTemplateColumns: `160px repeat(${periods.length}, minmax(140px, 1fr))` }}>
-              <div />
-              {periods.map((p) => <div key={p} className="text-xs font-semibold text-center text-muted-foreground">{p}</div>)}
+          <div className="min-w-[720px]">
+            <div
+              className="grid sticky top-0 bg-background z-10 border-b border-border"
+              style={{ gridTemplateColumns: `180px repeat(${periods.length}, minmax(160px, 1fr))` }}
+            >
+              <div className="px-2 py-2 text-xs font-semibold text-muted-foreground">Projeto</div>
+              {periods.map((p) => (
+                <div key={p} className="px-2 py-2 text-xs font-semibold text-center text-muted-foreground border-l border-border/60">
+                  {p}
+                </div>
+              ))}
             </div>
-            {visibleProducts.map((prod) => (
-              <div key={prod.id} className="grid gap-2 items-start" style={{ gridTemplateColumns: `160px repeat(${periods.length}, minmax(140px, 1fr))` }}>
-                <div className="text-xs font-semibold truncate flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full" style={{ background: prod.color }} />
-                  {prod.name}
+            {visibleProducts.map((prod, rowIdx) => (
+              <div
+                key={prod.id}
+                className={`grid items-start ${rowIdx % 2 === 0 ? "bg-muted/10" : ""}`}
+                style={{ gridTemplateColumns: `180px repeat(${periods.length}, minmax(160px, 1fr))` }}
+              >
+                <div className="px-2 py-3 text-xs font-semibold flex items-center gap-2 border-b border-border/40">
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: prod.color }} />
+                  <span className="truncate">{prod.name}</span>
                 </div>
                 {periods.map((p) => {
                   const blocks = filtered.filter((a) => a.product_id === prod.id && periodKey(a.deadline_date!, granularity) === p);
                   return (
-                    <div key={p} className="space-y-1 min-h-[36px]">
+                    <div key={p} className="px-1.5 py-2 space-y-1 min-h-[56px] border-l border-b border-border/40">
                       {blocks.map((b) => (
                         <div
                           key={b.id}
-                          className="text-[11px] px-2 py-1 rounded-md border"
-                          style={{ borderColor: prod.color, background: `${prod.color}15` }}
+                          className="text-[11px] px-2 py-1.5 rounded-md border shadow-sm"
+                          style={{ borderColor: prod.color, background: `${prod.color}1A` }}
                         >
                           <p className="truncate font-medium">{b.task}</p>
-                          {b.impact === "critical" && <Badge className="bg-red-500 text-white text-[9px] mt-0.5 animate-pulse border-0">Crítico</Badge>}
-                          {b.dependency_id && (
-                            <div className="flex items-center gap-1 mt-0.5 text-amber-600">
-                              <Link2 className="w-2.5 h-2.5" /> <span className="truncate">Bloqueado por: {depTitle(b.dependency_id)}</span>
-                            </div>
-                          )}
+                          <div className="flex items-center gap-1 mt-0.5">
+                            {b.impact === "critical" && (
+                              <Badge className="bg-red-500 text-white text-[9px] animate-pulse border-0">Crítico</Badge>
+                            )}
+                            {b.dependency_id && (
+                              <span className="flex items-center gap-0.5 text-amber-600 text-[10px]">
+                                <Link2 className="w-2.5 h-2.5" /> dep
+                              </span>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>

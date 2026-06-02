@@ -6,9 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAddSprint } from "@/hooks/useSprints";
+import { useSetSprintProducts } from "@/hooks/useSprintProducts";
 import { useAddActivity, useUpdateActivity, type Activity, type ActivityImpact, IMPACT_LABELS } from "@/hooks/useActivities";
 import type { Product } from "@/hooks/useProducts";
 import { Plus, X } from "lucide-react";
@@ -30,11 +32,12 @@ interface Props {
 export function CreateSprintModal({ open, onOpenChange, products, unassignedActivities, defaultProductId }: Props) {
   const { user } = useAuth();
   const addSprint = useAddSprint();
+  const setSprintProducts = useSetSprintProducts();
   const addActivity = useAddActivity();
   const updateActivity = useUpdateActivity();
 
   const [name, setName] = useState("");
-  const [productId, setProductId] = useState<string>("");
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [linkedIds, setLinkedIds] = useState<Set<string>>(new Set());
@@ -43,7 +46,7 @@ export function CreateSprintModal({ open, onOpenChange, products, unassignedActi
   useEffect(() => {
     if (open) {
       setName("");
-      setProductId(defaultProductId || products[0]?.id || "");
+      setSelectedProductIds(defaultProductId ? [defaultProductId] : []);
       setStartDate("");
       setEndDate("");
       setLinkedIds(new Set());
@@ -51,9 +54,12 @@ export function CreateSprintModal({ open, onOpenChange, products, unassignedActi
     }
   }, [open, defaultProductId, products]);
 
+  const toggleProd = (id: string) =>
+    setSelectedProductIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+
   const eligible = useMemo(
-    () => unassignedActivities.filter((a) => !productId || a.product_id === productId),
-    [unassignedActivities, productId]
+    () => unassignedActivities.filter((a) => selectedProductIds.length === 0 || selectedProductIds.includes(a.product_id)),
+    [unassignedActivities, selectedProductIds]
   );
 
   const toggle = (id: string) => {
@@ -66,11 +72,15 @@ export function CreateSprintModal({ open, onOpenChange, products, unassignedActi
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !startDate || !endDate || !productId) return;
+    if (!name.trim() || !startDate || !endDate || selectedProductIds.length === 0) {
+      toast.error("Preencha nome, datas e ao menos um projeto");
+      return;
+    }
+    const primaryProductId = selectedProductIds[0];
     try {
       const sprint = await addSprint.mutateAsync({
         name: name.trim(),
-        product_id: productId,
+        product_id: primaryProductId,
         coordinator_id: user?.id ?? "",
         start_date: startDate,
         end_date: endDate,
@@ -78,6 +88,8 @@ export function CreateSprintModal({ open, onOpenChange, products, unassignedActi
         sustentation_percent: 0,
         ritual_hours: 0,
       } as any);
+
+      await setSprintProducts.mutateAsync({ sprintId: sprint.id, productIds: selectedProductIds });
 
       // Link existing
       await Promise.all(
@@ -89,7 +101,7 @@ export function CreateSprintModal({ open, onOpenChange, products, unassignedActi
           .filter((d) => d.task.trim())
           .map((d) =>
             addActivity.mutateAsync({
-              product_id: productId,
+              product_id: primaryProductId,
               task: d.task.trim(),
               deadline_date: d.deadline_date || null,
               impact: d.impact,
@@ -114,16 +126,27 @@ export function CreateSprintModal({ open, onOpenChange, products, unassignedActi
               <Label>Nome</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} required />
             </div>
-            <div>
-              <Label>Projeto</Label>
-              <Select value={productId} onValueChange={setProductId}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <div className="col-span-2">
+              <Label>Projetos</Label>
+              <div className="border border-border rounded-lg p-2 max-h-40 overflow-y-auto space-y-1">
+                {products.length === 0 && <p className="text-xs text-muted-foreground p-2">Nenhum projeto disponível.</p>}
+                {products.map((p) => (
+                  <label key={p.id} className="flex items-center gap-2 text-sm p-1 hover:bg-muted/40 rounded cursor-pointer">
+                    <Checkbox checked={selectedProductIds.includes(p.id)} onCheckedChange={() => toggleProd(p.id)} />
+                    <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+                    <span className="flex-1 truncate">{p.name}</span>
+                  </label>
+                ))}
+              </div>
+              {selectedProductIds.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {selectedProductIds.map((id) => {
+                    const p = products.find((x) => x.id === id);
+                    return p ? <Badge key={id} variant="secondary" className="text-[10px]">{p.name}</Badge> : null;
+                  })}
+                </div>
+              )}
             </div>
-            <div />
             <div>
               <Label>Data Início</Label>
               <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />

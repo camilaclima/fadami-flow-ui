@@ -557,12 +557,14 @@ export type Database = {
           deadline: string
           deadline_date: string | null
           dependency_id: string | null
+          description: string
           id: string
           impact: string
           likely_owner: string
           product_id: string
           project_context_id: string | null
           responsible_id: string | null
+          responsible_ids: string[]
           risk_mitigation: string
           sort_order: number
           sprint_id: string | null
@@ -578,12 +580,14 @@ export type Database = {
           deadline?: string
           deadline_date?: string | null
           dependency_id?: string | null
+          description?: string
           id?: string
           impact?: string
           likely_owner?: string
           product_id: string
           project_context_id?: string | null
           responsible_id?: string | null
+          responsible_ids?: string[]
           risk_mitigation?: string
           sort_order?: number
           sprint_id?: string | null
@@ -599,12 +603,14 @@ export type Database = {
           deadline?: string
           deadline_date?: string | null
           dependency_id?: string | null
+          description?: string
           id?: string
           impact?: string
           likely_owner?: string
           product_id?: string
           project_context_id?: string | null
           responsible_id?: string | null
+          responsible_ids?: string[]
           risk_mitigation?: string
           sort_order?: number
           sprint_id?: string | null
@@ -886,6 +892,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      sprint_products: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          sprint_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          sprint_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          sprint_id?: string
+        }
+        Relationships: []
       }
       sprint_unavailabilities: {
         Row: {
