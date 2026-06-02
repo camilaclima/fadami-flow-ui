@@ -236,6 +236,20 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
   const { data: allMembersAll = [] } = useAllTeamMembers();
   const { data: products = [] } = useProducts();
   const { data: allocations = [] } = useTeamMemberProducts();
+  const { data: squads = [] } = useSquads();
+  const { data: profiles = [] } = useProfiles();
+  const myProfileId = useMemo(
+    () => profiles.find((p) => p.user_id === user?.id)?.id ?? null,
+    [profiles, user?.id],
+  );
+  const squadMemberIds = useMemo(() => {
+    if (!myProfileId) return new Set<string>();
+    const ids = new Set<string>();
+    squads
+      .filter((s) => s.leader_profile_id === myProfileId)
+      .forEach((s) => s.member_ids.forEach((id) => ids.add(id)));
+    return ids;
+  }, [squads, myProfileId]);
   const saveStakeholder = useSaveStakeholder();
   const deleteStakeholder = useDeleteStakeholder();
   const addToProject = useAddMemberToProject();
@@ -251,10 +265,10 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
   const [showMemberPicker, setShowMemberPicker] = useState(false);
 
   const productMap = useMemo(() => Object.fromEntries(products.map((p) => [p.id, p.name])), [products]);
-  // Squad do usuário logado = membros que ele cadastrou
+  // Squad do usuário logado = membros que ele cadastrou + membros das squads que ele lidera
   const squadMembers = useMemo(
-    () => members.filter((m) => m.coordinator_id === user?.id),
-    [members, user?.id],
+    () => members.filter((m) => m.coordinator_id === user?.id || squadMemberIds.has(m.id)),
+    [members, user?.id, squadMemberIds],
   );
   const allocByMember = useMemo(() => {
     const map: Record<string, string[]> = {};
