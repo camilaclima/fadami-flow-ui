@@ -6,6 +6,7 @@ import { useActivities } from "@/hooks/useActivities";
 import { useProducts } from "@/hooks/useProducts";
 import { useSprintProducts } from "@/hooks/useSprintProducts";
 import { SPRINT_STATUS_LABELS, type Sprint } from "@/types/sprint";
+import { cn } from "@/lib/utils";
 import { CreateSprintModal } from "@/components/metas/CreateSprintModal";
 import { SprintDetailDrawer } from "@/components/metas/SprintDetailDrawer";
 
@@ -43,6 +44,14 @@ export function SprintsTab({ productIds, createOpen, onCreateOpenChange }: Props
     [products, productIds]
   );
 
+  const today = new Date().toISOString().slice(0, 10);
+  const getDerivedStatus = (s: Sprint): { label: string; className: string } => {
+    if (s.status === "finished") return { label: SPRINT_STATUS_LABELS.finished, className: "bg-muted text-muted-foreground border-border" };
+    if (today < s.start_date) return { label: "Planejada", className: "bg-blue-500/15 text-blue-600 border-blue-500/30" };
+    if (today > s.end_date) return { label: "Atrasada", className: "bg-red-500/15 text-red-600 border-red-500/30" };
+    return { label: "Em andamento", className: "bg-emerald-500/15 text-emerald-600 border-emerald-500/30" };
+  };
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -50,11 +59,12 @@ export function SprintsTab({ productIds, createOpen, onCreateOpenChange }: Props
           const acts = sprintActivities(s.id);
           const done = acts.filter((a) => a.status === "done").length;
           const blocked = acts.filter((a) => a.status === "blocked").length;
+          const derived = getDerivedStatus(s);
           return (
             <Card key={s.id} className="p-4 cursor-pointer hover:border-primary/40 transition-colors" onClick={() => setSelected(s)}>
               <div className="flex items-start justify-between gap-2">
                 <h3 className="font-semibold">{s.name}</h3>
-                <Badge variant="outline">{SPRINT_STATUS_LABELS[s.status]}</Badge>
+                <Badge variant="outline" className={cn(derived.className)}>{derived.label}</Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-1">{s.start_date} → {s.end_date}</p>
               <div className="flex items-center gap-2 mt-3 text-xs">
