@@ -1051,6 +1051,27 @@ export type Database = {
         }
         Relationships: []
       }
+      team_member_products: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          team_member_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          team_member_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          team_member_id?: string
+        }
+        Relationships: []
+      }
       team_members: {
         Row: {
           active: boolean
