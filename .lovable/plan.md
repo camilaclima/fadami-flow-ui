@@ -1,32 +1,39 @@
-## Problema
-As páginas `DailyStatusPage` e `TeamProjectConfigPage` possuem cabeçalhos próprios (título + subtítulo + ícone). Quando embedadas nas abas de `ControleGestaoPage`, esses cabeçalhos competem com o título geral "Controle e Gestão", criando a sensação de "tela dentro da tela".
+## Objetivo
 
-## Solução
-Adicionar um prop opcional `embedded` às duas páginas filhas. Quando `embedded={true}`, o cabeçalho próprio é suprimido, deixando apenas o conteúdo funcional. A aba de `ControleGestaoPage` passa esse prop.
+Na aba **Configurações → Projetos** (dentro de Controle e Gestão), listar apenas os projetos vinculados ao usuário logado através do cadastro de usuários (vínculo `profile_products`), removendo a criação de projetos por esta tela.
 
-## Mudanças Técnicas
+## Mudanças
 
-1. **`src/pages/TeamProjectConfigPage.tsx`**
-   - Aceitar prop opcional `embedded?: boolean`.
-   - Quando `embedded === true`, não renderizar o bloco `<h1>` + `<p>` de cabeçalho.
-   - Manter o conteúdo das sub-abas (Projetos / Time) intacto.
+### 1. Filtro de projetos por vínculo do usuário
+- Em `src/pages/TeamProjectConfigPage.tsx`, dentro de `ProjectsSection`, substituir o filtro atual (por `created_by`) por um filtro baseado nos produtos vinculados ao perfil do usuário logado.
+- Usar o hook já existente `useAuthorizedProducts` (`src/hooks/useAuthorizedProducts.ts`), que:
+  - retorna `productIds` carregados de `profile_products` (com fallback para `profiles.product_id`);
+  - retorna `null` quando o usuário é admin (permissão `users`) — nesse caso mostrar todos os projetos.
+- Resultado: o usuário vê exatamente os projetos atribuídos a ele no cadastro de usuários. Admins continuam vendo todos.
 
-2. **`src/pages/DailyStatusPage.tsx`**
-   - Aceitar prop opcional `embedded?: boolean`.
-   - Quando `embedded === true`, não renderizar o cabeçalho com ícone, título, subtítulo e botão "Adicionar Squad".
-   - O botão de ação pode ser movido para dentro do conteúdo ou omitido se já houver outro mecanismo na aba pai.
+### 2. Remover criação de projetos
+- Remover o botão **"+ Novo Projeto"** da barra de abas em `TeamProjectConfigPage`.
+- Remover o `Dialog` de criação/edição de projeto dentro de `ProjectsSection` (estado `openProjectModal`, `editing`, `name`, `description`, handlers `handleSubmitProject`, `handleEditProject`, `resetProject`, `closeProjectModal`, props `openForm`/`setOpenForm`).
+- Remover também o botão de editar (lápis) nos cards de projeto, já que a criação/edição deve ocorrer apenas no cadastro de Projetos (`/products`).
 
-3. **`src/pages/ControleGestaoPage.tsx`**
-   - Passar `embedded` para ambas as páginas:
-     - `<DailyStatusPage embedded />`
-     - `<TeamProjectConfigPage embedded />`
-   - Os cabeçalhos das abas placeholder (`Dashboard`, `Tarefas`, `Projetos`) já estão limpos, nenhuma alteração necessária.
+### 3. Preservar o que já funciona
+- O clique no card do projeto continua abrindo o modal de detalhes (`ProjectDetailsModal`) com:
+  - lista e cadastro de **stakeholders** (modal próprio);
+  - alocação/desalocação de **colaboradores do time** ao projeto.
+- Nenhuma mudança no fluxo de stakeholders, colaboradores ou no restante do app.
 
-## Resultado Esperado
-- A única área de título visível em todas as abas será o cabeçalho geral "Controle e Gestão" + subtítulo.
-- O conteúdo das abas começa imediatamente com sua estrutura interna, eliminando a sensação de nesting.
-- As páginas continuam funcionando normalmente se acessadas diretamente via rotas antigas (o prop default é `false`).
+### 4. Limpeza relacionada
+- Reverter a alteração feita anteriormente em `useAddProduct` que setava `created_by` (não é mais necessária para esta tela). A coluna `created_by` na tabela `products` permanece no banco, sem uso por enquanto — sem migração.
 
-## Riscos / Nenhum
-- Não envolve banco de dados, apenas props de componente.
-- Zero impacto em dados ou estado existente.
+## Detalhes técnicos
+
+- Hook usado: `useAuthorizedProducts()` → `{ productIds, isAdmin }`.
+- Filtro:
+  ```ts
+  const products = useMemo(() => {
+    if (isAdmin || productIds === null) return allProducts;
+    const set = new Set(productIds);
+    return allProducts.filter(p => set.has(p.id));
+  }, [allProducts, productIds, isAdmin]);
+  ```
+- Empty state: manter mensagem amigável quando o usuário não tem projetos vinculados (ex.: "Nenhum projeto vinculado ao seu usuário.").
