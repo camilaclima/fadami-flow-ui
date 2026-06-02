@@ -43,9 +43,7 @@ export default function ControleGestaoPage() {
           <EmptyTab title="Dashboard Geral" />
         </TabsContent>
         <TabsContent value="dailys">
-          <div className="-mx-6 -mt-2">
-            <DailyStatusPage />
-          </div>
+          <DailyStatusPage embedded />
         </TabsContent>
         <TabsContent value="tasks">
           <EmptyTab title="Painel de Tarefas" />
@@ -54,9 +52,7 @@ export default function ControleGestaoPage() {
           <EmptyTab title="Projetos" />
         </TabsContent>
         <TabsContent value="settings">
-          <div className="-mx-6 -mt-2">
-            <TeamProjectConfigPage />
-          </div>
+          <TeamProjectConfigPage embedded />
         </TabsContent>
       </Tabs>
     </div>
