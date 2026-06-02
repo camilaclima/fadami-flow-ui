@@ -68,8 +68,12 @@ export function NewTaskModal({
     if (!title.trim()) return;
     let responsible_member_id: string | null | undefined = undefined;
     if (!editing && category === "activity") {
-      const myEmail = profiles.find((p) => p.user_id === user?.id)?.email?.toLowerCase();
-      const me = myEmail ? members.find((m) => m.email?.toLowerCase() === myEmail) : null;
+      const profileEmail = profiles.find((p) => p.user_id === user?.id)?.email?.toLowerCase();
+      const authEmail = user?.email?.toLowerCase();
+      const me =
+        members.find((m) => m.email?.toLowerCase() === profileEmail) ||
+        members.find((m) => m.email?.toLowerCase() === authEmail) ||
+        members.find((m) => (m as any).coordinator_id === user?.id);
       responsible_member_id = me?.id ?? null;
     }
     await upsert.mutateAsync({
