@@ -58,7 +58,7 @@ export default function PainelTarefasPage() {
         <MetricCard icon={ListTodo} label="Ações Pendentes" value={pending.length} />
         <MetricCard icon={AlertTriangle} label="Alertas Críticos" value={critical.length} tone="critical" />
         <MetricCard icon={Lightbulb} label="Sugestões de Melhoria" value={improvements.length} tone="info" />
-        <div className="flex items-center gap-2 ml-auto">
+        <div className="flex flex-col gap-2 ml-auto">
           <Button variant="outline" onClick={() => generate.mutate(productIds)} disabled={generate.isPending} className="gap-2">
             {generate.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
             Gerar análise com IA
