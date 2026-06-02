@@ -652,15 +652,6 @@ function TeamSection() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Fator de Carga / Disponibilidade</Label>
-                <Select value={String(allocation)} onValueChange={(v) => setAllocation(Number(v))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {ALLOCATION_OPTIONS.map((a) => <SelectItem key={a} value={String(a)}>{a}% Alocado</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
                 <Label>Projeto Principal</Label>
                 <Select value={productId} onValueChange={setProductId}>
                   <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
