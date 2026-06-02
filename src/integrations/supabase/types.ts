@@ -630,6 +630,42 @@ export type Database = {
         }
         Relationships: []
       }
+      project_stakeholders: {
+        Row: {
+          area: string
+          contact: string
+          created_at: string
+          id: string
+          importance: string
+          name: string
+          product_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          area?: string
+          contact?: string
+          created_at?: string
+          id?: string
+          importance?: string
+          name: string
+          product_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          area?: string
+          contact?: string
+          created_at?: string
+          id?: string
+          importance?: string
+          name?: string
+          product_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       roles: {
         Row: {
           created_at: string
@@ -1009,6 +1045,7 @@ export type Database = {
       team_members: {
         Row: {
           active: boolean
+          allocation_percent: number
           coordinator_id: string
           created_at: string
           daily_capacity_hours: number
@@ -1023,6 +1060,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          allocation_percent?: number
           coordinator_id: string
           created_at?: string
           daily_capacity_hours?: number
@@ -1037,6 +1075,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          allocation_percent?: number
           coordinator_id?: string
           created_at?: string
           daily_capacity_hours?: number
