@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { useProducts, useAddProduct, useUpdateProduct, type Product } from "@/hooks/useProducts";
+import { useProducts, useUpdateProduct, type Product } from "@/hooks/useProducts";
 import { useClients } from "@/hooks/useClients";
 import { useAllTeamMembers, useAddTeamMember, useUpdateTeamMember, useTeamMembers } from "@/hooks/useTeamMembers";
 import {
@@ -18,6 +18,7 @@ import {
   IMPORTANCE_LABELS, IMPORTANCE_STYLES, type Stakeholder, type StakeholderImportance,
 } from "@/hooks/useStakeholders";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAuthorizedProducts } from "@/hooks/useAuthorizedProducts";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -89,7 +90,6 @@ const SENIORITY_BADGE: Record<Seniority, string> = {
 
 export default function TeamProjectConfigPage({ embedded = false }: { embedded?: boolean } = {}) {
   const [tab, setTab] = useState<"projects" | "team">("projects");
-  const [openProjectModal, setOpenProjectModal] = useState(false);
   const [openMemberModal, setOpenMemberModal] = useState(false);
 
   return (
@@ -109,18 +109,14 @@ export default function TeamProjectConfigPage({ embedded = false }: { embedded?:
             <TabsTrigger value="projects" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Package className="w-4 h-4" /> Projetos</TabsTrigger>
             <TabsTrigger value="team" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Users className="w-4 h-4" /> Time</TabsTrigger>
           </TabsList>
-          {tab === "projects" ? (
-            <Button className="gap-2" onClick={() => setOpenProjectModal(true)}>
-              <Plus className="w-4 h-4" /> Novo Projeto
-            </Button>
-          ) : (
+          {tab === "team" && (
             <Button className="gap-2" onClick={() => setOpenMemberModal(true)}>
               <Plus className="w-4 h-4" /> Novo Colaborador
             </Button>
           )}
         </div>
         <TabsContent value="projects" className="mt-6">
-          <ProjectsSection openForm={openProjectModal} setOpenForm={setOpenProjectModal} />
+          <ProjectsSection />
         </TabsContent>
         <TabsContent value="team" className="mt-6">
           <TeamSection openForm={openMemberModal} setOpenForm={setOpenMemberModal} />
@@ -132,25 +128,21 @@ export default function TeamProjectConfigPage({ embedded = false }: { embedded?:
 
 /* -------------------------------------- PROJECTS -------------------------------------- */
 
-function ProjectsSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm: (v: boolean) => void }) {
-  const { user } = useAuth();
+function ProjectsSection() {
   const { data: allProducts = [] } = useProducts();
-  const products = useMemo(
-    () => allProducts.filter((p: any) => p.created_by === user?.id),
-    [allProducts, user?.id],
-  );
+  const { isAdmin, productIds } = useAuthorizedProducts();
+  const products = useMemo(() => {
+    if (isAdmin || productIds === null) return allProducts;
+    const set = new Set(productIds);
+    return allProducts.filter((p) => set.has(p.id));
+  }, [allProducts, productIds, isAdmin]);
   const { data: stakeholders = [] } = useStakeholders();
   const { data: allMembers = [] } = useAllTeamMembers();
   const { data: allocations = [] } = useTeamMemberProducts();
-  const addProduct = useAddProduct();
   const updateProduct = useUpdateProduct();
   const saveStakeholder = useSaveStakeholder();
   const deleteStakeholder = useDeleteStakeholder();
   const qc = useQueryClient();
-
-  const [editing, setEditing] = useState<Product | null>(null);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
 
   // Project details modal
   const [detailProject, setDetailProject] = useState<Product | null>(null);
@@ -161,31 +153,6 @@ function ProjectsSection({ openForm, setOpenForm }: { openForm: boolean; setOpen
     return map;
   }, [allocations]);
 
-  const resetProject = () => {
-    setEditing(null); setName(""); setDescription("");
-  };
-
-  const closeProjectModal = () => { resetProject(); setOpenForm(false); };
-
-  const handleSubmitProject = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-    if (editing) {
-      updateProduct.mutate({ id: editing.id, name: name.trim(), description });
-    } else {
-      addProduct.mutate({ name: name.trim(), description, color: "hsl(243 75% 59%)", status: "active" });
-    }
-    closeProjectModal();
-  };
-
-  const handleEditProject = (p: Product) => {
-    setEditing(p);
-    setName(p.name);
-    const m = p.description.match(/^\[Cliente:[^\]]+\]\s?(.*)$/);
-    setDescription(m ? m[1] : p.description);
-    setOpenForm(true);
-  };
-
   const handleArchive = (p: Product) => {
     updateProduct.mutate({ id: p.id, status: p.status === "inactive" ? "active" : "inactive" });
   };
@@ -194,30 +161,6 @@ function ProjectsSection({ openForm, setOpenForm }: { openForm: boolean; setOpen
 
   return (
     <div className="space-y-6">
-      {/* Project form modal */}
-      <Dialog open={openForm} onOpenChange={(o) => { if (!o) closeProjectModal(); else setOpenForm(true); }}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{editing ? "Editar Projeto" : "Novo Projeto"}</DialogTitle>
-            <DialogDescription>Informe os dados do projeto.</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmitProject} className="grid grid-cols-1 gap-4">
-            <div className="space-y-2">
-              <Label>Nome do Projeto</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Portal do Cliente" required autoFocus />
-            </div>
-            <div className="space-y-2">
-              <Label>Descrição Breve</Label>
-              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Resumo do projeto" />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={closeProjectModal}>Cancelar</Button>
-              <Button type="submit" className="gap-2"><Plus className="w-4 h-4" /> {editing ? "Salvar" : "Cadastrar Projeto"}</Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-
       {/* Project cards */}
       <div>
         <h2 className="text-sm font-semibold text-foreground/80 mb-3">Projetos Cadastrados</h2>
@@ -255,9 +198,6 @@ function ProjectsSection({ openForm, setOpenForm }: { openForm: boolean; setOpen
                       </Badge>
                     </div>
                     <div className="flex gap-2 mt-auto pt-2" onClick={(e) => e.stopPropagation()}>
-                      <Button size="sm" variant="outline" className="flex-1 gap-2" onClick={(e) => { e.stopPropagation(); handleEditProject(p); }}>
-                        <Pencil className="w-3.5 h-3.5" /> Editar
-                      </Button>
                       <Button size="sm" variant="outline" className="flex-1 gap-2" onClick={(e) => { e.stopPropagation(); handleArchive(p); }}>
                         <Archive className="w-3.5 h-3.5" /> {p.status === "inactive" ? "Reativar" : "Arquivar"}
                       </Button>
@@ -270,7 +210,7 @@ function ProjectsSection({ openForm, setOpenForm }: { openForm: boolean; setOpen
           {products.length === 0 && (
             <Card className="rounded-2xl md:col-span-2 lg:col-span-3">
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Nenhum projeto cadastrado ainda.
+                Nenhum projeto vinculado ao seu usuário.
               </CardContent>
             </Card>
           )}
