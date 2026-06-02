@@ -383,6 +383,23 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
           </SelectContent>
         </Select>
       </div>
+      {isEdit && (
+        <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-amber-600" />
+            <Label className="text-xs uppercase tracking-wide text-amber-700 dark:text-amber-400 font-semibold">
+              Observações livres (opcional)
+            </Label>
+          </div>
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+            placeholder="Adicione observações ou contexto. Serão salvas junto e aparecerão na aba Atualizações."
+            className="bg-card border-amber-500/20 focus-visible:ring-amber-500/40"
+          />
+        </div>
+      )}
       <DialogFooter>
         <div className="flex w-full items-center justify-between gap-2">
           {isEdit ? (
