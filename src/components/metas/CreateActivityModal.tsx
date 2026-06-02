@@ -19,6 +19,7 @@ import { IMPACT_LABELS, STATUS_LABELS, useAddActivity, useUpdateActivity, useAct
 import { useMyTeamMembers } from "@/hooks/useMyTeamMembers";
 import type { Product } from "@/hooks/useProducts";
 import type { Sprint } from "@/types/sprint";
+import { useSprintProducts } from "@/hooks/useSprintProducts";
 import { format } from "date-fns";
 
 interface Props {
@@ -38,6 +39,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
   const update = useUpdateActivity();
   const del = useDeleteActivity();
   const { data: members = [] } = useMyTeamMembers();
+  const { data: sprintProducts = [] } = useSprintProducts();
   const isEdit = !!editing;
   const { data: history = [] } = useActivityHistory(isEdit ? editing!.id : null);
 
@@ -68,18 +70,22 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
       } else {
         setTask("");
         setDescription("");
-        setProductId(defaultProductId || (products[0]?.id ?? ""));
+        setProductId("");
         setDeadline("");
         setImpact("medium");
         setStatus("todo");
-        setSprintId(defaultSprintId ?? "__none__");
+        setSprintId("__none__");
         setDependencyId("__none__");
         setResponsibleIds([]);
       }
     }
-  }, [open, defaultProductId, defaultSprintId, products, editing]);
+  }, [open, editing]);
 
-  const sprintsForProduct = sprints.filter((s) => !productId || s.product_id === productId);
+  const sprintsForProduct = sprints.filter((s) => {
+    if (!productId) return true;
+    if (s.product_id === productId) return true;
+    return sprintProducts.some((sp) => sp.sprint_id === s.id && sp.product_id === productId);
+  });
   const depCandidates = activities.filter((a) => (!productId || a.product_id === productId) && (!editing || a.id !== editing.id));
 
   const toggleResp = (id: string) =>

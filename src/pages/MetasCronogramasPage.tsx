@@ -12,6 +12,7 @@ export default function MetasCronogramasPage() {
   const { productIds } = useAuthorizedProducts();
   const [tab, setTab] = useState("sprints");
   const [createSprintOpen, setCreateSprintOpen] = useState(false);
+  const [createActivityOpen, setCreateActivityOpen] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -28,13 +29,18 @@ export default function MetasCronogramasPage() {
               <Plus className="w-4 h-4" /> Criar Sprint
             </Button>
           )}
+          {tab === "atividades" && (
+            <Button onClick={() => setCreateActivityOpen(true)} className="gap-2">
+              <Plus className="w-4 h-4" /> Criar Atividade
+            </Button>
+          )}
         </div>
 
         <TabsContent value="sprints" className="mt-4">
           <SprintsTab productIds={productIds} createOpen={createSprintOpen} onCreateOpenChange={setCreateSprintOpen} />
         </TabsContent>
         <TabsContent value="atividades" className="mt-4">
-          <AtividadesTab productIds={productIds} />
+          <AtividadesTab productIds={productIds} createOpen={createActivityOpen} onCreateOpenChange={setCreateActivityOpen} />
         </TabsContent>
         <TabsContent value="roadmap" className="mt-4">
           <RoadmapTab productIds={productIds} />
