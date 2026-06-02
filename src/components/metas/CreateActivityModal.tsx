@@ -134,12 +134,6 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
     responsible_ids: "Responsáveis", responsible_id: "Responsável",
   } as Record<string, string>)[k] ?? k;
 
-  const formatVal = (v: any) => {
-    if (v === null || v === undefined || v === "") return "—";
-    if (Array.isArray(v)) return v.length ? v.map((id) => members.find((m) => m.id === id)?.name ?? id).join(", ") : "—";
-    return String(v);
-  };
-
   const productName = (id: any) => products.find((p) => p.id === id)?.name ?? "—";
   const sprintName = (id: any) => sprints.find((s) => s.id === id)?.name ?? "—";
   const activityName = (id: any) => activities.find((a) => a.id === id)?.task ?? "—";
