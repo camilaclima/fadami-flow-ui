@@ -67,42 +67,108 @@ export function AtividadesTab({ productIds, createOpen, onCreateOpenChange }: Pr
     return ids.map((id) => members.find((m) => m.id === id)?.name ?? "—").join(", ");
   };
 
-  const renderActivity = (a: Activity) => (
-    <Card key={a.id} className="p-3 cursor-pointer hover:border-primary/40 transition-colors" onClick={() => setEditing(a)}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-medium">{a.task}</p>
-            <Badge variant="outline" className="text-[10px] gap-1">
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: productColor(a.product_id) }} />
-              {productName(a.product_id)}
+  const deadlineInfo = (a: Activity) => {
+    if (!a.deadline_date) return { label: "Sem prazo", tone: "muted", days: null as number | null };
+    try {
+      const d = parseISO(a.deadline_date);
+      const days = differenceInCalendarDays(d, new Date());
+      const dateLabel = format(d, "dd MMM", { locale: ptBR });
+      if (a.status === "done") return { label: dateLabel, tone: "muted", days };
+      if (days < 0) return { label: `${dateLabel} · atrasada ${Math.abs(days)}d`, tone: "danger", days };
+      if (days === 0) return { label: `${dateLabel} · hoje`, tone: "danger", days };
+      if (days <= 3) return { label: `${dateLabel} · ${days}d`, tone: "warning", days };
+      if (days <= 7) return { label: `${dateLabel} · ${days}d`, tone: "info", days };
+      return { label: dateLabel, tone: "muted", days };
+    } catch {
+      return { label: a.deadline_date ?? "—", tone: "muted", days: null };
+    }
+  };
+
+  const renderActivity = (a: Activity) => {
+    const dl = deadlineInfo(a);
+    const dlClass = {
+      danger: "text-red-700 bg-red-500/10 border-red-500/30",
+      warning: "text-amber-700 bg-amber-500/10 border-amber-500/30",
+      info: "text-blue-700 bg-blue-500/10 border-blue-500/30",
+      muted: "text-muted-foreground bg-muted/40 border-border",
+    }[dl.tone];
+    return (
+      <Card
+        key={a.id}
+        className="relative p-0 cursor-pointer hover:border-primary/50 hover:shadow-md transition-all overflow-hidden group"
+        onClick={() => setEditing(a)}
+      >
+        <div className={cn("absolute left-0 top-0 bottom-0 w-1", STATUS_BAR[a.status])} />
+        <div className="p-4 pl-5 space-y-3">
+          {/* Top: status + impact */}
+          <div className="flex items-center justify-between gap-2">
+            <Badge className={cn("text-[10px] border h-5 px-2", STATUS_STYLES[a.status])} variant="outline">
+              {STATUS_LABELS[a.status]}
             </Badge>
             {a.impact === "critical" ? (
-              <Badge className="bg-red-500 text-white animate-pulse border-0">Crítico</Badge>
-            ) : (
-              <Badge variant="outline" className="text-[10px]">{IMPACT_LABELS[a.impact]}</Badge>
-            )}
-            {a.sprint_id ? (
-              <Badge variant="outline" className="text-[10px] text-primary border-primary/40">Sprint: {sprintName(a.sprint_id)}</Badge>
-            ) : (
-              <Badge variant="outline" className="text-[10px] text-muted-foreground">Sem sprint</Badge>
-            )}
-            {a.dependency_id && (
-              <Badge variant="outline" className="text-[10px] gap-1 text-amber-600 border-amber-500/40">
-                <Link2 className="w-3 h-3" /> Dependência
+              <Badge className="bg-red-500 text-white border-0 h-5 px-2 text-[10px] gap-1">
+                <AlertTriangle className="w-3 h-3" /> Crítico
               </Badge>
+            ) : (
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                {IMPACT_LABELS[a.impact]}
+              </span>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><User className="w-3 h-3" />{memberLabel(a)}</span>
-            <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{a.deadline_date ?? "—"}</span>
+
+          {/* Title */}
+          <h3 className="text-base font-semibold leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+            {a.task}
+          </h3>
+
+          {/* Description */}
+          {a.description && (
+            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{a.description}</p>
+          )}
+
+          {/* Deadline highlight */}
+          <div className={cn("inline-flex items-center gap-1.5 text-xs font-medium rounded-md border px-2 py-1", dlClass)}>
+            <Calendar className="w-3 h-3" />
+            {dl.label}
           </div>
-          {a.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{a.description}</p>}
+
+          {/* Meta footer */}
+          <div className="pt-2 border-t border-border/60 space-y-1.5">
+            <div className="flex items-center gap-1.5 text-xs">
+              <span
+                className="w-2 h-2 rounded-full shrink-0"
+                style={{ background: productColor(a.product_id) }}
+              />
+              <span className="font-medium text-foreground truncate">{productName(a.product_id)}</span>
+              {a.sprint_id && (
+                <span className="text-muted-foreground truncate">· {sprintName(a.sprint_id)}</span>
+              )}
+            </div>
+            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1 truncate">
+                <User className="w-3 h-3 shrink-0" />
+                <span className="truncate">{memberLabel(a)}</span>
+              </span>
+              {a.dependency_id && (
+                <span className="flex items-center gap-1 text-amber-600 shrink-0">
+                  <Link2 className="w-3 h-3" /> Dep.
+                </span>
+              )}
+            </div>
+          </div>
         </div>
-        <Badge className={cn("text-[10px] border", STATUS_STYLES[a.status])} variant="outline">{STATUS_LABELS[a.status]}</Badge>
+      </Card>
+    );
+  };
+
+  const renderGrid = (items: Activity[], emptyMsg: string) =>
+    items.length ? (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {items.map(renderActivity)}
       </div>
-    </Card>
-  );
+    ) : (
+      <Card className="p-8 text-center text-sm text-muted-foreground">{emptyMsg}</Card>
+    );
 
   return (
     <div className="space-y-4">
