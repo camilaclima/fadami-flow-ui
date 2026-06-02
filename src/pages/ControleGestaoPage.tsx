@@ -18,7 +18,7 @@ export default function ControleGestaoPage() {
     return () => window.removeEventListener("dashboard:navigate-tab", h);
   }, []);
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-4 md:p-6 w-full max-w-[1800px] mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Controle e Gestão</h1>
         <p className="text-sm text-muted-foreground">Visão unificada da sua gestão de projetos.</p>
