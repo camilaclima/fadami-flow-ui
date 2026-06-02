@@ -1,0 +1,4 @@
+ALTER TABLE public.project_stakeholders
+  ADD COLUMN IF NOT EXISTS email text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS phone text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS concession text NOT NULL DEFAULT '';
