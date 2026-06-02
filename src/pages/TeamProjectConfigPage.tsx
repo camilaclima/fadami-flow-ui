@@ -533,18 +533,23 @@ function TeamSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm
   const { data: allMembers = [] } = useAllTeamMembers();
   const { data: squads = [] } = useSquads();
   const { data: profiles = [] } = useProfiles();
+  const { isAdmin, productIds } = useAuthorizedProducts();
   const myProfileId = useMemo(
     () => profiles.find((p) => p.user_id === user?.id)?.id ?? null,
     [profiles, user?.id],
   );
   const squadMemberIds = useMemo(() => {
-    if (!myProfileId) return new Set<string>();
     const ids = new Set<string>();
-    squads
-      .filter((s) => s.leader_profile_id === myProfileId)
-      .forEach((s) => s.member_ids.forEach((id) => ids.add(id)));
+    const allowed = productIds ? new Set(productIds) : null;
+    squads.forEach((s) => {
+      const isLeader = !!myProfileId && s.leader_profile_id === myProfileId;
+      const sharesProduct = isAdmin || !allowed || s.product_ids.some((pid) => allowed.has(pid));
+      if (isLeader || sharesProduct) {
+        s.member_ids.forEach((id) => ids.add(id));
+      }
+    });
     return ids;
-  }, [squads, myProfileId]);
+  }, [squads, myProfileId, productIds, isAdmin]);
   const members = useMemo(
     () => allMembers.filter((m) => m.coordinator_id === user?.id || squadMemberIds.has(m.id)),
     [allMembers, user?.id, squadMemberIds],
