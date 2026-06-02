@@ -283,7 +283,7 @@ export default function DashboardGeralPage() {
       </div>
 
       {/* Layer 1: Quick metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <Card className="p-4 neu-card">
           <div className="flex items-start justify-between">
             <div>
