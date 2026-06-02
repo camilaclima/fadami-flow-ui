@@ -17,6 +17,8 @@ export interface Activity {
   sprint_id: string | null;
   dependency_id: string | null;
   responsible_id: string | null;
+  responsible_ids: string[];
+  description: string;
   likely_owner: string;
   risk_mitigation: string;
   approved: boolean;
@@ -63,7 +65,8 @@ export type NewActivityInput = {
   impact: ActivityImpact;
   sprint_id: string | null;
   dependency_id: string | null;
-  responsible_id?: string | null;
+  responsible_ids?: string[];
+  description?: string;
   status?: ActivityStatus;
 };
 
@@ -79,7 +82,9 @@ export function useAddActivity() {
         impact: input.impact,
         sprint_id: input.sprint_id,
         dependency_id: input.dependency_id,
-        responsible_id: input.responsible_id ?? null,
+        responsible_ids: input.responsible_ids ?? [],
+        responsible_id: input.responsible_ids?.[0] ?? null,
+        description: input.description ?? "",
         status: input.status ?? "todo",
         category: "",
         likely_owner: "",
