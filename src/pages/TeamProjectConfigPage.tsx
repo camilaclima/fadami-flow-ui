@@ -514,7 +514,11 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
 
 function TeamSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm: (v: boolean) => void }) {
   const { user } = useAuth();
-  const { data: members = [] } = useAllTeamMembers();
+  const { data: allMembers = [] } = useAllTeamMembers();
+  const members = useMemo(
+    () => allMembers.filter((m) => m.coordinator_id === user?.id),
+    [allMembers, user?.id],
+  );
   const { data: products = [] } = useProducts();
   const addMember = useAddTeamMember();
   const updateMember = useUpdateTeamMember();
@@ -522,6 +526,7 @@ function TeamSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm
 
   const [editing, setEditing] = useState<TeamMember | null>(null);
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [role, setRole] = useState<string>("");
   const [seniority, setSeniority] = useState<string>("");
   const [specialty, setSpecialty] = useState<string>("");
@@ -530,16 +535,17 @@ function TeamSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm
   const productMap = useMemo(() => Object.fromEntries(products.map((p) => [p.id, p.name])), [products]);
 
   const reset = () => {
-    setEditing(null); setOpenForm(false); setName(""); setRole(""); setSeniority("");
+    setEditing(null); setOpenForm(false); setName(""); setEmail(""); setRole(""); setSeniority("");
     setSpecialty(""); setProductId("__none__");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+    if (!email.trim()) { toast.error("Informe o e-mail do colaborador"); return; }
     if (!role || !seniority || !specialty) { toast.error("Preencha cargo, senioridade e especialidade"); return; }
     const payload = {
-      name: name.trim(), role, seniority, specialty,
+      name: name.trim(), email: email.trim().toLowerCase(), role, seniority, specialty,
       daily_capacity_hours: 8,
       allocation_percent: 100,
       product_id: productId === "__none__" ? null : productId,
@@ -556,6 +562,7 @@ function TeamSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm
   const handleEdit = (m: TeamMember) => {
     setEditing(m);
     setName(m.name);
+    setEmail((m as any).email ?? "");
     setRole(m.role);
     setSeniority(m.seniority);
     setSpecialty(m.specialty);
@@ -585,6 +592,10 @@ function TeamSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm
             <div className="space-y-2 md:col-span-2">
               <Label>Nome Completo</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do colaborador" required autoFocus />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>E-mail</Label>
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@empresa.com" required />
             </div>
             <div className="space-y-2">
               <Label>Cargo / Função</Label>
