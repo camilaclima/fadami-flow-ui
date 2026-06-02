@@ -2,3 +2,6 @@ project_id = "xtjkyoygbzromvzwfsfq"
 
 [functions.analyze-sprint-health]
 verify_jwt = false
+
+[functions.generate-coordinator-tasks]
+verify_jwt = false
