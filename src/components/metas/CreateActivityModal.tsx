@@ -506,33 +506,57 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
                 formContent
               ) : (
                 <>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs text-muted-foreground">
-                      Snapshot dos valores originalmente cadastrados.
-                    </p>
-                    <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={() => setMode("edit")}>
+                  <div className="flex items-center justify-between gap-2 rounded-xl bg-gradient-to-r from-primary/10 via-violet-500/10 to-amber-500/10 border border-primary/20 p-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">Atividade Original</p>
+                        <p className="text-[11px] text-muted-foreground">Snapshot dos valores originalmente cadastrados</p>
+                      </div>
+                    </div>
+                    <Button type="button" size="sm" className="gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground" onClick={() => setMode("edit")}>
                       <Pencil className="w-3.5 h-3.5" /> Editar
                     </Button>
                   </div>
 
-                  <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-                    <OriginalRow label="Título" value={<span className="font-medium">{originalValues?.task ?? "—"}</span>} />
-                    <OriginalRow label="Descrição" value={
-                      <span className="whitespace-pre-wrap text-muted-foreground">
+                  <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                    <ColorRow icon="titulo" label="Título" value={<span className="font-semibold text-base">{originalValues?.task ?? "—"}</span>} />
+                    <ColorRow icon="descricao" label="Descrição" value={
+                      <span className="whitespace-pre-wrap text-muted-foreground leading-relaxed">
                         {originalValues?.description?.trim() ? originalValues.description : "—"}
                       </span>
                     } />
-                    <OriginalRow label="Projeto" value={prettyVal("product_id", originalValues?.product_id)} />
-                    <OriginalRow label="Prazo" value={prettyVal("deadline_date", originalValues?.deadline_date)} />
-                    <OriginalRow label="Impacto" value={
-                      <Badge variant="outline" className="text-[10px]">{prettyVal("impact", originalValues?.impact)}</Badge>
+                    <ColorRow icon="projeto" label="Projeto" value={
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-700 dark:text-blue-300 text-xs font-medium border border-blue-500/30">
+                        {prettyVal("product_id", originalValues?.product_id)}
+                      </span>
                     } />
-                    <OriginalRow label="Status" value={
-                      <Badge variant="outline" className="text-[10px]">{prettyVal("status", originalValues?.status)}</Badge>
+                    <ColorRow icon="prazo" label="Prazo" value={
+                      <span className="font-medium text-foreground">{prettyVal("deadline_date", originalValues?.deadline_date)}</span>
                     } />
-                    <OriginalRow label="Sprint" value={prettyVal("sprint_id", originalValues?.sprint_id)} />
-                    <OriginalRow label="Dependência" value={prettyVal("dependency_id", originalValues?.dependency_id)} />
-                    <OriginalRow label="Responsáveis" value={prettyVal("responsible_ids", originalValues?.responsible_ids ?? originalValues?.responsible_id)} />
+                    <ColorRow icon="impacto" label="Impacto" value={
+                      <Badge variant="outline" className={cn("text-[11px] border font-medium", IMPACT_TONE[(originalValues?.impact as ActivityImpact) ?? "medium"])}>
+                        {prettyVal("impact", originalValues?.impact)}
+                      </Badge>
+                    } />
+                    <ColorRow icon="status" label="Status" value={
+                      <Badge variant="outline" className={cn("text-[11px] border font-medium", STATUS_TONE[(originalValues?.status as ActivityStatus) ?? "todo"])}>
+                        {prettyVal("status", originalValues?.status)}
+                      </Badge>
+                    } />
+                    <ColorRow icon="sprint" label="Sprint" value={
+                      originalValues?.sprint_id ? (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-violet-500/10 text-violet-700 dark:text-violet-300 text-xs font-medium border border-violet-500/30">
+                          {prettyVal("sprint_id", originalValues?.sprint_id)}
+                        </span>
+                      ) : <span className="text-muted-foreground">—</span>
+                    } />
+                    <ColorRow icon="dep" label="Dependência" value={prettyVal("dependency_id", originalValues?.dependency_id)} />
+                    <ColorRow icon="resp" label="Responsáveis" value={
+                      <span className="font-medium">{prettyVal("responsible_ids", originalValues?.responsible_ids ?? originalValues?.responsible_id)}</span>
+                    } />
                   </div>
                 </>
               )}
