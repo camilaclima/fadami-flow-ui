@@ -1,4 +1,4 @@
-import { LayoutDashboard, ListTodo, Package, Users, Settings, ChevronLeft, ChevronDown, Briefcase, Shield, UserCog, ClipboardList, ShieldCheck, UsersRound, Zap, CalendarCheck, Users2, KeyRound, SlidersHorizontal } from "lucide-react";
+import { LayoutDashboard, ListTodo, Package, Users, Settings, ChevronLeft, ChevronDown, Briefcase, Shield, UserCog, ClipboardList, ShieldCheck, UsersRound, Zap, CalendarCheck, Users2, KeyRound, SlidersHorizontal, FolderKanban } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { FadamiFlowLogo } from "@/components/FadamiFlowLogo";
 import menuIcon from "@/assets/menu-icon.png";
@@ -37,6 +37,13 @@ const NAV_GROUPS: NavGroup[] = [
       { title: "Sprints", url: "/sprints", icon: Zap, permission: "sprints" },
       { title: "Saúde do Projeto", url: "/daily-status", icon: CalendarCheck, permission: "daily" },
       { title: "Configuração Time/Projeto", url: "/team-project-config", icon: SlidersHorizontal, permission: "__always__" },
+    ],
+  },
+  {
+    label: "Gestão de Projetos",
+    icon: FolderKanban,
+    items: [
+      { title: "Controle e Gestão", url: "/controle-gestao", icon: FolderKanban, permission: "__always__" },
     ],
   },
   {
