@@ -35,6 +35,14 @@ const PROJECT_STATUS_OPTIONS = [
 
 const ALLOCATION_OPTIONS = [100, 75, 50, 25];
 
+function maskPhone(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
 const SENIORITY_BADGE: Record<Seniority, string> = {
   estagiario: "bg-teal-500/15 text-teal-600 border-teal-500/20",
   junior: "bg-emerald-500/15 text-emerald-600 border-emerald-500/20",
@@ -344,7 +352,7 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Telefone</Label>
-                    <Input value={shPhone} onChange={(e) => setShPhone(e.target.value)} placeholder="(99) 99999-9999" />
+                    <Input value={shPhone} onChange={(e) => setShPhone(maskPhone(e.target.value))} placeholder="(99) 99999-9999" />
                   </div>
                   <div className="space-y-1.5 md:col-span-2">
                     <Label className="text-xs">Concessão</Label>
