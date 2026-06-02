@@ -358,32 +358,118 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
           <DialogTitle>{isEdit ? "Editar Atividade" : "Nova Atividade"}</DialogTitle>
         </DialogHeader>
         {isEdit ? (
-          <Tabs defaultValue="details" className="w-full">
+          <Tabs defaultValue="original" className="w-full">
             <TabsList>
-              <TabsTrigger value="details">Detalhes</TabsTrigger>
-              <TabsTrigger value="history">Histórico ({history.length})</TabsTrigger>
+              <TabsTrigger value="original" className="gap-1.5">
+                <FileText className="w-3.5 h-3.5" /> Atividade Original
+              </TabsTrigger>
+              <TabsTrigger value="updates" className="gap-1.5">
+                <History className="w-3.5 h-3.5" /> Atualizações
+                {history.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">{history.length}</Badge>
+                )}
+              </TabsTrigger>
             </TabsList>
-            <TabsContent value="details" className="mt-3">{formContent}</TabsContent>
-            <TabsContent value="history" className="mt-3 space-y-2">
-              {history.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma alteração registrada ainda.</p>}
-              {history.map((h) => (
-                <div key={h.id} className="border border-border rounded-md p-2 text-xs space-y-1">
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>{h.changed_by_email || "—"}</span>
-                    <span>{format(new Date(h.created_at), "dd/MM/yyyy HH:mm")}</span>
+
+            <TabsContent value="original" className="mt-3 space-y-4">
+              {mode === "edit" ? (
+                formContent
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">
+                      Snapshot dos valores originalmente cadastrados.
+                    </p>
+                    <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={() => setMode("edit")}>
+                      <Pencil className="w-3.5 h-3.5" /> Editar
+                    </Button>
                   </div>
-                  <div className="space-y-0.5">
-                    {Object.entries(h.changes).map(([k, v]) => (
-                      <div key={k} className="flex flex-wrap items-center gap-1">
-                        <span className="font-medium">{fieldLabel(k)}:</span>
-                        <span className="line-through text-muted-foreground">{formatVal(v.old)}</span>
-                        <span>→</span>
-                        <span className="text-foreground font-medium">{formatVal(v.new)}</span>
-                      </div>
-                    ))}
+
+                  <div className="rounded-lg border border-border bg-muted/20 p-4">
+                    <OriginalRow label="Título" value={<span className="font-medium">{originalValues?.task ?? "—"}</span>} />
+                    <OriginalRow label="Descrição" value={
+                      <span className="whitespace-pre-wrap text-muted-foreground">
+                        {originalValues?.description?.trim() ? originalValues.description : "—"}
+                      </span>
+                    } />
+                    <OriginalRow label="Projeto" value={prettyVal("product_id", originalValues?.product_id)} />
+                    <OriginalRow label="Prazo" value={prettyVal("deadline_date", originalValues?.deadline_date)} />
+                    <OriginalRow label="Impacto" value={
+                      <Badge variant="outline" className="text-[10px]">{prettyVal("impact", originalValues?.impact)}</Badge>
+                    } />
+                    <OriginalRow label="Status" value={
+                      <Badge variant="outline" className="text-[10px]">{prettyVal("status", originalValues?.status)}</Badge>
+                    } />
+                    <OriginalRow label="Sprint" value={prettyVal("sprint_id", originalValues?.sprint_id)} />
+                    <OriginalRow label="Dependência" value={prettyVal("dependency_id", originalValues?.dependency_id)} />
+                    <OriginalRow label="Responsáveis" value={prettyVal("responsible_ids", originalValues?.responsible_ids ?? originalValues?.responsible_id)} />
                   </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">Observações livres</Label>
+                      <Button type="button" size="sm" variant="ghost" className="gap-1.5 h-7" onClick={saveNotes} disabled={savingNotes || notes === (editing?.description ?? "")}>
+                        <Save className="w-3.5 h-3.5" /> Salvar
+                      </Button>
+                    </div>
+                    <Textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      rows={4}
+                      placeholder="Escreva observações, contexto ou notas livres sobre esta atividade..."
+                    />
+                  </div>
+                </>
+              )}
+            </TabsContent>
+
+            <TabsContent value="updates" className="mt-3">
+              {history.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border p-8 text-center">
+                  <History className="w-8 h-8 mx-auto mb-2 text-muted-foreground/60" />
+                  <p className="text-sm text-muted-foreground">Nenhuma atualização registrada ainda.</p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">Edições aparecem aqui automaticamente.</p>
                 </div>
-              ))}
+              ) : (
+                <div className="relative pl-6 space-y-4">
+                  <div className="absolute left-[9px] top-1 bottom-1 w-px bg-border" />
+                  {history.map((h) => (
+                    <div key={h.id} className="relative">
+                      <div className="absolute -left-[18px] top-1.5 w-3 h-3 rounded-full bg-primary ring-4 ring-background" />
+                      <div className="rounded-lg border border-border bg-card p-3 space-y-2 shadow-sm">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-medium text-foreground">{h.changed_by_email || "Sistema"}</span>
+                          <span className="text-muted-foreground">
+                            {format(new Date(h.created_at), "dd/MM/yyyy 'às' HH:mm")}
+                          </span>
+                        </div>
+                        <div className="space-y-1.5">
+                          {Object.entries(h.changes).map(([k, v]) => (
+                            <div key={k} className="text-xs rounded-md bg-muted/40 p-2">
+                              <div className="font-medium text-foreground mb-1">{fieldLabel(k)}</div>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className={cn(
+                                  "px-2 py-0.5 rounded border text-[11px]",
+                                  "bg-red-500/10 text-red-700 border-red-500/30 line-through decoration-red-500/60"
+                                )}>
+                                  {prettyVal(k, v.old)}
+                                </span>
+                                <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                                <span className={cn(
+                                  "px-2 py-0.5 rounded border text-[11px] font-medium",
+                                  "bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
+                                )}>
+                                  {prettyVal(k, v.new)}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         ) : (
