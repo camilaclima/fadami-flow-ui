@@ -73,6 +73,7 @@ export interface TeamMember {
   coordinator_id: string;
   product_id: string | null;
   name: string;
+  email: string;
   role: TeamRole;
   seniority: Seniority;
   specialty: Specialty;
