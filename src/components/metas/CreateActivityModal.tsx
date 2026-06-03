@@ -993,9 +993,87 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
                 });
               })()}
             </TabsContent>
+
+            {!editing?.parent_id && (
+              <TabsContent value="children" className="mt-3 space-y-3">
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-card p-3">
+                  <div className="text-xs text-muted-foreground">
+                    Quebre esta atividade em sub-atividades menores. O prazo de cada filho não pode ultrapassar
+                    {editing?.deadline_date ? ` ${format(new Date(editing.deadline_date), "dd/MM/yyyy")}` : " o prazo da pai"}.
+                  </div>
+                  <Button type="button" size="sm" className="gap-1.5 h-8" onClick={() => setChildOpen(true)}>
+                    <Plus className="w-3.5 h-3.5" /> Adicionar filho
+                  </Button>
+                </div>
+                {children.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border p-8 text-center">
+                    <GitBranch className="w-8 h-8 mx-auto mb-2 text-muted-foreground/60" />
+                    <p className="text-sm text-muted-foreground">Nenhuma sub-atividade ainda.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {(() => {
+                      const done = children.filter((c) => c.status === "done").length;
+                      const pct = Math.round((done / children.length) * 100);
+                      return (
+                        <div className="rounded-lg border border-border bg-card p-3">
+                          <div className="flex items-center justify-between text-xs mb-1.5">
+                            <span className="text-muted-foreground">Progresso</span>
+                            <span className="font-medium">{done}/{children.length} · {pct}%</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-muted overflow-hidden">
+                            <div className="h-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    {children.map((c) => {
+                      const resp = (c.responsible_ids?.length ? c.responsible_ids : (c.responsible_id ? [c.responsible_id] : []))
+                        .map((id) => members.find((m) => m.id === id)?.name ?? "—").join(", ") || "Não atribuído";
+                      return (
+                        <div key={c.id} className="rounded-lg border bg-card p-3 space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-sm flex-1 truncate">{c.task}</span>
+                            <Badge variant="outline" className={cn("text-[10px] border h-5 px-1.5", STATUS_TONE[c.status])}>
+                              {STATUS_LABELS[c.status]}
+                            </Badge>
+                            {c.status !== "done" && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-6 px-2 gap-1 border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10"
+                                onClick={() => update.mutate({ id: c.id, status: "done" } as any)}
+                              >
+                                <CheckCircle2 className="w-3 h-3" /> Concluir
+                              </Button>
+                            )}
+                          </div>
+                          {c.description && <p className="text-xs text-muted-foreground whitespace-pre-line">{c.description}</p>}
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1"><CalendarIcon className="w-3 h-3" />{c.deadline_date ? format(new Date(c.deadline_date), "dd/MM/yyyy") : "Sem prazo"}</span>
+                            <span className="flex items-center gap-1"><UserIcon className="w-3 h-3" />{resp}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </TabsContent>
+            )}
           </Tabs>
         ) : (
           formContent
+        )}
+        {editing && !editing.parent_id && (
+          <CreateActivityModal
+            open={childOpen}
+            onOpenChange={setChildOpen}
+            products={products}
+            sprints={sprints}
+            activities={activities}
+            parentActivity={editing}
+          />
         )}
       </DialogContent>
     </Dialog>
