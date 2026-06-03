@@ -376,6 +376,46 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
             </div>
           </div>
           </TabsContent>
+          <TabsContent value="tasks" className="space-y-2">
+            {(() => {
+              const sprintTasks = allTasks.filter((t) => t.sprint_id === sprint.id && t.category !== "activity");
+              if (sprintTasks.length === 0) {
+                return (
+                  <div className="rounded-xl border border-dashed border-border p-8 text-center">
+                    <ClipboardList className="w-8 h-8 mx-auto mb-2 text-muted-foreground/60" />
+                    <p className="text-sm text-muted-foreground">Nenhuma tarefa vinculada a esta sprint.</p>
+                  </div>
+                );
+              }
+              return sprintTasks.map((t) => {
+                const prod = products.find((p) => p.id === t.product_id);
+                const resp = t.responsible_member_id ? members.find((m) => m.id === t.responsible_member_id)?.name ?? "—" : "Não atribuído";
+                return (
+                  <Card key={t.id} className="p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{t.title}</p>
+                        <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1"><User className="w-3 h-3" />{resp}</span>
+                          <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{t.deadline_date ?? "—"}</span>
+                          {prod && (
+                            <Badge variant="outline" className="text-[10px] gap-1">
+                              <span className="w-2 h-2 rounded-full" style={{ background: prod.color }} />
+                              {prod.name}
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className="text-[10px] capitalize">{t.category}</Badge>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className={cn("text-[10px]", t.status === "resolved" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" : "bg-amber-500/10 text-amber-600 border-amber-500/30")}>
+                        {t.status === "resolved" ? "Resolvida" : "Pendente"}
+                      </Badge>
+                    </div>
+                  </Card>
+                );
+              });
+            })()}
+          </TabsContent>
           <TabsContent value="scope">
             <SprintScopeAnalysis sprint={sprint} />
           </TabsContent>
