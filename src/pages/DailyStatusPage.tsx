@@ -206,13 +206,20 @@ export default function DailyStatusPage({ embedded = false }: { embedded?: boole
     return [...productSprints].sort((a, b) => b.start_date.localeCompare(a.start_date))[0] ?? null;
   }, [productSprints]);
 
+  // Stats do escopo selecionado no filtro de sprint:
+  // - "all": agrega todas as dailies de todos os projetos autorizados
+  // - sprintId: agrega apenas dailies da sprint selecionada
   const currentSprintStats = useMemo(() => {
-    if (!currentSprint) return { avancos: 0, gargalos: 0, dailies: 0 };
-    const ds = allDailies.filter((d) => d.sprint_id === currentSprint.id);
+    const ds = dailies;
     const avancos = ds.reduce((s, d) => s + (d.ai_insights?.avancos?.length ?? 0) + (d.ai_insights?.avancos_consolidados?.length ?? 0), 0);
     const gargalos = ds.reduce((s, d) => s + (d.ai_insights?.recorrencias?.length ?? 0), 0);
     return { avancos, gargalos, dailies: ds.length };
-  }, [currentSprint, allDailies]);
+  }, [dailies]);
+
+  const scopeLabel = sprintFilter === "all" ? "todas" : "sprint";
+  const selectedSprintName = sprintFilter === "all"
+    ? "Todas as sprints"
+    : (sprintNameMap[sprintFilter] ?? currentSprint?.name ?? "—");
 
   // Status agregado: derivado dos status dos produtos autorizados
   const aggregateStatus = useMemo(() => {
@@ -331,9 +338,9 @@ export default function DailyStatusPage({ embedded = false }: { embedded?: boole
         <MiniStat icon={UsersRound} label="Membros" value={squadMemberIds.size} />
         <MiniStat icon={CalendarCheck} label="Dailys" value={allDailies.length} />
         <MiniStat icon={GitBranch} label="Sprints" value={productSprints.length} />
-        <MiniStat icon={Target} label="Sprint Atual" value={currentSprint?.name ?? "—"} valueClass="text-sm" />
-        <MiniStat icon={TrendingUp} label="Avanços (atual)" value={currentSprintStats.avancos} valueClass="text-emerald-600" />
-        <MiniStat icon={Flame} label="Gargalos (atual)" value={currentSprintStats.gargalos} valueClass="text-red-600" />
+        <MiniStat icon={Target} label="Sprint Selecionada" value={selectedSprintName} valueClass="text-sm" />
+        <MiniStat icon={TrendingUp} label={`Avanços (${scopeLabel})`} value={currentSprintStats.avancos} valueClass="text-emerald-600" />
+        <MiniStat icon={Flame} label={`Gargalos (${scopeLabel})`} value={currentSprintStats.gargalos} valueClass="text-red-600" />
         <MiniStat icon={Activity} label="Status" value={aggregateStatus.label} valueClass={cn("text-sm", aggregateStatus.cls)} />
       </div>
 
