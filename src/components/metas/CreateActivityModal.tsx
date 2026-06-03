@@ -700,6 +700,14 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
                   return c > 0 ? <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">{c}</Badge> : null;
                 })()}
               </TabsTrigger>
+              {!editing?.parent_id && (
+                <TabsTrigger value="children" className="gap-1.5">
+                  <GitBranch className="w-3.5 h-3.5" /> Sub-atividades
+                  {children.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">{children.length}</Badge>
+                  )}
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="original" className="mt-3 space-y-4">
