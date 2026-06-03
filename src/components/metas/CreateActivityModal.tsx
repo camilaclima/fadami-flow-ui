@@ -187,7 +187,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
               impact: "medium",
               sprint_id: c.sprint_id,
               dependency_id: c.dependency_id,
-              responsible_ids: c.responsible_id ? [c.responsible_id] : [],
+              responsible_ids: c.responsible_ids ?? [],
               status: c.status,
               parent_id: created.id,
             });
