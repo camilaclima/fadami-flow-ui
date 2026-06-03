@@ -14,6 +14,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Trash2, Pencil, ArrowRight, History, FileText, Save, Sparkles, Plus, Loader2, MessageSquare, AlertTriangle, CheckCircle2, GitBranch, Lightbulb, Calendar as CalendarIcon, Users as UsersIcon, ListTodo, User as UserIcon } from "lucide-react";
+import { ArrowRightCircle, X as XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Activity, ActivityImpact, ActivityStatus, NewActivityInput } from "@/hooks/useActivities";
 import { IMPACT_LABELS, STATUS_LABELS, useAddActivity, useUpdateActivity, useActivityHistory, useDeleteActivity } from "@/hooks/useActivities";
