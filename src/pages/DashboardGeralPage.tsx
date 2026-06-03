@@ -263,13 +263,30 @@ export default function DashboardGeralPage() {
   }, [currentSprint, currentSprintItems, today]);
 
   // ===== Phases / Sprints in cascade =====
+  const phaseSprintIds = useMemo(
+    () => sprintsInScope.slice(0, 6).map((s) => s.id),
+    [sprintsInScope],
+  );
+
+  const { data: phaseItems = [] } = useQuery({
+    queryKey: ["dashboard_phase_items", [...phaseSprintIds].sort().join(",")],
+    enabled: phaseSprintIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("sprint_backlog_items") as any)
+        .select("id, status, sprint_id")
+        .in("sprint_id", phaseSprintIds);
+      if (error) throw error;
+      return data as Array<{ id: string; status: string; sprint_id: string }>;
+    },
+  });
+
   const phaseRows = useMemo(() => {
     return sprintsInScope.slice(0, 6).map((s) => {
       const end = toDate(s.end_date);
       const daysLeft = end ? daysBetween(end, today) : null;
-      const items = currentSprint?.id === s.id ? currentSprintItems : null;
-      const total = items?.length ?? 0;
-      const done = items ? items.filter((i) => i.status === "completed").length : 0;
+      const items = phaseItems.filter((i) => i.sprint_id === s.id);
+      const total = items.length;
+      const done = items.filter((i) => i.status === "completed").length;
       const pct = total ? Math.round((done / total) * 100) : 0;
       let color: "emerald" | "amber" | "red" = "emerald";
       if (daysLeft !== null && daysLeft < 0) color = "red";
@@ -277,7 +294,7 @@ export default function DashboardGeralPage() {
       else if (daysLeft !== null && daysLeft <= 7 && pct < 60) color = "amber";
       return { sprint: s, pct, daysLeft, color };
     });
-  }, [sprintsInScope, currentSprint, currentSprintItems, today]);
+  }, [sprintsInScope, phaseItems, today]);
 
   // ===== Top gargalos =====
   const topBottlenecks = useMemo(() => {
