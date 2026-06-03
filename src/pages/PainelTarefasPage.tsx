@@ -89,7 +89,7 @@ export default function PainelTarefasPage() {
                     productName={prodName(t.product_id)}
                     sprintName={sprintName(t.sprint_id)}
                     memberName={memberName(t.responsible_member_id)}
-                    onEdit={t.source === "manual" ? openEdit : undefined}
+                    onEdit={openEdit}
                   />
                 ))}
               </div>
