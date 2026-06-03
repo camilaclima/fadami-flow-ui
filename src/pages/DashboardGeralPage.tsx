@@ -39,6 +39,7 @@ export default function DashboardGeralPage() {
   }, [allProducts, authorizedIds, isAdmin]);
 
   const [selectedProduct, setSelectedProduct] = useState<string>("all");
+  const [selectedSprint, setSelectedSprint] = useState<string>("current");
 
   // Scope: list of product ids to filter by
   const scopeIds = useMemo(() => {
@@ -153,7 +154,7 @@ export default function DashboardGeralPage() {
   }, [recentDailies]);
 
   // ===== Layer 2: Current sprint burndown =====
-  const currentSprint = useMemo(() => {
+  const autoCurrentSprint = useMemo(() => {
     const now = today.getTime();
     const active = sprintsInScope.filter((s) => {
       const sd = toDate(s.start_date)?.getTime() ?? 0;
@@ -164,6 +165,11 @@ export default function DashboardGeralPage() {
     // fallback: nearest upcoming or most recent
     return sprintsInScope[0] ?? null;
   }, [sprintsInScope, today]);
+
+  const currentSprint = useMemo(() => {
+    if (selectedSprint === "current") return autoCurrentSprint;
+    return sprintsInScope.find((s) => s.id === selectedSprint) ?? autoCurrentSprint;
+  }, [selectedSprint, sprintsInScope, autoCurrentSprint]);
 
   const { data: currentSprintItems = [] } = useQuery({
     queryKey: ["dashboard_sprint_items", currentSprint?.id ?? "none"],
@@ -192,7 +198,8 @@ export default function DashboardGeralPage() {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
       const dayIso = d.toISOString().slice(0, 10);
-      const planejado = Math.max(0, +(total - (total * i) / totalDays).toFixed(2));
+      // Burn-up: cumulative ideal completion line
+      const planejado = +((total * i) / totalDays).toFixed(2);
       let realizado: number | null = null;
       let andamento: number | null = null;
       if (d.getTime() <= today.getTime()) {
@@ -203,7 +210,7 @@ export default function DashboardGeralPage() {
           const inProgByDay = sprintActivities.filter(
             (a) => a.status === "in_progress" && toDate((a as any).updated_at) && toDate((a as any).updated_at)! <= d,
           ).length;
-          realizado = total - doneByDay;
+          realizado = doneByDay;
           andamento = inProgByDay;
         } else {
           const doneByDay = currentSprintItems.filter(
@@ -212,7 +219,7 @@ export default function DashboardGeralPage() {
           const inProgByDay = currentSprintItems.filter(
             (it) => it.status === "in_progress" && toDate(it.updated_at) && toDate(it.updated_at)! <= d,
           ).length;
-          realizado = total - doneByDay;
+          realizado = doneByDay;
           andamento = inProgByDay;
         }
       }
@@ -294,6 +301,18 @@ export default function DashboardGeralPage() {
             <SelectItem value="all">Visão Geral (Todos os Projetos)</SelectItem>
             {visibleProducts.map((p) => (
               <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span className="text-sm text-muted-foreground ml-2">Sprint:</span>
+        <Select value={selectedSprint} onValueChange={setSelectedSprint}>
+          <SelectTrigger className="w-[260px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="current">Sprint Atual (auto)</SelectItem>
+            {sprintsInScope.map((s) => (
+              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
