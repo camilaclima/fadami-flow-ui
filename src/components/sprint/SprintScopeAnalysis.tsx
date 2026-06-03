@@ -89,20 +89,20 @@ export function SprintScopeAnalysis({ sprint }: Props) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <Card className="p-4">
-          <p className="text-xs text-muted-foreground">Escopo planejado</p>
-          <p className="text-2xl font-bold mt-1">{planned.length}</p>
-          <p className="text-[11px] text-muted-foreground">atividades antes do início</p>
+        <Card className="px-3 py-2">
+          <p className="text-[11px] text-muted-foreground">Escopo planejado</p>
+          <p className="text-lg font-bold leading-tight">{planned.length}</p>
+          <p className="text-[10px] text-muted-foreground">antes do início</p>
         </Card>
-        <Card className="p-4">
-          <p className="text-xs text-muted-foreground">Entrantes pós-início</p>
-          <p className="text-2xl font-bold mt-1 text-amber-600">{entrants.length}</p>
-          <p className="text-[11px] text-muted-foreground">fora do planejado</p>
+        <Card className="px-3 py-2">
+          <p className="text-[11px] text-muted-foreground">Entrantes pós-início</p>
+          <p className="text-lg font-bold leading-tight text-amber-600">{entrants.length}</p>
+          <p className="text-[10px] text-muted-foreground">fora do planejado</p>
         </Card>
-        <Card className="p-4">
-          <p className="text-xs text-muted-foreground">Variação de escopo</p>
-          <div className="flex items-center gap-2 mt-1">
-            <p className="text-2xl font-bold">{scopeChange >= 0 ? "+" : ""}{scopeChange}</p>
+        <Card className="px-3 py-2">
+          <p className="text-[11px] text-muted-foreground">Variação de escopo</p>
+          <div className="flex items-center gap-2">
+            <p className="text-lg font-bold leading-tight">{scopeChange >= 0 ? "+" : ""}{scopeChange}</p>
             <Badge
               variant="outline"
               className={
@@ -116,7 +116,7 @@ export function SprintScopeAnalysis({ sprint }: Props) {
               {scopeChangePct >= 0 ? "+" : ""}{scopeChangePct}%
             </Badge>
           </div>
-          <p className="text-[11px] text-muted-foreground">em relação ao planejado</p>
+          <p className="text-[10px] text-muted-foreground">vs planejado</p>
         </Card>
       </div>
 
@@ -133,9 +133,9 @@ export function SprintScopeAnalysis({ sprint }: Props) {
               <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="planejado" stroke="hsl(217 91% 60%)" strokeDasharray="4 4" dot={false} name="Planejado" />
-              <Line type="monotone" dataKey="escopoAtual" stroke="hsl(38 92% 50%)" dot={{ r: 2 }} name="Escopo atual" />
-              <Line type="monotone" dataKey="entrantes" stroke="hsl(0 84% 60%)" dot={{ r: 2 }} name="Entrantes" />
+              <Line type="monotone" dataKey="escopoAtual" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={{ r: 2 }} name="Escopo atual" />
+              <Line type="monotone" dataKey="entrantes" stroke="hsl(0 84% 60%)" strokeWidth={2} dot={{ r: 2 }} name="Entrantes" />
+              <Line type="monotone" dataKey="planejado" stroke="hsl(217 91% 60%)" strokeWidth={2} strokeDasharray="6 4" dot={false} name="Planejado (baseline)" />
             </LineChart>
           </ResponsiveContainer>
         </div>
