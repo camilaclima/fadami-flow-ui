@@ -71,11 +71,12 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
     status: ActivityStatus;
     responsible_id: string | null;
     dependency_id: string | null;
+    sprint_id: string | null;
   };
   const [pendingChildren, setPendingChildren] = useState<PendingChild[]>([]);
   const [childDraftOpen, setChildDraftOpen] = useState(false);
   const [childDraft, setChildDraft] = useState<PendingChild>({
-    task: "", description: "", deadline_date: "", status: "todo", responsible_id: null, dependency_id: null,
+    task: "", description: "", deadline_date: "", status: "todo", responsible_id: null, dependency_id: null, sprint_id: null,
   });
 
   useEffect(() => {
@@ -107,7 +108,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
         setLinkedTaskId("__none__");
         setPendingChildren([]);
         setChildDraftOpen(false);
-        setChildDraft({ task: "", description: "", deadline_date: "", status: "todo", responsible_id: null, dependency_id: null });
+        setChildDraft({ task: "", description: "", deadline_date: "", status: "todo", responsible_id: null, dependency_id: null, sprint_id: null });
       }
     }
   }, [open, editing, allTasks, parentActivity, defaultProductId, defaultSprintId]);
@@ -184,7 +185,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
               description: c.description,
               deadline_date: c.deadline_date || null,
               impact: "medium",
-              sprint_id: sprintId === "__none__" ? null : sprintId,
+              sprint_id: c.sprint_id,
               dependency_id: c.dependency_id,
               responsible_ids: c.responsible_id ? [c.responsible_id] : [],
               status: c.status,
@@ -648,7 +649,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
               variant="outline"
               className="h-7 gap-1.5"
               onClick={() => {
-                setChildDraft({ task: "", description: "", deadline_date: "", status: "todo", responsible_id: null, dependency_id: null });
+                setChildDraft({ task: "", description: "", deadline_date: "", status: "todo", responsible_id: null, dependency_id: null, sprint_id: sprintId === "__none__" ? null : sprintId });
                 setChildDraftOpen(true);
               }}
             >
@@ -692,7 +693,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
                 <Label className="text-xs">Descrição</Label>
                 <Textarea rows={2} value={childDraft.description} onChange={(e) => setChildDraft((d) => ({ ...d, description: e.target.value }))} />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <Label className="text-xs">Prazo</Label>
                   <Input
@@ -715,6 +716,19 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {Object.entries(STATUS_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Sprint</Label>
+                  <Select
+                    value={childDraft.sprint_id ?? "__none__"}
+                    onValueChange={(v) => setChildDraft((d) => ({ ...d, sprint_id: v === "__none__" ? null : v }))}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sem sprint</SelectItem>
+                      {sprintsForProduct.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
