@@ -232,12 +232,65 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
   const [notes, setNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
 
+  // Update form (only for edit/update flow)
+  const [updDeadline, setUpdDeadline] = useState<string>("");
+  const [updStatus, setUpdStatus] = useState<ActivityStatus>("todo");
+  const [updResponsibleIds, setUpdResponsibleIds] = useState<string[]>([]);
+  const [updDependencyId, setUpdDependencyId] = useState<string>("__none__");
+  const [updSprintId, setUpdSprintId] = useState<string>("__none__");
+  const [updNotes, setUpdNotes] = useState("");
+  const [savingUpdate, setSavingUpdate] = useState(false);
+  const toggleUpdResp = (id: string) =>
+    setUpdResponsibleIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+
   useEffect(() => {
     if (open && editing) {
       setMode("view");
       setNotes("");
+      setUpdDeadline(editing.deadline_date ?? "");
+      setUpdStatus(editing.status);
+      setUpdResponsibleIds(
+        editing.responsible_ids?.length ? editing.responsible_ids : (editing.responsible_id ? [editing.responsible_id] : [])
+      );
+      setUpdDependencyId(editing.dependency_id ?? "__none__");
+      setUpdSprintId(editing.sprint_id ?? "__none__");
+      setUpdNotes("");
     }
   }, [open, editing]);
+
+  const submitUpdate = async () => {
+    if (!editing) return;
+    setSavingUpdate(true);
+    try {
+      await update.mutateAsync({
+        id: editing.id,
+        deadline_date: updDeadline || null,
+        deadline: updDeadline ?? "",
+        status: updStatus,
+        responsible_ids: updResponsibleIds,
+        responsible_id: updResponsibleIds[0] ?? null,
+        dependency_id: updDependencyId === "__none__" ? null : updDependencyId,
+        sprint_id: updSprintId === "__none__" ? null : updSprintId,
+      } as any);
+      if (updNotes.trim()) {
+        const { data: u } = await supabase.auth.getUser();
+        await (supabase.from("activity_history") as any).insert({
+          activity_id: editing.id,
+          changed_by: u?.user?.id ?? null,
+          changed_by_email: u?.user?.email ?? "",
+          changes: { __note__: { old: "", new: updNotes.trim() } },
+        });
+        qc.invalidateQueries({ queryKey: ["activity_history", editing.id] });
+      }
+      setUpdNotes("");
+      setShowAddNote(false);
+      toast.success("Atividade atualizada!");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao atualizar");
+    } finally {
+      setSavingUpdate(false);
+    }
+  };
 
   const saveNotes = async () => {
     if (!editing || !notes.trim()) return;
