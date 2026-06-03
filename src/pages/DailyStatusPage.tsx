@@ -363,9 +363,7 @@ export default function DailyStatusPage({ embedded = false }: { embedded?: boole
                 <SelectContent>
                   <SelectItem value="all">Geral (todas as sprints)</SelectItem>
                   {relevantSprints.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name}{s.product_id ? ` · ${productNameMap[s.product_id] ?? ""}` : ""}
-                    </SelectItem>
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
