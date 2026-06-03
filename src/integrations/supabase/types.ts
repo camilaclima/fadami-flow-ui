@@ -404,6 +404,39 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_bottleneck_resolutions: {
+        Row: {
+          created_at: string
+          descricao_key: string
+          id: string
+          note: string | null
+          product_id: string | null
+          resolved_by: string | null
+          resolved_by_email: string | null
+          sprint_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          descricao_key: string
+          id?: string
+          note?: string | null
+          product_id?: string | null
+          resolved_by?: string | null
+          resolved_by_email?: string | null
+          sprint_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          descricao_key?: string
+          id?: string
+          note?: string | null
+          product_id?: string | null
+          resolved_by?: string | null
+          resolved_by_email?: string | null
+          sprint_id?: string | null
+        }
+        Relationships: []
+      }
       daily_status: {
         Row: {
           ai_insights: Json | null
