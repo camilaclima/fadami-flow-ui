@@ -700,6 +700,7 @@ export type Database = {
           id: string
           impact: string
           likely_owner: string
+          migrated_from_sprint_id: string | null
           parent_id: string | null
           product_id: string
           project_context_id: string | null
@@ -725,6 +726,7 @@ export type Database = {
           id?: string
           impact?: string
           likely_owner?: string
+          migrated_from_sprint_id?: string | null
           parent_id?: string | null
           product_id: string
           project_context_id?: string | null
@@ -750,6 +752,7 @@ export type Database = {
           id?: string
           impact?: string
           likely_owner?: string
+          migrated_from_sprint_id?: string | null
           parent_id?: string | null
           product_id?: string
           project_context_id?: string | null
