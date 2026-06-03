@@ -92,6 +92,7 @@ export default function DailyStatusPage({ embedded = false }: { embedded?: boole
   const [selectedDaily, setSelectedDaily] = useState<DailyRow | null>(null);
   const [editingDaily, setEditingDaily] = useState<DailyRow | null>(null);
   const [sprintFilter, setSprintFilter] = useState<string>("all");
+  const [gargalosFilter, setGargalosFilter] = useState<"pending" | "resolved" | "all">("pending");
   const qc = useQueryClient();
 
   const { data: resolvedBottlenecks = [] } = useQuery({
@@ -238,7 +239,6 @@ export default function DailyStatusPage({ embedded = false }: { embedded?: boole
       }
     }
     const historicoGargalos = Array.from(bottleneckMap.values())
-      .filter((g) => !resolvedSet.has(g.descricao.toLowerCase().trim()))
       .sort((a, b) => b.ocorrencias - a.ocorrencias);
 
     const idleMap = new Map<string, { nome: string; vezes: number; datas: string[] }>();
