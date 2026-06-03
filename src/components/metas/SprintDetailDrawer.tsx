@@ -348,6 +348,15 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                           <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1"><User className="w-3 h-3" />{memberName(a.responsible_id)}</span>
                             <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{a.deadline_date ?? "—"}</span>
+                            {(() => {
+                              const prod = products.find((p) => p.id === a.product_id);
+                              return prod ? (
+                                <Badge variant="outline" className="text-[10px] gap-1">
+                                  <span className="w-2 h-2 rounded-full" style={{ background: prod.color }} />
+                                  {prod.name}
+                                </Badge>
+                              ) : null;
+                            })()}
                           </div>
                         </div>
                         {toSprintId ? (
