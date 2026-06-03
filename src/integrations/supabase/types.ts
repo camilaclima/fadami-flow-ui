@@ -339,6 +339,7 @@ export type Database = {
           dedup_hash: string | null
           description: string
           id: string
+          postponements: Json
           product_id: string | null
           resolved_at: string | null
           resolved_by: string | null
@@ -363,6 +364,7 @@ export type Database = {
           dedup_hash?: string | null
           description?: string
           id?: string
+          postponements?: Json
           product_id?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
@@ -387,6 +389,7 @@ export type Database = {
           dedup_hash?: string | null
           description?: string
           id?: string
+          postponements?: Json
           product_id?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
