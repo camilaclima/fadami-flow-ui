@@ -130,7 +130,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{sprint.name}</DialogTitle>
           <p className="text-xs text-muted-foreground">{sprint.start_date} → {sprint.end_date}</p>
@@ -209,6 +209,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
               {activities.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma atividade vinculada.</p>}
               {activities.map((a) => {
                 const taskCount = allTasks.filter((t) => t.activity_id === a.id).length;
+                const prod = products.find((p) => p.id === a.product_id);
                 return (
                 <Card
                   key={a.id}
@@ -222,6 +223,12 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                         <span className="flex items-center gap-1"><User className="w-3 h-3" />{memberName(a.responsible_id)}</span>
                         <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{a.deadline_date ?? "—"}</span>
                         <Badge variant="outline" className="text-[10px]">{IMPACT_LABELS[a.impact]}</Badge>
+                        {prod && (
+                          <Badge variant="outline" className="text-[10px] gap-1">
+                            <span className="w-2 h-2 rounded-full" style={{ background: prod.color }} />
+                            {prod.name}
+                          </Badge>
+                        )}
                         {taskCount > 0 && (
                           <Badge variant="outline" className="text-[10px] gap-1 bg-primary/10 text-primary border-primary/30">
                             <ListTodo className="w-3 h-3" /> {taskCount} {taskCount === 1 ? "tarefa" : "tarefas"}
