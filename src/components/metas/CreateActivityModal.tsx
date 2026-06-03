@@ -735,17 +735,41 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs">Responsável</Label>
-                  <Select
-                    value={childDraft.responsible_id ?? "__none__"}
-                    onValueChange={(v) => setChildDraft((d) => ({ ...d, responsible_id: v === "__none__" ? null : v }))}
-                  >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Não atribuído</SelectItem>
-                      {members.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-xs">Responsáveis</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="outline" className="w-full justify-start font-normal">
+                        {childDraft.responsible_ids.length === 0 ? "Não atribuído" : `${childDraft.responsible_ids.length} selecionado(s)`}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-2 max-h-64 overflow-y-auto">
+                      {members.length === 0 && <p className="text-xs text-muted-foreground p-2">Nenhum membro disponível.</p>}
+                      {members.map((m) => (
+                        <label key={m.id} className="flex items-center gap-2 p-1 rounded hover:bg-muted/50 cursor-pointer text-sm">
+                          <Checkbox
+                            checked={childDraft.responsible_ids.includes(m.id)}
+                            onCheckedChange={() =>
+                              setChildDraft((d) => ({
+                                ...d,
+                                responsible_ids: d.responsible_ids.includes(m.id)
+                                  ? d.responsible_ids.filter((x) => x !== m.id)
+                                  : [...d.responsible_ids, m.id],
+                              }))
+                            }
+                          />
+                          <span className="flex-1 truncate">{m.name}</span>
+                        </label>
+                      ))}
+                    </PopoverContent>
+                  </Popover>
+                  {childDraft.responsible_ids.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {childDraft.responsible_ids.map((id) => {
+                        const m = members.find((x) => x.id === id);
+                        return m ? <Badge key={id} variant="secondary" className="text-[10px]">{m.name}</Badge> : null;
+                      })}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <Label className="text-xs">Dependência</Label>
