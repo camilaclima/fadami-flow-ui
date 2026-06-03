@@ -237,7 +237,9 @@ export default function DailyStatusPage({ embedded = false }: { embedded?: boole
         else bottleneckMap.set(key, { descricao: r.descricao, ocorrencias: 1, maxDias: r.dias_consecutivos });
       }
     }
-    const historicoGargalos = Array.from(bottleneckMap.values()).sort((a, b) => b.ocorrencias - a.ocorrencias);
+    const historicoGargalos = Array.from(bottleneckMap.values())
+      .filter((g) => !resolvedSet.has(g.descricao.toLowerCase().trim()))
+      .sort((a, b) => b.ocorrencias - a.ocorrencias);
 
     const idleMap = new Map<string, { nome: string; vezes: number; datas: string[] }>();
     for (const d of dailies) {
@@ -284,7 +286,7 @@ export default function DailyStatusPage({ embedded = false }: { embedded?: boole
       latestDate: latest?.status_date,
       historicoGargalos, ociosos, sobrecarregados, dependenciasExternas, eficienciaDesbloqueio,
     };
-  }, [dailies, latest, latestInsights]);
+  }, [dailies, latest, latestInsights, resolvedSet]);
 
   const canEdit = (d: DailyRow) => differenceInHours(new Date(), new Date(d.created_at)) <= 72;
 
@@ -531,10 +533,13 @@ export default function DailyStatusPage({ embedded = false }: { embedded?: boole
                     <ul className="space-y-2">
                       {exec.historicoGargalos.slice(0, 6).map((g, i) => (
                         <li key={i} className="flex items-start justify-between gap-2 p-2 rounded-md bg-muted/30">
-                          <p className="text-sm">{g.descricao}</p>
-                          <div className="flex gap-1 flex-shrink-0">
+                          <p className="text-sm flex-1">{g.descricao}</p>
+                          <div className="flex gap-1 flex-shrink-0 items-center">
                             <Badge variant="secondary" className="text-xs">{g.ocorrencias}x</Badge>
                             <Badge variant="outline" className="text-xs">máx {g.maxDias}d</Badge>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10" onClick={() => resolveBottleneck(g.descricao)} title="Marcar como resolvido">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
                         </li>
                       ))}
