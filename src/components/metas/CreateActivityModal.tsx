@@ -185,7 +185,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
               description: c.description,
               deadline_date: c.deadline_date || null,
               impact: "medium",
-              sprint_id: sprintId === "__none__" ? null : sprintId,
+              sprint_id: c.sprint_id,
               dependency_id: c.dependency_id,
               responsible_ids: c.responsible_id ? [c.responsible_id] : [],
               status: c.status,
