@@ -75,16 +75,18 @@ export function EditDailyDialog({ open, onOpenChange, daily, onSaved }: Props) {
     }
   }, [open, daily?.id]); // eslint-disable-line
 
-  if (!daily) return null;
-
-  const presentIds = daily.present_member_ids ?? [];
   const todayStr = new Date().toISOString().slice(0, 10);
   const projectSprints = useMemo(() => {
+    if (!daily) return [] as typeof allSprints;
     const linked = new Set(
       sprintProductLinks.filter((sp) => sp.product_id === daily.product_id).map((sp) => sp.sprint_id),
     );
     return allSprints.filter((s) => linked.has(s.id) || s.product_id === daily.product_id);
-  }, [allSprints, sprintProductLinks, daily.product_id]);
+  }, [allSprints, sprintProductLinks, daily?.product_id]);
+
+  if (!daily) return null;
+
+  const presentIds = daily.present_member_ids ?? [];
   const isCurrentSprint = (s: { start_date: string; end_date: string }) =>
     s.start_date <= todayStr && todayStr <= s.end_date;
 
@@ -101,6 +103,10 @@ export function EditDailyDialog({ open, onOpenChange, daily, onSaved }: Props) {
   };
 
   const handleSave = async () => {
+    if (sprintId === "__none__") {
+      toast.error("Selecione uma sprint para salvar a daily.");
+      return;
+    }
     setLoading(true);
     try {
       const summary = buildSummary();

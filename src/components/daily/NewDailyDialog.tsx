@@ -162,6 +162,10 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
       toast.error("Selecione o projeto.");
       return;
     }
+    if (sprintId === "__none__") {
+      toast.error("Selecione uma sprint para salvar a daily.");
+      return;
+    }
     if (selectedMembers.length === 0) {
       toast.error("Selecione pelo menos um membro presente.");
       return;
