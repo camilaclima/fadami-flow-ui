@@ -53,7 +53,7 @@ export function SprintDetailModal({ open, onOpenChange, sprint }: Props) {
               <TabsTrigger value="execution">Execução</TabsTrigger>
             )}
             {(status === "active" || status === "finished") && (
-              <TabsTrigger value="scope">Escopo</TabsTrigger>
+              <TabsTrigger value="scope">Dashboard</TabsTrigger>
             )}
             {status === "finished" && (
               <TabsTrigger value="closing">Encerramento</TabsTrigger>
