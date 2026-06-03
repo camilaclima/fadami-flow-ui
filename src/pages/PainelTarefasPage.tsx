@@ -10,6 +10,7 @@ import { useSprints } from "@/hooks/useSprints";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { TaskCard } from "@/components/painel/TaskCard";
 import { NewTaskModal } from "@/components/painel/NewTaskModal";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 function MetricCard({ icon: Icon, label, value, tone }: any) {
   const toneCls = tone === "critical" ? "text-destructive" : tone === "info" ? "text-blue-500" : "text-foreground";
@@ -37,14 +38,33 @@ export default function PainelTarefasPage() {
   const [tab, setTab] = useState("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<CoordinatorTask | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"pending" | "resolved" | "all">("pending");
+  const [productFilter, setProductFilter] = useState<string>("all");
+  const [sprintFilter, setSprintFilter] = useState<string>("all");
+
+  const filtered = useMemo(() => tasks.filter((t) => {
+    if (statusFilter !== "all" && t.status !== statusFilter) return false;
+    if (productFilter !== "all" && t.product_id !== productFilter) return false;
+    if (sprintFilter !== "all" && t.sprint_id !== sprintFilter) return false;
+    return true;
+  }), [tasks, statusFilter, productFilter, sprintFilter]);
 
   const pending = useMemo(() => tasks.filter((t) => t.status === "pending"), [tasks]);
   const critical = useMemo(() => pending.filter((t) => t.urgency === "critical" || t.urgency === "high"), [pending]);
   const improvements = useMemo(() => pending.filter((t) => t.source === "ai" && t.category === "schedule_risk"), [pending]);
 
-  const blockerTasks = useMemo(() => pending.filter((t) => t.category === "blocker" || (t.source === "manual" && t.category === "custom")), [pending]);
-  const riskTasks = useMemo(() => pending.filter((t) => t.category === "schedule_risk"), [pending]);
-  const activityTasks = useMemo(() => pending.filter((t) => t.category === "activity"), [pending]);
+  const blockerTasks = useMemo(() => filtered.filter((t) => t.category === "blocker" || (t.source === "manual" && t.category === "custom")), [filtered]);
+  const riskTasks = useMemo(() => filtered.filter((t) => t.category === "schedule_risk"), [filtered]);
+  const activityTasks = useMemo(() => filtered.filter((t) => t.category === "activity"), [filtered]);
+
+  const visibleProducts = useMemo(
+    () => (productIds ? products.filter((p) => productIds.includes(p.id)) : products),
+    [products, productIds]
+  );
+  const visibleSprints = useMemo(() => {
+    if (productFilter === "all") return sprints;
+    return sprints.filter((s: any) => s.product_id === productFilter);
+  }, [sprints, productFilter]);
 
   const prodName = (id: string | null) => products.find((p) => p.id === id)?.name;
   const sprintName = (id: string | null) => (sprints.find((s) => s.id === id) as any)?.name;
@@ -69,12 +89,38 @@ export default function PainelTarefasPage() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
-          <TabsTrigger value="all" className="gap-2">📋 Todas <span className="text-xs opacity-70">({pending.length})</span></TabsTrigger>
-          <TabsTrigger value="activities" className="gap-2">🧩 Atividades <span className="text-xs opacity-70">({activityTasks.length})</span></TabsTrigger>
-          <TabsTrigger value="blockers" className="gap-2">🚨 Bloqueios e Gargalos <span className="text-xs opacity-70">({blockerTasks.length})</span></TabsTrigger>
-          <TabsTrigger value="risks" className="gap-2">📅 Riscos de Cronograma <span className="text-xs opacity-70">({riskTasks.length})</span></TabsTrigger>
-        </TabsList>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <TabsList>
+            <TabsTrigger value="all" className="gap-2">📋 Todas <span className="text-xs opacity-70">({filtered.length})</span></TabsTrigger>
+            <TabsTrigger value="activities" className="gap-2">🧩 Atividades <span className="text-xs opacity-70">({activityTasks.length})</span></TabsTrigger>
+            <TabsTrigger value="blockers" className="gap-2">🚨 Bloqueios e Gargalos <span className="text-xs opacity-70">({blockerTasks.length})</span></TabsTrigger>
+            <TabsTrigger value="risks" className="gap-2">📅 Riscos de Cronograma <span className="text-xs opacity-70">({riskTasks.length})</span></TabsTrigger>
+          </TabsList>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+              <SelectTrigger className="h-9 w-[150px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">Pendentes</SelectItem>
+                <SelectItem value="resolved">Concluídas</SelectItem>
+                <SelectItem value="all">Todas</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={productFilter} onValueChange={(v) => { setProductFilter(v); setSprintFilter("all"); }}>
+              <SelectTrigger className="h-9 w-[180px]"><SelectValue placeholder="Projeto" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os projetos</SelectItem>
+                {visibleProducts.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={sprintFilter} onValueChange={setSprintFilter}>
+              <SelectTrigger className="h-9 w-[180px]"><SelectValue placeholder="Sprint" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as sprints</SelectItem>
+                {visibleSprints.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
         {(() => {
           const renderGrid = (items: CoordinatorTask[], emptyMsg: string) => {
@@ -98,7 +144,7 @@ export default function PainelTarefasPage() {
           return (
             <>
               <TabsContent value="all" className="mt-4">
-                {renderGrid(pending, "Nenhuma tarefa pendente no momento.")}
+                {renderGrid(filtered, "Nenhuma tarefa para os filtros selecionados.")}
               </TabsContent>
               <TabsContent value="activities" className="mt-4">
                 {renderGrid(activityTasks, "Nenhuma atividade cadastrada nesta categoria.")}

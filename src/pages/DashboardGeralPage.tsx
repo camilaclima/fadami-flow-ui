@@ -16,6 +16,7 @@ import { useActivities } from "@/hooks/useActivities";
 import { useSprints } from "@/hooks/useSprints";
 import { useSprintProducts } from "@/hooks/useSprintProducts";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
+import { useMyTeamMembers } from "@/hooks/useMyTeamMembers";
 
 function daysBetween(a: Date, b: Date) {
   return Math.round((a.getTime() - b.getTime()) / 86400000);
@@ -49,6 +50,7 @@ export default function DashboardGeralPage() {
   const { data: sprints = [] } = useSprints();
   const { data: sprintProducts = [] } = useSprintProducts();
   const { data: teamMembers = [] } = useTeamMembers();
+  const { data: myTeamMembers = [] } = useMyTeamMembers();
 
   const scopeSet = useMemo(() => new Set(scopeIds), [scopeIds]);
 
@@ -111,12 +113,12 @@ export default function DashboardGeralPage() {
     });
     // capacity threshold: ~5 active tasks = 100%
     const THRESHOLD = 5;
-    return teamMembers.map((m) => {
+    return myTeamMembers.map((m) => {
       const c = counts[m.id] ?? 0;
       const pct = Math.round((c / THRESHOLD) * 100);
       return { member: m, count: c, pct };
     });
-  }, [activities, teamMembers]);
+  }, [activities, myTeamMembers]);
 
   const overloadedCount = memberLoad.filter((x) => x.pct > 100).length;
 
@@ -180,29 +182,44 @@ export default function DashboardGeralPage() {
     const start = toDate(currentSprint.start_date);
     const end = toDate(currentSprint.end_date);
     if (!start || !end) return [];
-    const total = currentSprintItems.length;
+    // Prefer activities linked to the sprint (matches what user manages on the platform)
+    const sprintActivities = activities.filter((a) => a.sprint_id === currentSprint.id);
+    const useActs = sprintActivities.length > 0 || currentSprintItems.length === 0;
+    const total = useActs ? sprintActivities.length : currentSprintItems.length;
     const totalDays = Math.max(1, daysBetween(end, start));
-    const points: Array<{ day: string; planejado: number; realizado: number | null }> = [];
+    const points: Array<{ day: string; planejado: number; realizado: number | null; andamento: number | null }> = [];
     for (let i = 0; i <= totalDays; i++) {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
       const dayIso = d.toISOString().slice(0, 10);
       const planejado = Math.max(0, +(total - (total * i) / totalDays).toFixed(2));
       let realizado: number | null = null;
+      let andamento: number | null = null;
       if (d.getTime() <= today.getTime()) {
-        const doneByDay = currentSprintItems.filter(
-          (it) => it.status === "completed" && toDate(it.updated_at) && toDate(it.updated_at)! <= d,
-        ).length;
-        realizado = total - doneByDay;
+        if (useActs) {
+          const doneByDay = sprintActivities.filter(
+            (a) => a.status === "done" && toDate((a as any).updated_at) && toDate((a as any).updated_at)! <= d,
+          ).length;
+          const inProgByDay = sprintActivities.filter(
+            (a) => a.status === "in_progress" && toDate((a as any).updated_at) && toDate((a as any).updated_at)! <= d,
+          ).length;
+          realizado = total - doneByDay;
+          andamento = inProgByDay;
+        } else {
+          const doneByDay = currentSprintItems.filter(
+            (it) => it.status === "completed" && toDate(it.updated_at) && toDate(it.updated_at)! <= d,
+          ).length;
+          const inProgByDay = currentSprintItems.filter(
+            (it) => it.status === "in_progress" && toDate(it.updated_at) && toDate(it.updated_at)! <= d,
+          ).length;
+          realizado = total - doneByDay;
+          andamento = inProgByDay;
+        }
       }
-      points.push({
-        day: dayIso.slice(5),
-        planejado,
-        realizado,
-      });
+      points.push({ day: dayIso.slice(5), planejado, realizado, andamento });
     }
     return points;
-  }, [currentSprint, currentSprintItems, today]);
+  }, [currentSprint, currentSprintItems, activities, today]);
 
   const sprintHealth = useMemo(() => {
     if (!currentSprint) return { label: "Sem sprint ativa", color: "muted", pct: 0 };
@@ -377,6 +394,7 @@ export default function DashboardGeralPage() {
                   <Legend />
                   <Line type="monotone" dataKey="planejado" stroke="hsl(217 91% 60%)" strokeDasharray="4 4" dot={false} />
                   <Line type="monotone" dataKey="realizado" stroke="hsl(142 71% 45%)" dot={{ r: 2 }} connectNulls />
+                  <Line type="monotone" dataKey="andamento" stroke="hsl(38 92% 50%)" dot={{ r: 2 }} connectNulls />
                 </LineChart>
               </ResponsiveContainer>
             ) : (

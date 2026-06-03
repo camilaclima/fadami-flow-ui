@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -90,6 +92,30 @@ export default function DailyStatusPage({ embedded = false }: { embedded?: boole
   const [selectedDaily, setSelectedDaily] = useState<DailyRow | null>(null);
   const [editingDaily, setEditingDaily] = useState<DailyRow | null>(null);
   const [sprintFilter, setSprintFilter] = useState<string>("all");
+  const qc = useQueryClient();
+
+  const { data: resolvedBottlenecks = [] } = useQuery({
+    queryKey: ["daily_bottleneck_resolutions"],
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("daily_bottleneck_resolutions") as any).select("descricao_key");
+      if (error) throw error;
+      return (data ?? []) as Array<{ descricao_key: string }>;
+    },
+  });
+  const resolvedSet = useMemo(() => new Set(resolvedBottlenecks.map((r) => r.descricao_key)), [resolvedBottlenecks]);
+
+  const resolveBottleneck = async (descricao: string) => {
+    const key = descricao.toLowerCase().trim();
+    const { data: u } = await supabase.auth.getUser();
+    const { error } = await (supabase.from("daily_bottleneck_resolutions") as any).insert({
+      descricao_key: key,
+      resolved_by: u?.user?.id ?? null,
+      resolved_by_email: u?.user?.email ?? "",
+    });
+    if (error) return toast.error(error.message);
+    qc.invalidateQueries({ queryKey: ["daily_bottleneck_resolutions"] });
+    toast.success("Gargalo marcado como resolvido");
+  };
 
   // Produtos autorizados
   const products = useMemo(
@@ -211,7 +237,9 @@ export default function DailyStatusPage({ embedded = false }: { embedded?: boole
         else bottleneckMap.set(key, { descricao: r.descricao, ocorrencias: 1, maxDias: r.dias_consecutivos });
       }
     }
-    const historicoGargalos = Array.from(bottleneckMap.values()).sort((a, b) => b.ocorrencias - a.ocorrencias);
+    const historicoGargalos = Array.from(bottleneckMap.values())
+      .filter((g) => !resolvedSet.has(g.descricao.toLowerCase().trim()))
+      .sort((a, b) => b.ocorrencias - a.ocorrencias);
 
     const idleMap = new Map<string, { nome: string; vezes: number; datas: string[] }>();
     for (const d of dailies) {
@@ -258,7 +286,7 @@ export default function DailyStatusPage({ embedded = false }: { embedded?: boole
       latestDate: latest?.status_date,
       historicoGargalos, ociosos, sobrecarregados, dependenciasExternas, eficienciaDesbloqueio,
     };
-  }, [dailies, latest, latestInsights]);
+  }, [dailies, latest, latestInsights, resolvedSet]);
 
   const canEdit = (d: DailyRow) => differenceInHours(new Date(), new Date(d.created_at)) <= 72;
 
@@ -505,10 +533,13 @@ export default function DailyStatusPage({ embedded = false }: { embedded?: boole
                     <ul className="space-y-2">
                       {exec.historicoGargalos.slice(0, 6).map((g, i) => (
                         <li key={i} className="flex items-start justify-between gap-2 p-2 rounded-md bg-muted/30">
-                          <p className="text-sm">{g.descricao}</p>
-                          <div className="flex gap-1 flex-shrink-0">
+                          <p className="text-sm flex-1">{g.descricao}</p>
+                          <div className="flex gap-1 flex-shrink-0 items-center">
                             <Badge variant="secondary" className="text-xs">{g.ocorrencias}x</Badge>
                             <Badge variant="outline" className="text-xs">máx {g.maxDias}d</Badge>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10" onClick={() => resolveBottleneck(g.descricao)} title="Marcar como resolvido">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
                         </li>
                       ))}

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Link2, User, Calendar, AlertTriangle, ChevronDown, ChevronRight, ListTodo } from "lucide-react";
+import { Link2, User, Calendar, AlertTriangle, ListTodo } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -43,7 +43,6 @@ export function AtividadesTab({ productIds, createOpen, onCreateOpenChange }: Pr
   const open = createOpen ?? internalOpen;
   const setOpen = onCreateOpenChange ?? setInternalOpen;
   const [editing, setEditing] = useState<Activity | null>(null);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const visibleProducts = useMemo(
     () => (productIds ? products.filter((p) => productIds.includes(p.id)) : products),
@@ -96,7 +95,6 @@ export function AtividadesTab({ productIds, createOpen, onCreateOpenChange }: Pr
       muted: "text-muted-foreground bg-muted/40 border-border",
     }[dl.tone];
     const linkedTasks = allTasks.filter((t) => t.activity_id === a.id);
-    const isOpen = !!expanded[a.id];
     return (
       <Card
         key={a.id}
@@ -168,56 +166,6 @@ export function AtividadesTab({ productIds, createOpen, onCreateOpenChange }: Pr
               )}
             </div>
           </div>
-
-          {linkedTasks.length > 0 && (
-            <div
-              className="pt-2 border-t border-border/60"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                type="button"
-                className="flex items-center gap-1.5 text-[11px] font-medium text-primary hover:underline"
-                onClick={() => setExpanded((p) => ({ ...p, [a.id]: !p[a.id] }))}
-              >
-                {isOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                {isOpen ? "Ocultar" : "Ver"} tarefas vinculadas ({linkedTasks.length})
-              </button>
-              {isOpen && (
-                <div className="mt-2 space-y-1.5">
-                  {linkedTasks.map((t) => {
-                    const resp = t.responsible_member_id
-                      ? members.find((m) => m.id === t.responsible_member_id)?.name ?? "—"
-                      : "Não atribuído";
-                    const prazo = t.deadline_date
-                      ? format(parseISO(t.deadline_date), "dd/MM/yyyy", { locale: ptBR })
-                      : "Sem prazo";
-                    return (
-                      <div key={t.id} className="rounded-md border border-border bg-muted/30 p-2 text-[11px] space-y-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-medium text-foreground truncate">{t.title}</span>
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              "text-[9px] h-4 px-1.5",
-                              t.status === "resolved"
-                                ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
-                                : "bg-amber-500/10 text-amber-700 border-amber-500/30"
-                            )}
-                          >
-                            {t.status === "resolved" ? "Resolvida" : "Pendente"}
-                          </Badge>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
-                          <span className="flex items-center gap-1"><Calendar className="w-2.5 h-2.5" />{prazo}</span>
-                          <span className="flex items-center gap-1"><User className="w-2.5 h-2.5" />{resp}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </Card>
     );

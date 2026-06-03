@@ -13,7 +13,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Trash2, Pencil, ArrowRight, History, FileText, Save, Sparkles, Plus, Loader2, MessageSquare, AlertTriangle, CheckCircle2, GitBranch, Lightbulb, Calendar as CalendarIcon, Users as UsersIcon } from "lucide-react";
+import { Trash2, Pencil, ArrowRight, History, FileText, Save, Sparkles, Plus, Loader2, MessageSquare, AlertTriangle, CheckCircle2, GitBranch, Lightbulb, Calendar as CalendarIcon, Users as UsersIcon, ListTodo, User as UserIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Activity, ActivityImpact, ActivityStatus, NewActivityInput } from "@/hooks/useActivities";
 import { IMPACT_LABELS, STATUS_LABELS, useAddActivity, useUpdateActivity, useActivityHistory, useDeleteActivity } from "@/hooks/useActivities";
@@ -598,6 +598,13 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
                   <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">{history.length}</Badge>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="linked" className="gap-1.5">
+                <ListTodo className="w-3.5 h-3.5" /> Tarefas Vinculadas
+                {(() => {
+                  const c = allTasks.filter((t) => t.activity_id === editing!.id).length;
+                  return c > 0 ? <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">{c}</Badge> : null;
+                })()}
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="original" className="mt-3 space-y-4">
@@ -849,6 +856,39 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
                   })}
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="linked" className="mt-3 space-y-2">
+              {(() => {
+                const linked = allTasks.filter((t) => t.activity_id === editing!.id);
+                if (!linked.length) {
+                  return (
+                    <div className="rounded-xl border border-dashed border-border p-8 text-center">
+                      <ListTodo className="w-8 h-8 mx-auto mb-2 text-muted-foreground/60" />
+                      <p className="text-sm text-muted-foreground">Nenhuma tarefa vinculada.</p>
+                    </div>
+                  );
+                }
+                return linked.map((t) => {
+                  const resp = t.responsible_member_id ? members.find((m) => m.id === t.responsible_member_id)?.name ?? "—" : "Não atribuído";
+                  const prazo = t.deadline_date ? format(new Date(t.deadline_date), "dd/MM/yyyy") : "Sem prazo";
+                  return (
+                    <div key={t.id} className="rounded-lg border bg-card p-3 space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium text-sm">{t.title}</span>
+                        <Badge variant="outline" className={cn("text-[10px]", t.status === "resolved" ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30" : "bg-amber-500/10 text-amber-700 border-amber-500/30")}>
+                          {t.status === "resolved" ? "Resolvida" : "Pendente"}
+                        </Badge>
+                      </div>
+                      {t.description && <p className="text-xs text-muted-foreground whitespace-pre-line">{t.description}</p>}
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1"><CalendarIcon className="w-3 h-3" />{prazo}</span>
+                        <span className="flex items-center gap-1"><UserIcon className="w-3 h-3" />{resp}</span>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
             </TabsContent>
           </Tabs>
         ) : (
