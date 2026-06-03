@@ -1,0 +1,2 @@
+ALTER TABLE public.project_backlog_items ADD COLUMN IF NOT EXISTS migrated_from_sprint_id uuid NULL;
+CREATE INDEX IF NOT EXISTS idx_pbi_migrated_from_sprint ON public.project_backlog_items(migrated_from_sprint_id);
