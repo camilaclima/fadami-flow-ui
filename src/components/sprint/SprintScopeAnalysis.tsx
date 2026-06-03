@@ -6,22 +6,24 @@ import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, Legend } from "recharts";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AlertTriangle, TrendingUp } from "lucide-react";
+import { AlertTriangle, TrendingUp, Users } from "lucide-react";
 import type { Sprint } from "@/types/sprint";
+import { useTeamMembers } from "@/hooks/useTeamMembers";
 
 interface Props {
   sprint: Sprint;
 }
 
 export function SprintScopeAnalysis({ sprint }: Props) {
+  const { data: members = [] } = useTeamMembers();
   const { data: activities = [], isLoading } = useQuery({
     queryKey: ["sprint_scope_activities", sprint.id],
     queryFn: async () => {
       const { data, error } = await (supabase.from("project_backlog_items") as any)
-        .select("id, task, status, created_at, deadline_date, sprint_id")
+        .select("id, task, status, created_at, deadline_date, sprint_id, responsible_id")
         .eq("sprint_id", sprint.id);
       if (error) throw error;
-      return data as Array<{ id: string; task: string; status: string; created_at: string; deadline_date: string | null }>;
+      return data as Array<{ id: string; task: string; status: string; created_at: string; deadline_date: string | null; responsible_id: string | null }>;
     },
   });
 
@@ -53,6 +55,32 @@ export function SprintScopeAnalysis({ sprint }: Props) {
 
   const scopeChange = activities.length - planned.length;
   const scopeChangePct = planned.length ? Math.round((scopeChange / planned.length) * 100) : 0;
+
+  const workload = useMemo(() => {
+    const counts = new Map<string | null, { total: number; open: number }>();
+    activities.forEach((a) => {
+      const key = a.responsible_id;
+      const cur = counts.get(key) ?? { total: 0, open: 0 };
+      cur.total += 1;
+      if (a.status !== "done") cur.open += 1;
+      counts.set(key, cur);
+    });
+    const rows = Array.from(counts.entries()).map(([id, c]) => ({
+      id,
+      name: id ? members.find((m) => m.id === id)?.name ?? "—" : "Não atribuído",
+      total: c.total,
+      open: c.open,
+    }));
+    rows.sort((a, b) => b.open - a.open);
+    return rows;
+  }, [activities, members]);
+
+  const loadLabel = (open: number) => {
+    if (open === 0) return { label: "Sem atividades", cls: "border-muted text-muted-foreground bg-muted/30" };
+    if (open <= 3) return { label: "Saudável", cls: "border-emerald-500/40 text-emerald-600 bg-emerald-500/10" };
+    if (open <= 6) return { label: "Atenção", cls: "border-amber-500/40 text-amber-600 bg-amber-500/10" };
+    return { label: "Sobrecarregado", cls: "border-red-500/40 text-red-600 bg-red-500/10" };
+  };
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Carregando análise de escopo...</p>;
@@ -111,6 +139,30 @@ export function SprintScopeAnalysis({ sprint }: Props) {
             </LineChart>
           </ResponsiveContainer>
         </div>
+      </Card>
+
+      <Card className="p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Users className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-semibold">Carga por colaborador</h3>
+          <Badge variant="outline" className="ml-auto">{workload.length}</Badge>
+        </div>
+        {workload.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Sem atividades nesta sprint.</p>
+        ) : (
+          <ul className="space-y-2">
+            {workload.map((w) => {
+              const ind = loadLabel(w.open);
+              return (
+                <li key={w.id ?? "none"} className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/30 text-sm">
+                  <span className="truncate flex-1 font-medium">{w.name}</span>
+                  <span className="text-xs text-muted-foreground">{w.open} abertas / {w.total} total</span>
+                  <Badge variant="outline" className={ind.cls}>{ind.label}</Badge>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </Card>
 
       <Card className="p-4">
