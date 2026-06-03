@@ -152,6 +152,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
         dependency_id: dependencyId === "__none__" ? null : dependencyId,
         responsible_ids: responsibleIds,
         status,
+        parent_id: parentActivity?.id ?? null,
       };
       const created = await add.mutateAsync(payload);
       savedActivityId = created.id;
