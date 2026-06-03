@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Sparkles, Plus, Calendar, User, Trash2, ListTodo, CheckCircle2, ArrowRightCircle, MoreHorizontal, Ban, ArrowRightLeft } from "lucide-react";
+import { Loader2, Sparkles, Plus, Calendar, User, Trash2, ListTodo, CheckCircle2, ArrowRightCircle, MoreHorizontal, Ban, ArrowRightLeft, CircleSlash } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -295,6 +295,20 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                             </DropdownMenuItem>
                           </>
                         )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            updateActivity.mutate({
+                              id: a.id,
+                              sprint_id: null,
+                              migrated_from_sprint_id: sprint.id,
+                            } as any);
+                          }}
+                          className="gap-2 text-muted-foreground"
+                        >
+                          <CircleSlash className="w-3.5 h-3.5" /> Desatribuir da sprint
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                     </div>
@@ -321,9 +335,15 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                             <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{a.deadline_date ?? "—"}</span>
                           </div>
                         </div>
-                        <Badge variant="outline" className="text-[10px] gap-1 bg-amber-500/10 text-amber-600 border-amber-500/30 whitespace-nowrap">
-                          <ArrowRightCircle className="w-3 h-3" /> Migrada → {sprintName(toSprintId)}
-                        </Badge>
+                        {toSprintId ? (
+                          <Badge variant="outline" className="text-[10px] gap-1 bg-amber-500/10 text-amber-600 border-amber-500/30 whitespace-nowrap">
+                            <ArrowRightCircle className="w-3 h-3" /> Migrada → {sprintName(toSprintId)}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] gap-1 bg-slate-500/10 text-slate-500 border-slate-500/30 whitespace-nowrap">
+                            <CircleSlash className="w-3 h-3" /> Desatribuída
+                          </Badge>
+                        )}
                       </div>
                     </Card>
                   ))}
