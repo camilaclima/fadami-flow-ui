@@ -143,6 +143,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
         <Tabs defaultValue="overview" className="space-y-4">
           <TabsList>
             <TabsTrigger value="overview">Visão geral</TabsTrigger>
+            <TabsTrigger value="tasks">Tarefas</TabsTrigger>
             <TabsTrigger value="scope">Escopo</TabsTrigger>
           </TabsList>
           <TabsContent value="overview" className="space-y-4">
