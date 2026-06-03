@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronRight, Link2, Calendar, User2, AlertTriangle, CheckCircle2, Circle, PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useActivities, STATUS_LABELS, type Activity, type ActivityStatus } from "@/hooks/useActivities";
+import { useActivities, useUpdateActivity, STATUS_LABELS, type Activity, type ActivityStatus } from "@/hooks/useActivities";
 import { useSprints } from "@/hooks/useSprints";
 import { useProducts } from "@/hooks/useProducts";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
@@ -42,6 +43,7 @@ export function CronogramaTab({ productIds }: Props) {
   const { data: members = [] } = useTeamMembers();
   const { data: sprintProducts = [] } = useSprintProducts();
   const [editing, setEditing] = useState<Activity | null>(null);
+  const updateActivity = useUpdateActivity();
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -92,6 +94,21 @@ export function CronogramaTab({ productIds }: Props) {
         <Badge variant="outline" className="text-[10px] gap-1 shrink-0">
           <Icon className="w-3 h-3" /> {STATUS_LABELS[a.status]}
         </Badge>
+        {a.status !== "done" && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 gap-1 text-[11px] text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700 shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              updateActivity.mutate({ id: a.id, status: "done" } as any);
+            }}
+          >
+            <CheckCircle2 className="w-3 h-3" /> Concluir
+          </Button>
+        )}
       </button>
     );
   };
