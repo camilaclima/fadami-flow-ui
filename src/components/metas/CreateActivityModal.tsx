@@ -13,7 +13,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Trash2, Pencil, ArrowRight, History, FileText, Save, Sparkles, Plus, Loader2, MessageSquare, AlertTriangle, CheckCircle2, GitBranch, Lightbulb, Calendar as CalendarIcon, Users as UsersIcon } from "lucide-react";
+import { Trash2, Pencil, ArrowRight, History, FileText, Save, Sparkles, Plus, Loader2, MessageSquare, AlertTriangle, CheckCircle2, GitBranch, Lightbulb, Calendar as CalendarIcon, Users as UsersIcon, ListTodo, User as UserIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Activity, ActivityImpact, ActivityStatus, NewActivityInput } from "@/hooks/useActivities";
 import { IMPACT_LABELS, STATUS_LABELS, useAddActivity, useUpdateActivity, useActivityHistory, useDeleteActivity } from "@/hooks/useActivities";
@@ -597,6 +597,13 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
                 {history.length > 0 && (
                   <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">{history.length}</Badge>
                 )}
+              </TabsTrigger>
+              <TabsTrigger value="linked" className="gap-1.5">
+                <ListTodo className="w-3.5 h-3.5" /> Tarefas Vinculadas
+                {(() => {
+                  const c = allTasks.filter((t) => t.activity_id === editing!.id).length;
+                  return c > 0 ? <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">{c}</Badge> : null;
+                })()}
               </TabsTrigger>
             </TabsList>
 
