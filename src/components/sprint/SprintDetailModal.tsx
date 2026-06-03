@@ -7,6 +7,7 @@ import { SprintPrePlanning } from "./SprintPrePlanning";
 import { SprintPlanning } from "./SprintPlanning";
 import { SprintExecution } from "./SprintExecution";
 import { SprintClosing } from "./SprintClosing";
+import { SprintScopeAnalysis } from "./SprintScopeAnalysis";
 import { useState, useEffect } from "react";
 
 interface Props {
@@ -51,6 +52,9 @@ export function SprintDetailModal({ open, onOpenChange, sprint }: Props) {
             {(status === "active" || status === "finished") && (
               <TabsTrigger value="execution">Execução</TabsTrigger>
             )}
+            {(status === "active" || status === "finished") && (
+              <TabsTrigger value="scope">Escopo</TabsTrigger>
+            )}
             {status === "finished" && (
               <TabsTrigger value="closing">Encerramento</TabsTrigger>
             )}
@@ -65,6 +69,11 @@ export function SprintDetailModal({ open, onOpenChange, sprint }: Props) {
           {(status === "active" || status === "finished") && (
             <TabsContent value="execution" className="mt-4">
               <SprintExecution sprint={sprint} />
+            </TabsContent>
+          )}
+          {(status === "active" || status === "finished") && (
+            <TabsContent value="scope" className="mt-4">
+              <SprintScopeAnalysis sprint={sprint} />
             </TabsContent>
           )}
           {status === "finished" && (
