@@ -69,14 +69,14 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
     description: string;
     deadline_date: string;
     status: ActivityStatus;
-    responsible_id: string | null;
+    responsible_ids: string[];
     dependency_id: string | null;
     sprint_id: string | null;
   };
   const [pendingChildren, setPendingChildren] = useState<PendingChild[]>([]);
   const [childDraftOpen, setChildDraftOpen] = useState(false);
   const [childDraft, setChildDraft] = useState<PendingChild>({
-    task: "", description: "", deadline_date: "", status: "todo", responsible_id: null, dependency_id: null, sprint_id: null,
+    task: "", description: "", deadline_date: "", status: "todo", responsible_ids: [], dependency_id: null, sprint_id: null,
   });
 
   useEffect(() => {
@@ -108,7 +108,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
         setLinkedTaskId("__none__");
         setPendingChildren([]);
         setChildDraftOpen(false);
-        setChildDraft({ task: "", description: "", deadline_date: "", status: "todo", responsible_id: null, dependency_id: null, sprint_id: null });
+        setChildDraft({ task: "", description: "", deadline_date: "", status: "todo", responsible_ids: [], dependency_id: null, sprint_id: null });
       }
     }
   }, [open, editing, allTasks, parentActivity, defaultProductId, defaultSprintId]);
@@ -187,7 +187,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
               impact: "medium",
               sprint_id: c.sprint_id,
               dependency_id: c.dependency_id,
-              responsible_ids: c.responsible_id ? [c.responsible_id] : [],
+              responsible_ids: c.responsible_ids ?? [],
               status: c.status,
               parent_id: created.id,
             });
@@ -649,7 +649,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
               variant="outline"
               className="h-7 gap-1.5"
               onClick={() => {
-                setChildDraft({ task: "", description: "", deadline_date: "", status: "todo", responsible_id: null, dependency_id: null, sprint_id: sprintId === "__none__" ? null : sprintId });
+                setChildDraft({ task: "", description: "", deadline_date: "", status: "todo", responsible_ids: [], dependency_id: null, sprint_id: sprintId === "__none__" ? null : sprintId });
                 setChildDraftOpen(true);
               }}
             >
@@ -735,17 +735,41 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs">Responsável</Label>
-                  <Select
-                    value={childDraft.responsible_id ?? "__none__"}
-                    onValueChange={(v) => setChildDraft((d) => ({ ...d, responsible_id: v === "__none__" ? null : v }))}
-                  >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Não atribuído</SelectItem>
-                      {members.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-xs">Responsáveis</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="outline" className="w-full justify-start font-normal">
+                        {childDraft.responsible_ids.length === 0 ? "Não atribuído" : `${childDraft.responsible_ids.length} selecionado(s)`}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-2 max-h-64 overflow-y-auto">
+                      {members.length === 0 && <p className="text-xs text-muted-foreground p-2">Nenhum membro disponível.</p>}
+                      {members.map((m) => (
+                        <label key={m.id} className="flex items-center gap-2 p-1 rounded hover:bg-muted/50 cursor-pointer text-sm">
+                          <Checkbox
+                            checked={childDraft.responsible_ids.includes(m.id)}
+                            onCheckedChange={() =>
+                              setChildDraft((d) => ({
+                                ...d,
+                                responsible_ids: d.responsible_ids.includes(m.id)
+                                  ? d.responsible_ids.filter((x) => x !== m.id)
+                                  : [...d.responsible_ids, m.id],
+                              }))
+                            }
+                          />
+                          <span className="flex-1 truncate">{m.name}</span>
+                        </label>
+                      ))}
+                    </PopoverContent>
+                  </Popover>
+                  {childDraft.responsible_ids.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {childDraft.responsible_ids.map((id) => {
+                        const m = members.find((x) => x.id === id);
+                        return m ? <Badge key={id} variant="secondary" className="text-[10px]">{m.name}</Badge> : null;
+                      })}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <Label className="text-xs">Dependência</Label>
@@ -848,7 +872,16 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Editar Atividade" : "Nova Atividade"}</DialogTitle>
+          <DialogTitle>
+            {isEdit ? (
+              <span className="flex items-center gap-2 flex-wrap">
+                <span className="text-muted-foreground text-base font-normal">Editar Atividade ·</span>
+                <span className="text-foreground">{editing!.task}</span>
+              </span>
+            ) : (
+              parentActivity ? "Nova Sub-atividade" : "Nova Atividade"
+            )}
+          </DialogTitle>
         </DialogHeader>
         {isEdit && editing!.status !== "done" && (
           <div className="flex justify-end -mt-2">
