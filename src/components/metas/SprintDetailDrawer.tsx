@@ -55,8 +55,13 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
 
   useEffect(() => {
-    if (!open || !sprint) return;
+    if (!open) return;
     setHealth(null);
+    setLoading(false);
+  }, [open, sprint?.id]);
+
+  const runAnalysis = () => {
+    if (!sprint) return;
     setLoading(true);
     supabase.functions
       .invoke("analyze-sprint-health", { body: { sprint, activities, members } })
@@ -66,7 +71,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
       })
       .catch(() => setHealth({ saude: "amarelo", gargalos: [], dicas: [] }))
       .finally(() => setLoading(false));
-  }, [open, sprint?.id]);
+  };
 
   const memberName = (id: string | null) => (id ? members.find((m) => m.id === id)?.name ?? "—" : "Não atribuído");
 
@@ -120,8 +125,15 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
               <Sparkles className="w-4 h-4 text-primary" />
               <h3 className="text-sm font-semibold">Análise IA</h3>
               {loading && <Loader2 className="w-3 h-3 animate-spin" />}
+              <Button size="sm" variant="outline" className="ml-auto h-7 gap-1.5" onClick={runAnalysis} disabled={loading}>
+                <Sparkles className="w-3 h-3" /> {health ? "Atualizar análise" : "Gerar análise"}
+              </Button>
             </div>
             <div className="space-y-3 text-sm">
+              {!health && !loading && (
+                <p className="text-xs text-muted-foreground">Clique em "Gerar análise" para ver gargalos e dicas para esta sprint.</p>
+              )}
+              {health && (<>
               <div>
                 <p className="text-xs font-semibold text-red-500 mb-1">Gargalos Detectados</p>
                 {health?.gargalos?.length ? (
@@ -134,6 +146,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                   <ul className="list-disc pl-5 space-y-1">{health.dicas.map((d, i) => <li key={i}>{d}</li>)}</ul>
                 ) : <p className="text-xs text-muted-foreground">—</p>}
               </div>
+              </>)}
             </div>
           </Card>
 
