@@ -176,14 +176,14 @@ export function TaskCard({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2 pt-2 border-t border-border/60">
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
           <Popover>
             <PopoverTrigger asChild>
               <Button size="sm" variant="outline" className="gap-1.5 h-8">
                 <MoreHorizontal className="w-3.5 h-3.5" /> Ações
               </Button>
             </PopoverTrigger>
-            <PopoverContent align="start" className="w-56 p-1.5">
+            <PopoverContent align="end" className="w-64 p-1.5">
               <div className="flex flex-col gap-1 [&_button]:w-full [&_button]:justify-start">
                 {task.category === "blocker" && (
                   <CobrancaPopover message={task.ai_message} title={task.title} />

@@ -11,6 +11,7 @@ import { CoordinatorTask, TaskCategory, TaskUrgency, useUpsertTask } from "@/hoo
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActivities } from "@/hooks/useActivities";
 
 const NONE = "__none__";
 
@@ -31,6 +32,7 @@ export function NewTaskModal({
   const { data: profiles = [] } = useProfiles();
   const { user } = useAuth();
   const upsert = useUpsertTask();
+  const { data: activities = [] } = useActivities(productIds);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -39,6 +41,7 @@ export function NewTaskModal({
   const [productId, setProductId] = useState<string>(NONE);
   const [sprintId, setSprintId] = useState<string>(NONE);
   const [deadline, setDeadline] = useState("");
+  const [activityId, setActivityId] = useState<string>(NONE);
 
   useEffect(() => {
     if (open) {
@@ -49,6 +52,7 @@ export function NewTaskModal({
       setProductId(editing?.product_id ?? NONE);
       setSprintId(editing?.sprint_id ?? NONE);
       setDeadline(editing?.deadline_date ?? "");
+      setActivityId(editing?.activity_id ?? NONE);
     }
   }, [open, editing]);
 
@@ -63,6 +67,11 @@ export function NewTaskModal({
     // Fallback: if no sprint matches the selected product, show all so the user is never stuck with an empty list.
     return filtered.length ? filtered : sprints;
   }, [sprints, productId]);
+
+  const visibleActivities = useMemo(() => {
+    if (productId === NONE) return activities;
+    return activities.filter((a) => a.product_id === productId);
+  }, [activities, productId]);
 
   const submit = async () => {
     if (!title.trim()) return;
@@ -85,6 +94,7 @@ export function NewTaskModal({
       product_id: productId === NONE ? null : productId,
       sprint_id: sprintId === NONE ? null : sprintId,
       deadline_date: deadline || null,
+      activity_id: activityId === NONE ? null : activityId,
       ...(responsible_member_id !== undefined ? { responsible_member_id } : {}),
     });
     onOpenChange(false);
@@ -156,6 +166,23 @@ export function NewTaskModal({
           <div>
             <Label>Prazo</Label>
             <Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+          </div>
+          <div>
+            <Label>Atividade associada (opcional)</Label>
+            <Select value={activityId} onValueChange={setActivityId}>
+              <SelectTrigger>
+                <SelectValue placeholder={productId === NONE ? "Selecione um projeto primeiro" : "Sem atividade"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>Sem atividade associada</SelectItem>
+                {visibleActivities.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>{a.task}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Mostra apenas atividades do projeto selecionado.
+            </p>
           </div>
           <div>
             <Label>Descrição</Label>
