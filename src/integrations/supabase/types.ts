@@ -699,6 +699,7 @@ export type Database = {
           id: string
           impact: string
           likely_owner: string
+          parent_id: string | null
           product_id: string
           project_context_id: string | null
           responsible_id: string | null
@@ -722,6 +723,7 @@ export type Database = {
           id?: string
           impact?: string
           likely_owner?: string
+          parent_id?: string | null
           product_id: string
           project_context_id?: string | null
           responsible_id?: string | null
@@ -745,6 +747,7 @@ export type Database = {
           id?: string
           impact?: string
           likely_owner?: string
+          parent_id?: string | null
           product_id?: string
           project_context_id?: string | null
           responsible_id?: string | null
@@ -757,7 +760,15 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "project_backlog_items_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "project_backlog_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       project_contexts: {
         Row: {
