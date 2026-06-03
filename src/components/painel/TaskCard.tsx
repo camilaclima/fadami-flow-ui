@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Pencil, Trash2, Sparkles, User as UserIcon, Calendar, AlertTriangle, Puzzle, Megaphone, CalendarClock } from "lucide-react";
+import { CheckCircle2, Pencil, Trash2, Sparkles, User as UserIcon, Calendar, AlertTriangle, Puzzle, Megaphone, CalendarClock, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -11,6 +11,7 @@ import { CobrancaPopover } from "./CobrancaPopover";
 import { RealocacaoPopover } from "./RealocacaoPopover";
 import { AdiarPrazoPopover } from "./AdiarPrazoPopover";
 import { AdiarTarefaPopover } from "./AdiarTarefaPopover";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { History } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -175,28 +176,39 @@ export function TaskCard({
         </div>
 
         {/* Actions */}
-        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/60">
-          {task.category === "blocker" && (
-            <CobrancaPopover message={task.ai_message} title={task.title} />
-          )}
-          {task.category === "schedule_risk" && (
-            <>
-              <RealocacaoPopover activityId={task.activity_id} />
-              <AdiarPrazoPopover activityId={task.activity_id} />
-            </>
-          )}
-          <AdiarTarefaPopover task={task} />
-          {onEdit && (
-            <Button size="sm" variant="outline" onClick={() => onEdit(task)} className="gap-1 h-8">
-              <Pencil className="w-3.5 h-3.5" /> Editar
-            </Button>
-          )}
-          <Button size="sm" variant="ghost" onClick={handleResolve} className="gap-1 ml-auto h-8 text-emerald-700 hover:text-emerald-800 hover:bg-emerald-500/10">
-            <CheckCircle2 className="w-4 h-4" /> Resolver
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => del.mutate(task.id)} className="text-muted-foreground h-8 px-2">
-            <Trash2 className="w-4 h-4" />
-          </Button>
+        <div className="flex items-center gap-2 pt-2 border-t border-border/60">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button size="sm" variant="outline" className="gap-1.5 h-8">
+                <MoreHorizontal className="w-3.5 h-3.5" /> Ações
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-56 p-1.5">
+              <div className="flex flex-col gap-1 [&_button]:w-full [&_button]:justify-start">
+                {task.category === "blocker" && (
+                  <CobrancaPopover message={task.ai_message} title={task.title} />
+                )}
+                {task.category === "schedule_risk" && (
+                  <>
+                    <RealocacaoPopover activityId={task.activity_id} />
+                    <AdiarPrazoPopover activityId={task.activity_id} />
+                  </>
+                )}
+                <AdiarTarefaPopover task={task} />
+                {onEdit && (
+                  <Button size="sm" variant="ghost" onClick={() => onEdit(task)} className="gap-2 h-8">
+                    <Pencil className="w-3.5 h-3.5" /> Editar
+                  </Button>
+                )}
+                <Button size="sm" variant="ghost" onClick={handleResolve} className="gap-2 h-8 text-emerald-700 hover:text-emerald-800 hover:bg-emerald-500/10">
+                  <CheckCircle2 className="w-4 h-4" /> Resolver
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => del.mutate(task.id)} className="gap-2 h-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                  <Trash2 className="w-4 h-4" /> Excluir
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
     </Card>
