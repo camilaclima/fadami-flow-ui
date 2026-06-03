@@ -116,48 +116,50 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
             <TabsTrigger value="scope">Escopo</TabsTrigger>
           </TabsList>
           <TabsContent value="overview" className="space-y-4">
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground">Saúde da Sprint</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={cn("w-3 h-3 rounded-full", health ? HEALTH_STYLES[health.saude] : "bg-muted")} />
-                  <span className="text-sm font-semibold capitalize">{health?.saude ?? (loading ? "Analisando…" : "—")}</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground">Saúde da Sprint</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={cn("w-3 h-3 rounded-full", health ? HEALTH_STYLES[health.saude] : "bg-muted")} />
+                    <span className="text-sm font-semibold capitalize">{health?.saude ?? (loading ? "Analisando…" : "—")}</span>
+                  </div>
                 </div>
+                <Badge variant="outline">{activities.length} atividades</Badge>
               </div>
-              <Badge variant="outline">{activities.length} atividades</Badge>
-            </div>
-          </Card>
+            </Card>
 
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-4 h-4 text-primary" />
-              <h3 className="text-sm font-semibold">Análise IA</h3>
-              {loading && <Loader2 className="w-3 h-3 animate-spin" />}
-              <Button size="sm" variant="outline" className="ml-auto h-7 gap-1.5" onClick={runAnalysis} disabled={loading}>
-                <Sparkles className="w-3 h-3" /> {health ? "Atualizar análise" : "Gerar análise"}
-              </Button>
-            </div>
-            <div className="space-y-3 text-sm">
-              {!health && !loading && (
-                <p className="text-xs text-muted-foreground">Clique em "Gerar análise" para ver gargalos e dicas para esta sprint.</p>
-              )}
-              {health && (<>
-              <div>
-                <p className="text-xs font-semibold text-red-500 mb-1">Gargalos Detectados</p>
-                {health?.gargalos?.length ? (
-                  <ul className="list-disc pl-5 space-y-1">{health.gargalos.map((g, i) => <li key={i}>{g}</li>)}</ul>
-                ) : <p className="text-xs text-muted-foreground">Nenhum gargalo identificado.</p>}
+            <Card className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-semibold">Análise IA</h3>
+                {loading && <Loader2 className="w-3 h-3 animate-spin" />}
+                <Button size="sm" variant="outline" className="ml-auto h-7 gap-1.5" onClick={runAnalysis} disabled={loading}>
+                  <Sparkles className="w-3 h-3" /> {health ? "Atualizar" : "Gerar"}
+                </Button>
               </div>
-              <div>
-                <p className="text-xs font-semibold text-emerald-500 mb-1">Dicas de Recuperação</p>
-                {health?.dicas?.length ? (
-                  <ul className="list-disc pl-5 space-y-1">{health.dicas.map((d, i) => <li key={i}>{d}</li>)}</ul>
-                ) : <p className="text-xs text-muted-foreground">—</p>}
+              <div className="space-y-3 text-sm">
+                {!health && !loading && (
+                  <p className="text-xs text-muted-foreground">Clique em "Gerar" para ver gargalos e dicas.</p>
+                )}
+                {health && (<>
+                <div>
+                  <p className="text-xs font-semibold text-red-500 mb-1">Gargalos Detectados</p>
+                  {health?.gargalos?.length ? (
+                    <ul className="list-disc pl-5 space-y-1">{health.gargalos.map((g, i) => <li key={i}>{g}</li>)}</ul>
+                  ) : <p className="text-xs text-muted-foreground">Nenhum gargalo identificado.</p>}
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-emerald-500 mb-1">Dicas de Recuperação</p>
+                  {health?.dicas?.length ? (
+                    <ul className="list-disc pl-5 space-y-1">{health.dicas.map((d, i) => <li key={i}>{d}</li>)}</ul>
+                  ) : <p className="text-xs text-muted-foreground">—</p>}
+                </div>
+                </>)}
               </div>
-              </>)}
-            </div>
-          </Card>
+            </Card>
+          </div>
 
           <div>
             <div className="flex items-center justify-between mb-2">
