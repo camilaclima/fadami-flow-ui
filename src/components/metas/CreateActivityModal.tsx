@@ -37,9 +37,13 @@ interface Props {
   defaultSprintId?: string | null;
   editing?: Activity | null;
   onCreated?: (a: Activity) => void;
+  /** When set, the modal opens in "child" mode: simplified form for a sub-activity */
+  parentActivity?: Activity | null;
 }
 
-export function CreateActivityModal({ open, onOpenChange, products, sprints, activities, defaultProductId, defaultSprintId, editing, onCreated }: Props) {
+export function CreateActivityModal({ open, onOpenChange, products, sprints, activities, defaultProductId, defaultSprintId, editing, onCreated, parentActivity }: Props) {
+  const isChildMode = !!parentActivity || !!editing?.parent_id;
+  const effectiveParent = parentActivity ?? (editing?.parent_id ? activities.find((a) => a.id === editing.parent_id) ?? null : null);
   const add = useAddActivity();
   const update = useUpdateActivity();
   const del = useDeleteActivity();
@@ -79,17 +83,17 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
       } else {
         setTask("");
         setDescription("");
-        setProductId("");
+        setProductId(parentActivity?.product_id ?? defaultProductId ?? "");
         setDeadline("");
         setImpact("medium");
         setStatus("todo");
-        setSprintId("__none__");
+        setSprintId(parentActivity?.sprint_id ?? defaultSprintId ?? "__none__");
         setDependencyId("__none__");
         setResponsibleIds([]);
         setLinkedTaskId("__none__");
       }
     }
-  }, [open, editing, allTasks]);
+  }, [open, editing, allTasks, parentActivity, defaultProductId, defaultSprintId]);
 
   const sprintsForProduct = sprints.filter((s) => {
     if (!productId) return true;
@@ -148,6 +152,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
         dependency_id: dependencyId === "__none__" ? null : dependencyId,
         responsible_ids: responsibleIds,
         status,
+        parent_id: parentActivity?.id ?? null,
       };
       const created = await add.mutateAsync(payload);
       savedActivityId = created.id;
@@ -409,8 +414,23 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
     );
   };
 
+  const parentDeadlineMax = effectiveParent?.deadline_date ?? undefined;
+  const children = useMemo(
+    () => (editing ? activities.filter((a) => a.parent_id === editing.id) : []),
+    [activities, editing]
+  );
+  const [childOpen, setChildOpen] = useState(false);
+
   const formContent = (
     <form onSubmit={submit} className="space-y-4">
+      {isChildMode && effectiveParent && (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-2.5 text-xs text-muted-foreground">
+          Sub-atividade de <span className="font-semibold text-foreground">{effectiveParent.task}</span>
+          {effectiveParent.deadline_date && (
+            <> · prazo máximo {format(new Date(effectiveParent.deadline_date), "dd/MM/yyyy")}</>
+          )}
+        </div>
+      )}
       <div>
         <Label>Título</Label>
         <Input value={task} onChange={(e) => setTask(e.target.value)} required />
@@ -419,31 +439,62 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
         <Label>Descrição</Label>
         <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Detalhes da atividade (opcional)" />
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Label>Projeto</Label>
-          <Select value={productId} onValueChange={setProductId}>
-            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-            <SelectContent>
-              {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
+      {!isChildMode ? (
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <Label>Projeto</Label>
+            <Select value={productId} onValueChange={setProductId}>
+              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Prazo</Label>
+            <Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+          </div>
+          <div>
+            <Label>Sprint</Label>
+            <Select value={sprintId} onValueChange={setSprintId}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Sem sprint</SelectItem>
+                {sprintsForProduct.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
+      ) : (
         <div>
           <Label>Prazo</Label>
-          <Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+          <Input
+            type="date"
+            value={deadline}
+            max={parentDeadlineMax}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (parentDeadlineMax && v && v > parentDeadlineMax) {
+                toast.error("Prazo não pode ultrapassar o prazo da atividade pai.");
+                return;
+              }
+              setDeadline(v);
+            }}
+          />
         </div>
-      </div>
-      <div className="grid grid-cols-3 gap-3">
-        <div>
-          <Label>Impacto</Label>
-          <Select value={impact} onValueChange={(v) => setImpact(v as ActivityImpact)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {Object.entries(IMPACT_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
+      )}
+      <div className={cn("grid gap-3", isChildMode ? "grid-cols-2" : "grid-cols-3")}>
+        {!isChildMode && (
+          <div>
+            <Label>Impacto</Label>
+            <Select value={impact} onValueChange={(v) => setImpact(v as ActivityImpact)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {Object.entries(IMPACT_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div>
           <Label>Status</Label>
           <Select value={status} onValueChange={(v) => setStatus(v as ActivityStatus)}>
@@ -454,7 +505,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
           </Select>
         </div>
         <div>
-          <Label>Responsáveis</Label>
+          <Label>{isChildMode ? "Responsável" : "Responsáveis"}</Label>
           <Popover>
             <PopoverTrigger asChild>
               <Button type="button" variant="outline" className="w-full justify-start font-normal">
@@ -482,16 +533,6 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
         </div>
       )}
       <div>
-        <Label>Vincular à Sprint</Label>
-        <Select value={sprintId} onValueChange={setSprintId}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__">Não vincular a nenhuma sprint</SelectItem>
-            {sprintsForProduct.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
-      <div>
         <Label>Dependência (opcional)</Label>
         <Select value={dependencyId} onValueChange={setDependencyId}>
           <SelectTrigger><SelectValue /></SelectTrigger>
@@ -501,23 +542,59 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
           </SelectContent>
         </Select>
       </div>
-      <div>
-        <Label>Tarefa associada (opcional)</Label>
-        <Select value={linkedTaskId} onValueChange={setLinkedTaskId} disabled={!productId}>
-          <SelectTrigger>
-            <SelectValue placeholder={productId ? "Sem tarefa" : "Selecione um projeto primeiro"} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__">Sem tarefa associada</SelectItem>
-            {taskCandidates.map((t) => (
-              <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <p className="text-[11px] text-muted-foreground mt-1">
-          Mostra apenas tarefas do projeto selecionado. Vincular irá conectar a tarefa do painel a esta atividade.
-        </p>
-      </div>
+      {!isChildMode && (
+        <div>
+          <Label>Tarefa associada (opcional)</Label>
+          <Select value={linkedTaskId} onValueChange={setLinkedTaskId} disabled={!productId}>
+            <SelectTrigger>
+              <SelectValue placeholder={productId ? "Sem tarefa" : "Selecione um projeto primeiro"} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Sem tarefa associada</SelectItem>
+              {taskCandidates.map((t) => (
+                <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Mostra apenas tarefas do projeto selecionado. Vincular irá conectar a tarefa do painel a esta atividade.
+          </p>
+        </div>
+      )}
+      {isEdit && !isChildMode && (
+        <div className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ListTodo className="w-4 h-4 text-primary" />
+              <Label className="text-xs uppercase tracking-wide text-foreground font-semibold">
+                Sub-atividades {children.length > 0 && `(${children.length})`}
+              </Label>
+            </div>
+            <Button type="button" size="sm" variant="outline" className="h-7 gap-1.5" onClick={() => setChildOpen(true)}>
+              <Plus className="w-3.5 h-3.5" /> Adicionar filho
+            </Button>
+          </div>
+          {children.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Nenhuma sub-atividade ainda.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {children.map((c) => (
+                <div key={c.id} className="flex items-center gap-2 text-sm rounded-md border border-border/60 px-2.5 py-1.5">
+                  <Badge variant="outline" className={cn("text-[10px] border h-5 px-1.5", STATUS_TONE[c.status])}>
+                    {STATUS_LABELS[c.status]}
+                  </Badge>
+                  <span className="flex-1 truncate">{c.task}</span>
+                  {c.deadline_date && (
+                    <span className="text-[11px] text-muted-foreground">
+                      {format(new Date(c.deadline_date), "dd/MM")}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {isEdit && (
         <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
           <div className="flex items-center gap-2">
@@ -623,6 +700,14 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
                   return c > 0 ? <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">{c}</Badge> : null;
                 })()}
               </TabsTrigger>
+              {!editing?.parent_id && (
+                <TabsTrigger value="children" className="gap-1.5">
+                  <GitBranch className="w-3.5 h-3.5" /> Sub-atividades
+                  {children.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">{children.length}</Badge>
+                  )}
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="original" className="mt-3 space-y-4">
@@ -908,9 +993,87 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
                 });
               })()}
             </TabsContent>
+
+            {!editing?.parent_id && (
+              <TabsContent value="children" className="mt-3 space-y-3">
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-card p-3">
+                  <div className="text-xs text-muted-foreground">
+                    Quebre esta atividade em sub-atividades menores. O prazo de cada filho não pode ultrapassar
+                    {editing?.deadline_date ? ` ${format(new Date(editing.deadline_date), "dd/MM/yyyy")}` : " o prazo da pai"}.
+                  </div>
+                  <Button type="button" size="sm" className="gap-1.5 h-8" onClick={() => setChildOpen(true)}>
+                    <Plus className="w-3.5 h-3.5" /> Adicionar filho
+                  </Button>
+                </div>
+                {children.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border p-8 text-center">
+                    <GitBranch className="w-8 h-8 mx-auto mb-2 text-muted-foreground/60" />
+                    <p className="text-sm text-muted-foreground">Nenhuma sub-atividade ainda.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {(() => {
+                      const done = children.filter((c) => c.status === "done").length;
+                      const pct = Math.round((done / children.length) * 100);
+                      return (
+                        <div className="rounded-lg border border-border bg-card p-3">
+                          <div className="flex items-center justify-between text-xs mb-1.5">
+                            <span className="text-muted-foreground">Progresso</span>
+                            <span className="font-medium">{done}/{children.length} · {pct}%</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-muted overflow-hidden">
+                            <div className="h-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    {children.map((c) => {
+                      const resp = (c.responsible_ids?.length ? c.responsible_ids : (c.responsible_id ? [c.responsible_id] : []))
+                        .map((id) => members.find((m) => m.id === id)?.name ?? "—").join(", ") || "Não atribuído";
+                      return (
+                        <div key={c.id} className="rounded-lg border bg-card p-3 space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-sm flex-1 truncate">{c.task}</span>
+                            <Badge variant="outline" className={cn("text-[10px] border h-5 px-1.5", STATUS_TONE[c.status])}>
+                              {STATUS_LABELS[c.status]}
+                            </Badge>
+                            {c.status !== "done" && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-6 px-2 gap-1 border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10"
+                                onClick={() => update.mutate({ id: c.id, status: "done" } as any)}
+                              >
+                                <CheckCircle2 className="w-3 h-3" /> Concluir
+                              </Button>
+                            )}
+                          </div>
+                          {c.description && <p className="text-xs text-muted-foreground whitespace-pre-line">{c.description}</p>}
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1"><CalendarIcon className="w-3 h-3" />{c.deadline_date ? format(new Date(c.deadline_date), "dd/MM/yyyy") : "Sem prazo"}</span>
+                            <span className="flex items-center gap-1"><UserIcon className="w-3 h-3" />{resp}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </TabsContent>
+            )}
           </Tabs>
         ) : (
           formContent
+        )}
+        {editing && !editing.parent_id && (
+          <CreateActivityModal
+            open={childOpen}
+            onOpenChange={setChildOpen}
+            products={products}
+            sprints={sprints}
+            activities={activities}
+            parentActivity={editing}
+          />
         )}
       </DialogContent>
     </Dialog>

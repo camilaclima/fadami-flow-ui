@@ -1,0 +1,1 @@
+ALTER TABLE public.project_backlog_items ADD COLUMN IF NOT EXISTS parent_id uuid REFERENCES public.project_backlog_items(id) ON DELETE CASCADE; CREATE INDEX IF NOT EXISTS idx_pbi_parent ON public.project_backlog_items(parent_id);
