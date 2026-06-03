@@ -52,13 +52,24 @@ export function AtividadesTab({ productIds, createOpen, onCreateOpenChange }: Pr
   );
 
   const sorted = useMemo(
-    () => [...activities].sort((a, b) => {
+    () => [...activities].filter((a) => !a.parent_id).sort((a, b) => {
       const da = a.deadline_date ?? "9999-12-31";
       const db = b.deadline_date ?? "9999-12-31";
       return da.localeCompare(db);
     }),
     [activities]
   );
+  const childrenByParent = useMemo(() => {
+    const map = new Map<string, Activity[]>();
+    for (const a of activities) {
+      if (a.parent_id) {
+        const arr = map.get(a.parent_id) ?? [];
+        arr.push(a);
+        map.set(a.parent_id, arr);
+      }
+    }
+    return map;
+  }, [activities]);
   const linked = sorted.filter((a) => !!a.sprint_id);
   const unlinked = sorted.filter((a) => !a.sprint_id);
 
