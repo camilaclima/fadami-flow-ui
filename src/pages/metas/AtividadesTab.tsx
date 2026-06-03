@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Link2, User, Calendar, AlertTriangle, ListTodo, CheckCircle2 } from "lucide-react";
+import { Link2, User, Calendar, AlertTriangle, ListTodo, CheckCircle2, GitBranch } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -108,6 +108,9 @@ export function AtividadesTab({ productIds, createOpen, onCreateOpenChange }: Pr
       muted: "text-muted-foreground bg-muted/40 border-border",
     }[dl.tone];
     const linkedTasks = allTasks.filter((t) => t.activity_id === a.id);
+    const kids = childrenByParent.get(a.id) ?? [];
+    const kidsDone = kids.filter((c) => c.status === "done").length;
+    const kidsPct = kids.length ? Math.round((kidsDone / kids.length) * 100) : 0;
     return (
       <Card
         key={a.id}
@@ -122,6 +125,11 @@ export function AtividadesTab({ productIds, createOpen, onCreateOpenChange }: Pr
               {STATUS_LABELS[a.status]}
             </Badge>
             <div className="flex items-center gap-1.5">
+              {kids.length > 0 && (
+                <Badge variant="outline" className="text-[10px] h-5 px-1.5 gap-1 bg-violet-500/10 text-violet-700 border-violet-500/30 dark:text-violet-300">
+                  <GitBranch className="w-3 h-3" /> {kidsDone}/{kids.length} · {kidsPct}%
+                </Badge>
+              )}
               {linkedTasks.length > 0 && (
                 <Badge variant="outline" className="text-[10px] h-5 px-1.5 gap-1 bg-primary/10 text-primary border-primary/30">
                   <ListTodo className="w-3 h-3" /> {linkedTasks.length}
