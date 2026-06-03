@@ -174,6 +174,27 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
       const created = await add.mutateAsync(payload);
       savedActivityId = created.id;
       onCreated?.(created);
+      // Persist pending children
+      if (pendingChildren.length > 0) {
+        for (const c of pendingChildren) {
+          try {
+            await add.mutateAsync({
+              product_id: productId,
+              task: c.task.trim(),
+              description: c.description,
+              deadline_date: c.deadline_date || null,
+              impact: "medium",
+              sprint_id: sprintId === "__none__" ? null : sprintId,
+              dependency_id: c.dependency_id,
+              responsible_ids: c.responsible_id ? [c.responsible_id] : [],
+              status: c.status,
+              parent_id: created.id,
+            });
+          } catch (err: any) {
+            toast.error(`Erro ao salvar sub-atividade "${c.task}": ${err?.message ?? ""}`);
+          }
+        }
+      }
     }
     // Sync linked coordinator task
     try {
