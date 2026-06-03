@@ -3,8 +3,10 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link2 } from "lucide-react";
-import { useActivities } from "@/hooks/useActivities";
+import { useActivities, type Activity } from "@/hooks/useActivities";
 import { useProducts } from "@/hooks/useProducts";
+import { useSprints } from "@/hooks/useSprints";
+import { CreateActivityModal } from "@/components/metas/CreateActivityModal";
 
 type Granularity = "week" | "month" | "quarter";
 
@@ -59,7 +61,9 @@ interface Props {
 export function RoadmapTab({ productIds }: Props) {
   const { data: products = [] } = useProducts();
   const { data: activities = [] } = useActivities(productIds);
+  const { data: sprints = [] } = useSprints();
   const [granularity, setGranularity] = useState<Granularity>("month");
+  const [editing, setEditing] = useState<Activity | null>(null);
 
   const filtered = useMemo(
     () => activities.filter((a) => a.deadline_date),
@@ -173,8 +177,9 @@ export function RoadmapTab({ productIds }: Props) {
                       {blocks.map((b) => (
                         <div
                           key={b.id}
-                          className="text-[11px] px-2 py-1.5 rounded-md border shadow-sm"
+                          className="text-[11px] px-2 py-1.5 rounded-md border shadow-sm cursor-pointer hover:ring-2 hover:ring-primary/40 transition"
                           style={{ borderColor: prod.color, background: `${prod.color}1A` }}
+                          onClick={() => setEditing(b)}
                         >
                           <p className="truncate font-medium">{b.task}</p>
                           <div className="flex items-center gap-1 mt-0.5">
@@ -197,6 +202,15 @@ export function RoadmapTab({ productIds }: Props) {
           </div>
         )}
       </Card>
+
+      <CreateActivityModal
+        open={!!editing}
+        onOpenChange={(o) => !o && setEditing(null)}
+        products={visibleProducts}
+        sprints={sprints}
+        activities={activities}
+        editing={editing}
+      />
     </div>
   );
 }
