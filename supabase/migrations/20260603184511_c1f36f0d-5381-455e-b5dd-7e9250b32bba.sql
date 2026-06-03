@@ -1,0 +1,1 @@
+DELETE FROM public.activity_history WHERE id IN ('113a78d8-8fbe-44af-a6f0-17c339e385d7','8b037809-546e-4175-b23a-f2c42a6c6d3d');
