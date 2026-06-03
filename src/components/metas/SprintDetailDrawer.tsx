@@ -116,6 +116,16 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
 
   const sprintName = (id: string | null) => (id ? sprints.find((s) => s.id === id)?.name ?? "outra sprint" : "sem sprint");
 
+  const nextSprint = useMemo(() => {
+    if (!sprint) return null;
+    const ref = sprint.end_date ?? sprint.start_date;
+    if (!ref) return null;
+    const candidates = sprints
+      .filter((s) => s.id !== sprint.id && s.start_date && s.start_date > ref)
+      .sort((a, b) => (a.start_date ?? "").localeCompare(b.start_date ?? ""));
+    return candidates[0] ?? null;
+  }, [sprint, sprints]);
+
   if (!sprint) return null;
 
   const linkedProductIds = sprintProducts.filter((sp) => sp.sprint_id === sprint.id).map((sp) => sp.product_id);
@@ -208,7 +218,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
             </div>
             <div className="space-y-2">
               {activities.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma atividade vinculada.</p>}
-              {activities.map((a) => {
+              {activities.filter((a) => (a as any).active !== false).map((a) => {
                 const taskCount = allTasks.filter((t) => t.activity_id === a.id).length;
                 const prod = products.find((p) => p.id === a.product_id);
                 return (
@@ -240,19 +250,54 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                     <Badge className={cn("text-[10px] border", STATUS_STYLES[a.status])} variant="outline">
                       {STATUS_LABELS[a.status]}
                     </Badge>
-                    {a.status !== "done" && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2 gap-1 text-[11px] text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          updateActivity.mutate({ id: a.id, status: "done" } as any);
-                        }}
-                      >
-                        <CheckCircle2 className="w-3 h-3" /> Concluir
-                      </Button>
-                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 gap-1 text-[11px]"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreHorizontal className="w-3 h-3" /> Ações
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                        {a.status !== "done" && (
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateActivity.mutate({ id: a.id, status: "done" } as any);
+                            }}
+                            className="gap-2 text-emerald-600 focus:text-emerald-700"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Concluir
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            updateActivity.mutate({ id: a.id, active: false } as any);
+                          }}
+                          className="gap-2"
+                        >
+                          <Ban className="w-3.5 h-3.5" /> Inativar
+                        </DropdownMenuItem>
+                        {nextSprint && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateActivity.mutate({ id: a.id, sprint_id: nextSprint.id } as any);
+                              }}
+                              className="gap-2"
+                            >
+                              <ArrowRightLeft className="w-3.5 h-3.5" /> Migrar para {nextSprint.name}
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </Card>
                 );
