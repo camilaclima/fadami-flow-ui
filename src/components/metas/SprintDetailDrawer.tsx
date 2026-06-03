@@ -261,8 +261,14 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                           variant="outline"
                           className="h-7 px-2 gap-1 text-[11px]"
                           onClick={(e) => e.stopPropagation()}
+                          disabled={pendingActionId === a.id}
                         >
-                          <MoreHorizontal className="w-3 h-3" /> Ações
+                          {pendingActionId === a.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <MoreHorizontal className="w-3 h-3" />
+                          )}
+                          {pendingActionId === a.id ? "Aplicando…" : "Ações"}
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
@@ -270,7 +276,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
-                              updateActivity.mutate({ id: a.id, status: "done" } as any);
+                              runAction(a.id, { id: a.id, status: "done" });
                             }}
                             className="gap-2 text-emerald-600 focus:text-emerald-700"
                           >
@@ -280,7 +286,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                         <DropdownMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
-                            updateActivity.mutate({ id: a.id, active: false } as any);
+                            runAction(a.id, { id: a.id, active: false });
                           }}
                           className="gap-2"
                         >
@@ -292,11 +298,11 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                             <DropdownMenuItem
                               onClick={(e) => {
                                 e.stopPropagation();
-                                updateActivity.mutate({
+                                runAction(a.id, {
                                   id: a.id,
                                   sprint_id: nextSprint.id,
                                   migrated_from_sprint_id: sprint.id,
-                                } as any);
+                                });
                               }}
                               className="gap-2"
                             >
@@ -308,11 +314,11 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                         <DropdownMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
-                            updateActivity.mutate({
+                            runAction(a.id, {
                               id: a.id,
                               sprint_id: null,
                               migrated_from_sprint_id: sprint.id,
-                            } as any);
+                            });
                           }}
                           className="gap-2 text-muted-foreground"
                         >
