@@ -872,7 +872,16 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Editar Atividade" : "Nova Atividade"}</DialogTitle>
+          <DialogTitle>
+            {isEdit ? (
+              <span className="flex items-center gap-2 flex-wrap">
+                <span className="text-muted-foreground text-base font-normal">Editar Atividade ·</span>
+                <span className="text-foreground">{editing!.task}</span>
+              </span>
+            ) : (
+              parentActivity ? "Nova Sub-atividade" : "Nova Atividade"
+            )}
+          </DialogTitle>
         </DialogHeader>
         {isEdit && editing!.status !== "done" && (
           <div className="flex justify-end -mt-2">
