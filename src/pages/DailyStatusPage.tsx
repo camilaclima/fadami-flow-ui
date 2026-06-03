@@ -317,22 +317,6 @@ export default function DailyStatusPage({ embedded = false }: { embedded?: boole
               <p className="text-sm text-muted-foreground">Visão consolidada de todos os seus projetos.</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-            <Select value={sprintFilter} onValueChange={setSprintFilter}>
-              <SelectTrigger className="w-[200px] h-9">
-                <SelectValue placeholder="Filtrar sprint" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Geral (todas)</SelectItem>
-                {sprintsWithDailies.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name}{s.product_id ? ` · ${productNameMap[s.product_id] ?? ""}` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         </motion.div>
       )}
 
@@ -359,10 +343,28 @@ export default function DailyStatusPage({ embedded = false }: { embedded?: boole
         </Card>
       ) : (
         <Tabs defaultValue="historico" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="historico">Histórico</TabsTrigger>
-            <TabsTrigger value="executivo">Dashboard Executivo</TabsTrigger>
-          </TabsList>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <TabsList>
+              <TabsTrigger value="historico">Histórico</TabsTrigger>
+              <TabsTrigger value="executivo">Dashboard Executivo</TabsTrigger>
+            </TabsList>
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <Select value={sprintFilter} onValueChange={setSprintFilter}>
+                <SelectTrigger className="w-[220px] h-9">
+                  <SelectValue placeholder="Filtrar sprint" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Geral (todas as sprints)</SelectItem>
+                  {sprintsWithDailies.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}{s.product_id ? ` · ${productNameMap[s.product_id] ?? ""}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
           {/* HISTÓRICO */}
           <TabsContent value="historico" className="space-y-2">
