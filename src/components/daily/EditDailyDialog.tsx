@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Loader2, Sparkles, MessageSquare, Users } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Loader2, Sparkles, MessageSquare, Users, GitBranch } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -8,8 +8,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 import { useTeamMembers } from "@/hooks/useTeamMembers";
+import { useSprints } from "@/hooks/useSprints";
+import { useSprintProducts } from "@/hooks/useSprintProducts";
 
 interface DailyRow {
   id: string;
@@ -52,10 +56,13 @@ function parseSummary(summary: string, memberNameMap: Record<string, string>, me
 export function EditDailyDialog({ open, onOpenChange, daily, onSaved }: Props) {
   const qc = useQueryClient();
   const { data: teamMembers = [] } = useTeamMembers();
+  const { data: allSprints = [] } = useSprints();
+  const { data: sprintProductLinks = [] } = useSprintProducts();
   const memberNameMap = Object.fromEntries(teamMembers.map((m) => [m.id, m.name]));
 
   const [memberReports, setMemberReports] = useState<Record<string, string>>({});
   const [generalNotes, setGeneralNotes] = useState("");
+  const [sprintId, setSprintId] = useState<string>("__none__");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -64,12 +71,22 @@ export function EditDailyDialog({ open, onOpenChange, daily, onSaved }: Props) {
       const { reports, general } = parseSummary(daily.summary ?? "", memberNameMap, ids);
       setMemberReports(reports);
       setGeneralNotes(general);
+      setSprintId(daily.sprint_id ?? "__none__");
     }
   }, [open, daily?.id]); // eslint-disable-line
 
   if (!daily) return null;
 
   const presentIds = daily.present_member_ids ?? [];
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const projectSprints = useMemo(() => {
+    const linked = new Set(
+      sprintProductLinks.filter((sp) => sp.product_id === daily.product_id).map((sp) => sp.sprint_id),
+    );
+    return allSprints.filter((s) => linked.has(s.id) || s.product_id === daily.product_id);
+  }, [allSprints, sprintProductLinks, daily.product_id]);
+  const isCurrentSprint = (s: { start_date: string; end_date: string }) =>
+    s.start_date <= todayStr && todayStr <= s.end_date;
 
   const buildSummary = () => {
     const blocks: string[] = [];
@@ -108,12 +125,20 @@ export function EditDailyDialog({ open, onOpenChange, daily, onSaved }: Props) {
       const aiBlockerLevel = Math.min(5, Math.max(1, Math.round(Number(insights?.blocker_level ?? daily.blocker_level))));
 
       const { error } = await (supabase.from("daily_status") as any).update({
-        summary, blocker_level: aiBlockerLevel, ai_insights: insights,
+        summary,
+        blocker_level: aiBlockerLevel,
+        ai_insights: insights,
+        sprint_id: sprintId === "__none__" ? null : sprintId,
+        sprint_label:
+          sprintId === "__none__"
+            ? ""
+            : (allSprints.find((s) => s.id === sprintId)?.name ?? ""),
       }).eq("id", daily.id);
       if (error) throw error;
 
       qc.invalidateQueries({ queryKey: ["daily_status_history", daily.product_id] });
       qc.invalidateQueries({ queryKey: ["daily_status_all"] });
+      qc.invalidateQueries({ queryKey: ["daily_status_all_agg"] });
       toast.success(`Daily atualizada! Bloqueio (IA): ${aiBlockerLevel}/5`);
       onSaved?.();
       onOpenChange(false);
@@ -136,6 +161,33 @@ export function EditDailyDialog({ open, onOpenChange, daily, onSaved }: Props) {
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2"><GitBranch className="h-4 w-4" /> Sprint</Label>
+            <Select value={sprintId} onValueChange={setSprintId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a sprint" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">— Sem sprint —</SelectItem>
+                {projectSprints.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    <span className="flex items-center gap-2">
+                      {s.name}
+                      {isCurrentSprint(s) && (
+                        <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[9px] px-1.5 py-0 h-4" variant="outline">
+                          Atual
+                        </Badge>
+                      )}
+                    </span>
+                  </SelectItem>
+                ))}
+                {projectSprints.length === 0 && (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">Nenhuma sprint cadastrada para este projeto.</div>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-3">
             <Label className="flex items-center gap-2"><Users className="h-4 w-4" /> Membros presentes</Label>
             <div className="flex flex-wrap gap-1.5">
