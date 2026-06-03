@@ -249,6 +249,33 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                 </Card>
                 );
               })}
+              {migratedAway.length > 0 && (
+                <div className="pt-3 mt-3 border-t border-dashed border-border space-y-2">
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
+                    Migradas desta sprint
+                  </p>
+                  {migratedAway.map(({ activity: a, toSprintId }) => (
+                    <Card
+                      key={`mig-${a.id}`}
+                      className="p-3 cursor-pointer hover:border-primary/50 transition opacity-80 border-dashed"
+                      onClick={() => setEditingActivity(a)}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate line-through decoration-muted-foreground/40">{a.task}</p>
+                          <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1"><User className="w-3 h-3" />{memberName(a.responsible_id)}</span>
+                            <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{a.deadline_date ?? "—"}</span>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] gap-1 bg-amber-500/10 text-amber-600 border-amber-500/30 whitespace-nowrap">
+                          <ArrowRightCircle className="w-3 h-3" /> Migrada → {sprintName(toSprintId)}
+                        </Badge>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           </TabsContent>
