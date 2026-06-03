@@ -228,7 +228,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                   className="p-3 cursor-pointer hover:border-primary/50 hover:shadow-md transition"
                   onClick={() => setEditingActivity(a)}
                 >
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{a.task}</p>
                       <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
@@ -248,9 +248,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                         )}
                       </div>
                     </div>
-                    <Badge className={cn("text-[10px] border", STATUS_STYLES[a.status])} variant="outline">
-                      {STATUS_LABELS[a.status]}
-                    </Badge>
+                    <div className="flex items-center gap-2 self-center shrink-0">
                     <Select
                       value={a.status}
                       onValueChange={(v) => {
@@ -258,7 +256,10 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                       }}
                     >
                       <SelectTrigger
-                        className="h-7 w-[110px] text-[10px] px-2 py-0"
+                        className={cn(
+                          "h-8 w-[130px] text-[11px] font-semibold px-3 py-0 border shadow-sm rounded-full transition hover:opacity-90 [&>svg]:opacity-70",
+                          STATUS_STYLES[a.status]
+                        )}
                         onClick={(e) => e.stopPropagation()}
                       >
                         <SelectValue placeholder="Status" />
@@ -319,6 +320,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    </div>
                   </div>
                 </Card>
                 );
