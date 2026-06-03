@@ -14,6 +14,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Trash2, Pencil, ArrowRight, History, FileText, Save, Sparkles, Plus, Loader2, MessageSquare, AlertTriangle, CheckCircle2, GitBranch, Lightbulb, Calendar as CalendarIcon, Users as UsersIcon, ListTodo, User as UserIcon } from "lucide-react";
+import { ArrowRightCircle, X as XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Activity, ActivityImpact, ActivityStatus, NewActivityInput } from "@/hooks/useActivities";
 import { IMPACT_LABELS, STATUS_LABELS, useAddActivity, useUpdateActivity, useActivityHistory, useDeleteActivity } from "@/hooks/useActivities";
@@ -98,10 +99,12 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
       } else {
         setTask("");
         setDescription("");
-        setProductId(parentActivity?.product_id ?? defaultProductId ?? "");
+        // Não pré-preencher projeto — usuário escolhe sempre.
+        setProductId(parentActivity?.product_id ?? "");
         setDeadline("");
         setImpact("medium");
         setStatus("todo");
+        // Sprint só é pré-preenchida quando cadastro foi iniciado dentro de uma sprint.
         setSprintId(parentActivity?.sprint_id ?? defaultSprintId ?? "__none__");
         setDependencyId("__none__");
         setResponsibleIds([]);
@@ -270,6 +273,27 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
       }
     }
     return base;
+  }, [editing, history]);
+
+  // Cadeia de sprints (Sprint 1 → Sprint 2 → ...)
+  const sprintChain = useMemo<Array<string | null>>(() => {
+    if (!editing) return [];
+    const asc = [...history].sort((a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    let original: string | null | undefined;
+    for (const h of asc) {
+      if (h.changes && (h.changes as any).sprint_id && original === undefined) {
+        original = (h.changes as any).sprint_id.old ?? null;
+      }
+    }
+    if (original === undefined) original = editing.sprint_id ?? null;
+    const chain: Array<string | null> = [original ?? null];
+    for (const h of asc) {
+      const ch = (h.changes as any).sprint_id;
+      if (ch) chain.push(ch.new ?? null);
+    }
+    return chain;
   }, [editing, history]);
 
   const [mode, setMode] = useState<"view" | "edit">("view");
@@ -970,10 +994,32 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
                       </Badge>
                     } />
                     <ColorRow icon="sprint" label="Sprint" value={
-                      originalValues?.sprint_id ? (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-violet-500/10 text-violet-700 dark:text-violet-300 text-xs font-medium border border-violet-500/30">
-                          {prettyVal("sprint_id", originalValues?.sprint_id)}
-                        </span>
+                      sprintChain.length > 0 ? (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {sprintChain.map((sid, idx) => (
+                            <span key={`${sid ?? "none"}-${idx}`} className="inline-flex items-center gap-1.5">
+                              {idx > 0 && (
+                                <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-amber-600 font-semibold">
+                                  <ArrowRightCircle className="w-3 h-3" /> migrada
+                                </span>
+                              )}
+                              {sid ? (
+                                <span className={cn(
+                                  "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium border",
+                                  idx === sprintChain.length - 1
+                                    ? "bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/40"
+                                    : "bg-muted text-muted-foreground border-border line-through decoration-muted-foreground/40"
+                                )}>
+                                  {sprintName(sid)}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium border bg-slate-500/10 text-slate-500 border-slate-500/30">
+                                  Sem sprint
+                                </span>
+                              )}
+                            </span>
+                          ))}
+                        </div>
                       ) : <span className="text-muted-foreground">—</span>
                     } />
                     <ColorRow icon="dep" label="Dependência" value={prettyVal("dependency_id", originalValues?.dependency_id)} />
@@ -1118,9 +1164,32 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
                               {isNote && <MessageSquare className="w-3 h-3 text-amber-600" />}
                               {h.changed_by_email || "Sistema"}
                             </span>
-                            <span className="text-muted-foreground">
-                              {format(new Date(h.created_at), "dd/MM/yyyy 'às' HH:mm")}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">
+                                {format(new Date(h.created_at), "dd/MM/yyyy 'às' HH:mm")}
+                              </span>
+                              {isAi && (
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-5 w-5 text-muted-foreground hover:text-destructive"
+                                  title="Remover atualização da IA"
+                                  onClick={async () => {
+                                    try {
+                                      const { error } = await (supabase.from("activity_history") as any).delete().eq("id", h.id);
+                                      if (error) throw error;
+                                      qc.invalidateQueries({ queryKey: ["activity_history", editing!.id] });
+                                      toast.success("Atualização removida");
+                                    } catch (e: any) {
+                                      toast.error(e?.message ?? "Erro ao remover");
+                                    }
+                                  }}
+                                >
+                                  <XIcon className="w-3 h-3" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
                           <div className="space-y-1.5">
                             {entries.map(([k, v]) => {

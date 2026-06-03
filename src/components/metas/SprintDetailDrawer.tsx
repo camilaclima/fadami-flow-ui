@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Sparkles, Plus, Calendar, User, Trash2, ListTodo, CheckCircle2, ArrowRightCircle, MoreHorizontal, Ban, ArrowRightLeft, CircleSlash } from "lucide-react";
+import { Loader2, Sparkles, Plus, Calendar, User, Trash2, ListTodo, CheckCircle2, ArrowRightCircle, MoreHorizontal, Ban, ArrowRightLeft, CircleSlash, ClipboardList } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,6 +59,14 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
   const [loading, setLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
+  const [pendingActionId, setPendingActionId] = useState<string | null>(null);
+
+  const runAction = (id: string, patch: any) => {
+    setPendingActionId(id);
+    updateActivity.mutate(patch, {
+      onSettled: () => setPendingActionId((cur) => (cur === id ? null : cur)),
+    });
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -135,6 +143,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
         <Tabs defaultValue="overview" className="space-y-4">
           <TabsList>
             <TabsTrigger value="overview">Visão geral</TabsTrigger>
+            <TabsTrigger value="tasks">Tarefas</TabsTrigger>
             <TabsTrigger value="scope">Escopo</TabsTrigger>
           </TabsList>
           <TabsContent value="overview" className="space-y-4">
@@ -252,8 +261,14 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                           variant="outline"
                           className="h-7 px-2 gap-1 text-[11px]"
                           onClick={(e) => e.stopPropagation()}
+                          disabled={pendingActionId === a.id}
                         >
-                          <MoreHorizontal className="w-3 h-3" /> Ações
+                          {pendingActionId === a.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <MoreHorizontal className="w-3 h-3" />
+                          )}
+                          {pendingActionId === a.id ? "Aplicando…" : "Ações"}
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
@@ -261,7 +276,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
-                              updateActivity.mutate({ id: a.id, status: "done" } as any);
+                              runAction(a.id, { id: a.id, status: "done" });
                             }}
                             className="gap-2 text-emerald-600 focus:text-emerald-700"
                           >
@@ -271,7 +286,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                         <DropdownMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
-                            updateActivity.mutate({ id: a.id, active: false } as any);
+                            runAction(a.id, { id: a.id, active: false });
                           }}
                           className="gap-2"
                         >
@@ -283,11 +298,11 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                             <DropdownMenuItem
                               onClick={(e) => {
                                 e.stopPropagation();
-                                updateActivity.mutate({
+                                runAction(a.id, {
                                   id: a.id,
                                   sprint_id: nextSprint.id,
                                   migrated_from_sprint_id: sprint.id,
-                                } as any);
+                                });
                               }}
                               className="gap-2"
                             >
@@ -299,11 +314,11 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                         <DropdownMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
-                            updateActivity.mutate({
+                            runAction(a.id, {
                               id: a.id,
                               sprint_id: null,
                               migrated_from_sprint_id: sprint.id,
-                            } as any);
+                            });
                           }}
                           className="gap-2 text-muted-foreground"
                         >
@@ -333,6 +348,15 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                           <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1"><User className="w-3 h-3" />{memberName(a.responsible_id)}</span>
                             <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{a.deadline_date ?? "—"}</span>
+                            {(() => {
+                              const prod = products.find((p) => p.id === a.product_id);
+                              return prod ? (
+                                <Badge variant="outline" className="text-[10px] gap-1">
+                                  <span className="w-2 h-2 rounded-full" style={{ background: prod.color }} />
+                                  {prod.name}
+                                </Badge>
+                              ) : null;
+                            })()}
                           </div>
                         </div>
                         {toSprintId ? (
@@ -351,6 +375,46 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
               )}
             </div>
           </div>
+          </TabsContent>
+          <TabsContent value="tasks" className="space-y-2">
+            {(() => {
+              const sprintTasks = allTasks.filter((t) => t.sprint_id === sprint.id && t.category !== "activity");
+              if (sprintTasks.length === 0) {
+                return (
+                  <div className="rounded-xl border border-dashed border-border p-8 text-center">
+                    <ClipboardList className="w-8 h-8 mx-auto mb-2 text-muted-foreground/60" />
+                    <p className="text-sm text-muted-foreground">Nenhuma tarefa vinculada a esta sprint.</p>
+                  </div>
+                );
+              }
+              return sprintTasks.map((t) => {
+                const prod = products.find((p) => p.id === t.product_id);
+                const resp = t.responsible_member_id ? members.find((m) => m.id === t.responsible_member_id)?.name ?? "—" : "Não atribuído";
+                return (
+                  <Card key={t.id} className="p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{t.title}</p>
+                        <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1"><User className="w-3 h-3" />{resp}</span>
+                          <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{t.deadline_date ?? "—"}</span>
+                          {prod && (
+                            <Badge variant="outline" className="text-[10px] gap-1">
+                              <span className="w-2 h-2 rounded-full" style={{ background: prod.color }} />
+                              {prod.name}
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className="text-[10px] capitalize">{t.category}</Badge>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className={cn("text-[10px]", t.status === "resolved" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" : "bg-amber-500/10 text-amber-600 border-amber-500/30")}>
+                        {t.status === "resolved" ? "Resolvida" : "Pendente"}
+                      </Badge>
+                    </div>
+                  </Card>
+                );
+              });
+            })()}
           </TabsContent>
           <TabsContent value="scope">
             <SprintScopeAnalysis sprint={sprint} />
