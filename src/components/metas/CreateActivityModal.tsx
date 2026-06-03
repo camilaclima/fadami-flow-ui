@@ -1164,9 +1164,32 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
                               {isNote && <MessageSquare className="w-3 h-3 text-amber-600" />}
                               {h.changed_by_email || "Sistema"}
                             </span>
-                            <span className="text-muted-foreground">
-                              {format(new Date(h.created_at), "dd/MM/yyyy 'às' HH:mm")}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">
+                                {format(new Date(h.created_at), "dd/MM/yyyy 'às' HH:mm")}
+                              </span>
+                              {isAi && (
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-5 w-5 text-muted-foreground hover:text-destructive"
+                                  title="Remover atualização da IA"
+                                  onClick={async () => {
+                                    try {
+                                      const { error } = await (supabase.from("activity_history") as any).delete().eq("id", h.id);
+                                      if (error) throw error;
+                                      qc.invalidateQueries({ queryKey: ["activity_history", editing!.id] });
+                                      toast.success("Atualização removida");
+                                    } catch (e: any) {
+                                      toast.error(e?.message ?? "Erro ao remover");
+                                    }
+                                  }}
+                                >
+                                  <XIcon className="w-3 h-3" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
                           <div className="space-y-1.5">
                             {entries.map(([k, v]) => {
