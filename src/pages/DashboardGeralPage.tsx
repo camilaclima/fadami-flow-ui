@@ -304,6 +304,18 @@ export default function DashboardGeralPage() {
             ))}
           </SelectContent>
         </Select>
+        <span className="text-sm text-muted-foreground ml-2">Sprint:</span>
+        <Select value={selectedSprint} onValueChange={setSelectedSprint}>
+          <SelectTrigger className="w-[260px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="current">Sprint Atual (auto)</SelectItem>
+            {sprintsInScope.map((s) => (
+              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Layer 1: Quick metrics */}
