@@ -275,6 +275,27 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
     return base;
   }, [editing, history]);
 
+  // Cadeia de sprints (Sprint 1 → Sprint 2 → ...)
+  const sprintChain = useMemo<Array<string | null>>(() => {
+    if (!editing) return [];
+    const asc = [...history].sort((a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    let original: string | null | undefined;
+    for (const h of asc) {
+      if (h.changes && (h.changes as any).sprint_id && original === undefined) {
+        original = (h.changes as any).sprint_id.old ?? null;
+      }
+    }
+    if (original === undefined) original = editing.sprint_id ?? null;
+    const chain: Array<string | null> = [original ?? null];
+    for (const h of asc) {
+      const ch = (h.changes as any).sprint_id;
+      if (ch) chain.push(ch.new ?? null);
+    }
+    return chain;
+  }, [editing, history]);
+
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [notes, setNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
