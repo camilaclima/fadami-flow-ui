@@ -994,10 +994,32 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
                       </Badge>
                     } />
                     <ColorRow icon="sprint" label="Sprint" value={
-                      originalValues?.sprint_id ? (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-violet-500/10 text-violet-700 dark:text-violet-300 text-xs font-medium border border-violet-500/30">
-                          {prettyVal("sprint_id", originalValues?.sprint_id)}
-                        </span>
+                      sprintChain.length > 0 ? (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {sprintChain.map((sid, idx) => (
+                            <span key={`${sid ?? "none"}-${idx}`} className="inline-flex items-center gap-1.5">
+                              {idx > 0 && (
+                                <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-amber-600 font-semibold">
+                                  <ArrowRightCircle className="w-3 h-3" /> migrada
+                                </span>
+                              )}
+                              {sid ? (
+                                <span className={cn(
+                                  "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium border",
+                                  idx === sprintChain.length - 1
+                                    ? "bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/40"
+                                    : "bg-muted text-muted-foreground border-border line-through decoration-muted-foreground/40"
+                                )}>
+                                  {sprintName(sid)}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium border bg-slate-500/10 text-slate-500 border-slate-500/30">
+                                  Sem sprint
+                                </span>
+                              )}
+                            </span>
+                          ))}
+                        </div>
                       ) : <span className="text-muted-foreground">—</span>
                     } />
                     <ColorRow icon="dep" label="Dependência" value={prettyVal("dependency_id", originalValues?.dependency_id)} />
