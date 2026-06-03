@@ -69,14 +69,14 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
     description: string;
     deadline_date: string;
     status: ActivityStatus;
-    responsible_id: string | null;
+    responsible_ids: string[];
     dependency_id: string | null;
     sprint_id: string | null;
   };
   const [pendingChildren, setPendingChildren] = useState<PendingChild[]>([]);
   const [childDraftOpen, setChildDraftOpen] = useState(false);
   const [childDraft, setChildDraft] = useState<PendingChild>({
-    task: "", description: "", deadline_date: "", status: "todo", responsible_id: null, dependency_id: null, sprint_id: null,
+    task: "", description: "", deadline_date: "", status: "todo", responsible_ids: [], dependency_id: null, sprint_id: null,
   });
 
   useEffect(() => {
@@ -108,7 +108,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
         setLinkedTaskId("__none__");
         setPendingChildren([]);
         setChildDraftOpen(false);
-        setChildDraft({ task: "", description: "", deadline_date: "", status: "todo", responsible_id: null, dependency_id: null, sprint_id: null });
+        setChildDraft({ task: "", description: "", deadline_date: "", status: "todo", responsible_ids: [], dependency_id: null, sprint_id: null });
       }
     }
   }, [open, editing, allTasks, parentActivity, defaultProductId, defaultSprintId]);
