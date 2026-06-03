@@ -1,0 +1,1 @@
+ALTER TABLE public.coordinator_tasks ADD COLUMN IF NOT EXISTS postponements jsonb NOT NULL DEFAULT '[]'::jsonb;
