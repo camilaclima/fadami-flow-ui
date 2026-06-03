@@ -64,6 +64,20 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
   const [responsibleIds, setResponsibleIds] = useState<string[]>([]);
   const [linkedTaskId, setLinkedTaskId] = useState<string>("__none__");
 
+  type PendingChild = {
+    task: string;
+    description: string;
+    deadline_date: string;
+    status: ActivityStatus;
+    responsible_id: string | null;
+    dependency_id: string | null;
+  };
+  const [pendingChildren, setPendingChildren] = useState<PendingChild[]>([]);
+  const [childDraftOpen, setChildDraftOpen] = useState(false);
+  const [childDraft, setChildDraft] = useState<PendingChild>({
+    task: "", description: "", deadline_date: "", status: "todo", responsible_id: null, dependency_id: null,
+  });
+
   useEffect(() => {
     if (open) {
       if (editing) {
@@ -91,6 +105,9 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
         setDependencyId("__none__");
         setResponsibleIds([]);
         setLinkedTaskId("__none__");
+        setPendingChildren([]);
+        setChildDraftOpen(false);
+        setChildDraft({ task: "", description: "", deadline_date: "", status: "todo", responsible_id: null, dependency_id: null });
       }
     }
   }, [open, editing, allTasks, parentActivity, defaultProductId, defaultSprintId]);
@@ -157,6 +174,27 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
       const created = await add.mutateAsync(payload);
       savedActivityId = created.id;
       onCreated?.(created);
+      // Persist pending children
+      if (pendingChildren.length > 0) {
+        for (const c of pendingChildren) {
+          try {
+            await add.mutateAsync({
+              product_id: productId,
+              task: c.task.trim(),
+              description: c.description,
+              deadline_date: c.deadline_date || null,
+              impact: "medium",
+              sprint_id: sprintId === "__none__" ? null : sprintId,
+              dependency_id: c.dependency_id,
+              responsible_ids: c.responsible_id ? [c.responsible_id] : [],
+              status: c.status,
+              parent_id: created.id,
+            });
+          } catch (err: any) {
+            toast.error(`Erro ao salvar sub-atividade "${c.task}": ${err?.message ?? ""}`);
+          }
+        }
+      }
     }
     // Sync linked coordinator task
     try {
@@ -591,6 +629,141 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
                   )}
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+      {!isEdit && !isChildMode && (
+        <div className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ListTodo className="w-4 h-4 text-primary" />
+              <Label className="text-xs uppercase tracking-wide text-foreground font-semibold">
+                Sub-atividades {pendingChildren.length > 0 && `(${pendingChildren.length})`}
+              </Label>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 gap-1.5"
+              onClick={() => {
+                setChildDraft({ task: "", description: "", deadline_date: "", status: "todo", responsible_id: null, dependency_id: null });
+                setChildDraftOpen(true);
+              }}
+            >
+              <Plus className="w-3.5 h-3.5" /> Adicionar filho
+            </Button>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Os filhos serão criados junto com a atividade pai. Prazo limite: {deadline ? format(new Date(deadline), "dd/MM/yyyy") : "—"}.
+          </p>
+          {pendingChildren.length > 0 && (
+            <div className="space-y-1.5">
+              {pendingChildren.map((c, idx) => (
+                <div key={idx} className="flex items-center gap-2 text-sm rounded-md border border-border/60 px-2.5 py-1.5">
+                  <Badge variant="outline" className={cn("text-[10px] border h-5 px-1.5", STATUS_TONE[c.status])}>
+                    {STATUS_LABELS[c.status]}
+                  </Badge>
+                  <span className="flex-1 truncate">{c.task}</span>
+                  {c.deadline_date && (
+                    <span className="text-[11px] text-muted-foreground">{format(new Date(c.deadline_date), "dd/MM")}</span>
+                  )}
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                    onClick={() => setPendingChildren((p) => p.filter((_, i) => i !== idx))}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          {childDraftOpen && (
+            <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+              <div>
+                <Label className="text-xs">Nome</Label>
+                <Input value={childDraft.task} onChange={(e) => setChildDraft((d) => ({ ...d, task: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="text-xs">Descrição</Label>
+                <Textarea rows={2} value={childDraft.description} onChange={(e) => setChildDraft((d) => ({ ...d, description: e.target.value }))} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Prazo</Label>
+                  <Input
+                    type="date"
+                    value={childDraft.deadline_date}
+                    max={deadline || undefined}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (deadline && v && v > deadline) {
+                        toast.error("Prazo do filho não pode ultrapassar o prazo do pai.");
+                        return;
+                      }
+                      setChildDraft((d) => ({ ...d, deadline_date: v }));
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Status</Label>
+                  <Select value={childDraft.status} onValueChange={(v) => setChildDraft((d) => ({ ...d, status: v as ActivityStatus }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(STATUS_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Responsável</Label>
+                  <Select
+                    value={childDraft.responsible_id ?? "__none__"}
+                    onValueChange={(v) => setChildDraft((d) => ({ ...d, responsible_id: v === "__none__" ? null : v }))}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Não atribuído</SelectItem>
+                      {members.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Dependência</Label>
+                  <Select
+                    value={childDraft.dependency_id ?? "__none__"}
+                    onValueChange={(v) => setChildDraft((d) => ({ ...d, dependency_id: v === "__none__" ? null : v }))}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sem dependência</SelectItem>
+                      {depCandidates.map((a) => <SelectItem key={a.id} value={a.id}>{a.task}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" size="sm" variant="ghost" onClick={() => setChildDraftOpen(false)}>Cancelar</Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    if (!childDraft.task.trim()) {
+                      toast.error("Informe o nome da sub-atividade.");
+                      return;
+                    }
+                    setPendingChildren((p) => [...p, { ...childDraft, task: childDraft.task.trim() }]);
+                    setChildDraftOpen(false);
+                  }}
+                >
+                  Adicionar
+                </Button>
+              </div>
             </div>
           )}
         </div>
