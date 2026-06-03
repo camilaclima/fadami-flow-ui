@@ -1142,7 +1142,8 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
                 <div className="relative pl-6 space-y-4">
                   <div className="absolute left-[9px] top-1 bottom-1 w-px bg-border" />
                   {history.map((h) => {
-                    const entries = Object.entries(h.changes);
+                    const entries = Object.entries(h.changes).filter(([k]) => k !== "migrated_from_sprint_id");
+                    if (entries.length === 0) return null;
                     const isAi = entries.some(([k]) => k === "__ai_note__");
                     const isNote = entries.some(([k]) => k === "__note__");
                     const dotClass = isAi
