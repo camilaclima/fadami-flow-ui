@@ -21,6 +21,7 @@ import { useMyTeamMembers } from "@/hooks/useMyTeamMembers";
 import type { Product } from "@/hooks/useProducts";
 import type { Sprint } from "@/types/sprint";
 import { useSprintProducts } from "@/hooks/useSprintProducts";
+import { useCoordinatorTasks } from "@/hooks/useCoordinatorTasks";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -44,6 +45,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
   const del = useDeleteActivity();
   const { data: members = [] } = useMyTeamMembers();
   const { data: sprintProducts = [] } = useSprintProducts();
+  const { data: allTasks = [] } = useCoordinatorTasks(null);
   const isEdit = !!editing;
   const { data: history = [] } = useActivityHistory(isEdit ? editing!.id : null);
 
@@ -56,6 +58,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
   const [sprintId, setSprintId] = useState<string>("__none__");
   const [dependencyId, setDependencyId] = useState<string>("__none__");
   const [responsibleIds, setResponsibleIds] = useState<string[]>([]);
+  const [linkedTaskId, setLinkedTaskId] = useState<string>("__none__");
 
   useEffect(() => {
     if (open) {
@@ -71,6 +74,8 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
         setResponsibleIds(
           editing.responsible_ids?.length ? editing.responsible_ids : (editing.responsible_id ? [editing.responsible_id] : [])
         );
+        const existing = allTasks.find((t) => t.activity_id === editing.id);
+        setLinkedTaskId(existing?.id ?? "__none__");
       } else {
         setTask("");
         setDescription("");
@@ -81,9 +86,10 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
         setSprintId("__none__");
         setDependencyId("__none__");
         setResponsibleIds([]);
+        setLinkedTaskId("__none__");
       }
     }
-  }, [open, editing]);
+  }, [open, editing, allTasks]);
 
   const sprintsForProduct = sprints.filter((s) => {
     if (!productId) return true;
@@ -91,6 +97,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
     return sprintProducts.some((sp) => sp.sprint_id === s.id && sp.product_id === productId);
   });
   const depCandidates = activities.filter((a) => (!productId || a.product_id === productId) && (!editing || a.id !== editing.id));
+  const taskCandidates = allTasks.filter((t) => !productId || t.product_id === productId);
 
   const toggleResp = (id: string) =>
     setResponsibleIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
@@ -98,6 +105,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!task.trim() || !productId) return;
+    let savedActivityId: string | null = editing?.id ?? null;
     if (editing) {
       await update.mutateAsync({
         id: editing.id,
@@ -142,7 +150,28 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
         status,
       };
       const created = await add.mutateAsync(payload);
+      savedActivityId = created.id;
       onCreated?.(created);
+    }
+    // Sync linked coordinator task
+    try {
+      const previouslyLinked = savedActivityId ? allTasks.find((t) => t.activity_id === savedActivityId) : null;
+      const newLinkedId = linkedTaskId === "__none__" ? null : linkedTaskId;
+      if (previouslyLinked && previouslyLinked.id !== newLinkedId) {
+        await (supabase.from("coordinator_tasks") as any)
+          .update({ activity_id: null })
+          .eq("id", previouslyLinked.id);
+      }
+      if (newLinkedId && savedActivityId && (!previouslyLinked || previouslyLinked.id !== newLinkedId)) {
+        await (supabase.from("coordinator_tasks") as any)
+          .update({ activity_id: savedActivityId })
+          .eq("id", newLinkedId);
+      }
+      if (previouslyLinked || newLinkedId) {
+        qc.invalidateQueries({ queryKey: ["coordinator_tasks"] });
+      }
+    } catch (err: any) {
+      toast.error(err?.message ?? "Erro ao vincular tarefa");
     }
     onOpenChange(false);
   };
@@ -418,6 +447,23 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
             {depCandidates.map((a) => <SelectItem key={a.id} value={a.id}>{a.task}</SelectItem>)}
           </SelectContent>
         </Select>
+      </div>
+      <div>
+        <Label>Tarefa associada (opcional)</Label>
+        <Select value={linkedTaskId} onValueChange={setLinkedTaskId} disabled={!productId}>
+          <SelectTrigger>
+            <SelectValue placeholder={productId ? "Sem tarefa" : "Selecione um projeto primeiro"} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">Sem tarefa associada</SelectItem>
+            {taskCandidates.map((t) => (
+              <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-[11px] text-muted-foreground mt-1">
+          Mostra apenas tarefas do projeto selecionado. Vincular irá conectar a tarefa do painel a esta atividade.
+        </p>
       </div>
       {isEdit && (
         <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
