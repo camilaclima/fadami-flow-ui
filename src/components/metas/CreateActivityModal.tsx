@@ -83,17 +83,17 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
       } else {
         setTask("");
         setDescription("");
-        setProductId("");
+        setProductId(parentActivity?.product_id ?? defaultProductId ?? "");
         setDeadline("");
         setImpact("medium");
         setStatus("todo");
-        setSprintId("__none__");
+        setSprintId(parentActivity?.sprint_id ?? defaultSprintId ?? "__none__");
         setDependencyId("__none__");
         setResponsibleIds([]);
         setLinkedTaskId("__none__");
       }
     }
-  }, [open, editing, allTasks]);
+  }, [open, editing, allTasks, parentActivity, defaultProductId, defaultSprintId]);
 
   const sprintsForProduct = sprints.filter((s) => {
     if (!productId) return true;
