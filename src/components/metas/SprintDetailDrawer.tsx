@@ -251,6 +251,26 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                     <Badge className={cn("text-[10px] border", STATUS_STYLES[a.status])} variant="outline">
                       {STATUS_LABELS[a.status]}
                     </Badge>
+                    <Select
+                      value={a.status}
+                      onValueChange={(v) => {
+                        updateActivity.mutate({ id: a.id, status: v as ActivityStatus } as any);
+                      }}
+                    >
+                      <SelectTrigger
+                        className="h-7 w-[110px] text-[10px] px-2 py-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent onClick={(e) => e.stopPropagation()}>
+                        {(["todo","in_progress","blocked","done"] as ActivityStatus[]).map((s) => (
+                          <SelectItem key={s} value={s} className="text-[11px]">
+                            {STATUS_LABELS[s]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
