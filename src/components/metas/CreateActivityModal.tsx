@@ -37,9 +37,13 @@ interface Props {
   defaultSprintId?: string | null;
   editing?: Activity | null;
   onCreated?: (a: Activity) => void;
+  /** When set, the modal opens in "child" mode: simplified form for a sub-activity */
+  parentActivity?: Activity | null;
 }
 
-export function CreateActivityModal({ open, onOpenChange, products, sprints, activities, defaultProductId, defaultSprintId, editing, onCreated }: Props) {
+export function CreateActivityModal({ open, onOpenChange, products, sprints, activities, defaultProductId, defaultSprintId, editing, onCreated, parentActivity }: Props) {
+  const isChildMode = !!parentActivity || !!editing?.parent_id;
+  const effectiveParent = parentActivity ?? (editing?.parent_id ? activities.find((a) => a.id === editing.parent_id) ?? null : null);
   const add = useAddActivity();
   const update = useUpdateActivity();
   const del = useDeleteActivity();
