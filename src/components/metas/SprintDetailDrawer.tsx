@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Sparkles, Plus, Calendar, User, Trash2, ListTodo } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +15,7 @@ import type { Product } from "@/hooks/useProducts";
 import { useDeleteSprint } from "@/hooks/useSprints";
 import { useSprintProducts } from "@/hooks/useSprintProducts";
 import { useCoordinatorTasks } from "@/hooks/useCoordinatorTasks";
+import { SprintScopeAnalysis } from "@/components/sprint/SprintScopeAnalysis";
 
 interface HealthResult {
   saude: "verde" | "amarelo" | "vermelho";
@@ -107,6 +109,12 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
         </DialogHeader>
 
         <div className="mt-4 space-y-4">
+        <Tabs defaultValue="overview" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="overview">Visão geral</TabsTrigger>
+            <TabsTrigger value="scope">Escopo</TabsTrigger>
+          </TabsList>
+          <TabsContent value="overview" className="space-y-4">
           <Card className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -190,6 +198,11 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
               })}
             </div>
           </div>
+          </TabsContent>
+          <TabsContent value="scope">
+            <SprintScopeAnalysis sprint={sprint} />
+          </TabsContent>
+        </Tabs>
         </div>
 
         <div className="mt-6 pt-4 border-t border-border flex justify-end">
