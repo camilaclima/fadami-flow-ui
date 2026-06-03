@@ -857,6 +857,39 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
                 </div>
               )}
             </TabsContent>
+
+            <TabsContent value="linked" className="mt-3 space-y-2">
+              {(() => {
+                const linked = allTasks.filter((t) => t.activity_id === editing!.id);
+                if (!linked.length) {
+                  return (
+                    <div className="rounded-xl border border-dashed border-border p-8 text-center">
+                      <ListTodo className="w-8 h-8 mx-auto mb-2 text-muted-foreground/60" />
+                      <p className="text-sm text-muted-foreground">Nenhuma tarefa vinculada.</p>
+                    </div>
+                  );
+                }
+                return linked.map((t) => {
+                  const resp = t.responsible_member_id ? members.find((m) => m.id === t.responsible_member_id)?.name ?? "—" : "Não atribuído";
+                  const prazo = t.deadline_date ? format(new Date(t.deadline_date), "dd/MM/yyyy") : "Sem prazo";
+                  return (
+                    <div key={t.id} className="rounded-lg border bg-card p-3 space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium text-sm">{t.title}</span>
+                        <Badge variant="outline" className={cn("text-[10px]", t.status === "resolved" ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30" : "bg-amber-500/10 text-amber-700 border-amber-500/30")}>
+                          {t.status === "resolved" ? "Resolvida" : "Pendente"}
+                        </Badge>
+                      </div>
+                      {t.description && <p className="text-xs text-muted-foreground whitespace-pre-line">{t.description}</p>}
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1"><CalendarIcon className="w-3 h-3" />{prazo}</span>
+                        <span className="flex items-center gap-1"><UserIcon className="w-3 h-3" />{resp}</span>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </TabsContent>
           </Tabs>
         ) : (
           formContent
