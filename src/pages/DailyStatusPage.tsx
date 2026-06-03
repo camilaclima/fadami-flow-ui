@@ -160,10 +160,16 @@ export default function DailyStatusPage({ embedded = false }: { embedded?: boole
     },
   });
 
-  const sprintsWithDailies = useMemo(() => {
-    const ids = new Set(allDailies.map((d) => d.sprint_id).filter(Boolean));
-    return sprints.filter((s) => ids.has(s.id));
-  }, [allDailies, sprints]);
+  // Sprints relevantes: todas as sprints dos produtos autorizados (cadastradas em configurações)
+  // mais qualquer sprint que tenha daily registrada.
+  const relevantSprints = useMemo(() => {
+    const allowedProductSet = new Set(viewProductIds);
+    const dailySprintIds = new Set(allDailies.map((d) => d.sprint_id).filter(Boolean));
+    const filtered = sprints.filter(
+      (s) => allowedProductSet.has(s.product_id ?? "") || dailySprintIds.has(s.id),
+    );
+    return [...filtered].sort((a, b) => (b.start_date ?? "").localeCompare(a.start_date ?? ""));
+  }, [allDailies, sprints, viewProductIds]);
 
   const dailies = useMemo(() => {
     if (sprintFilter === "all") return allDailies;
@@ -356,7 +362,7 @@ export default function DailyStatusPage({ embedded = false }: { embedded?: boole
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Geral (todas as sprints)</SelectItem>
-                  {sprintsWithDailies.map((s) => (
+                  {relevantSprints.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name}{s.product_id ? ` · ${productNameMap[s.product_id] ?? ""}` : ""}
                     </SelectItem>
