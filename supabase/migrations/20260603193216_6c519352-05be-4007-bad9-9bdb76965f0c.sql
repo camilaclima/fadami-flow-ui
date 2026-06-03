@@ -1,0 +1,1 @@
+CREATE POLICY "Admins or author can delete activity_history" ON public.activity_history FOR DELETE USING (public.has_permission(auth.uid(), 'users') OR changed_by = auth.uid());
