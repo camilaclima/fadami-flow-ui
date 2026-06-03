@@ -17,7 +17,7 @@ export function SprintScopeAnalysis({ sprint }: Props) {
   const { data: activities = [], isLoading } = useQuery({
     queryKey: ["sprint_scope_activities", sprint.id],
     queryFn: async () => {
-      const { data, error } = await (supabase.from("activities") as any)
+      const { data, error } = await (supabase.from("project_backlog_items") as any)
         .select("id, task, status, created_at, deadline_date, sprint_id")
         .eq("sprint_id", sprint.id);
       if (error) throw error;
