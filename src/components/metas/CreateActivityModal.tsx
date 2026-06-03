@@ -601,24 +601,18 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
             </TabsList>
 
             <TabsContent value="original" className="mt-3 space-y-4">
-              {mode === "edit" ? (
-                formContent
-              ) : (
-                <>
-                  <div className="flex items-center justify-between gap-2 rounded-xl bg-gradient-to-r from-primary/10 via-violet-500/10 to-amber-500/10 border border-primary/20 p-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center">
-                        <FileText className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">Atividade Original</p>
-                        <p className="text-[11px] text-muted-foreground">Snapshot dos valores originalmente cadastrados</p>
-                      </div>
+              <>
+                <div className="flex items-center justify-between gap-2 rounded-xl bg-gradient-to-r from-primary/10 via-violet-500/10 to-amber-500/10 border border-primary/20 p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center">
+                      <FileText className="w-4 h-4" />
                     </div>
-                    <Button type="button" size="sm" className="gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground" onClick={() => setMode("edit")}>
-                      <Pencil className="w-3.5 h-3.5" /> Editar
-                    </Button>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Atividade Original</p>
+                      <p className="text-[11px] text-muted-foreground">Snapshot imutável dos valores originalmente cadastrados. Use a aba "Atualizações" para registrar mudanças.</p>
+                    </div>
                   </div>
+                </div>
 
                   <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
                     <ColorRow icon="titulo" label="Título" value={<span className="font-semibold text-base">{originalValues?.task ?? "—"}</span>} />
@@ -657,8 +651,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
                       <span className="font-medium">{prettyVal("responsible_ids", originalValues?.responsible_ids ?? originalValues?.responsible_id)}</span>
                     } />
                   </div>
-                </>
-              )}
+              </>
             </TabsContent>
 
             <TabsContent value="updates" className="mt-3 space-y-4">
