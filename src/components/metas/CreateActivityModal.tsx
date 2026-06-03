@@ -649,7 +649,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
               variant="outline"
               className="h-7 gap-1.5"
               onClick={() => {
-                setChildDraft({ task: "", description: "", deadline_date: "", status: "todo", responsible_id: null, dependency_id: null, sprint_id: sprintId === "__none__" ? null : sprintId });
+                setChildDraft({ task: "", description: "", deadline_date: "", status: "todo", responsible_ids: [], dependency_id: null, sprint_id: sprintId === "__none__" ? null : sprintId });
                 setChildDraftOpen(true);
               }}
             >
