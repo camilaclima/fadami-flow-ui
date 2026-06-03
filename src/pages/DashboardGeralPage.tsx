@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -47,7 +47,7 @@ export default function DashboardGeralPage() {
     return visibleProducts.map((p) => p.id);
   }, [selectedProduct, visibleProducts]);
 
-  const { data: activities = [] } = useActivities(scopeIds);
+  const { data: allActivities = [] } = useActivities(scopeIds);
   const { data: sprints = [] } = useSprints();
   const { data: sprintProducts = [] } = useSprintProducts();
   const { data: teamMembers = [] } = useTeamMembers();
@@ -79,8 +79,25 @@ export default function DashboardGeralPage() {
     [teamMembers],
   );
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  // Reset sprint selection when it falls out of the visible scope
+  useEffect(() => {
+    if (selectedSprint === "current") return;
+    if (!sprintsInScope.some((s) => s.id === selectedSprint)) {
+      setSelectedSprint("current");
+    }
+  }, [sprintsInScope, selectedSprint]);
+
+  // Apply sprint filter to the activities used by KPIs / workload / bottlenecks
+  const activities = useMemo(() => {
+    if (selectedSprint === "current") return allActivities;
+    return allActivities.filter((a) => a.sprint_id === selectedSprint);
+  }, [allActivities, selectedSprint]);
 
   // ===== Layer 1 metrics =====
   const totalActivities = activities.length;
@@ -125,7 +142,7 @@ export default function DashboardGeralPage() {
 
   // ===== Daily latest summaries per member =====
   const { data: recentDailies = [] } = useQuery({
-    queryKey: ["dashboard_recent_dailies", scopeIds.join(",")],
+    queryKey: ["dashboard_recent_dailies", [...scopeIds].sort().join(",")],
     enabled: scopeIds.length > 0,
     queryFn: async () => {
       const since = new Date();
