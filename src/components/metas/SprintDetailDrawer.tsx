@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Sparkles, Plus, Calendar, User, Trash2, ListTodo, CheckCircle2 } from "lucide-react";
+import { Loader2, Sparkles, Plus, Calendar, User, Trash2, ListTodo, CheckCircle2, ArrowRightCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
@@ -77,6 +78,42 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
   };
 
   const memberName = (id: string | null) => (id ? members.find((m) => m.id === id)?.name ?? "—" : "Não atribuído");
+
+  // Fetch history entries that record sprint_id transitions
+  const { data: migrationHistory = [] } = useQuery({
+    queryKey: ["sprint_migration_history", sprint?.id],
+    enabled: !!sprint?.id && open,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("activity_history") as any)
+        .select("activity_id, changes, created_at")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as Array<{ activity_id: string; changes: any; created_at: string }>;
+    },
+  });
+
+  const migratedAway = useMemo(() => {
+    if (!sprint) return [] as Array<{ activity: Activity; toSprintId: string | null }>;
+    // Most recent sprint change per activity
+    const latestPerActivity = new Map<string, { old: string | null; new: string | null }>();
+    for (const h of migrationHistory) {
+      if (latestPerActivity.has(h.activity_id)) continue;
+      const ch = h.changes?.sprint_id;
+      if (!ch) continue;
+      latestPerActivity.set(h.activity_id, { old: ch.old ?? null, new: ch.new ?? null });
+    }
+    const out: Array<{ activity: Activity; toSprintId: string | null }> = [];
+    latestPerActivity.forEach((ch, actId) => {
+      if (ch.old !== sprint.id) return; // wasn't in this sprint
+      const act = allActivities.find((a) => a.id === actId);
+      if (!act) return;
+      if (act.sprint_id === sprint.id) return; // came back; current sprint
+      out.push({ activity: act, toSprintId: ch.new });
+    });
+    return out;
+  }, [migrationHistory, allActivities, sprint]);
+
+  const sprintName = (id: string | null) => (id ? sprints.find((s) => s.id === id)?.name ?? "outra sprint" : "sem sprint");
 
   if (!sprint) return null;
 
