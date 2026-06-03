@@ -586,6 +586,24 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
         <DialogHeader>
           <DialogTitle>{isEdit ? "Editar Atividade" : "Nova Atividade"}</DialogTitle>
         </DialogHeader>
+        {isEdit && editing!.status !== "done" && (
+          <div className="flex justify-end -mt-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="gap-1.5 h-8 border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10 hover:text-emerald-700 dark:text-emerald-300"
+              onClick={async () => {
+                await update.mutateAsync({ id: editing!.id, status: "done" } as any);
+                toast.success("Atividade concluída!");
+                onOpenChange(false);
+              }}
+              disabled={update.isPending}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" /> Marcar como concluída
+            </Button>
+          </div>
+        )}
         {isEdit ? (
           <Tabs defaultValue="original" className="w-full">
             <TabsList>

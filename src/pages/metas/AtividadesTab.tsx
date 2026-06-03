@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Link2, User, Calendar, AlertTriangle, ListTodo } from "lucide-react";
+import { Link2, User, Calendar, AlertTriangle, ListTodo, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useActivities, IMPACT_LABELS, STATUS_LABELS, type Activity, type ActivityStatus } from "@/hooks/useActivities";
+import { useActivities, useUpdateActivity, IMPACT_LABELS, STATUS_LABELS, type Activity, type ActivityStatus } from "@/hooks/useActivities";
 import { useSprints } from "@/hooks/useSprints";
 import { useProducts } from "@/hooks/useProducts";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
@@ -39,6 +40,7 @@ export function AtividadesTab({ productIds, createOpen, onCreateOpenChange }: Pr
   const { data: members = [] } = useTeamMembers();
   const { data: activities = [] } = useActivities(productIds);
   const { data: allTasks = [] } = useCoordinatorTasks(productIds);
+  const updateActivity = useUpdateActivity();
   const [internalOpen, setInternalOpen] = useState(false);
   const open = createOpen ?? internalOpen;
   const setOpen = onCreateOpenChange ?? setInternalOpen;
@@ -141,6 +143,21 @@ export function AtividadesTab({ productIds, createOpen, onCreateOpenChange }: Pr
             <Calendar className="w-3 h-3" />
             {dl.label}
           </div>
+
+            {a.status !== "done" && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="w-full h-7 gap-1.5 text-[11px] border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10 hover:text-emerald-700 dark:text-emerald-300"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  updateActivity.mutate({ id: a.id, status: "done" } as any);
+                }}
+              >
+                <CheckCircle2 className="w-3 h-3" /> Concluir
+              </Button>
+            )}
 
           {/* Meta footer */}
           <div className="pt-2 border-t border-border/60 space-y-1.5">

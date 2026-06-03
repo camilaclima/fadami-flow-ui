@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Sparkles, Plus, Calendar, User, Trash2, ListTodo } from "lucide-react";
+import { Loader2, Sparkles, Plus, Calendar, User, Trash2, ListTodo, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
-import { IMPACT_LABELS, STATUS_LABELS, type Activity, type ActivityStatus } from "@/hooks/useActivities";
+import { IMPACT_LABELS, STATUS_LABELS, useUpdateActivity, type Activity, type ActivityStatus } from "@/hooks/useActivities";
 import type { Sprint } from "@/types/sprint";
 import { CreateActivityModal } from "./CreateActivityModal";
 import type { Product } from "@/hooks/useProducts";
@@ -51,6 +51,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
   const { data: sprintProducts = [] } = useSprintProducts();
   const { data: allTasks = [] } = useCoordinatorTasks(null);
   const deleteSprint = useDeleteSprint();
+  const updateActivity = useUpdateActivity();
   const [health, setHealth] = useState<HealthResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -192,6 +193,19 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                     <Badge className={cn("text-[10px] border", STATUS_STYLES[a.status])} variant="outline">
                       {STATUS_LABELS[a.status]}
                     </Badge>
+                    {a.status !== "done" && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 gap-1 text-[11px] text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateActivity.mutate({ id: a.id, status: "done" } as any);
+                        }}
+                      >
+                        <CheckCircle2 className="w-3 h-3" /> Concluir
+                      </Button>
+                    )}
                   </div>
                 </Card>
                 );
