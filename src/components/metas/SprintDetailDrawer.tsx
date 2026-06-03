@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Sparkles, Plus, Calendar, User, Trash2, ListTodo, CheckCircle2 } from "lucide-react";
+import { Loader2, Sparkles, Plus, Calendar, User, Trash2, ListTodo, CheckCircle2, ArrowRightCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
@@ -77,6 +78,42 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
   };
 
   const memberName = (id: string | null) => (id ? members.find((m) => m.id === id)?.name ?? "—" : "Não atribuído");
+
+  // Fetch history entries that record sprint_id transitions
+  const { data: migrationHistory = [] } = useQuery({
+    queryKey: ["sprint_migration_history", sprint?.id],
+    enabled: !!sprint?.id && open,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("activity_history") as any)
+        .select("activity_id, changes, created_at")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as Array<{ activity_id: string; changes: any; created_at: string }>;
+    },
+  });
+
+  const migratedAway = useMemo(() => {
+    if (!sprint) return [] as Array<{ activity: Activity; toSprintId: string | null }>;
+    // Most recent sprint change per activity
+    const latestPerActivity = new Map<string, { old: string | null; new: string | null }>();
+    for (const h of migrationHistory) {
+      if (latestPerActivity.has(h.activity_id)) continue;
+      const ch = h.changes?.sprint_id;
+      if (!ch) continue;
+      latestPerActivity.set(h.activity_id, { old: ch.old ?? null, new: ch.new ?? null });
+    }
+    const out: Array<{ activity: Activity; toSprintId: string | null }> = [];
+    latestPerActivity.forEach((ch, actId) => {
+      if (ch.old !== sprint.id) return; // wasn't in this sprint
+      const act = allActivities.find((a) => a.id === actId);
+      if (!act) return;
+      if (act.sprint_id === sprint.id) return; // came back; current sprint
+      out.push({ activity: act, toSprintId: ch.new });
+    });
+    return out;
+  }, [migrationHistory, allActivities, sprint]);
+
+  const sprintName = (id: string | null) => (id ? sprints.find((s) => s.id === id)?.name ?? "outra sprint" : "sem sprint");
 
   if (!sprint) return null;
 
@@ -212,6 +249,33 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                 </Card>
                 );
               })}
+              {migratedAway.length > 0 && (
+                <div className="pt-3 mt-3 border-t border-dashed border-border space-y-2">
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
+                    Migradas desta sprint
+                  </p>
+                  {migratedAway.map(({ activity: a, toSprintId }) => (
+                    <Card
+                      key={`mig-${a.id}`}
+                      className="p-3 cursor-pointer hover:border-primary/50 transition opacity-80 border-dashed"
+                      onClick={() => setEditingActivity(a)}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate line-through decoration-muted-foreground/40">{a.task}</p>
+                          <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1"><User className="w-3 h-3" />{memberName(a.responsible_id)}</span>
+                            <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{a.deadline_date ?? "—"}</span>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] gap-1 bg-amber-500/10 text-amber-600 border-amber-500/30 whitespace-nowrap">
+                          <ArrowRightCircle className="w-3 h-3" /> Migrada → {sprintName(toSprintId)}
+                        </Badge>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           </TabsContent>
