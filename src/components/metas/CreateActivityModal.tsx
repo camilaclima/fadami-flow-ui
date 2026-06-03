@@ -232,12 +232,65 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
   const [notes, setNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
 
+  // Update form (only for edit/update flow)
+  const [updDeadline, setUpdDeadline] = useState<string>("");
+  const [updStatus, setUpdStatus] = useState<ActivityStatus>("todo");
+  const [updResponsibleIds, setUpdResponsibleIds] = useState<string[]>([]);
+  const [updDependencyId, setUpdDependencyId] = useState<string>("__none__");
+  const [updSprintId, setUpdSprintId] = useState<string>("__none__");
+  const [updNotes, setUpdNotes] = useState("");
+  const [savingUpdate, setSavingUpdate] = useState(false);
+  const toggleUpdResp = (id: string) =>
+    setUpdResponsibleIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+
   useEffect(() => {
     if (open && editing) {
       setMode("view");
       setNotes("");
+      setUpdDeadline(editing.deadline_date ?? "");
+      setUpdStatus(editing.status);
+      setUpdResponsibleIds(
+        editing.responsible_ids?.length ? editing.responsible_ids : (editing.responsible_id ? [editing.responsible_id] : [])
+      );
+      setUpdDependencyId(editing.dependency_id ?? "__none__");
+      setUpdSprintId(editing.sprint_id ?? "__none__");
+      setUpdNotes("");
     }
   }, [open, editing]);
+
+  const submitUpdate = async () => {
+    if (!editing) return;
+    setSavingUpdate(true);
+    try {
+      await update.mutateAsync({
+        id: editing.id,
+        deadline_date: updDeadline || null,
+        deadline: updDeadline ?? "",
+        status: updStatus,
+        responsible_ids: updResponsibleIds,
+        responsible_id: updResponsibleIds[0] ?? null,
+        dependency_id: updDependencyId === "__none__" ? null : updDependencyId,
+        sprint_id: updSprintId === "__none__" ? null : updSprintId,
+      } as any);
+      if (updNotes.trim()) {
+        const { data: u } = await supabase.auth.getUser();
+        await (supabase.from("activity_history") as any).insert({
+          activity_id: editing.id,
+          changed_by: u?.user?.id ?? null,
+          changed_by_email: u?.user?.email ?? "",
+          changes: { __note__: { old: "", new: updNotes.trim() } },
+        });
+        qc.invalidateQueries({ queryKey: ["activity_history", editing.id] });
+      }
+      setUpdNotes("");
+      setShowAddNote(false);
+      toast.success("Atividade atualizada!");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao atualizar");
+    } finally {
+      setSavingUpdate(false);
+    }
+  };
 
   const saveNotes = async () => {
     if (!editing || !notes.trim()) return;
@@ -548,24 +601,18 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
             </TabsList>
 
             <TabsContent value="original" className="mt-3 space-y-4">
-              {mode === "edit" ? (
-                formContent
-              ) : (
-                <>
-                  <div className="flex items-center justify-between gap-2 rounded-xl bg-gradient-to-r from-primary/10 via-violet-500/10 to-amber-500/10 border border-primary/20 p-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center">
-                        <FileText className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">Atividade Original</p>
-                        <p className="text-[11px] text-muted-foreground">Snapshot dos valores originalmente cadastrados</p>
-                      </div>
+              <>
+                <div className="flex items-center justify-between gap-2 rounded-xl bg-gradient-to-r from-primary/10 via-violet-500/10 to-amber-500/10 border border-primary/20 p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center">
+                      <FileText className="w-4 h-4" />
                     </div>
-                    <Button type="button" size="sm" className="gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground" onClick={() => setMode("edit")}>
-                      <Pencil className="w-3.5 h-3.5" /> Editar
-                    </Button>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Atividade Original</p>
+                      <p className="text-[11px] text-muted-foreground">Snapshot imutável dos valores originalmente cadastrados. Use a aba "Atualizações" para registrar mudanças.</p>
+                    </div>
                   </div>
+                </div>
 
                   <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
                     <ColorRow icon="titulo" label="Título" value={<span className="font-semibold text-base">{originalValues?.task ?? "—"}</span>} />
@@ -604,8 +651,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
                       <span className="font-medium">{prettyVal("responsible_ids", originalValues?.responsible_ids ?? originalValues?.responsible_id)}</span>
                     } />
                   </div>
-                </>
-              )}
+              </>
             </TabsContent>
 
             <TabsContent value="updates" className="mt-3 space-y-4">
@@ -625,18 +671,86 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
               </div>
 
               {showAddNote && (
-                <div className="space-y-2 rounded-xl border border-primary/30 bg-primary/5 p-3">
-                  <Label className="text-xs">Nova observação</Label>
-                  <Textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    rows={3}
-                    placeholder="Escreva uma atualização livre..."
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button type="button" size="sm" variant="ghost" onClick={() => { setShowAddNote(false); setNotes(""); }}>Cancelar</Button>
-                    <Button type="button" size="sm" className="gap-1.5" onClick={async () => { await saveNotes(); setShowAddNote(false); }} disabled={savingNotes || !notes.trim()}>
-                      <Save className="w-3.5 h-3.5" /> Registrar
+                <div className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
+                  <div>
+                    <Label className="text-xs">Observação</Label>
+                    <Textarea
+                      value={updNotes}
+                      onChange={(e) => setUpdNotes(e.target.value)}
+                      rows={3}
+                      placeholder="Escreva uma atualização livre..."
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Prazo</Label>
+                      <Input type="date" value={updDeadline} onChange={(e) => setUpdDeadline(e.target.value)} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Status</Label>
+                      <Select value={updStatus} onValueChange={(v) => setUpdStatus(v as ActivityStatus)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(STATUS_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Responsáveis</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button type="button" variant="outline" className="w-full justify-start font-normal">
+                          {updResponsibleIds.length === 0 ? "Nenhum" : `${updResponsibleIds.length} selecionado(s)`}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64 p-2 max-h-64 overflow-y-auto">
+                        {members.length === 0 && <p className="text-xs text-muted-foreground p-2">Nenhum membro disponível.</p>}
+                        {members.map((m) => (
+                          <label key={m.id} className="flex items-center gap-2 p-1 rounded hover:bg-muted/50 cursor-pointer text-sm">
+                            <Checkbox checked={updResponsibleIds.includes(m.id)} onCheckedChange={() => toggleUpdResp(m.id)} />
+                            <span className="flex-1 truncate">{m.name}</span>
+                          </label>
+                        ))}
+                      </PopoverContent>
+                    </Popover>
+                    {updResponsibleIds.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {updResponsibleIds.map((id) => {
+                          const m = members.find((x) => x.id === id);
+                          return m ? <Badge key={id} variant="secondary" className="text-[10px]">{m.name}</Badge> : null;
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Dependência</Label>
+                      <Select value={updDependencyId} onValueChange={setUpdDependencyId}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Sem dependência</SelectItem>
+                          {activities.filter((a) => a.id !== editing!.id && a.product_id === editing!.product_id).map((a) => (
+                            <SelectItem key={a.id} value={a.id}>{a.task}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Vincular à Sprint</Label>
+                      <Select value={updSprintId} onValueChange={setUpdSprintId}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Não vincular</SelectItem>
+                          {sprintsForProduct.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-1">
+                    <Button type="button" size="sm" variant="ghost" onClick={() => { setShowAddNote(false); setUpdNotes(""); }}>Cancelar</Button>
+                    <Button type="button" size="sm" className="gap-1.5" onClick={submitUpdate} disabled={savingUpdate}>
+                      {savingUpdate ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Registrar atualização
                     </Button>
                   </div>
                 </div>

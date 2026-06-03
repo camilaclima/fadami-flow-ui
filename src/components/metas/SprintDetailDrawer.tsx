@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Loader2, Sparkles, Plus, Calendar, User, Trash2 } from "lucide-react";
+import { Loader2, Sparkles, Plus, Calendar, User, Trash2, ListTodo } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
@@ -13,6 +13,7 @@ import { CreateActivityModal } from "./CreateActivityModal";
 import type { Product } from "@/hooks/useProducts";
 import { useDeleteSprint } from "@/hooks/useSprints";
 import { useSprintProducts } from "@/hooks/useSprintProducts";
+import { useCoordinatorTasks } from "@/hooks/useCoordinatorTasks";
 
 interface HealthResult {
   saude: "verde" | "amarelo" | "vermelho";
@@ -46,10 +47,12 @@ interface Props {
 export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, allActivities, sprints, products }: Props) {
   const { data: members = [] } = useTeamMembers();
   const { data: sprintProducts = [] } = useSprintProducts();
+  const { data: allTasks = [] } = useCoordinatorTasks(null);
   const deleteSprint = useDeleteSprint();
   const [health, setHealth] = useState<HealthResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
 
   useEffect(() => {
     if (!open || !sprint) return;
@@ -82,7 +85,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[88vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{sprint.name}</DialogTitle>
           <p className="text-xs text-muted-foreground">{sprint.start_date} → {sprint.end_date}</p>
@@ -143,8 +146,14 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
             </div>
             <div className="space-y-2">
               {activities.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma atividade vinculada.</p>}
-              {activities.map((a) => (
-                <Card key={a.id} className="p-3">
+              {activities.map((a) => {
+                const taskCount = allTasks.filter((t) => t.activity_id === a.id).length;
+                return (
+                <Card
+                  key={a.id}
+                  className="p-3 cursor-pointer hover:border-primary/50 hover:shadow-md transition"
+                  onClick={() => setEditingActivity(a)}
+                >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{a.task}</p>
@@ -152,6 +161,11 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                         <span className="flex items-center gap-1"><User className="w-3 h-3" />{memberName(a.responsible_id)}</span>
                         <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{a.deadline_date ?? "—"}</span>
                         <Badge variant="outline" className="text-[10px]">{IMPACT_LABELS[a.impact]}</Badge>
+                        {taskCount > 0 && (
+                          <Badge variant="outline" className="text-[10px] gap-1 bg-primary/10 text-primary border-primary/30">
+                            <ListTodo className="w-3 h-3" /> {taskCount} {taskCount === 1 ? "tarefa" : "tarefas"}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                     <Badge className={cn("text-[10px] border", STATUS_STYLES[a.status])} variant="outline">
@@ -159,7 +173,8 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                     </Badge>
                   </div>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -178,6 +193,15 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
           activities={allActivities}
           defaultProductId={sprint.product_id}
           defaultSprintId={sprint.id}
+        />
+
+        <CreateActivityModal
+          open={!!editingActivity}
+          onOpenChange={(o) => !o && setEditingActivity(null)}
+          products={products}
+          sprints={sprints}
+          activities={allActivities}
+          editing={editingActivity}
         />
       </DialogContent>
     </Dialog>
