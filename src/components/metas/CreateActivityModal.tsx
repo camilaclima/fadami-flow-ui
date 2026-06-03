@@ -693,7 +693,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
                 <Label className="text-xs">Descrição</Label>
                 <Textarea rows={2} value={childDraft.description} onChange={(e) => setChildDraft((d) => ({ ...d, description: e.target.value }))} />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <Label className="text-xs">Prazo</Label>
                   <Input
