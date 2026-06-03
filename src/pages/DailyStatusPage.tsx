@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -90,6 +92,30 @@ export default function DailyStatusPage({ embedded = false }: { embedded?: boole
   const [selectedDaily, setSelectedDaily] = useState<DailyRow | null>(null);
   const [editingDaily, setEditingDaily] = useState<DailyRow | null>(null);
   const [sprintFilter, setSprintFilter] = useState<string>("all");
+  const qc = useQueryClient();
+
+  const { data: resolvedBottlenecks = [] } = useQuery({
+    queryKey: ["daily_bottleneck_resolutions"],
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("daily_bottleneck_resolutions") as any).select("descricao_key");
+      if (error) throw error;
+      return (data ?? []) as Array<{ descricao_key: string }>;
+    },
+  });
+  const resolvedSet = useMemo(() => new Set(resolvedBottlenecks.map((r) => r.descricao_key)), [resolvedBottlenecks]);
+
+  const resolveBottleneck = async (descricao: string) => {
+    const key = descricao.toLowerCase().trim();
+    const { data: u } = await supabase.auth.getUser();
+    const { error } = await (supabase.from("daily_bottleneck_resolutions") as any).insert({
+      descricao_key: key,
+      resolved_by: u?.user?.id ?? null,
+      resolved_by_email: u?.user?.email ?? "",
+    });
+    if (error) return toast.error(error.message);
+    qc.invalidateQueries({ queryKey: ["daily_bottleneck_resolutions"] });
+    toast.success("Gargalo marcado como resolvido");
+  };
 
   // Produtos autorizados
   const products = useMemo(
