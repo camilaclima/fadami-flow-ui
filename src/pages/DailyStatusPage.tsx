@@ -525,28 +525,58 @@ export default function DailyStatusPage({ embedded = false }: { embedded?: boole
                   <div className="flex items-center gap-2">
                     <div className="p-2 rounded-lg bg-amber-500/15 text-amber-600"><History className="h-4 w-4" /></div>
                     <CardTitle className="text-base">Histórico de Gargalos</CardTitle>
+                    <div className="ml-auto">
+                      <Select value={gargalosFilter} onValueChange={(v) => setGargalosFilter(v as any)}>
+                        <SelectTrigger className="h-7 w-[150px] text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">Pendentes</SelectItem>
+                          <SelectItem value="resolved">Concluídos</SelectItem>
+                          <SelectItem value="all">Todos</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <CardDescription>Mais frequentes no período</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {!exec?.historicoGargalos.length ? (
+                  {(() => {
+                  const filtered = (exec?.historicoGargalos ?? []).filter((g) => {
+                    const k = g.descricao.toLowerCase().trim();
+                    const isResolved = resolvedSet.has(k);
+                    if (gargalosFilter === "pending") return !isResolved;
+                    if (gargalosFilter === "resolved") return isResolved;
+                    return true;
+                  });
+                  return !filtered.length ? (
                     <p className="text-sm text-muted-foreground">Sem histórico ainda.</p>
                   ) : (
                     <ul className="space-y-2">
-                      {exec.historicoGargalos.slice(0, 6).map((g, i) => (
+                      {filtered.slice(0, 8).map((g, i) => {
+                        const isResolved = resolvedSet.has(g.descricao.toLowerCase().trim());
+                        return (
                         <li key={i} className="flex items-start justify-between gap-2 p-2 rounded-md bg-muted/30">
-                          <p className="text-sm flex-1">{g.descricao}</p>
+                          <p className={cn("text-sm flex-1", isResolved && "line-through text-muted-foreground")}>{g.descricao}</p>
                           <div className="flex gap-1 flex-shrink-0 items-center">
                             <Badge variant="secondary" className="text-xs">{g.ocorrencias}x</Badge>
                             <Badge variant="outline" className="text-xs">máx {g.maxDias}d</Badge>
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10" onClick={() => resolveBottleneck(g.descricao)} title="Marcar como resolvido">
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                            </Button>
+                            {isResolved ? (
+                              <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px]" variant="outline">
+                                Resolvido
+                              </Badge>
+                            ) : (
+                              <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10" onClick={() => resolveBottleneck(g.descricao)} title="Marcar como resolvido">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
                           </div>
                         </li>
-                      ))}
+                        );
+                      })}
                     </ul>
-                  )}
+                  );
+                  })()}
                 </CardContent>
               </Card>
             </div>
