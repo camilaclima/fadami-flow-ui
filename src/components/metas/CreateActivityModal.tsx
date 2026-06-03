@@ -98,10 +98,12 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
       } else {
         setTask("");
         setDescription("");
-        setProductId(parentActivity?.product_id ?? defaultProductId ?? "");
+        // Não pré-preencher projeto — usuário escolhe sempre.
+        setProductId(parentActivity?.product_id ?? "");
         setDeadline("");
         setImpact("medium");
         setStatus("todo");
+        // Sprint só é pré-preenchida quando cadastro foi iniciado dentro de uma sprint.
         setSprintId(parentActivity?.sprint_id ?? defaultSprintId ?? "__none__");
         setDependencyId("__none__");
         setResponsibleIds([]);
