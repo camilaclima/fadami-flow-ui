@@ -10,6 +10,9 @@ import { CoordinatorTask, useResolveTask, useDeleteTask } from "@/hooks/useCoord
 import { CobrancaPopover } from "./CobrancaPopover";
 import { RealocacaoPopover } from "./RealocacaoPopover";
 import { AdiarPrazoPopover } from "./AdiarPrazoPopover";
+import { AdiarTarefaPopover } from "./AdiarTarefaPopover";
+import { History } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 function relTime(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -63,6 +66,8 @@ export function TaskCard({
   const CatIcon = cat.icon;
   const sourceLabel = task.source === "ai" ? "Gerado pela IA" : "Manual";
   const dailyHint = task.daily_status_id ? " após a Daily" : "";
+  const postponements: any[] = Array.isArray((task as any).postponements) ? (task as any).postponements : [];
+  const postponedCount = postponements.length;
 
   let dlTone: "danger" | "warning" | "info" | "muted" = "muted";
   let dlLabel: string | null = null;
@@ -99,7 +104,29 @@ export function TaskCard({
           <Badge variant="outline" className={cn("text-[10px] border h-5 px-2 gap-1", cat.cls)}>
             <CatIcon className="w-3 h-3" /> {cat.label}
           </Badge>
-          <Badge className={cn("h-5 px-2 text-[10px]", u.cls)}>{u.label}</Badge>
+          <div className="flex items-center gap-1.5">
+            {postponedCount > 0 && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="outline" className="h-5 px-2 text-[10px] gap-1 bg-amber-500/15 text-amber-700 border-amber-500/30">
+                      <History className="w-3 h-3" /> Adiada {postponedCount}x
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <div className="space-y-1 text-xs">
+                      {postponements.slice(-3).map((p, i) => (
+                        <div key={i}>
+                          <strong>{p.new_date}</strong>: {p.reason}
+                        </div>
+                      ))}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            <Badge className={cn("h-5 px-2 text-[10px]", u.cls)}>{u.label}</Badge>
+          </div>
         </div>
 
         {/* Title */}
@@ -158,6 +185,7 @@ export function TaskCard({
               <AdiarPrazoPopover activityId={task.activity_id} />
             </>
           )}
+          <AdiarTarefaPopover task={task} />
           {onEdit && (
             <Button size="sm" variant="outline" onClick={() => onEdit(task)} className="gap-1 h-8">
               <Pencil className="w-3.5 h-3.5" /> Editar
