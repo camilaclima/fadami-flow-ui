@@ -137,15 +137,20 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
   const previousAttentionPoints = useMemo(() => {
     if (!previousDaily?.ai_insights) return null;
     const ins = previousDaily.ai_insights as any;
-    const riscos: string[] = Array.isArray(ins.riscos) ? ins.riscos : [];
-    const recorrencias = Array.isArray(ins.recorrencias) ? ins.recorrencias : [];
-    const dependencias = Array.isArray(ins.dependencias_externas) ? ins.dependencias_externas : [];
-    const sobrecarregados = Array.isArray(ins.colaboradores_sobrecarregados) ? ins.colaboradores_sobrecarregados : [];
-    const proximos: string[] = Array.isArray(ins.proximos_passos) ? ins.proximos_passos : [];
-    const hasAny =
-      riscos.length + recorrencias.length + dependencias.length + sobrecarregados.length + proximos.length > 0;
-    if (!hasAny) return null;
-    return { riscos, recorrencias, dependencias, sobrecarregados, proximos, date: previousDaily.status_date };
+    const truncate = (s: string, n = 110) => (s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s);
+    const items: { key: string; label: string }[] = [];
+    (Array.isArray(ins.recorrencias) ? ins.recorrencias : []).forEach((r: any, i: number) => {
+      const days = r?.dias_consecutivos ? ` (${r.dias_consecutivos}d)` : "";
+      items.push({ key: `rec-${i}`, label: `🔁 ${truncate(String(r?.descricao ?? ""))}${days}` });
+    });
+    (Array.isArray(ins.dependencias_externas) ? ins.dependencias_externas : []).forEach((d: any, i: number) => {
+      items.push({ key: `dep-${i}`, label: `🔗 ${truncate(`${d?.item ?? ""} — aguardando ${d?.bloqueador ?? ""}`)}` });
+    });
+    (Array.isArray(ins.proximos_passos) ? ins.proximos_passos : []).forEach((p: string, i: number) => {
+      items.push({ key: `pp-${i}`, label: `✅ ${truncate(String(p))}` });
+    });
+    if (items.length === 0) return null;
+    return { items, date: previousDaily.status_date };
   }, [previousDaily]);
 
   const effectiveProductId = productId || (allowedProductIds && allowedProductIds[0]) || lockedProductId || "";
