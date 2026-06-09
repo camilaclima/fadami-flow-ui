@@ -59,6 +59,7 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
   const [memberReports, setMemberReports] = useState<Record<string, string>>({});
   const [generalNotes, setGeneralNotes] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkedPending, setCheckedPending] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (open) {
@@ -69,6 +70,7 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
       setSelectedMembers([]);
       setMemberReports({});
       setGeneralNotes("");
+      setCheckedPending({});
     }
   }, [open, lockedProductId]);
 
