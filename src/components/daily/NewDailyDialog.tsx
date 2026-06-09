@@ -358,60 +358,30 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
                 Pontos pendentes da última daily ({format(new Date(previousAttentionPoints.date + "T00:00:00"), "dd/MM/yyyy")})
               </div>
               <p className="text-xs text-muted-foreground">
-                Pergunte à equipe se cada item abaixo foi resolvido, melhorou ou continua travando.
+                Marque os que já foram resolvidos ou abordados nesta daily.
               </p>
-              <div className="grid gap-2 md:grid-cols-2 text-xs">
-                {previousAttentionPoints.recorrencias.length > 0 && (
-                  <div className="space-y-1">
-                    <div className="font-medium text-foreground">🔁 Gargalos recorrentes</div>
-                    <ul className="list-disc pl-4 space-y-0.5">
-                      {previousAttentionPoints.recorrencias.map((r: any, i: number) => (
-                        <li key={i}>
-                          {r.descricao}
-                          {r.dias_consecutivos ? ` (${r.dias_consecutivos}d)` : ""}
-                          {r.responsavel ? ` — ${r.responsavel}` : ""}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {previousAttentionPoints.riscos.length > 0 && (
-                  <div className="space-y-1">
-                    <div className="font-medium text-foreground">⚠️ Riscos</div>
-                    <ul className="list-disc pl-4 space-y-0.5">
-                      {previousAttentionPoints.riscos.map((r: string, i: number) => <li key={i}>{r}</li>)}
-                    </ul>
-                  </div>
-                )}
-                {previousAttentionPoints.dependencias.length > 0 && (
-                  <div className="space-y-1">
-                    <div className="font-medium text-foreground">🔗 Dependências</div>
-                    <ul className="list-disc pl-4 space-y-0.5">
-                      {previousAttentionPoints.dependencias.map((d: any, i: number) => (
-                        <li key={i}>{d.item} — aguardando {d.bloqueador}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {previousAttentionPoints.sobrecarregados.length > 0 && (
-                  <div className="space-y-1">
-                    <div className="font-medium text-foreground">🥵 Sobrecarregados</div>
-                    <ul className="list-disc pl-4 space-y-0.5">
-                      {previousAttentionPoints.sobrecarregados.map((s: any, i: number) => (
-                        <li key={i}>{s.nome} — {s.motivo}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {previousAttentionPoints.proximos.length > 0 && (
-                  <div className="space-y-1 md:col-span-2">
-                    <div className="font-medium text-foreground">✅ Próximos passos sugeridos anteriormente</div>
-                    <ul className="list-disc pl-4 space-y-0.5">
-                      {previousAttentionPoints.proximos.map((p: string, i: number) => <li key={i}>{p}</li>)}
-                    </ul>
-                  </div>
-                )}
-              </div>
+              <ul className="space-y-1.5 text-xs">
+                {previousAttentionPoints.items.map((it) => {
+                  const done = !!checkedPending[it.key];
+                  return (
+                    <li key={it.key}>
+                      <label className="flex items-start gap-2 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          checked={done}
+                          onChange={(e) =>
+                            setCheckedPending((prev) => ({ ...prev, [it.key]: e.target.checked }))
+                          }
+                          className="mt-0.5 h-3.5 w-3.5 rounded border-amber-500/50 accent-amber-500 cursor-pointer"
+                        />
+                        <span className={cn("leading-snug", done && "line-through text-muted-foreground")}>
+                          {it.label}
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           )}
 
