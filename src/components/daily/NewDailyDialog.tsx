@@ -43,6 +43,16 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
   const { data: allSprints = [] } = useSprints();
   const { data: sprintProductLinks = [] } = useSprintProducts();
 
+  const [productId, setProductId] = useState<string>(lockedProductId ?? "");
+  const [date, setDate] = useState<Date>(new Date());
+  const [sprintLabel, setSprintLabel] = useState("");
+  const [sprintId, setSprintId] = useState<string>("__none__");
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [memberReports, setMemberReports] = useState<Record<string, string>>({});
+  const [generalNotes, setGeneralNotes] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [checkedPending, setCheckedPending] = useState<Record<string, boolean>>({});
+
   // Members linked to the effective project(s) via team_member_products ("Time" do projeto)
   const memberProductScope = useMemo(() => {
     if (lockedProductId) return [lockedProductId];
@@ -72,16 +82,6 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
     return list;
   }, [allTeamMembers, allowedMemberIds, memberProductScope, teamProductMemberIds]);
   const isSquadFiltered = Array.isArray(allowedMemberIds) || memberProductScope.length > 0;
-
-  const [productId, setProductId] = useState<string>(lockedProductId ?? "");
-  const [date, setDate] = useState<Date>(new Date());
-  const [sprintLabel, setSprintLabel] = useState("");
-  const [sprintId, setSprintId] = useState<string>("__none__");
-  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
-  const [memberReports, setMemberReports] = useState<Record<string, string>>({});
-  const [generalNotes, setGeneralNotes] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [checkedPending, setCheckedPending] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (open) {
