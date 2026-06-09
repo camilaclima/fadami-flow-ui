@@ -85,12 +85,19 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
     });
   }, [allowedMemberIds, isSquadFiltered]);
 
+  const historyProductIds = useMemo(() => {
+    if (productId) return [productId];
+    if (allowedProductIds && allowedProductIds.length > 0) return allowedProductIds;
+    if (lockedProductId) return [lockedProductId];
+    return [] as string[];
+  }, [productId, allowedProductIds, lockedProductId]);
+
   const { data: history = [] } = useQuery({
-    queryKey: ["daily_status_history", productId],
-    enabled: !!productId && open,
+    queryKey: ["daily_status_history", [...historyProductIds].sort().join(",")],
+    enabled: historyProductIds.length > 0 && open,
     queryFn: async () => {
       const { data, error } = await (supabase.from("daily_status") as any)
-        .select("*").eq("product_id", productId).order("status_date", { ascending: false }).limit(30);
+        .select("*").in("product_id", historyProductIds).order("status_date", { ascending: false }).limit(30);
       if (error) throw error;
       return data;
     },
