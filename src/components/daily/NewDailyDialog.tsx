@@ -59,6 +59,7 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
   const [memberReports, setMemberReports] = useState<Record<string, string>>({});
   const [generalNotes, setGeneralNotes] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkedPending, setCheckedPending] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (open) {
@@ -69,6 +70,7 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
       setSelectedMembers([]);
       setMemberReports({});
       setGeneralNotes("");
+      setCheckedPending({});
     }
   }, [open, lockedProductId]);
 
@@ -137,15 +139,20 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
   const previousAttentionPoints = useMemo(() => {
     if (!previousDaily?.ai_insights) return null;
     const ins = previousDaily.ai_insights as any;
-    const riscos: string[] = Array.isArray(ins.riscos) ? ins.riscos : [];
-    const recorrencias = Array.isArray(ins.recorrencias) ? ins.recorrencias : [];
-    const dependencias = Array.isArray(ins.dependencias_externas) ? ins.dependencias_externas : [];
-    const sobrecarregados = Array.isArray(ins.colaboradores_sobrecarregados) ? ins.colaboradores_sobrecarregados : [];
-    const proximos: string[] = Array.isArray(ins.proximos_passos) ? ins.proximos_passos : [];
-    const hasAny =
-      riscos.length + recorrencias.length + dependencias.length + sobrecarregados.length + proximos.length > 0;
-    if (!hasAny) return null;
-    return { riscos, recorrencias, dependencias, sobrecarregados, proximos, date: previousDaily.status_date };
+    const truncate = (s: string, n = 110) => (s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s);
+    const items: { key: string; label: string }[] = [];
+    (Array.isArray(ins.recorrencias) ? ins.recorrencias : []).forEach((r: any, i: number) => {
+      const days = r?.dias_consecutivos ? ` (${r.dias_consecutivos}d)` : "";
+      items.push({ key: `rec-${i}`, label: `🔁 ${truncate(String(r?.descricao ?? ""))}${days}` });
+    });
+    (Array.isArray(ins.dependencias_externas) ? ins.dependencias_externas : []).forEach((d: any, i: number) => {
+      items.push({ key: `dep-${i}`, label: `🔗 ${truncate(`${d?.item ?? ""} — aguardando ${d?.bloqueador ?? ""}`)}` });
+    });
+    (Array.isArray(ins.proximos_passos) ? ins.proximos_passos : []).forEach((p: string, i: number) => {
+      items.push({ key: `pp-${i}`, label: `✅ ${truncate(String(p))}` });
+    });
+    if (items.length === 0) return null;
+    return { items, date: previousDaily.status_date };
   }, [previousDaily]);
 
   const effectiveProductId = productId || (allowedProductIds && allowedProductIds[0]) || lockedProductId || "";
@@ -351,60 +358,30 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
                 Pontos pendentes da última daily ({format(new Date(previousAttentionPoints.date + "T00:00:00"), "dd/MM/yyyy")})
               </div>
               <p className="text-xs text-muted-foreground">
-                Pergunte à equipe se cada item abaixo foi resolvido, melhorou ou continua travando.
+                Marque os que já foram resolvidos ou abordados nesta daily.
               </p>
-              <div className="grid gap-2 md:grid-cols-2 text-xs">
-                {previousAttentionPoints.recorrencias.length > 0 && (
-                  <div className="space-y-1">
-                    <div className="font-medium text-foreground">🔁 Gargalos recorrentes</div>
-                    <ul className="list-disc pl-4 space-y-0.5">
-                      {previousAttentionPoints.recorrencias.map((r: any, i: number) => (
-                        <li key={i}>
-                          {r.descricao}
-                          {r.dias_consecutivos ? ` (${r.dias_consecutivos}d)` : ""}
-                          {r.responsavel ? ` — ${r.responsavel}` : ""}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {previousAttentionPoints.riscos.length > 0 && (
-                  <div className="space-y-1">
-                    <div className="font-medium text-foreground">⚠️ Riscos</div>
-                    <ul className="list-disc pl-4 space-y-0.5">
-                      {previousAttentionPoints.riscos.map((r: string, i: number) => <li key={i}>{r}</li>)}
-                    </ul>
-                  </div>
-                )}
-                {previousAttentionPoints.dependencias.length > 0 && (
-                  <div className="space-y-1">
-                    <div className="font-medium text-foreground">🔗 Dependências</div>
-                    <ul className="list-disc pl-4 space-y-0.5">
-                      {previousAttentionPoints.dependencias.map((d: any, i: number) => (
-                        <li key={i}>{d.item} — aguardando {d.bloqueador}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {previousAttentionPoints.sobrecarregados.length > 0 && (
-                  <div className="space-y-1">
-                    <div className="font-medium text-foreground">🥵 Sobrecarregados</div>
-                    <ul className="list-disc pl-4 space-y-0.5">
-                      {previousAttentionPoints.sobrecarregados.map((s: any, i: number) => (
-                        <li key={i}>{s.nome} — {s.motivo}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {previousAttentionPoints.proximos.length > 0 && (
-                  <div className="space-y-1 md:col-span-2">
-                    <div className="font-medium text-foreground">✅ Próximos passos sugeridos anteriormente</div>
-                    <ul className="list-disc pl-4 space-y-0.5">
-                      {previousAttentionPoints.proximos.map((p: string, i: number) => <li key={i}>{p}</li>)}
-                    </ul>
-                  </div>
-                )}
-              </div>
+              <ul className="space-y-1.5 text-xs">
+                {previousAttentionPoints.items.map((it) => {
+                  const done = !!checkedPending[it.key];
+                  return (
+                    <li key={it.key}>
+                      <label className="flex items-start gap-2 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          checked={done}
+                          onChange={(e) =>
+                            setCheckedPending((prev) => ({ ...prev, [it.key]: e.target.checked }))
+                          }
+                          className="mt-0.5 h-3.5 w-3.5 rounded border-amber-500/50 accent-amber-500 cursor-pointer"
+                        />
+                        <span className={cn("leading-snug", done && "line-through text-muted-foreground")}>
+                          {it.label}
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           )}
 
