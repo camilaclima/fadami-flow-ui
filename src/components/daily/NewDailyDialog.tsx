@@ -42,14 +42,6 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
   const { data: allTeamMembers = [] } = useTeamMembers();
   const { data: allSprints = [] } = useSprints();
   const { data: sprintProductLinks = [] } = useSprintProducts();
-  const teamMembers = useMemo(
-    () =>
-      allowedMemberIds
-        ? allTeamMembers.filter((m) => allowedMemberIds.includes(m.id))
-        : allTeamMembers,
-    [allTeamMembers, allowedMemberIds],
-  );
-  const isSquadFiltered = Array.isArray(allowedMemberIds);
 
   const [productId, setProductId] = useState<string>(lockedProductId ?? "");
   const [date, setDate] = useState<Date>(new Date());
@@ -60,6 +52,36 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
   const [generalNotes, setGeneralNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [checkedPending, setCheckedPending] = useState<Record<string, boolean>>({});
+
+  // Members linked to the effective project(s) via team_member_products ("Time" do projeto)
+  const memberProductScope = useMemo(() => {
+    if (lockedProductId) return [lockedProductId];
+    if (productId) return [productId];
+    if (allowedProductIds && allowedProductIds.length > 0) return allowedProductIds;
+    return [] as string[];
+  }, [lockedProductId, productId, allowedProductIds]);
+
+  const { data: teamProductMemberIds } = useQuery({
+    queryKey: ["team_member_products_scope", [...memberProductScope].sort().join(",")],
+    enabled: memberProductScope.length > 0 && open,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("team_member_products") as any)
+        .select("team_member_id").in("product_id", memberProductScope);
+      if (error) throw error;
+      return Array.from(new Set((data ?? []).map((r: any) => r.team_member_id))) as string[];
+    },
+  });
+
+  const teamMembers = useMemo(() => {
+    let list = allTeamMembers;
+    if (allowedMemberIds) list = list.filter((m) => allowedMemberIds.includes(m.id));
+    if (memberProductScope.length > 0 && teamProductMemberIds) {
+      const allowed = new Set(teamProductMemberIds);
+      list = list.filter((m) => allowed.has(m.id));
+    }
+    return list;
+  }, [allTeamMembers, allowedMemberIds, memberProductScope, teamProductMemberIds]);
+  const isSquadFiltered = Array.isArray(allowedMemberIds) || memberProductScope.length > 0;
 
   useEffect(() => {
     if (open) {
