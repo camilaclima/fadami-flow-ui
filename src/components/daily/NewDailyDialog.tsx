@@ -132,9 +132,8 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
   // Previous daily insights (most recent before today) — surface pending points & bottlenecks
   const previousDaily = useMemo(() => {
     const list = (history as any[]) ?? [];
-    const todayKey = format(date, "yyyy-MM-dd");
-    return list.find((h) => h.status_date < todayKey) ?? list[0] ?? null;
-  }, [history, date]);
+    return list[0] ?? null;
+  }, [history]);
 
   const previousAttentionPoints = useMemo(() => {
     if (!previousDaily?.ai_insights) return null;
