@@ -164,10 +164,12 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
     const items: { key: string; label: string }[] = [];
     (Array.isArray(ins.recorrencias) ? ins.recorrencias : []).forEach((r: any, i: number) => {
       const days = r?.dias_consecutivos ? ` (${r.dias_consecutivos}d)` : "";
-      items.push({ key: `rec-${i}`, label: `🔁 ${truncate(String(r?.descricao ?? ""))}${days}` });
+      const resp = r?.responsavel ? ` — 👤 ${r.responsavel}` : "";
+      items.push({ key: `rec-${i}`, label: `🔁 ${truncate(String(r?.descricao ?? ""))}${days}${resp}` });
     });
     (Array.isArray(ins.dependencias_externas) ? ins.dependencias_externas : []).forEach((d: any, i: number) => {
-      items.push({ key: `dep-${i}`, label: `🔗 ${truncate(`${d?.item ?? ""} — aguardando ${d?.bloqueador ?? ""}`)}` });
+      const resp = d?.responsavel ? ` — 👤 ${d.responsavel}` : "";
+      items.push({ key: `dep-${i}`, label: `🔗 ${truncate(`${d?.item ?? ""} — aguardando ${d?.bloqueador ?? ""}`)}${resp}` });
     });
     (Array.isArray(ins.proximos_passos) ? ins.proximos_passos : []).forEach((p: string, i: number) => {
       items.push({ key: `pp-${i}`, label: `✅ ${truncate(String(p))}` });
