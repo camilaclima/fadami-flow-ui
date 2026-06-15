@@ -241,14 +241,14 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
   const { data: allocations = [] } = useTeamMemberProducts();
   const { data: squads = [] } = useSquads();
   const { data: profiles = [] } = useProfiles();
-  const { isAdmin, productIds } = useAuthorizedProducts();
+  const { isAdmin, productIds: authorizedProductIds } = useAuthorizedProducts();
   const myProfileId = useMemo(
     () => profiles.find((p) => p.user_id === user?.id)?.id ?? null,
     [profiles, user?.id],
   );
   const squadMemberIds = useMemo(() => {
     const ids = new Set<string>();
-    const allowed = productIds ? new Set(productIds) : null;
+    const allowed = authorizedProductIds ? new Set(authorizedProductIds) : null;
     squads.forEach((s) => {
       const isLeader = !!myProfileId && s.leader_profile_id === myProfileId;
       const sharesProduct = isAdmin || !allowed || s.product_ids.some((pid) => allowed.has(pid));
@@ -257,7 +257,7 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
       }
     });
     return ids;
-  }, [squads, myProfileId, productIds, isAdmin]);
+  }, [squads, myProfileId, authorizedProductIds, isAdmin]);
   const saveStakeholder = useSaveStakeholder();
   const deleteStakeholder = useDeleteStakeholder();
   const addToProject = useAddMemberToProject();
