@@ -53,7 +53,6 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
   const [loading, setLoading] = useState(false);
   const [checkedPending, setCheckedPending] = useState<Record<string, boolean>>({});
 
-  // Members linked to the effective project(s) via team_member_products ("Time" do projeto)
   const memberProductScope = useMemo(() => {
     if (lockedProductId) return [lockedProductId];
     if (productId) return [productId];
@@ -61,26 +60,41 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
     return [] as string[];
   }, [lockedProductId, productId, allowedProductIds]);
 
-  const { data: teamProductMemberIds } = useQuery({
-    queryKey: ["team_member_products_scope", [...memberProductScope].sort().join(",")],
+  // Members linked to the effective project(s) via squad membership ("Time" do projeto)
+  const { data: squadScopedMemberIds } = useQuery({
+    queryKey: ["squad_members_by_product_scope", [...memberProductScope].sort().join(",")],
     enabled: memberProductScope.length > 0 && open,
     queryFn: async () => {
-      const { data, error } = await (supabase.from("team_member_products") as any)
-        .select("team_member_id").in("product_id", memberProductScope);
-      if (error) throw error;
-      return Array.from(new Set((data ?? []).map((r: any) => r.team_member_id))) as string[];
+      const { data: sp, error: spErr } = await (supabase.from("squad_products") as any)
+        .select("squad_id").in("product_id", memberProductScope);
+      if (spErr) throw spErr;
+      const squadIds = Array.from(new Set((sp ?? []).map((r: any) => r.squad_id))) as string[];
+      if (squadIds.length === 0) return [] as string[];
+      const { data: sm, error: smErr } = await (supabase.from("squad_members") as any)
+        .select("team_member_id").in("squad_id", squadIds);
+      if (smErr) throw smErr;
+      return Array.from(new Set((sm ?? []).map((r: any) => r.team_member_id))) as string[];
     },
   });
 
   const teamMembers = useMemo(() => {
     let list = allTeamMembers;
     if (allowedMemberIds) list = list.filter((m) => allowedMemberIds.includes(m.id));
-    if (memberProductScope.length > 0 && teamProductMemberIds) {
-      const allowed = new Set(teamProductMemberIds);
+    if (memberProductScope.length > 0 && squadScopedMemberIds) {
+      const allowed = new Set(squadScopedMemberIds);
       list = list.filter((m) => allowed.has(m.id));
     }
-    return list;
-  }, [allTeamMembers, allowedMemberIds, memberProductScope, teamProductMemberIds]);
+    // Deduplica por nome (case-insensitive), preferindo membros ativos
+    const seen = new Map<string, typeof list[number]>();
+    for (const m of list) {
+      const key = (m.name ?? "").trim().toLowerCase();
+      const prev = seen.get(key);
+      if (!prev || (!(prev as any).active && (m as any).active)) {
+        seen.set(key, m);
+      }
+    }
+    return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allTeamMembers, allowedMemberIds, memberProductScope, squadScopedMemberIds]);
   const isSquadFiltered = Array.isArray(allowedMemberIds) || memberProductScope.length > 0;
 
   useEffect(() => {
