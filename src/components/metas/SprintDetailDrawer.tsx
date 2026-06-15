@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Sparkles, Plus, Calendar, User, Trash2, ListTodo, CheckCircle2, ArrowRightCircle, MoreHorizontal, Ban, ArrowRightLeft, CircleSlash, ClipboardList } from "lucide-react";
+import { Loader2, Sparkles, Plus, Calendar, User, Trash2, ListTodo, CheckCircle2, ArrowRightCircle, MoreHorizontal, Ban, ArrowRightLeft, CircleSlash, ClipboardList, AlertTriangle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -61,6 +61,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
   const [createOpen, setCreateOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
+  const [finishConfirmOpen, setFinishConfirmOpen] = useState(false);
   const [filterMember, setFilterMember] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterDeadline, setFilterDeadline] = useState<string>("all");
@@ -166,8 +167,12 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
     onOpenChange(false);
   };
 
-  const handleFinish = async () => {
-    if (!confirm("Concluir esta sprint? Após concluída, ela ficará bloqueada para edição.")) return;
+  const handleFinish = () => {
+    setFinishConfirmOpen(true);
+  };
+
+  const confirmFinish = async () => {
+    setFinishConfirmOpen(false);
     await updateSprint.mutateAsync({ id: sprint.id, status: "finished" });
   };
 
@@ -553,6 +558,28 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
             </Button>
           )}
         </div>
+
+        <Dialog open={finishConfirmOpen} onOpenChange={setFinishConfirmOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader className="text-center">
+              <div className="mx-auto w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center mb-3">
+                <AlertTriangle className="w-6 h-6 text-amber-500" />
+              </div>
+              <DialogTitle className="text-base">Concluir esta sprint?</DialogTitle>
+              <p className="text-sm text-muted-foreground">
+                Após concluída, ela ficará bloqueada para edição.
+              </p>
+            </DialogHeader>
+            <div className="flex justify-center gap-3 mt-4">
+              <Button variant="outline" size="sm" onClick={() => setFinishConfirmOpen(false)}>
+                Cancelar
+              </Button>
+              <Button size="sm" onClick={confirmFinish} disabled={updateSprint.isPending} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                {updateSprint.isPending ? "Concluindo…" : "Confirmar"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <CreateActivityModal
           open={createOpen}
