@@ -135,7 +135,7 @@ export default function TeamProjectConfigPage({ embedded = false }: { embedded?:
 
 function ProjectsSection() {
   const { data: allProducts = [] } = useProducts();
-  const { isAdmin, productIds } = useAuthorizedProducts();
+  const { isAdmin, productIds: authorizedProductIds } = useAuthorizedProducts();
   const products = useMemo(() => {
     if (isAdmin || productIds === null) return allProducts;
     const set = new Set(productIds);
@@ -248,7 +248,7 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
   );
   const squadMemberIds = useMemo(() => {
     const ids = new Set<string>();
-    const allowed = productIds ? new Set(productIds) : null;
+    const allowed = authorizedProductIds ? new Set(authorizedProductIds) : null;
     squads.forEach((s) => {
       const isLeader = !!myProfileId && s.leader_profile_id === myProfileId;
       const sharesProduct = isAdmin || !allowed || s.product_ids.some((pid) => allowed.has(pid));
@@ -257,7 +257,7 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
       }
     });
     return ids;
-  }, [squads, myProfileId, productIds, isAdmin]);
+  }, [squads, myProfileId, authorizedProductIds, isAdmin]);
   const saveStakeholder = useSaveStakeholder();
   const deleteStakeholder = useDeleteStakeholder();
   const addToProject = useAddMemberToProject();
