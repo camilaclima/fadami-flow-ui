@@ -1,6 +1,6 @@
 export type TeamRole = "dev" | "analista" | "po" | "designer" | "scrum_master" | "devops";
 export type Seniority = "estagiario" | "junior" | "pleno" | "senior" | "especialista";
-export type Specialty = "database" | "frontend" | "backend" | "fullstack" | "infra";
+export type Specialty = "database" | "frontend" | "backend" | "fullstack" | "infra" | "na";
 export type SprintStatus = "planned" | "active" | "finished";
 export type SprintItemStatus = "pending" | "in_progress" | "paused" | "withdrawn" | "completed";
 export type UnavailabilityType = "day_off" | "ferias" | "treinamento" | "viagem" | "emprestado";
@@ -28,6 +28,7 @@ export const SPECIALTY_LABELS: Record<Specialty, string> = {
   backend: "Back-end",
   fullstack: "Full-stack",
   infra: "Infraestrutura",
+  na: "Não Aplicável",
 };
 
 export const UNAVAILABILITY_LABELS: Record<UnavailabilityType, string> = {
