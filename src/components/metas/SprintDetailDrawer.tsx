@@ -559,6 +559,28 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
           )}
         </div>
 
+        <Dialog open={finishConfirmOpen} onOpenChange={setFinishConfirmOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader className="text-center">
+              <div className="mx-auto w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center mb-3">
+                <AlertTriangle className="w-6 h-6 text-amber-500" />
+              </div>
+              <DialogTitle className="text-base">Concluir esta sprint?</DialogTitle>
+              <p className="text-sm text-muted-foreground">
+                Após concluída, ela ficará bloqueada para edição.
+              </p>
+            </DialogHeader>
+            <div className="flex justify-center gap-3 mt-4">
+              <Button variant="outline" size="sm" onClick={() => setFinishConfirmOpen(false)}>
+                Cancelar
+              </Button>
+              <Button size="sm" onClick={confirmFinish} disabled={updateSprint.isPending} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                {updateSprint.isPending ? "Concluindo…" : "Confirmar"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <CreateActivityModal
           open={createOpen}
           onOpenChange={setCreateOpen}
