@@ -15,7 +15,7 @@ import { IMPACT_LABELS, STATUS_LABELS, useUpdateActivity, type Activity, type Ac
 import type { Sprint } from "@/types/sprint";
 import { CreateActivityModal } from "./CreateActivityModal";
 import type { Product } from "@/hooks/useProducts";
-import { useDeleteSprint } from "@/hooks/useSprints";
+import { useDeleteSprint, useUpdateSprint } from "@/hooks/useSprints";
 import { useSprintProducts } from "@/hooks/useSprintProducts";
 import { useCoordinatorTasks } from "@/hooks/useCoordinatorTasks";
 import { SprintScopeAnalysis } from "@/components/sprint/SprintScopeAnalysis";
@@ -54,12 +54,17 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
   const { data: sprintProducts = [] } = useSprintProducts();
   const { data: allTasks = [] } = useCoordinatorTasks(null);
   const deleteSprint = useDeleteSprint();
+  const updateSprint = useUpdateSprint();
   const updateActivity = useUpdateActivity();
   const [health, setHealth] = useState<HealthResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
+  const [filterMember, setFilterMember] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterDeadline, setFilterDeadline] = useState<string>("all");
+  const [filterProduct, setFilterProduct] = useState<string>("all");
 
   const runAction = (id: string, patch: any) => {
     setPendingActionId(id);
@@ -72,6 +77,10 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
     if (!open) return;
     setHealth(null);
     setLoading(false);
+    setFilterMember("all");
+    setFilterStatus("all");
+    setFilterDeadline("all");
+    setFilterProduct("all");
   }, [open, sprint?.id]);
 
   const runAnalysis = () => {
