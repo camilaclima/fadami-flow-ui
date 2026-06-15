@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronsUpDown } from "lucide-react";
-import { useProducts, useUpdateProduct, type Product } from "@/hooks/useProducts";
+import { useProducts, useActiveProducts, useUpdateProduct, type Product } from "@/hooks/useProducts";
 import { useClients } from "@/hooks/useClients";
 import { useAllTeamMembers, useAddTeamMember, useUpdateTeamMember, useTeamMembers } from "@/hooks/useTeamMembers";
 import {
@@ -562,7 +562,7 @@ function TeamSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm
     () => allMembers.filter((m) => m.coordinator_id === user?.id || squadMemberIds.has(m.id)),
     [allMembers, user?.id, squadMemberIds],
   );
-  const { data: products = [] } = useProducts();
+  const { data: products = [] } = useActiveProducts();
   const addMember = useAddTeamMember();
   const updateMember = useUpdateTeamMember();
   const qc = useQueryClient();
