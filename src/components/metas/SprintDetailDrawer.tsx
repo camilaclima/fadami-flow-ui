@@ -257,14 +257,14 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
 
             <div className="flex flex-wrap gap-2 mb-3">
               <Select value={filterMember} onValueChange={setFilterMember}>
-                <SelectTrigger className="h-8 w-[170px] text-xs"><SelectValue placeholder="Colaborador" /></SelectTrigger>
+                <SelectTrigger className="h-8 w-[170px] text-xs">{filterMember === "all" ? "Colaboradores" : memberName(filterMember)}</SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os colaboradores</SelectItem>
                   {allocatedMembers.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="h-8 w-[150px] text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectTrigger className="h-8 w-[150px] text-xs">{filterStatus === "all" ? "Status" : STATUS_LABELS[filterStatus as ActivityStatus]}</SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os status</SelectItem>
                   {(["todo","in_progress","blocked","done"] as ActivityStatus[]).map((s) => (
@@ -273,7 +273,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                 </SelectContent>
               </Select>
               <Select value={filterDeadline} onValueChange={setFilterDeadline}>
-                <SelectTrigger className="h-8 w-[150px] text-xs"><SelectValue placeholder="Prazo" /></SelectTrigger>
+                <SelectTrigger className="h-8 w-[150px] text-xs">{filterDeadline === "all" ? "Prazos" : filterDeadline === "overdue" ? "Vencidos" : "No prazo"}</SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os prazos</SelectItem>
                   <SelectItem value="overdue">Vencidos</SelectItem>
@@ -281,7 +281,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                 </SelectContent>
               </Select>
               <Select value={filterProduct} onValueChange={setFilterProduct}>
-                <SelectTrigger className="h-8 w-[170px] text-xs"><SelectValue placeholder="Projeto" /></SelectTrigger>
+                <SelectTrigger className="h-8 w-[170px] text-xs">{filterProduct === "all" ? "Projetos" : sprintProductList.find((p) => p.id === filterProduct)?.name ?? "Projetos"}</SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os projetos</SelectItem>
                   {sprintProductList.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
