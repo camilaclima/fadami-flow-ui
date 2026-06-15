@@ -329,6 +329,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                       onValueChange={(v) => {
                         updateActivity.mutate({ id: a.id, status: v as ActivityStatus } as any);
                       }}
+                      disabled={isFinished}
                     >
                       <SelectTrigger
                         className={cn(
@@ -354,7 +355,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                           variant="outline"
                           className="h-7 px-2 gap-1 text-[11px]"
                           onClick={(e) => e.stopPropagation()}
-                          disabled={pendingActionId === a.id}
+                          disabled={pendingActionId === a.id || isFinished}
                         >
                           {pendingActionId === a.id ? (
                             <Loader2 className="w-3 h-3 animate-spin" />
