@@ -65,15 +65,29 @@ export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedPro
     queryKey: ["squad_members_by_product_scope", [...memberProductScope].sort().join(",")],
     enabled: memberProductScope.length > 0 && open,
     queryFn: async () => {
+      const ids = new Set<string>();
+      // Via squads vinculados ao(s) produto(s)
       const { data: sp, error: spErr } = await (supabase.from("squad_products") as any)
         .select("squad_id").in("product_id", memberProductScope);
       if (spErr) throw spErr;
       const squadIds = Array.from(new Set((sp ?? []).map((r: any) => r.squad_id))) as string[];
-      if (squadIds.length === 0) return [] as string[];
-      const { data: sm, error: smErr } = await (supabase.from("squad_members") as any)
-        .select("team_member_id").in("squad_id", squadIds);
-      if (smErr) throw smErr;
-      return Array.from(new Set((sm ?? []).map((r: any) => r.team_member_id))) as string[];
+      if (squadIds.length > 0) {
+        const { data: sm, error: smErr } = await (supabase.from("squad_members") as any)
+          .select("team_member_id").in("squad_id", squadIds);
+        if (smErr) throw smErr;
+        (sm ?? []).forEach((r: any) => r.team_member_id && ids.add(r.team_member_id));
+      }
+      // Via vínculo direto colaborador ↔ projeto (team_member_products)
+      const { data: tmp, error: tmpErr } = await (supabase.from("team_member_products" as any) as any)
+        .select("team_member_id").in("product_id", memberProductScope);
+      if (tmpErr) throw tmpErr;
+      (tmp ?? []).forEach((r: any) => r.team_member_id && ids.add(r.team_member_id));
+      // Fallback: team_members.product_id legado
+      const { data: tm, error: tmErr } = await (supabase.from("team_members") as any)
+        .select("id").in("product_id", memberProductScope);
+      if (tmErr) throw tmErr;
+      (tm ?? []).forEach((r: any) => r.id && ids.add(r.id));
+      return Array.from(ids);
     },
   });
 
