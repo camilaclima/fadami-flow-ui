@@ -132,6 +132,14 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
   const isFinished = sprint.status === "finished";
   const today = new Date().toISOString().slice(0, 10);
   const visibleActivities = activities.filter((a) => (a as any).active !== false);
+  const allocatedMembers = useMemo(() => {
+    const ids = new Set<string>();
+    for (const a of visibleActivities) {
+      if (a.responsible_id) ids.add(a.responsible_id);
+      ((a as any).responsible_ids ?? []).forEach((id: string) => id && ids.add(id));
+    }
+    return members.filter((m) => ids.has(m.id));
+  }, [visibleActivities, members]);
   const filteredActivities = visibleActivities.filter((a) => {
     if (filterMember !== "all") {
       const ids = [a.responsible_id, ...((a as any).responsible_ids ?? [])].filter(Boolean);
@@ -252,7 +260,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                 <SelectTrigger className="h-8 w-[170px] text-xs"><SelectValue placeholder="Colaborador" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os colaboradores</SelectItem>
-                  {members.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+                  {allocatedMembers.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={filterStatus} onValueChange={setFilterStatus}>
