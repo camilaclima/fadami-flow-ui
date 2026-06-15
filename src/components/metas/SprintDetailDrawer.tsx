@@ -61,6 +61,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
   const [createOpen, setCreateOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
+  const [finishConfirmOpen, setFinishConfirmOpen] = useState(false);
   const [filterMember, setFilterMember] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterDeadline, setFilterDeadline] = useState<string>("all");
