@@ -135,7 +135,7 @@ export default function TeamProjectConfigPage({ embedded = false }: { embedded?:
 
 function ProjectsSection() {
   const { data: allProducts = [] } = useProducts();
-  const { isAdmin, productIds: authorizedProductIds } = useAuthorizedProducts();
+  const { isAdmin, productIds } = useAuthorizedProducts();
   const products = useMemo(() => {
     if (isAdmin || productIds === null) return allProducts;
     const set = new Set(productIds);
