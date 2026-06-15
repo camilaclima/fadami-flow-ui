@@ -260,7 +260,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                 <SelectTrigger className="h-8 w-[170px] text-xs"><SelectValue placeholder="Colaborador" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os colaboradores</SelectItem>
-                  {members.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+                  {allocatedMembers.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={filterStatus} onValueChange={setFilterStatus}>
