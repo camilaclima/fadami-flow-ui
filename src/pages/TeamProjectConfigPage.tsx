@@ -10,6 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronsUpDown } from "lucide-react";
 import { useProducts, useUpdateProduct, type Product } from "@/hooks/useProducts";
 import { useClients } from "@/hooks/useClients";
 import { useAllTeamMembers, useAddTeamMember, useUpdateTeamMember, useTeamMembers } from "@/hooks/useTeamMembers";
@@ -238,14 +241,14 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
   const { data: allocations = [] } = useTeamMemberProducts();
   const { data: squads = [] } = useSquads();
   const { data: profiles = [] } = useProfiles();
-  const { isAdmin, productIds } = useAuthorizedProducts();
+  const { isAdmin, productIds: authorizedProductIds } = useAuthorizedProducts();
   const myProfileId = useMemo(
     () => profiles.find((p) => p.user_id === user?.id)?.id ?? null,
     [profiles, user?.id],
   );
   const squadMemberIds = useMemo(() => {
     const ids = new Set<string>();
-    const allowed = productIds ? new Set(productIds) : null;
+    const allowed = authorizedProductIds ? new Set(authorizedProductIds) : null;
     squads.forEach((s) => {
       const isLeader = !!myProfileId && s.leader_profile_id === myProfileId;
       const sharesProduct = isAdmin || !allowed || s.product_ids.some((pid) => allowed.has(pid));
@@ -254,7 +257,7 @@ function ProjectDetailsModal({ project, onClose }: { project: Product | null; on
       }
     });
     return ids;
-  }, [squads, myProfileId, productIds, isAdmin]);
+  }, [squads, myProfileId, authorizedProductIds, isAdmin]);
   const saveStakeholder = useSaveStakeholder();
   const deleteStakeholder = useDeleteStakeholder();
   const addToProject = useAddMemberToProject();
@@ -538,14 +541,14 @@ function TeamSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm
   const { data: allMembers = [] } = useAllTeamMembers();
   const { data: squads = [] } = useSquads();
   const { data: profiles = [] } = useProfiles();
-  const { isAdmin, productIds } = useAuthorizedProducts();
+  const { isAdmin, productIds: authorizedProductIds } = useAuthorizedProducts();
   const myProfileId = useMemo(
     () => profiles.find((p) => p.user_id === user?.id)?.id ?? null,
     [profiles, user?.id],
   );
   const squadMemberIds = useMemo(() => {
     const ids = new Set<string>();
-    const allowed = productIds ? new Set(productIds) : null;
+    const allowed = authorizedProductIds ? new Set(authorizedProductIds) : null;
     squads.forEach((s) => {
       const isLeader = !!myProfileId && s.leader_profile_id === myProfileId;
       const sharesProduct = isAdmin || !allowed || s.product_ids.some((pid) => allowed.has(pid));
@@ -554,7 +557,7 @@ function TeamSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm
       }
     });
     return ids;
-  }, [squads, myProfileId, productIds, isAdmin]);
+  }, [squads, myProfileId, authorizedProductIds, isAdmin]);
   const members = useMemo(
     () => allMembers.filter((m) => m.coordinator_id === user?.id || squadMemberIds.has(m.id)),
     [allMembers, user?.id, squadMemberIds],
@@ -571,35 +574,55 @@ function TeamSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm
   const [seniority, setSeniority] = useState<string>("");
   const [specialty, setSpecialty] = useState<string>("");
   const [productId, setProductId] = useState<string>("__none__");
+  const [productIds, setProductIds] = useState<string[]>([]);
 
   const productMap = useMemo(() => Object.fromEntries(products.map((p) => [p.id, p.name])), [products]);
 
   const reset = () => {
     setEditing(null); setOpenForm(false); setName(""); setEmail(""); setRole(""); setSeniority("");
-    setSpecialty(""); setProductId("__none__");
+    setSpecialty(""); setProductId("__none__"); setProductIds([]);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const requiresSpecialty = role === "dev" || role === "devops";
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
     if (!email.trim()) { toast.error("Informe o e-mail do colaborador"); return; }
-    if (!role || !seniority || !specialty) { toast.error("Preencha cargo, senioridade e especialidade"); return; }
+    if (!role || !seniority) { toast.error("Preencha cargo e senioridade"); return; }
+    if (requiresSpecialty && !specialty) { toast.error("Preencha a especialidade"); return; }
     const payload = {
       name: name.trim(), email: email.trim().toLowerCase(), role, seniority, specialty,
       daily_capacity_hours: 8,
       allocation_percent: 100,
-      product_id: productId === "__none__" ? null : productId,
+      product_id: productIds[0] ?? null,
       coordinator_id: user?.id ?? "",
     } as any;
-    if (editing) {
-      updateMember.mutate({ id: editing.id, ...payload });
-    } else {
-      addMember.mutate(payload);
+    let memberId = editing?.id;
+    try {
+      if (editing) {
+        await updateMember.mutateAsync({ id: editing.id, ...payload });
+      } else {
+        const created: any = await addMember.mutateAsync(payload);
+        memberId = created?.id;
+      }
+      if (memberId) {
+        await (supabase.from("team_member_products" as any) as any)
+          .delete().eq("team_member_id", memberId);
+        if (productIds.length > 0) {
+          await (supabase.from("team_member_products" as any) as any).insert(
+            productIds.map((pid) => ({ team_member_id: memberId, product_id: pid })),
+          );
+        }
+        qc.invalidateQueries({ queryKey: ["team_member_products"] });
+      }
+      reset();
+    } catch (err: any) {
+      toast.error(err?.message ?? "Erro ao salvar colaborador");
     }
-    reset();
   };
 
-  const handleEdit = (m: TeamMember) => {
+  const handleEdit = async (m: TeamMember) => {
     setEditing(m);
     setName(m.name);
     setEmail((m as any).email ?? "");
@@ -607,6 +630,10 @@ function TeamSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm
     setSeniority(m.seniority);
     setSpecialty(m.specialty);
     setProductId(m.product_id ?? "__none__");
+    const { data } = await (supabase.from("team_member_products" as any) as any)
+      .select("product_id").eq("team_member_id", m.id);
+    const ids = (data ?? []).map((r: any) => r.product_id).filter(Boolean);
+    setProductIds(ids.length > 0 ? ids : (m.product_id ? [m.product_id] : []));
     setOpenForm(true);
   };
 
@@ -657,22 +684,54 @@ function TeamSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm
             </div>
             <div className="space-y-2">
               <Label>Especialidade</Label>
-              <Select value={specialty} onValueChange={setSpecialty}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <Select value={specialty} onValueChange={setSpecialty} disabled={!requiresSpecialty}>
+                <SelectTrigger><SelectValue placeholder={requiresSpecialty ? "Selecione" : "Não aplicável"} /></SelectTrigger>
                 <SelectContent>
                   {Object.entries(SPECIALTY_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Projeto Principal</Label>
-              <Select value={productId} onValueChange={setProductId}>
-                <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Nenhum</SelectItem>
-                  {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Label>Projetos</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="outline" className="w-full justify-between font-normal h-10">
+                    <span className="flex flex-wrap gap-1 items-center text-left">
+                      {productIds.length === 0 ? (
+                        <span className="text-muted-foreground">Selecione (opcional)</span>
+                      ) : (
+                        productIds.map((pid) => (
+                          <Badge key={pid} variant="secondary" className="text-xs">{productMap[pid] ?? pid}</Badge>
+                        ))
+                      )}
+                    </span>
+                    <ChevronsUpDown className="w-4 h-4 opacity-50 shrink-0" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-2" align="start">
+                  <div className="max-h-64 overflow-y-auto space-y-1">
+                    {products.length === 0 && (
+                      <p className="text-sm text-muted-foreground p-2">Nenhum projeto cadastrado.</p>
+                    )}
+                    {products.map((p) => {
+                      const checked = productIds.includes(p.id);
+                      return (
+                        <label key={p.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent cursor-pointer">
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={() =>
+                              setProductIds((prev) =>
+                                prev.includes(p.id) ? prev.filter((x) => x !== p.id) : [...prev, p.id],
+                              )
+                            }
+                          />
+                          <span className="text-sm">{p.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="md:col-span-2 flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={reset}>Cancelar</Button>
