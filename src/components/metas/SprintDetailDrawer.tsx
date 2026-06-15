@@ -235,20 +235,73 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
           <div>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold">Atividades da Sprint</h3>
-              <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>
-                <Plus className="w-3 h-3 mr-1" /> Atividade
-              </Button>
+              {!isFinished && (
+                <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>
+                  <Plus className="w-3 h-3 mr-1" /> Atividade
+                </Button>
+              )}
             </div>
+
+            <div className="flex flex-wrap gap-2 mb-3">
+              <Select value={filterMember} onValueChange={setFilterMember}>
+                <SelectTrigger className="h-8 w-[170px] text-xs"><SelectValue placeholder="Colaborador" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os colaboradores</SelectItem>
+                  {members.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="h-8 w-[150px] text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os status</SelectItem>
+                  {(["todo","in_progress","blocked","done"] as ActivityStatus[]).map((s) => (
+                    <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filterDeadline} onValueChange={setFilterDeadline}>
+                <SelectTrigger className="h-8 w-[150px] text-xs"><SelectValue placeholder="Prazo" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os prazos</SelectItem>
+                  <SelectItem value="overdue">Vencidos</SelectItem>
+                  <SelectItem value="ontime">No prazo</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterProduct} onValueChange={setFilterProduct}>
+                <SelectTrigger className="h-8 w-[170px] text-xs"><SelectValue placeholder="Projeto" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os projetos</SelectItem>
+                  {sprintProductList.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              {(filterMember !== "all" || filterStatus !== "all" || filterDeadline !== "all" || filterProduct !== "all") && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 text-xs"
+                  onClick={() => { setFilterMember("all"); setFilterStatus("all"); setFilterDeadline("all"); setFilterProduct("all"); }}
+                >
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+
             <div className="space-y-2">
-              {activities.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma atividade vinculada.</p>}
-              {activities.filter((a) => (a as any).active !== false).map((a) => {
+              {visibleActivities.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma atividade vinculada.</p>}
+              {visibleActivities.length > 0 && filteredActivities.length === 0 && (
+                <p className="text-xs text-muted-foreground">Nenhuma atividade corresponde aos filtros selecionados.</p>
+              )}
+              {filteredActivities.map((a) => {
                 const taskCount = allTasks.filter((t) => t.activity_id === a.id).length;
                 const prod = products.find((p) => p.id === a.product_id);
                 return (
                 <Card
                   key={a.id}
-                  className="p-3 cursor-pointer hover:border-primary/50 hover:shadow-md transition"
-                  onClick={() => setEditingActivity(a)}
+                  className={cn(
+                    "p-3 transition",
+                    isFinished ? "opacity-90" : "cursor-pointer hover:border-primary/50 hover:shadow-md",
+                  )}
+                  onClick={() => { if (!isFinished) setEditingActivity(a); }}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex-1 min-w-0">
