@@ -541,14 +541,14 @@ function TeamSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm
   const { data: allMembers = [] } = useAllTeamMembers();
   const { data: squads = [] } = useSquads();
   const { data: profiles = [] } = useProfiles();
-  const { isAdmin, productIds } = useAuthorizedProducts();
+  const { isAdmin, productIds: authorizedProductIds } = useAuthorizedProducts();
   const myProfileId = useMemo(
     () => profiles.find((p) => p.user_id === user?.id)?.id ?? null,
     [profiles, user?.id],
   );
   const squadMemberIds = useMemo(() => {
     const ids = new Set<string>();
-    const allowed = productIds ? new Set(productIds) : null;
+    const allowed = authorizedProductIds ? new Set(authorizedProductIds) : null;
     squads.forEach((s) => {
       const isLeader = !!myProfileId && s.leader_profile_id === myProfileId;
       const sharesProduct = isAdmin || !allowed || s.product_ids.some((pid) => allowed.has(pid));
@@ -557,7 +557,7 @@ function TeamSection({ openForm, setOpenForm }: { openForm: boolean; setOpenForm
       }
     });
     return ids;
-  }, [squads, myProfileId, productIds, isAdmin]);
+  }, [squads, myProfileId, authorizedProductIds, isAdmin]);
   const members = useMemo(
     () => allMembers.filter((m) => m.coordinator_id === user?.id || squadMemberIds.has(m.id)),
     [allMembers, user?.id, squadMemberIds],
