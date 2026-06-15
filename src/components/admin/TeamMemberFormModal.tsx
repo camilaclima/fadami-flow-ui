@@ -33,6 +33,8 @@ export function TeamMemberFormModal({ open, onOpenChange, member, onSave, coordi
   const [hours, setHours] = useState(8);
   const [productId, setProductId] = useState<string>("");
 
+  const requiresSpecialty = role === "dev" || role === "devops";
+
   useEffect(() => {
     if (open) {
       setName(member?.name ?? "");
@@ -43,6 +45,14 @@ export function TeamMemberFormModal({ open, onOpenChange, member, onSave, coordi
       setProductId(member?.product_id ?? "");
     }
   }, [open, member]);
+
+  useEffect(() => {
+    if (requiresSpecialty && specialty === "na") {
+      setSpecialty("fullstack");
+    } else if (!requiresSpecialty) {
+      setSpecialty("na");
+    }
+  }, [role]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
