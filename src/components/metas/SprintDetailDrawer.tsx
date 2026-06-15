@@ -516,10 +516,25 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
         </Tabs>
         </div>
 
-        <div className="mt-6 pt-4 border-t border-border flex justify-end">
-          <Button variant="ghost" size="sm" onClick={handleDelete} className="text-xs text-muted-foreground hover:text-destructive gap-1">
-            <Trash2 className="w-3 h-3" /> Excluir sprint
-          </Button>
+        <div className="mt-6 pt-4 border-t border-border flex justify-between items-center gap-2 flex-wrap">
+          {!isFinished ? (
+            <Button
+              size="sm"
+              onClick={handleFinish}
+              disabled={updateSprint.isPending}
+              className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              {updateSprint.isPending ? "Concluindo…" : "Concluir Sprint"}
+            </Button>
+          ) : (
+            <span className="text-xs text-muted-foreground">Esta sprint foi concluída e está bloqueada para edição.</span>
+          )}
+          {!isFinished && (
+            <Button variant="ghost" size="sm" onClick={handleDelete} className="text-xs text-muted-foreground hover:text-destructive gap-1">
+              <Trash2 className="w-3 h-3" /> Excluir sprint
+            </Button>
+          )}
         </div>
 
         <CreateActivityModal
