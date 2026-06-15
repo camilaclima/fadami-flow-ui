@@ -26,11 +26,25 @@ export default function TeamMembersPage() {
   const handleNew = () => { setEditing(null); setModalOpen(true); };
   const handleEdit = (m: TeamMember) => { setEditing(m); setModalOpen(true); };
 
-  const handleSave = (data: any) => {
+  const handleSave = async (data: any) => {
+    const { product_ids = [], ...payload } = data;
+    let memberId = editing?.id;
     if (editing) {
-      updateMember.mutate({ id: editing.id, ...data });
+      await updateMember.mutateAsync({ id: editing.id, ...payload });
     } else {
-      addMember.mutate(data);
+      const created = await addMember.mutateAsync(payload);
+      memberId = (created as any)?.id;
+    }
+    if (memberId) {
+      const { supabase } = await import("@/integrations/supabase/client");
+      await (supabase.from("team_member_products" as any) as any)
+        .delete()
+        .eq("team_member_id", memberId);
+      if (product_ids.length > 0) {
+        await (supabase.from("team_member_products" as any) as any).insert(
+          product_ids.map((pid: string) => ({ team_member_id: memberId, product_id: pid }))
+        );
+      }
     }
   };
 

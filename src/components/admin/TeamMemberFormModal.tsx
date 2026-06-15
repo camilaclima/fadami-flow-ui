@@ -4,9 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
+import { ChevronsUpDown } from "lucide-react";
 import { TEAM_ROLE_LABELS, SENIORITY_LABELS, SPECIALTY_LABELS } from "@/types/sprint";
 import type { TeamRole, Seniority, Specialty, TeamMember } from "@/types/sprint";
-import { useProducts } from "@/hooks/useProducts";
+import { useActiveProducts } from "@/hooks/useProducts";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   open: boolean;
@@ -19,19 +24,20 @@ interface Props {
     specialty: Specialty;
     daily_capacity_hours: number;
     product_id: string | null;
+    product_ids: string[];
     coordinator_id: string;
   }) => void;
   coordinatorId: string;
 }
 
 export function TeamMemberFormModal({ open, onOpenChange, member, onSave, coordinatorId }: Props) {
-  const { data: products = [] } = useProducts();
+  const { data: products = [] } = useActiveProducts();
   const [name, setName] = useState("");
   const [role, setRole] = useState<TeamRole>("dev");
   const [seniority, setSeniority] = useState<Seniority>("pleno");
   const [specialty, setSpecialty] = useState<Specialty>("fullstack");
   const [hours, setHours] = useState(8);
-  const [productId, setProductId] = useState<string>("");
+  const [productIds, setProductIds] = useState<string[]>([]);
 
   const requiresSpecialty = role === "dev" || role === "devops";
 
@@ -42,7 +48,20 @@ export function TeamMemberFormModal({ open, onOpenChange, member, onSave, coordi
       setSeniority((member?.seniority as Seniority) ?? "pleno");
       setSpecialty((member?.specialty as Specialty) ?? "fullstack");
       setHours(member?.daily_capacity_hours ?? 8);
-      setProductId(member?.product_id ?? "");
+      setProductIds([]);
+      if (member?.id) {
+        (supabase.from("team_member_products" as any) as any)
+          .select("product_id")
+          .eq("team_member_id", member.id)
+          .then(({ data }: any) => {
+            const ids = (data ?? []).map((r: any) => r.product_id).filter(Boolean);
+            if (ids.length === 0 && member.product_id) {
+              setProductIds([member.product_id]);
+            } else {
+              setProductIds(ids);
+            }
+          });
+      }
     }
   }, [open, member]);
 
@@ -63,11 +82,18 @@ export function TeamMemberFormModal({ open, onOpenChange, member, onSave, coordi
       seniority,
       specialty,
       daily_capacity_hours: hours,
-      product_id: productId || null,
+      product_id: productIds[0] ?? null,
+      product_ids: productIds,
       coordinator_id: coordinatorId,
     });
     onOpenChange(false);
   };
+
+  const toggleProduct = (id: string) => {
+    setProductIds((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
+  };
+
+  const selectedNames = products.filter((p) => productIds.includes(p.id)).map((p) => p.name);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -131,16 +157,36 @@ export function TeamMemberFormModal({ open, onOpenChange, member, onSave, coordi
           </div>
 
           <div>
-            <Label>Produto</Label>
-            <Select value={productId || "__none__"} onValueChange={(v) => setProductId(v === "__none__" ? "" : v)}>
-              <SelectTrigger><SelectValue placeholder="Selecione (opcional)" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Nenhum</SelectItem>
-                {products.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Projetos</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button type="button" variant="outline" className="w-full justify-between font-normal">
+                  <span className="flex flex-wrap gap-1 items-center text-left">
+                    {selectedNames.length === 0 ? (
+                      <span className="text-muted-foreground">Selecione os projetos (opcional)</span>
+                    ) : (
+                      selectedNames.map((n) => (
+                        <Badge key={n} variant="secondary" className="text-xs">{n}</Badge>
+                      ))
+                    )}
+                  </span>
+                  <ChevronsUpDown className="w-4 h-4 opacity-50 shrink-0" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-2" align="start">
+                <div className="max-h-64 overflow-y-auto space-y-1">
+                  {products.length === 0 && (
+                    <p className="text-sm text-muted-foreground p-2">Nenhum projeto ativo cadastrado.</p>
+                  )}
+                  {products.map((p) => (
+                    <label key={p.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent cursor-pointer">
+                      <Checkbox checked={productIds.includes(p.id)} onCheckedChange={() => toggleProduct(p.id)} />
+                      <span className="text-sm">{p.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <DialogFooter>
