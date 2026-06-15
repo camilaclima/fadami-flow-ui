@@ -124,10 +124,34 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
     ? products.filter((p) => linkedProductIds.includes(p.id))
     : products.filter((p) => p.id === sprint.product_id);
 
+  const isFinished = sprint.status === "finished";
+  const today = new Date().toISOString().slice(0, 10);
+  const visibleActivities = activities.filter((a) => (a as any).active !== false);
+  const filteredActivities = visibleActivities.filter((a) => {
+    if (filterMember !== "all") {
+      const ids = [a.responsible_id, ...((a as any).responsible_ids ?? [])].filter(Boolean);
+      if (!ids.includes(filterMember)) return false;
+    }
+    if (filterStatus !== "all" && a.status !== filterStatus) return false;
+    if (filterProduct !== "all" && a.product_id !== filterProduct) return false;
+    if (filterDeadline !== "all") {
+      if (!a.deadline_date) return filterDeadline === "ontime";
+      const overdue = a.deadline_date < today && a.status !== "done";
+      if (filterDeadline === "overdue" && !overdue) return false;
+      if (filterDeadline === "ontime" && overdue) return false;
+    }
+    return true;
+  });
+
   const handleDelete = async () => {
     if (!confirm("Tem certeza que deseja excluir esta sprint?")) return;
     await deleteSprint.mutateAsync(sprint.id);
     onOpenChange(false);
+  };
+
+  const handleFinish = async () => {
+    if (!confirm("Concluir esta sprint? Após concluída, ela ficará bloqueada para edição.")) return;
+    await updateSprint.mutateAsync({ id: sprint.id, status: "finished" });
   };
 
   return (
