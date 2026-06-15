@@ -109,12 +109,18 @@ export function TeamMemberFormModal({ open, onOpenChange, member, onSave, coordi
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Especialidade</Label>
-              <Select value={specialty} onValueChange={(v) => setSpecialty(v as Specialty)}>
+              <Select value={specialty} onValueChange={(v) => setSpecialty(v as Specialty)} disabled={!requiresSpecialty}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {Object.entries(SPECIALTY_LABELS).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v}</SelectItem>
-                  ))}
+                  {requiresSpecialty ? (
+                    Object.entries(SPECIALTY_LABELS)
+                      .filter(([k]) => k !== "na")
+                      .map(([k, v]) => (
+                        <SelectItem key={k} value={k}>{v}</SelectItem>
+                      ))
+                  ) : (
+                    <SelectItem value="na">Não Aplicável</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
