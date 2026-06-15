@@ -158,7 +158,14 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{sprint.name}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 flex-wrap">
+            <span>{sprint.name}</span>
+            {isFinished && (
+              <Badge className="bg-muted text-muted-foreground border-border gap-1 text-[10px]">
+                <CircleSlash className="w-3 h-3" /> Sprint Concluída (somente leitura)
+              </Badge>
+            )}
+          </DialogTitle>
           <p className="text-xs text-muted-foreground">{sprint.start_date} → {sprint.end_date}</p>
           {sprintProductList.length > 0 && (
             <div className="flex flex-wrap gap-1 pt-2">
