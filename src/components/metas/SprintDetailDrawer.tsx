@@ -97,6 +97,11 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
   };
 
   const memberName = (id: string | null) => (id ? members.find((m) => m.id === id)?.name ?? "—" : "Não atribuído");
+  const responsibleNames = (a: Activity) => {
+    const ids = Array.from(new Set([a.responsible_id, ...(((a as any).responsible_ids as string[] | undefined) ?? [])].filter(Boolean))) as string[];
+    if (ids.length === 0) return "Não atribuído";
+    return ids.map((id) => members.find((m) => m.id === id)?.name ?? "—").join(", ");
+  };
 
   const migratedAway = useMemo(() => {
     if (!sprint) return [] as Array<{ activity: Activity; toSprintId: string | null }>;
