@@ -15,7 +15,7 @@ import { IMPACT_LABELS, STATUS_LABELS, useUpdateActivity, type Activity, type Ac
 import type { Sprint } from "@/types/sprint";
 import { CreateActivityModal } from "./CreateActivityModal";
 import type { Product } from "@/hooks/useProducts";
-import { useDeleteSprint } from "@/hooks/useSprints";
+import { useDeleteSprint, useUpdateSprint } from "@/hooks/useSprints";
 import { useSprintProducts } from "@/hooks/useSprintProducts";
 import { useCoordinatorTasks } from "@/hooks/useCoordinatorTasks";
 import { SprintScopeAnalysis } from "@/components/sprint/SprintScopeAnalysis";
@@ -54,12 +54,17 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
   const { data: sprintProducts = [] } = useSprintProducts();
   const { data: allTasks = [] } = useCoordinatorTasks(null);
   const deleteSprint = useDeleteSprint();
+  const updateSprint = useUpdateSprint();
   const updateActivity = useUpdateActivity();
   const [health, setHealth] = useState<HealthResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
+  const [filterMember, setFilterMember] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterDeadline, setFilterDeadline] = useState<string>("all");
+  const [filterProduct, setFilterProduct] = useState<string>("all");
 
   const runAction = (id: string, patch: any) => {
     setPendingActionId(id);
@@ -72,6 +77,10 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
     if (!open) return;
     setHealth(null);
     setLoading(false);
+    setFilterMember("all");
+    setFilterStatus("all");
+    setFilterDeadline("all");
+    setFilterProduct("all");
   }, [open, sprint?.id]);
 
   const runAnalysis = () => {
@@ -115,17 +124,48 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
     ? products.filter((p) => linkedProductIds.includes(p.id))
     : products.filter((p) => p.id === sprint.product_id);
 
+  const isFinished = sprint.status === "finished";
+  const today = new Date().toISOString().slice(0, 10);
+  const visibleActivities = activities.filter((a) => (a as any).active !== false);
+  const filteredActivities = visibleActivities.filter((a) => {
+    if (filterMember !== "all") {
+      const ids = [a.responsible_id, ...((a as any).responsible_ids ?? [])].filter(Boolean);
+      if (!ids.includes(filterMember)) return false;
+    }
+    if (filterStatus !== "all" && a.status !== filterStatus) return false;
+    if (filterProduct !== "all" && a.product_id !== filterProduct) return false;
+    if (filterDeadline !== "all") {
+      if (!a.deadline_date) return filterDeadline === "ontime";
+      const overdue = a.deadline_date < today && a.status !== "done";
+      if (filterDeadline === "overdue" && !overdue) return false;
+      if (filterDeadline === "ontime" && overdue) return false;
+    }
+    return true;
+  });
+
   const handleDelete = async () => {
     if (!confirm("Tem certeza que deseja excluir esta sprint?")) return;
     await deleteSprint.mutateAsync(sprint.id);
     onOpenChange(false);
   };
 
+  const handleFinish = async () => {
+    if (!confirm("Concluir esta sprint? Após concluída, ela ficará bloqueada para edição.")) return;
+    await updateSprint.mutateAsync({ id: sprint.id, status: "finished" });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{sprint.name}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 flex-wrap">
+            <span>{sprint.name}</span>
+            {isFinished && (
+              <Badge className="bg-muted text-muted-foreground border-border gap-1 text-[10px]">
+                <CircleSlash className="w-3 h-3" /> Sprint Concluída (somente leitura)
+              </Badge>
+            )}
+          </DialogTitle>
           <p className="text-xs text-muted-foreground">{sprint.start_date} → {sprint.end_date}</p>
           {sprintProductList.length > 0 && (
             <div className="flex flex-wrap gap-1 pt-2">
@@ -195,20 +235,73 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
           <div>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold">Atividades da Sprint</h3>
-              <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>
-                <Plus className="w-3 h-3 mr-1" /> Atividade
-              </Button>
+              {!isFinished && (
+                <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>
+                  <Plus className="w-3 h-3 mr-1" /> Atividade
+                </Button>
+              )}
             </div>
+
+            <div className="flex flex-wrap gap-2 mb-3">
+              <Select value={filterMember} onValueChange={setFilterMember}>
+                <SelectTrigger className="h-8 w-[170px] text-xs"><SelectValue placeholder="Colaborador" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os colaboradores</SelectItem>
+                  {members.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="h-8 w-[150px] text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os status</SelectItem>
+                  {(["todo","in_progress","blocked","done"] as ActivityStatus[]).map((s) => (
+                    <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filterDeadline} onValueChange={setFilterDeadline}>
+                <SelectTrigger className="h-8 w-[150px] text-xs"><SelectValue placeholder="Prazo" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os prazos</SelectItem>
+                  <SelectItem value="overdue">Vencidos</SelectItem>
+                  <SelectItem value="ontime">No prazo</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterProduct} onValueChange={setFilterProduct}>
+                <SelectTrigger className="h-8 w-[170px] text-xs"><SelectValue placeholder="Projeto" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os projetos</SelectItem>
+                  {sprintProductList.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              {(filterMember !== "all" || filterStatus !== "all" || filterDeadline !== "all" || filterProduct !== "all") && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 text-xs"
+                  onClick={() => { setFilterMember("all"); setFilterStatus("all"); setFilterDeadline("all"); setFilterProduct("all"); }}
+                >
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+
             <div className="space-y-2">
-              {activities.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma atividade vinculada.</p>}
-              {activities.filter((a) => (a as any).active !== false).map((a) => {
+              {visibleActivities.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma atividade vinculada.</p>}
+              {visibleActivities.length > 0 && filteredActivities.length === 0 && (
+                <p className="text-xs text-muted-foreground">Nenhuma atividade corresponde aos filtros selecionados.</p>
+              )}
+              {filteredActivities.map((a) => {
                 const taskCount = allTasks.filter((t) => t.activity_id === a.id).length;
                 const prod = products.find((p) => p.id === a.product_id);
                 return (
                 <Card
                   key={a.id}
-                  className="p-3 cursor-pointer hover:border-primary/50 hover:shadow-md transition"
-                  onClick={() => setEditingActivity(a)}
+                  className={cn(
+                    "p-3 transition",
+                    isFinished ? "opacity-90" : "cursor-pointer hover:border-primary/50 hover:shadow-md",
+                  )}
+                  onClick={() => { if (!isFinished) setEditingActivity(a); }}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex-1 min-w-0">
@@ -236,6 +329,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                       onValueChange={(v) => {
                         updateActivity.mutate({ id: a.id, status: v as ActivityStatus } as any);
                       }}
+                      disabled={isFinished}
                     >
                       <SelectTrigger
                         className={cn(
@@ -261,7 +355,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                           variant="outline"
                           className="h-7 px-2 gap-1 text-[11px]"
                           onClick={(e) => e.stopPropagation()}
-                          disabled={pendingActionId === a.id}
+                          disabled={pendingActionId === a.id || isFinished}
                         >
                           {pendingActionId === a.id ? (
                             <Loader2 className="w-3 h-3 animate-spin" />
@@ -422,10 +516,25 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
         </Tabs>
         </div>
 
-        <div className="mt-6 pt-4 border-t border-border flex justify-end">
-          <Button variant="ghost" size="sm" onClick={handleDelete} className="text-xs text-muted-foreground hover:text-destructive gap-1">
-            <Trash2 className="w-3 h-3" /> Excluir sprint
-          </Button>
+        <div className="mt-6 pt-4 border-t border-border flex justify-between items-center gap-2 flex-wrap">
+          {!isFinished ? (
+            <Button
+              size="sm"
+              onClick={handleFinish}
+              disabled={updateSprint.isPending}
+              className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              {updateSprint.isPending ? "Concluindo…" : "Concluir Sprint"}
+            </Button>
+          ) : (
+            <span className="text-xs text-muted-foreground">Esta sprint foi concluída e está bloqueada para edição.</span>
+          )}
+          {!isFinished && (
+            <Button variant="ghost" size="sm" onClick={handleDelete} className="text-xs text-muted-foreground hover:text-destructive gap-1">
+              <Trash2 className="w-3 h-3" /> Excluir sprint
+            </Button>
+          )}
         </div>
 
         <CreateActivityModal
