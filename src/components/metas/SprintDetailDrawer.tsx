@@ -167,8 +167,12 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
     onOpenChange(false);
   };
 
-  const handleFinish = async () => {
-    if (!confirm("Concluir esta sprint? Após concluída, ela ficará bloqueada para edição.")) return;
+  const handleFinish = () => {
+    setFinishConfirmOpen(true);
+  };
+
+  const confirmFinish = async () => {
+    setFinishConfirmOpen(false);
     await updateSprint.mutateAsync({ id: sprint.id, status: "finished" });
   };
 
