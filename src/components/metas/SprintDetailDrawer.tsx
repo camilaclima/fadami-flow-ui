@@ -312,7 +312,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{a.task}</p>
                       <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1"><User className="w-3 h-3" />{memberName(a.responsible_id)}</span>
+                        <span className="flex items-center gap-1"><User className="w-3 h-3" />{responsibleNames(a)}</span>
                         <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{a.deadline_date ?? "—"}</span>
                         <Badge variant="outline" className="text-[10px]">{IMPACT_LABELS[a.impact]}</Badge>
                         {prod && (
@@ -445,7 +445,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate line-through decoration-muted-foreground/40">{a.task}</p>
                           <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1"><User className="w-3 h-3" />{memberName(a.responsible_id)}</span>
+                            <span className="flex items-center gap-1"><User className="w-3 h-3" />{responsibleNames(a)}</span>
                             <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{a.deadline_date ?? "—"}</span>
                             {(() => {
                               const prod = products.find((p) => p.id === a.product_id);
