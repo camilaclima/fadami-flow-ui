@@ -25,6 +25,7 @@ export interface Activity {
   sort_order: number;
   project_context_id: string | null;
   parent_id: string | null;
+  is_sustentation: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -164,6 +165,7 @@ export type NewActivityInput = {
   description?: string;
   status?: ActivityStatus;
   parent_id?: string | null;
+  is_sustentation?: boolean;
 };
 
 export function useAddActivity() {
@@ -188,6 +190,7 @@ export function useAddActivity() {
         approved: false,
         sort_order: 0,
         parent_id: input.parent_id ?? null,
+        is_sustentation: input.is_sustentation ?? false,
       };
       const { data, error } = await (supabase.from("project_backlog_items") as any)
         .insert(payload)

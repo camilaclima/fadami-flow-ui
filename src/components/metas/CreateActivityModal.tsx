@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +14,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Trash2, Pencil, ArrowRight, History, FileText, Save, Sparkles, Plus, Loader2, MessageSquare, AlertTriangle, CheckCircle2, GitBranch, Lightbulb, Calendar as CalendarIcon, Users as UsersIcon, ListTodo, User as UserIcon } from "lucide-react";
+import { Trash2, Pencil, ArrowRight, History, FileText, Save, Sparkles, Plus, Loader2, MessageSquare, AlertTriangle, CheckCircle2, GitBranch, Lightbulb, Calendar as CalendarIcon, Users as UsersIcon, ListTodo, User as UserIcon, ShieldCheck } from "lucide-react";
 import { ArrowRightCircle, X as XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Activity, ActivityImpact, ActivityStatus, NewActivityInput } from "@/hooks/useActivities";
@@ -64,6 +65,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
   const [dependencyId, setDependencyId] = useState<string>("__none__");
   const [responsibleIds, setResponsibleIds] = useState<string[]>([]);
   const [linkedTaskId, setLinkedTaskId] = useState<string>("__none__");
+  const [isSustentation, setIsSustentation] = useState(false);
 
   type PendingChild = {
     task: string;
@@ -91,6 +93,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
         setStatus(editing.status);
         setSprintId(editing.sprint_id ?? "__none__");
         setDependencyId(editing.dependency_id ?? "__none__");
+        setIsSustentation(editing.is_sustentation ?? false);
         setResponsibleIds(
           editing.responsible_ids?.length ? editing.responsible_ids : (editing.responsible_id ? [editing.responsible_id] : [])
         );
@@ -107,6 +110,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
         // Sprint só é pré-preenchida quando cadastro foi iniciado dentro de uma sprint.
         setSprintId(parentActivity?.sprint_id ?? defaultSprintId ?? "__none__");
         setDependencyId("__none__");
+        setIsSustentation(false);
         setResponsibleIds([]);
         setLinkedTaskId("__none__");
         setPendingChildren([]);
@@ -145,6 +149,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
         dependency_id: dependencyId === "__none__" ? null : dependencyId,
         responsible_ids: responsibleIds,
         responsible_id: responsibleIds[0] ?? null,
+        is_sustentation: isSustentation,
       } as any);
       // Salvar observação livre junto, se preenchida
       if (notes.trim()) {
@@ -174,6 +179,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
         responsible_ids: responsibleIds,
         status,
         parent_id: parentActivity?.id ?? null,
+        is_sustentation: isSustentation,
       };
       const created = await add.mutateAsync(payload);
       savedActivityId = created.id;
@@ -622,6 +628,18 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
           <p className="text-[11px] text-muted-foreground mt-1">
             Mostra apenas tarefas do projeto selecionado. Vincular irá conectar a tarefa do painel a esta atividade.
           </p>
+        </div>
+      )}
+      {!isChildMode && (
+        <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-card/40 px-3 py-2.5">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-500/10 text-amber-600">
+            <ShieldCheck className="w-4 h-4" />
+          </div>
+          <div className="flex-1">
+            <div className="text-sm font-medium">Atividade de sustentação</div>
+            <div className="text-[11px] text-muted-foreground">Marque se esta atividade é de manutenção/sustentação do projeto</div>
+          </div>
+          <Switch checked={isSustentation} onCheckedChange={setIsSustentation} />
         </div>
       )}
       {isEdit && !isChildMode && (

@@ -1,0 +1,1 @@
+ALTER TABLE public.project_backlog_items ADD COLUMN is_sustentation boolean NOT NULL DEFAULT false;

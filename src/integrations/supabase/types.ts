@@ -699,6 +699,7 @@ export type Database = {
           description: string
           id: string
           impact: string
+          is_sustentation: boolean
           likely_owner: string
           migrated_from_sprint_id: string | null
           parent_id: string | null
@@ -725,6 +726,7 @@ export type Database = {
           description?: string
           id?: string
           impact?: string
+          is_sustentation?: boolean
           likely_owner?: string
           migrated_from_sprint_id?: string | null
           parent_id?: string | null
@@ -751,6 +753,7 @@ export type Database = {
           description?: string
           id?: string
           impact?: string
+          is_sustentation?: boolean
           likely_owner?: string
           migrated_from_sprint_id?: string | null
           parent_id?: string | null
