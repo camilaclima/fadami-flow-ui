@@ -271,16 +271,24 @@ export default function DashboardGeralPage() {
     return sprintsInScope.slice(0, 6).map((s) => {
       const end = toDate(s.end_date);
       const daysLeft = end ? daysBetween(end, today) : null;
-      const items = allActivities.filter((a) => a.sprint_id === s.id);
+      // Mesma lógica usada em SprintsTab: considera itens ativos que pertencem
+      // (ou pertenceram) à sprint, e conta como concluídos somente os que
+      // permanecem na sprint com status "done".
+      const items = allActivities.filter(
+        (a) =>
+          (a as any).active !== false &&
+          (a.sprint_id === s.id || (a as any).migrated_from_sprint_id === s.id),
+      );
       const total = items.length;
-      const done = items.filter((i) => i.status === "done").length;
+      const done = items.filter(
+        (i) => i.status === "done" && i.sprint_id === s.id,
+      ).length;
       const pct = total ? Math.round((done / total) * 100) : 0;
       const isFinished = (s as any).status === "finished";
-      let color: "emerald" | "amber" | "red" = "emerald";
-      if (isFinished) color = "emerald";
-      else if (daysLeft !== null && daysLeft < 0) color = "red";
-      else if (daysLeft !== null && daysLeft <= 3 && pct < 80) color = "red";
-      else if (daysLeft !== null && daysLeft <= 7 && pct < 60) color = "amber";
+      // Cor por % de conclusão: verde ≥ 80, laranja ≥ 50, vermelho < 50
+      let color: "emerald" | "amber" | "red" = "red";
+      if (pct >= 80) color = "emerald";
+      else if (pct >= 50) color = "amber";
       return { sprint: s, pct, daysLeft, color, isFinished };
     });
   }, [sprintsInScope, allActivities, today]);
