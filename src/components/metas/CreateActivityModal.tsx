@@ -65,6 +65,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
   const [dependencyId, setDependencyId] = useState<string>("__none__");
   const [responsibleIds, setResponsibleIds] = useState<string[]>([]);
   const [linkedTaskId, setLinkedTaskId] = useState<string>("__none__");
+  const [isSustentation, setIsSustentation] = useState(false);
 
   type PendingChild = {
     task: string;
@@ -92,6 +93,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
         setStatus(editing.status);
         setSprintId(editing.sprint_id ?? "__none__");
         setDependencyId(editing.dependency_id ?? "__none__");
+        setIsSustentation(editing.is_sustentation ?? false);
         setResponsibleIds(
           editing.responsible_ids?.length ? editing.responsible_ids : (editing.responsible_id ? [editing.responsible_id] : [])
         );
@@ -108,6 +110,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
         // Sprint só é pré-preenchida quando cadastro foi iniciado dentro de uma sprint.
         setSprintId(parentActivity?.sprint_id ?? defaultSprintId ?? "__none__");
         setDependencyId("__none__");
+        setIsSustentation(false);
         setResponsibleIds([]);
         setLinkedTaskId("__none__");
         setPendingChildren([]);
@@ -146,6 +149,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
         dependency_id: dependencyId === "__none__" ? null : dependencyId,
         responsible_ids: responsibleIds,
         responsible_id: responsibleIds[0] ?? null,
+        is_sustentation: isSustentation,
       } as any);
       // Salvar observação livre junto, se preenchida
       if (notes.trim()) {
@@ -175,6 +179,7 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
         responsible_ids: responsibleIds,
         status,
         parent_id: parentActivity?.id ?? null,
+        is_sustentation: isSustentation,
       };
       const created = await add.mutateAsync(payload);
       savedActivityId = created.id;
