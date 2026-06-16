@@ -206,7 +206,7 @@ export function SprintDetailDrawer({ open, onOpenChange, sprint, activities, all
           <TabsList>
             <TabsTrigger value="overview">Visão geral</TabsTrigger>
             <TabsTrigger value="tasks">Tarefas</TabsTrigger>
-            <TabsTrigger value="scope">Escopo</TabsTrigger>
+            <TabsTrigger value="scope">Indicadores</TabsTrigger>
           </TabsList>
           <TabsContent value="overview" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
