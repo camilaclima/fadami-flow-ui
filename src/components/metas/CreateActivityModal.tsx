@@ -1159,7 +1159,34 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
               ) : (
                 <div className="relative pl-6 space-y-4">
                   <div className="absolute left-[9px] top-1 bottom-1 w-px bg-border" />
-                  {history.map((h) => {
+                  {(() => {
+                    // Agrupa registros de mudança de campos feitos pelo mesmo usuário no mesmo minuto
+                    // (ex.: alterar Sprint + Status em uma única ação aparece como um único card)
+                    type Group = { id: string; created_at: string; changed_by_email: string | null; changes: Record<string, { old: any; new: any }>; ids: string[] };
+                    const groups: Group[] = [];
+                    const indexByKey = new Map<string, number>();
+                    for (const h of history) {
+                      const keys = Object.keys(h.changes || {});
+                      const isSpecial = keys.some((k) => k === "__note__" || k === "__ai_note__");
+                      if (isSpecial) {
+                        groups.push({ id: h.id, created_at: h.created_at, changed_by_email: h.changed_by_email, changes: { ...h.changes }, ids: [h.id] });
+                        continue;
+                      }
+                      const minute = new Date(h.created_at).toISOString().slice(0, 16);
+                      const key = `${h.changed_by_email ?? ""}|${minute}`;
+                      const existingIdx = indexByKey.get(key);
+                      if (existingIdx !== undefined) {
+                        const g = groups[existingIdx];
+                        for (const [k, v] of Object.entries(h.changes)) {
+                          if (!(k in g.changes)) g.changes[k] = v as any;
+                        }
+                        g.ids.push(h.id);
+                      } else {
+                        const g: Group = { id: h.id, created_at: h.created_at, changed_by_email: h.changed_by_email, changes: { ...h.changes }, ids: [h.id] };
+                        indexByKey.set(key, groups.push(g) - 1);
+                      }
+                    }
+                    return groups.map((h) => {
                     const entries = Object.entries(h.changes).filter(([k]) => k !== "migrated_from_sprint_id");
                     if (entries.length === 0) return null;
                     const isAi = entries.some(([k]) => k === "__ai_note__");
@@ -1264,7 +1291,8 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
                         </div>
                       </div>
                     );
-                  })}
+                    });
+                  })()}
                 </div>
               )}
             </TabsContent>
