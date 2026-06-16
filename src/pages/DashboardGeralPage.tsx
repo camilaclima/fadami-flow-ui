@@ -211,13 +211,16 @@ export default function DashboardGeralPage() {
     const useActs = sprintActivities.length > 0 || currentSprintItems.length === 0;
     const total = useActs ? sprintActivities.length : currentSprintItems.length;
     const totalDays = Math.max(1, daysBetween(end, start));
+    // Extend the chart up to today if items kept being closed after sprint end
+    const lastDate = today.getTime() > end.getTime() ? today : end;
+    const renderDays = Math.max(totalDays, daysBetween(lastDate, start));
     const points: Array<{ day: string; planejado: number; realizado: number | null; andamento: number | null }> = [];
-    for (let i = 0; i <= totalDays; i++) {
+    for (let i = 0; i <= renderDays; i++) {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
       const dayIso = d.toISOString().slice(0, 10);
-      // Burn-up: cumulative ideal completion line
-      const planejado = +((total * i) / totalDays).toFixed(2);
+      // Burn-up: cumulative ideal completion line (caps at total after sprint end)
+      const planejado = +((total * Math.min(i, totalDays)) / totalDays).toFixed(2);
       let realizado: number | null = null;
       let andamento: number | null = null;
       if (d.getTime() <= today.getTime()) {
