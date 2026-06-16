@@ -630,6 +630,18 @@ export function CreateActivityModal({ open, onOpenChange, products, sprints, act
           </p>
         </div>
       )}
+      {!isChildMode && (
+        <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-card/40 px-3 py-2.5">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-500/10 text-amber-600">
+            <ShieldCheck className="w-4 h-4" />
+          </div>
+          <div className="flex-1">
+            <div className="text-sm font-medium">Atividade de sustentação</div>
+            <div className="text-[11px] text-muted-foreground">Marque se esta atividade é de manutenção/sustentação do projeto</div>
+          </div>
+          <Switch checked={isSustentation} onCheckedChange={setIsSustentation} />
+        </div>
+      )}
       {isEdit && !isChildMode && (
         <div className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
           <div className="flex items-center justify-between">
