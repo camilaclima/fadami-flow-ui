@@ -25,6 +25,7 @@ export interface Activity {
   sort_order: number;
   project_context_id: string | null;
   parent_id: string | null;
+  is_sustentation: boolean;
   created_at: string;
   updated_at: string;
 }
