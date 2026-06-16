@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, AlertTriangle, Users, Activity as ActivityIcon, Target } from "lucide-react";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
+  BarChart, Bar, LabelList,
 } from "recharts";
 import { useActiveProducts } from "@/hooks/useProducts";
 import { useAuthorizedProducts } from "@/hooks/useAuthorizedProducts";
@@ -210,13 +211,16 @@ export default function DashboardGeralPage() {
     const useActs = sprintActivities.length > 0 || currentSprintItems.length === 0;
     const total = useActs ? sprintActivities.length : currentSprintItems.length;
     const totalDays = Math.max(1, daysBetween(end, start));
+    // Extend the chart up to today if items kept being closed after sprint end
+    const lastDate = today.getTime() > end.getTime() ? today : end;
+    const renderDays = Math.max(totalDays, daysBetween(lastDate, start));
     const points: Array<{ day: string; planejado: number; realizado: number | null; andamento: number | null }> = [];
-    for (let i = 0; i <= totalDays; i++) {
+    for (let i = 0; i <= renderDays; i++) {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
       const dayIso = d.toISOString().slice(0, 10);
-      // Burn-up: cumulative ideal completion line
-      const planejado = +((total * i) / totalDays).toFixed(2);
+      // Burn-up: cumulative ideal completion line (caps at total after sprint end)
+      const planejado = +((total * Math.min(i, totalDays)) / totalDays).toFixed(2);
       let realizado: number | null = null;
       let andamento: number | null = null;
       if (d.getTime() <= today.getTime()) {
@@ -263,38 +267,23 @@ export default function DashboardGeralPage() {
   }, [currentSprint, currentSprintItems, today]);
 
   // ===== Phases / Sprints in cascade =====
-  const phaseSprintIds = useMemo(
-    () => sprintsInScope.slice(0, 6).map((s) => s.id),
-    [sprintsInScope],
-  );
-
-  const { data: phaseItems = [] } = useQuery({
-    queryKey: ["dashboard_phase_items", [...phaseSprintIds].sort().join(",")],
-    enabled: phaseSprintIds.length > 0,
-    queryFn: async () => {
-      const { data, error } = await (supabase.from("sprint_backlog_items") as any)
-        .select("id, status, sprint_id")
-        .in("sprint_id", phaseSprintIds);
-      if (error) throw error;
-      return data as Array<{ id: string; status: string; sprint_id: string }>;
-    },
-  });
-
   const phaseRows = useMemo(() => {
     return sprintsInScope.slice(0, 6).map((s) => {
       const end = toDate(s.end_date);
       const daysLeft = end ? daysBetween(end, today) : null;
-      const items = phaseItems.filter((i) => i.sprint_id === s.id);
+      const items = allActivities.filter((a) => a.sprint_id === s.id);
       const total = items.length;
-      const done = items.filter((i) => i.status === "completed").length;
+      const done = items.filter((i) => i.status === "done").length;
       const pct = total ? Math.round((done / total) * 100) : 0;
+      const isFinished = (s as any).status === "finished";
       let color: "emerald" | "amber" | "red" = "emerald";
-      if (daysLeft !== null && daysLeft < 0) color = "red";
+      if (isFinished) color = "emerald";
+      else if (daysLeft !== null && daysLeft < 0) color = "red";
       else if (daysLeft !== null && daysLeft <= 3 && pct < 80) color = "red";
       else if (daysLeft !== null && daysLeft <= 7 && pct < 60) color = "amber";
-      return { sprint: s, pct, daysLeft, color };
+      return { sprint: s, pct, daysLeft, color, isFinished };
     });
-  }, [sprintsInScope, phaseItems, today]);
+  }, [sprintsInScope, allActivities, today]);
 
   // ===== Top gargalos =====
   const topBottlenecks = useMemo(() => {
@@ -484,10 +473,12 @@ export default function DashboardGeralPage() {
                   >
                     {daysLeft === null
                       ? "—"
+                      : (sprint as any).status === "finished"
+                      ? `Concluída · ${pct}%`
                       : daysLeft < 0
                       ? `${Math.abs(daysLeft)}d atrasado`
                       : `${daysLeft}d restantes`}{" "}
-                    · {pct}%
+                    {(sprint as any).status === "finished" ? "" : `· ${pct}%`}
                   </span>
                 </div>
                 <div className="h-2 rounded-full bg-muted overflow-hidden">
@@ -516,58 +507,81 @@ export default function DashboardGeralPage() {
             <h3 className="text-sm font-semibold">Radar de Carga do Time</h3>
             <ActivityIcon className="h-4 w-4 text-muted-foreground" />
           </div>
-          <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-            {memberLoad.length === 0 && (
-              <p className="text-xs text-muted-foreground">Sem membros cadastrados.</p>
-            )}
-            {memberLoad
-              .sort((a, b) => b.pct - a.pct)
-              .map(({ member, count, pct }) => {
-                const last = lastDailyByMember[member.id];
-                const color = pct > 100 ? "red" : pct >= 75 ? "amber" : "emerald";
-                return (
-                  <div key={member.id} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">{member.name}</p>
-                        <p className="text-[11px] text-muted-foreground truncate">
-                          {member.role} · {count} tarefa{count !== 1 ? "s" : ""} ativa{count !== 1 ? "s" : ""}
-                        </p>
-                      </div>
-                      <span
-                        className={
-                          color === "red"
-                            ? "text-red-500 font-semibold"
-                            : color === "amber"
-                            ? "text-amber-500 font-semibold"
-                            : "text-emerald-500 font-semibold"
-                        }
+          {memberLoad.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Sem membros cadastrados.</p>
+          ) : (
+            (() => {
+              const sorted = [...memberLoad].sort((a, b) => b.count - a.count);
+              const chartData = sorted.map(({ member, count, pct }) => ({
+                name: member.name.split(" ")[0],
+                fullName: member.name,
+                role: member.role,
+                count,
+                pct,
+                fill:
+                  pct > 100
+                    ? "hsl(0 84% 60%)"
+                    : pct >= 75
+                    ? "hsl(38 92% 50%)"
+                    : pct > 0
+                    ? "hsl(142 71% 45%)"
+                    : "hsl(var(--muted-foreground) / 0.4)",
+              }));
+              const height = Math.max(180, chartData.length * 36);
+              return (
+                <>
+                  <div style={{ height }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        layout="vertical"
+                        data={chartData}
+                        margin={{ top: 4, right: 36, left: 8, bottom: 4 }}
+                        barCategoryGap={6}
                       >
-                        {pct}%
-                      </span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={
-                          "h-full " +
-                          (color === "red"
-                            ? "bg-red-500"
-                            : color === "amber"
-                            ? "bg-amber-500"
-                            : "bg-emerald-500")
-                        }
-                        style={{ width: `${Math.min(140, pct)}%` }}
-                      />
-                    </div>
-                    {last && (
-                      <p className="text-[11px] text-muted-foreground truncate">
-                        Última daily: {last.summary?.slice(0, 80) || "—"}
-                      </p>
-                    )}
+                        <CartesianGrid horizontal={false} strokeDasharray="3 3" opacity={0.15} />
+                        <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          tick={{ fontSize: 11 }}
+                          width={90}
+                        />
+                        <Tooltip
+                          formatter={(v: any, _n: any, p: any) => [
+                            `${v} tarefa${v === 1 ? "" : "s"} · ${p.payload.pct}%`,
+                            p.payload.fullName,
+                          ]}
+                          labelFormatter={() => ""}
+                        />
+                        <Bar dataKey="count" radius={[4, 4, 4, 4]}>
+                          {chartData.map((d, i) => (
+                            <Cell key={i} fill={d.fill} />
+                          ))}
+                          <LabelList
+                            dataKey="pct"
+                            position="right"
+                            formatter={(v: any) => `${v}%`}
+                            style={{ fontSize: 11, fill: "hsl(var(--foreground))" }}
+                          />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
-                );
-              })}
-          </div>
+                  <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500" /> Saudável
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="h-2 w-2 rounded-full bg-amber-500" /> Atenção (75%+)
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="h-2 w-2 rounded-full bg-red-500" /> Sobrecarga (&gt;100%)
+                    </span>
+                  </div>
+                </>
+              );
+            })()
+          )}
         </Card>
 
         <Card className="p-4 neu-card">
