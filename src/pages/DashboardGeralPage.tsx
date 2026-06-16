@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, AlertTriangle, Users, Activity as ActivityIcon, Target } from "lucide-react";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
+  BarChart, Bar, LabelList,
 } from "recharts";
 import { useActiveProducts } from "@/hooks/useProducts";
 import { useAuthorizedProducts } from "@/hooks/useAuthorizedProducts";
