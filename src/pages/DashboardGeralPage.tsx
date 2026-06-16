@@ -475,18 +475,17 @@ export default function DashboardGeralPage() {
                       color === "red"
                         ? "text-red-500"
                         : color === "amber"
-                        ? "text-amber-500"
+                        ? "text-orange-500"
                         : "text-emerald-500"
                     }
                   >
-                    {daysLeft === null
-                      ? "—"
-                      : (sprint as any).status === "finished"
-                      ? `Concluída · ${pct}%`
-                      : daysLeft < 0
-                      ? `${Math.abs(daysLeft)}d atrasado`
-                      : `${daysLeft}d restantes`}{" "}
-                    {(sprint as any).status === "finished" ? "" : `· ${pct}%`}
+                    {(() => {
+                      const isFinished = (sprint as any).status === "finished";
+                      if (isFinished) return `Finalizada · ${pct}%`;
+                      if (daysLeft === null) return `— · ${pct}%`;
+                      if (daysLeft < 0) return `${Math.abs(daysLeft)}d atrasado · ${pct}%`;
+                      return `${daysLeft}d restantes · ${pct}%`;
+                    })()}
                   </span>
                 </div>
                 <div className="h-2 rounded-full bg-muted overflow-hidden">
@@ -496,7 +495,7 @@ export default function DashboardGeralPage() {
                       (color === "red"
                         ? "bg-red-500"
                         : color === "amber"
-                        ? "bg-amber-500"
+                        ? "bg-orange-500"
                         : "bg-emerald-500")
                     }
                     style={{ width: `${pct}%` }}
