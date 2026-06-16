@@ -267,38 +267,23 @@ export default function DashboardGeralPage() {
   }, [currentSprint, currentSprintItems, today]);
 
   // ===== Phases / Sprints in cascade =====
-  const phaseSprintIds = useMemo(
-    () => sprintsInScope.slice(0, 6).map((s) => s.id),
-    [sprintsInScope],
-  );
-
-  const { data: phaseItems = [] } = useQuery({
-    queryKey: ["dashboard_phase_items", [...phaseSprintIds].sort().join(",")],
-    enabled: phaseSprintIds.length > 0,
-    queryFn: async () => {
-      const { data, error } = await (supabase.from("sprint_backlog_items") as any)
-        .select("id, status, sprint_id")
-        .in("sprint_id", phaseSprintIds);
-      if (error) throw error;
-      return data as Array<{ id: string; status: string; sprint_id: string }>;
-    },
-  });
-
   const phaseRows = useMemo(() => {
     return sprintsInScope.slice(0, 6).map((s) => {
       const end = toDate(s.end_date);
       const daysLeft = end ? daysBetween(end, today) : null;
-      const items = phaseItems.filter((i) => i.sprint_id === s.id);
+      const items = allActivities.filter((a) => a.sprint_id === s.id);
       const total = items.length;
-      const done = items.filter((i) => i.status === "completed").length;
+      const done = items.filter((i) => i.status === "done").length;
       const pct = total ? Math.round((done / total) * 100) : 0;
+      const isFinished = (s as any).status === "finished";
       let color: "emerald" | "amber" | "red" = "emerald";
-      if (daysLeft !== null && daysLeft < 0) color = "red";
+      if (isFinished) color = "emerald";
+      else if (daysLeft !== null && daysLeft < 0) color = "red";
       else if (daysLeft !== null && daysLeft <= 3 && pct < 80) color = "red";
       else if (daysLeft !== null && daysLeft <= 7 && pct < 60) color = "amber";
-      return { sprint: s, pct, daysLeft, color };
+      return { sprint: s, pct, daysLeft, color, isFinished };
     });
-  }, [sprintsInScope, phaseItems, today]);
+  }, [sprintsInScope, allActivities, today]);
 
   // ===== Top gargalos =====
   const topBottlenecks = useMemo(() => {
