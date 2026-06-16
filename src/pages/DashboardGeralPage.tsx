@@ -473,10 +473,12 @@ export default function DashboardGeralPage() {
                   >
                     {daysLeft === null
                       ? "—"
+                      : (sprint as any).status === "finished"
+                      ? `Concluída · ${pct}%`
                       : daysLeft < 0
                       ? `${Math.abs(daysLeft)}d atrasado`
                       : `${daysLeft}d restantes`}{" "}
-                    · {pct}%
+                    {(sprint as any).status === "finished" ? "" : `· ${pct}%`}
                   </span>
                 </div>
                 <div className="h-2 rounded-full bg-muted overflow-hidden">
