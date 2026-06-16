@@ -507,58 +507,81 @@ export default function DashboardGeralPage() {
             <h3 className="text-sm font-semibold">Radar de Carga do Time</h3>
             <ActivityIcon className="h-4 w-4 text-muted-foreground" />
           </div>
-          <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-            {memberLoad.length === 0 && (
-              <p className="text-xs text-muted-foreground">Sem membros cadastrados.</p>
-            )}
-            {memberLoad
-              .sort((a, b) => b.pct - a.pct)
-              .map(({ member, count, pct }) => {
-                const last = lastDailyByMember[member.id];
-                const color = pct > 100 ? "red" : pct >= 75 ? "amber" : "emerald";
-                return (
-                  <div key={member.id} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">{member.name}</p>
-                        <p className="text-[11px] text-muted-foreground truncate">
-                          {member.role} · {count} tarefa{count !== 1 ? "s" : ""} ativa{count !== 1 ? "s" : ""}
-                        </p>
-                      </div>
-                      <span
-                        className={
-                          color === "red"
-                            ? "text-red-500 font-semibold"
-                            : color === "amber"
-                            ? "text-amber-500 font-semibold"
-                            : "text-emerald-500 font-semibold"
-                        }
+          {memberLoad.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Sem membros cadastrados.</p>
+          ) : (
+            (() => {
+              const sorted = [...memberLoad].sort((a, b) => b.count - a.count);
+              const chartData = sorted.map(({ member, count, pct }) => ({
+                name: member.name.split(" ")[0],
+                fullName: member.name,
+                role: member.role,
+                count,
+                pct,
+                fill:
+                  pct > 100
+                    ? "hsl(0 84% 60%)"
+                    : pct >= 75
+                    ? "hsl(38 92% 50%)"
+                    : pct > 0
+                    ? "hsl(142 71% 45%)"
+                    : "hsl(var(--muted-foreground) / 0.4)",
+              }));
+              const height = Math.max(180, chartData.length * 36);
+              return (
+                <>
+                  <div style={{ height }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        layout="vertical"
+                        data={chartData}
+                        margin={{ top: 4, right: 36, left: 8, bottom: 4 }}
+                        barCategoryGap={6}
                       >
-                        {pct}%
-                      </span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={
-                          "h-full " +
-                          (color === "red"
-                            ? "bg-red-500"
-                            : color === "amber"
-                            ? "bg-amber-500"
-                            : "bg-emerald-500")
-                        }
-                        style={{ width: `${Math.min(140, pct)}%` }}
-                      />
-                    </div>
-                    {last && (
-                      <p className="text-[11px] text-muted-foreground truncate">
-                        Última daily: {last.summary?.slice(0, 80) || "—"}
-                      </p>
-                    )}
+                        <CartesianGrid horizontal={false} strokeDasharray="3 3" opacity={0.15} />
+                        <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          tick={{ fontSize: 11 }}
+                          width={90}
+                        />
+                        <Tooltip
+                          formatter={(v: any, _n: any, p: any) => [
+                            `${v} tarefa${v === 1 ? "" : "s"} · ${p.payload.pct}%`,
+                            p.payload.fullName,
+                          ]}
+                          labelFormatter={() => ""}
+                        />
+                        <Bar dataKey="count" radius={[4, 4, 4, 4]}>
+                          {chartData.map((d, i) => (
+                            <Cell key={i} fill={d.fill} />
+                          ))}
+                          <LabelList
+                            dataKey="pct"
+                            position="right"
+                            formatter={(v: any) => `${v}%`}
+                            style={{ fontSize: 11, fill: "hsl(var(--foreground))" }}
+                          />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
-                );
-              })}
-          </div>
+                  <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500" /> Saudável
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="h-2 w-2 rounded-full bg-amber-500" /> Atenção (75%+)
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="h-2 w-2 rounded-full bg-red-500" /> Sobrecarga (&gt;100%)
+                    </span>
+                  </div>
+                </>
+              );
+            })()
+          )}
         </Card>
 
         <Card className="p-4 neu-card">
