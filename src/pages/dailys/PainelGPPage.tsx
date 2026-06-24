@@ -409,7 +409,21 @@ export default function PainelGPPage() {
         onOpenChange={setOpenModal}
         date={date}
         squadId={effectiveSquadId}
-        entries={rows}
+        members={memberRows.map((m) => ({
+          key: m.key,
+          name: m.name,
+          filled: m.filled,
+          entry: m.entry
+            ? {
+                id: m.entry.id,
+                user_id: m.entry.user_id,
+                did_yesterday: m.entry.did_yesterday,
+                will_do_today: m.entry.will_do_today,
+                impediments: m.entry.impediments,
+              }
+            : null,
+          imps: m.imps,
+        }))}
       />
 
       <Dialog open={!!detailEntryId} onOpenChange={(o) => !o && setDetailEntryId(null)}>

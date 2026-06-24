@@ -63,7 +63,7 @@ export function useCreateDailyMeeting() {
       squad_id: string | null;
       observations: string;
       transcript_url: string | null;
-      attendance: { member_name: string; member_user_id?: string | null; camera_on: boolean; stayed_silent: boolean; dev_entry_id?: string | null }[];
+      attendance: { member_name: string; member_user_id?: string | null; camera_on: boolean; stayed_silent: boolean; dev_entry_id?: string | null; notes?: string | null }[];
     }) => {
       const { data: meeting, error } = await (supabase.from("daily_meetings") as any).insert({
         meeting_date: input.meeting_date,

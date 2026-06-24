@@ -1,0 +1,1 @@
+ALTER TABLE public.daily_meeting_attendance ADD COLUMN IF NOT EXISTS notes text;
