@@ -251,6 +251,12 @@ export default function RegistroPage() {
       return;
     }
 
+    // Valida impedimento "rascunho" não adicionado
+    if (showNewImp && (newDesc.trim() || newUrg)) {
+      toast.error("Você começou a criar um impedimento. Clique em 'Adicionar' ou 'Cancelar' antes de salvar.");
+      return;
+    }
+
     const result = await upsert.mutateAsync({
       id: existing?.id,
       entry_date: date,
@@ -394,12 +400,27 @@ export default function RegistroPage() {
         )}
         {entries.map((e) => {
           const imps = allImpediments.filter((i) => i.entry_id === e.id);
+          const resolvedCount = imps.filter((i) => i.resolved).length;
+          const openCount = imps.length - resolvedCount;
           return (
-          <Card key={e.id} className="rounded-2xl">
-            <CardHeader>
-              <CardTitle className="text-base flex items-center justify-between">
-                <span>{format(parseISO(e.entry_date), "PPP", { locale: ptBR })}</span>
-                <div className="flex items-center gap-2">
+          <Card key={e.id} className="rounded-2xl overflow-hidden">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Calendar className="w-4 h-4 text-primary shrink-0" />
+                  <span className="truncate">{format(parseISO(e.entry_date), "PPP", { locale: ptBR })}</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {imps.length > 0 && openCount === 0 && (
+                    <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+                      Tudo sanado
+                    </Badge>
+                  )}
+                  {openCount > 0 && (
+                    <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30">
+                      {openCount} em aberto
+                    </Badge>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"
@@ -409,42 +430,60 @@ export default function RegistroPage() {
                   >
                     <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
                   </Button>
-                  <Badge variant="outline">{format(parseISO(e.created_at), "dd/MM HH:mm")}</Badge>
+                  <Badge variant="outline" className="text-[10px]">{format(parseISO(e.created_at), "dd/MM HH:mm")}</Badge>
                 </div>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <div><span className="font-medium">Ontem:</span> <span className="text-muted-foreground whitespace-pre-wrap">{e.did_yesterday || "—"}</span></div>
-              <div><span className="font-medium">Hoje:</span> <span className="text-muted-foreground whitespace-pre-wrap">{e.will_do_today || "—"}</span></div>
-              <div className="space-y-1.5">
-                <span className="font-medium text-orange-500">Impedimentos:</span>
-                {imps.length === 0 && !e.impediments?.trim() && (
-                  <span className="text-muted-foreground"> —</span>
-                )}
-                {e.impediments?.trim() && imps.length === 0 && (
-                  <span className="text-muted-foreground whitespace-pre-wrap"> {e.impediments}</span>
-                )}
-                {imps.length > 0 && (
-                  <div className="space-y-1.5 mt-1">
-                    {imps.map((imp) => (
-                      <div key={imp.id} className="flex items-start gap-2 rounded-lg border bg-muted/30 p-2">
-                        <Badge variant="outline" className={`text-[10px] mt-0.5 ${URGENCY_STYLES[imp.urgency]}`}>
-                          {URGENCY_LABELS[imp.urgency]}
-                        </Badge>
-                        <p className="text-sm flex-1 whitespace-pre-wrap break-words text-foreground">{imp.description}</p>
-                        {imp.resolved ? (
-                          <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
-                            Sanado
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30">
-                            Em aberto
-                          </Badge>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
+            <CardContent className="pt-0">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                {/* Ontem */}
+                <div className="rounded-xl border bg-muted/30 p-3 flex flex-col">
+                  <p className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5">Ontem</p>
+                  <p className="text-sm whitespace-pre-wrap break-words flex-1">{e.did_yesterday || <span className="text-muted-foreground">—</span>}</p>
+                </div>
+                {/* Hoje */}
+                <div className="rounded-xl border bg-primary/5 p-3 flex flex-col">
+                  <p className="text-[11px] uppercase tracking-wide font-semibold text-primary/80 mb-1.5">Hoje</p>
+                  <p className="text-sm whitespace-pre-wrap break-words flex-1">{e.will_do_today || <span className="text-muted-foreground">—</span>}</p>
+                </div>
+                {/* Impedimentos */}
+                <div className="rounded-xl border bg-orange-500/5 p-3 flex flex-col">
+                  <p className="text-[11px] uppercase tracking-wide font-semibold text-orange-600 mb-1.5 flex items-center gap-1">
+                    <AlertOctagon className="w-3 h-3" /> Impedimentos
+                  </p>
+                  {imps.length === 0 && !e.impediments?.trim() && (
+                    <p className="text-sm text-muted-foreground flex-1">—</p>
+                  )}
+                  {e.impediments?.trim() && imps.length === 0 && (
+                    <p className="text-sm whitespace-pre-wrap break-words flex-1">{e.impediments}</p>
+                  )}
+                  {imps.length > 0 && (
+                    <div className="space-y-1.5 flex-1">
+                      {imps.map((imp) => (
+                        <div key={imp.id} className="rounded-lg border bg-background/70 p-2 space-y-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES[imp.urgency]}`}>
+                              {URGENCY_LABELS[imp.urgency]}
+                            </Badge>
+                            {imp.resolved ? (
+                              <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 gap-1">
+                                <CircleCheck className="w-2.5 h-2.5" /> Sanado
+                                {imp.resolved_at && (
+                                  <span className="font-normal">em {format(parseISO(imp.resolved_at), "dd/MM", { locale: ptBR })}</span>
+                                )}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30">
+                                Em aberto
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs whitespace-pre-wrap break-words text-foreground/90">{imp.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
