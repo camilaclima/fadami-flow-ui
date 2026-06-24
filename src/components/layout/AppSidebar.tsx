@@ -37,22 +37,22 @@ const NAV_GROUPS: NavGroup[] = [
       { title: "Equipe", url: "/team", icon: UsersRound, permission: "team" },
       { title: "Sprints", url: "/sprints", icon: Zap, permission: "sprints" },
       { title: "Saúde do Projeto", url: "/daily-status", icon: CalendarCheck, permission: "daily" },
-      { title: "Configuração Time/Projeto", url: "/team-project-config", icon: SlidersHorizontal, permission: "__always__" },
+      { title: "Configuração Time/Projeto", url: "/team-project-config", icon: SlidersHorizontal, permission: "team_project_config" },
     ],
   },
   {
     label: "Gestão de Projetos",
     icon: FolderKanban,
     items: [
-      { title: "Controle e Gestão", url: "/controle-gestao", icon: FolderKanban, permission: "__always__" },
+      { title: "Controle e Gestão", url: "/controle-gestao", icon: FolderKanban, permission: "controle_gestao" },
     ],
   },
   {
     label: "Dailys",
     icon: MessageSquare,
     items: [
-      { title: "Minha Daily", url: "/dailys/registro", icon: ClipboardEdit, permission: "__always__" },
-      { title: "Painel do GP", url: "/dailys/painel", icon: Sparkles, permission: "__always__" },
+      { title: "Minha Daily", url: "/dailys/registro", icon: ClipboardEdit, permission: "minha_daily" },
+      { title: "Painel do GP", url: "/dailys/painel", icon: Sparkles, permission: "painel_gp" },
     ],
   },
   {
