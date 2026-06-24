@@ -19,3 +19,23 @@ export function useGenerateDailyInsights() {
     onError: (e: any) => toast.error(e?.message ?? "Erro ao gerar insights"),
   });
 }
+
+export interface ScopeAlert {
+  dev_name: string;
+  task: string;
+  days: number;
+  message: string;
+}
+
+export function useAnalyzeScopeStuck() {
+  return useMutation({
+    mutationFn: async (devs: { dev_name: string; entries: { date: string; will_do_today?: string; did_yesterday?: string }[] }[]) => {
+      const { data, error } = await supabase.functions.invoke("analyze-scope-stuck", {
+        body: { devs },
+      });
+      if (error) throw error;
+      return (data?.alerts ?? []) as ScopeAlert[];
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao analisar escopo"),
+  });
+}
