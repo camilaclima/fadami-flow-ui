@@ -24,6 +24,17 @@ import { useQuery } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
+function daysAgoLabel(iso: string): string {
+  const created = new Date(iso);
+  const now = new Date();
+  const startCreated = new Date(created.getFullYear(), created.getMonth(), created.getDate()).getTime();
+  const startNow = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const days = Math.floor((startNow - startCreated) / 86400000);
+  if (days <= 0) return "Criado hoje";
+  if (days === 1) return "Há 1 dia";
+  return `Há ${days} dias`;
+}
+
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 
 export default function PainelGPPage() {
