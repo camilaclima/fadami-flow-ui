@@ -131,21 +131,64 @@ export default function RegistroPage() {
       });
   }, [allImpediments, entries, date]);
 
+  const handleOpenCreate = () => {
+    const available = dateOptions.find((o) => !entries.some((e) => e.entry_date === o.value));
+    const targetDate = available?.value ?? dateOptions[0]?.value ?? toISO(new Date());
+    setDate(targetDate);
+    setDidYesterday("");
+    setWillDoToday("");
+    setTouched({ did: false, will: false });
+    setDraftImps([]);
+    setNewDesc("");
+    setNewUrg("medium");
+    const init: Record<string, PriorResolution> = {};
+    const openForDate = targetDate;
+    const prior = allImpediments
+      .filter((imp) => !imp.resolved)
+      .filter((imp) => {
+        const entry = entries.find((e) => e.id === imp.entry_id);
+        if (!entry) return false;
+        return entry.entry_date < openForDate;
+      });
+    prior.forEach((p) => {
+      init[p.id] = { resolved: null, note: "" };
+    });
+    setPriorRes(init);
+    skipAutoFill.current = true;
+    setOpen(true);
+  };
+
+  const handleOpenEdit = (entry: any) => {
+    setDate(entry.entry_date);
+    setDidYesterday(entry.did_yesterday ?? "");
+    setWillDoToday(entry.will_do_today ?? "");
+    setTouched({ did: false, will: false });
+    setDraftImps([]);
+    setNewDesc("");
+    setNewUrg("medium");
+    const init: Record<string, PriorResolution> = {};
+    priorOpen.forEach((p) => {
+      init[p.id] = { resolved: null, note: "" };
+    });
+    setPriorRes(init);
+    setOpen(true);
+  };
+
   useEffect(() => {
-    if (open) {
+    if (open && !skipAutoFill.current) {
       setDidYesterday(existing?.did_yesterday ?? "");
       setWillDoToday(existing?.will_do_today ?? "");
       setTouched({ did: false, will: false });
       setDraftImps([]);
       setNewDesc("");
       setNewUrg("medium");
-      // Inicializa resoluções pendentes
       const init: Record<string, PriorResolution> = {};
       priorOpen.forEach((p) => {
         init[p.id] = { resolved: null, note: "" };
       });
       setPriorRes(init);
     }
+    skipAutoFill.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, existing?.id, date]);
 
