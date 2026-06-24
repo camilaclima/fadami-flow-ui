@@ -27,6 +27,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 const LEADER_GROUP_NAME = "líderes";
+const DEV_GROUP_NAME = "desenvolvedor";
 
 interface Props {
   open: boolean;
@@ -67,7 +68,6 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
         setMemberIds(squad.member_ids ?? []);
         setProductIds(squad.product_ids ?? []);
       } else {
-        // Reset total para Nova Squad
         setName("");
         setLeaderId("__none__");
         setDescription("");
@@ -154,6 +154,62 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
   );
   const leaderCandidates = profiles.filter((p) => p.active && leaderProfileIds.has(p.id));
 
+  // Desenvolvedores (sugestões de autocomplete)
+  const devGroupIds = new Set(
+    accessGroups
+      .filter((g) => (g.name ?? "").trim().toLowerCase() === DEV_GROUP_NAME)
+      .map((g) => g.id),
+  );
+  const devProfileIds = new Set<string>(
+    (profileGroups as any[])
+      .filter((pg) => devGroupIds.has(pg.group_id))
+      .map((pg) => pg.profile_id),
+  );
+  const devCandidates = profiles.filter((p) => p.active && devProfileIds.has(p.id));
+
+  const filteredDevs = devCandidates.filter((p) => {
+    const q = newMemberName.trim().toLowerCase();
+    if (!q) return false;
+    const full = `${p.first_name} ${p.last_name}`.toLowerCase();
+    return full.includes(q);
+  });
+
+  const handleSelectDev = async (profile: any) => {
+    const fullName = `${profile.first_name} ${profile.last_name}`.trim();
+    const existing = teamMembers.find(
+      (m) => m.name.trim().toLowerCase() === fullName.toLowerCase()
+    );
+    if (existing) {
+      if (!memberIds.includes(existing.id)) {
+        setMemberIds((prev) => [...prev, existing.id]);
+      }
+      setNewMemberName("");
+      return;
+    }
+    if (!user?.id) {
+      toast.error("Sessão inválida");
+      return;
+    }
+    try {
+      const created: any = await addMember.mutateAsync({
+        name: fullName,
+        email: profile.email ?? "",
+        role: "dev",
+        seniority: "pleno",
+        specialty: "fullstack",
+        daily_capacity_hours: 8,
+        coordinator_id: user.id,
+        product_id: productIds[0] ?? null,
+      } as any);
+      setNewMemberName("");
+      if (created?.id) {
+        setMemberIds((prev) => [...prev, created.id]);
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao adicionar membro");
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -207,17 +263,36 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
             </Label>
             <p className="text-xs text-muted-foreground">Adicione os membros que farão parte desta squad.</p>
             <div className="flex gap-2">
-              <Input
-                value={newMemberName}
-                onChange={(e) => setNewMemberName(e.target.value)}
-                placeholder="Nome do novo membro"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddNewMember();
-                  }
-                }}
-              />
+              <div className="relative flex-1">
+                <Input
+                  value={newMemberName}
+                  onChange={(e) => setNewMemberName(e.target.value)}
+                  placeholder="Nome do novo membro"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddNewMember();
+                    }
+                  }}
+                />
+                {filteredDevs.length > 0 && (
+                  <div className="absolute z-10 mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md max-h-40 overflow-y-auto">
+                    {filteredDevs.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          handleSelectDev(p);
+                        }}
+                      >
+                        {p.first_name} {p.last_name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <Button type="button" variant="secondary" onClick={handleAddNewMember} disabled={addMember.isPending}>
                 {addMember.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -230,7 +305,6 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
             </div>
 
             <div className="flex flex-wrap gap-2 rounded-md border border-input bg-background p-3 min-h-[44px]">
-              {/* FILTRO CRÍTICO: Só mostra quem foi selecionado (memberIds) */}
               {memberIds.length === 0 && (
                 <span className="text-sm text-muted-foreground">Nenhum membro adicionado a esta squad</span>
               )}
