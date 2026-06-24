@@ -5,11 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Play, CheckCircle2, Clock, Users, RefreshCcw } from "lucide-react";
+import { Sparkles, Play, CheckCircle2, Clock, Users, RefreshCcw, AlertOctagon, CircleCheck, Eye, Calendar } from "lucide-react";
 import { History, Activity } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useSquads } from "@/hooks/useSquads";
 import { useDevDailyEntriesByDate } from "@/hooks/useDevDailyEntries";
+import { useDevDailyImpedimentsByEntries, URGENCY_LABELS, URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
 import { useGenerateDailyInsights, type DailyInsight } from "@/hooks/useDailyInsights";
 import { useProfiles } from "@/hooks/useProfiles";
 import { IniciarDailyModal } from "@/components/dailys/IniciarDailyModal";
@@ -17,6 +19,10 @@ import HistoricoPage from "./HistoricoPage";
 import SaudePage from "./SaudePage";
 import { useDailySim } from "@/contexts/DailySimContext";
 import { AccessDeniedCard } from "@/components/dailys/AccessDeniedCard";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 
@@ -47,6 +53,43 @@ export default function PainelGPPage() {
   const { data: profiles = [] } = useProfiles();
   const { data: entries = [], isLoading } = useDevDailyEntriesByDate(date, effectiveSquadId);
   const gen = useGenerateDailyInsights();
+  const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
+
+  // Para mostrar impedimentos visíveis no dia D (criados <= D, ainda em aberto
+  // ou sanados >= D), precisamos de TODAS as entries dos mesmos usuários até D.
+  const userIds = useMemo(() => Array.from(new Set(entries.map((e) => e.user_id))), [entries]);
+  const { data: userEntries = [] } = useQuery({
+    queryKey: ["dev_daily_entries", "by-users-upto", date, userIds.sort().join(",")],
+    enabled: userIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("dev_daily_entries") as any)
+        .select("id,user_id,entry_date")
+        .in("user_id", userIds)
+        .lte("entry_date", date);
+      if (error) throw error;
+      return (data ?? []) as { id: string; user_id: string; entry_date: string }[];
+    },
+  });
+  const allEntryIds = useMemo(() => userEntries.map((e) => e.id), [userEntries]);
+  const { data: allImpediments = [] } = useDevDailyImpedimentsByEntries(allEntryIds);
+
+  const impsByUser = useMemo(() => {
+    const entryDateById = new Map(userEntries.map((e) => [e.id, e]));
+    const m = new Map<string, typeof allImpediments>();
+    allImpediments.forEach((imp) => {
+      const origin = entryDateById.get(imp.entry_id);
+      if (!origin) return;
+      if (origin.entry_date > date) return;
+      if (imp.resolved) {
+        const rd = imp.resolved_at ? imp.resolved_at.slice(0, 10) : null;
+        if (rd && rd < date) return;
+      }
+      const list = m.get(origin.user_id) ?? [];
+      list.push(imp);
+      m.set(origin.user_id, list);
+    });
+    return m;
+  }, [allImpediments, userEntries, date]);
 
   const profileByUser = useMemo(() => {
     const m = new Map<string, any>();
@@ -58,9 +101,12 @@ export default function PainelGPPage() {
     return entries.map(e => {
       const p = profileByUser.get(e.user_id);
       const name = p ? `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || p.email : e.user_id;
-      return { ...e, dev_name: name };
+      const imps = impsByUser.get(e.user_id) ?? [];
+      return { ...e, dev_name: name, imps };
     });
-  }, [entries, profileByUser]);
+  }, [entries, profileByUser, impsByUser]);
+
+  const detailRow = useMemo(() => rows.find((r) => r.id === detailEntryId) ?? null, [rows, detailEntryId]);
 
   const handleGenerate = async () => {
     const result = await gen.mutateAsync(rows.map(r => ({
@@ -134,7 +180,7 @@ export default function PainelGPPage() {
         <Card className="rounded-2xl">
           <CardContent className="pt-5 flex items-center gap-3">
             <Clock className="w-8 h-8 text-orange-500" />
-            <div><div className="text-2xl font-bold">{rows.filter(r => (r.impediments ?? "").trim().length > 0).length}</div><div className="text-xs text-muted-foreground">Com impedimento</div></div>
+            <div><div className="text-2xl font-bold">{rows.filter(r => r.imps.length > 0).length}</div><div className="text-xs text-muted-foreground">Com impedimento</div></div>
           </CardContent>
         </Card>
         <Card className="rounded-2xl">
@@ -153,18 +199,43 @@ export default function PainelGPPage() {
           <CardContent className="space-y-2">
             {isLoading && <p className="text-sm text-muted-foreground">Carregando...</p>}
             {!isLoading && rows.length === 0 && <p className="text-sm text-muted-foreground">Nenhum registro para a data.</p>}
-            {rows.map(r => (
-              <div key={r.id} className="flex items-center justify-between p-3 rounded-xl bg-surface-hover/40">
-                <div>
-                  <div className="text-sm font-medium">{r.dev_name}</div>
-                  <div className="text-xs text-muted-foreground line-clamp-1">{r.will_do_today || "Sem plano informado"}</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {(r.impediments ?? "").trim() && <Badge variant="outline" className="border-orange-500 text-orange-500">Impedimento</Badge>}
-                  <Badge className="bg-emerald-500/15 text-emerald-600">Preencheu</Badge>
-                </div>
-              </div>
-            ))}
+            {rows.map(r => {
+              const openCount = r.imps.filter(i => !i.resolved).length;
+              const resolvedToday = r.imps.filter(i => i.resolved && i.resolved_at?.slice(0, 10) === date).length;
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => setDetailEntryId(r.id)}
+                  className="w-full text-left flex items-center justify-between p-3 rounded-xl bg-surface-hover/40 hover:bg-surface-hover transition-colors"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium">{r.dev_name}</div>
+                    <div className="text-xs text-muted-foreground line-clamp-1">{r.will_do_today || "Sem plano informado"}</div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {r.imps.length > 0 && (
+                      <Badge variant="outline" className="border-orange-500/40 text-orange-600 gap-1">
+                        <AlertOctagon className="w-3 h-3" />
+                        {r.imps.length} impediment{r.imps.length !== 1 ? "os" : "o"}
+                      </Badge>
+                    )}
+                    {openCount > 0 && (
+                      <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30">
+                        {openCount} em aberto
+                      </Badge>
+                    )}
+                    {resolvedToday > 0 && (
+                      <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 gap-1">
+                        <CircleCheck className="w-2.5 h-2.5" /> {resolvedToday} sanado{resolvedToday !== 1 ? "s" : ""}
+                      </Badge>
+                    )}
+                    <Badge className="bg-emerald-500/15 text-emerald-600">Preencheu</Badge>
+                    <Eye className="w-3.5 h-3.5 text-muted-foreground" />
+                  </div>
+                </button>
+              );
+            })}
           </CardContent>
         </Card>
 
@@ -209,6 +280,76 @@ export default function PainelGPPage() {
         squadId={effectiveSquadId}
         entries={rows}
       />
+
+      <Dialog open={!!detailEntryId} onOpenChange={(o) => !o && setDetailEntryId(null)}>
+        <DialogContent className="max-w-2xl rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-primary" />
+              {detailRow?.dev_name} — {format(parseISO(date), "PPP", { locale: ptBR })}
+            </DialogTitle>
+          </DialogHeader>
+          {detailRow && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                <div className="rounded-xl border bg-muted/30 p-3">
+                  <p className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5">Ontem</p>
+                  <p className="text-sm whitespace-pre-wrap break-words">{detailRow.did_yesterday || <span className="text-muted-foreground">—</span>}</p>
+                </div>
+                <div className="rounded-xl border bg-primary/5 p-3">
+                  <p className="text-[11px] uppercase tracking-wide font-semibold text-primary/80 mb-1.5">Hoje</p>
+                  <p className="text-sm whitespace-pre-wrap break-words">{detailRow.will_do_today || <span className="text-muted-foreground">—</span>}</p>
+                </div>
+              </div>
+              <div className="rounded-xl border bg-orange-500/5 p-3">
+                <p className="text-[11px] uppercase tracking-wide font-semibold text-orange-600 mb-2 flex items-center gap-1">
+                  <AlertOctagon className="w-3 h-3" /> Impedimentos
+                </p>
+                {detailRow.imps.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhum impedimento registrado.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {detailRow.imps.map((imp) => {
+                      const origin = userEntries.find((e) => e.id === imp.entry_id);
+                      const createdBadge = origin && origin.entry_date !== date ? (
+                        <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground border-border">
+                          Criado em {format(parseISO(origin.entry_date), "dd/MM", { locale: ptBR })}
+                        </Badge>
+                      ) : null;
+                      return (
+                        <div key={imp.id} className="rounded-lg border bg-background/70 p-2 space-y-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES[imp.urgency]}`}>
+                              {URGENCY_LABELS[imp.urgency]}
+                            </Badge>
+                            {createdBadge}
+                            {imp.resolved ? (
+                              <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 gap-1">
+                                <CircleCheck className="w-2.5 h-2.5" /> Sanado
+                                {imp.resolved_at && (
+                                  <span className="font-normal">em {format(parseISO(imp.resolved_at), "dd/MM", { locale: ptBR })}</span>
+                                )}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30">
+                                Em aberto
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs whitespace-pre-wrap break-words text-foreground/90">{imp.description}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setDetailEntryId(null)} className="rounded-xl">Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
