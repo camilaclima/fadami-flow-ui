@@ -48,7 +48,17 @@ export default function RegistroPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existing?.id]);
 
+  const [touched, setTouched] = useState({ did: false, will: false });
+
+  const didEmpty = !didYesterday.trim();
+  const willEmpty = !willDoToday.trim();
+
   const submit = async () => {
+    setTouched({ did: true, will: true });
+    if (didEmpty || willEmpty) {
+      toast.error("Preencha os campos obrigatórios: 'O que fiz ontem?' e 'O que farei hoje?'.");
+      return;
+    }
     await upsert.mutateAsync({
       id: existing?.id,
       entry_date: date,
