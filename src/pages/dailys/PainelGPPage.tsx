@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { useSquads } from "@/hooks/useSquads";
 import { useDevDailyEntriesByDate } from "@/hooks/useDevDailyEntries";
 import { useDevDailyImpedimentsByEntries, URGENCY_LABELS, URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
-import { useGenerateDailyInsights, type DailyInsight } from "@/hooks/useDailyInsights";
+import { useGenerateDailyInsights, useAnalyzeScopeStuck, type DailyInsight, type ScopeAlert } from "@/hooks/useDailyInsights";
 import { useProfiles } from "@/hooks/useProfiles";
 import { IniciarDailyModal } from "@/components/dailys/IniciarDailyModal";
 import HistoricoPage from "./HistoricoPage";
@@ -43,6 +43,9 @@ export default function PainelGPPage() {
   const [squadId, setSquadId] = useState<string | null>(null);
   const [openModal, setOpenModal] = useState(false);
   const [insights, setInsights] = useState<DailyInsight[]>([]);
+  const [scopeAlerts, setScopeAlerts] = useState<ScopeAlert[]>([]);
+  const [scopeAnalyzed, setScopeAnalyzed] = useState(false);
+  const scopeMut = useAnalyzeScopeStuck();
 
   const { data: allSquads = [] } = useSquads();
   const squads = useMemo(() => {
@@ -265,6 +268,48 @@ export default function PainelGPPage() {
     return ids;
   }, [allImpediments, userEntries, now]);
   const stuckCount = stuckUserIds.size;
+
+  // Histórico dos últimos 7 dias para análise de escopo via IA.
+  const sevenDaysAgo = useMemo(() => {
+    const d = new Date(date);
+    d.setDate(d.getDate() - 6);
+    return d.toISOString().slice(0, 10);
+  }, [date]);
+  const { data: recentEntries = [] } = useQuery({
+    queryKey: ["dev_daily_entries", "recent-7d", date, userIds.sort().join(",")],
+    enabled: userIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("dev_daily_entries") as any)
+        .select("user_id,entry_date,did_yesterday,will_do_today")
+        .in("user_id", userIds)
+        .gte("entry_date", sevenDaysAgo)
+        .lte("entry_date", date)
+        .order("entry_date", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as { user_id: string; entry_date: string; did_yesterday: string | null; will_do_today: string | null }[];
+    },
+  });
+
+  const handleAnalyzeScope = async () => {
+    const byUser = new Map<string, { dev_name: string; entries: { date: string; will_do_today?: string; did_yesterday?: string }[] }>();
+    recentEntries.forEach((e) => {
+      const p = profileByUser.get(e.user_id);
+      const nameFromProfile = p ? (`${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || p.email) : null;
+      const nameFromSquad = squadProfiles.find((sp) => sp.user_id === e.user_id)?.name ?? null;
+      const dev_name = nameFromProfile || nameFromSquad || "Dev";
+      const cur = byUser.get(e.user_id) ?? { dev_name, entries: [] };
+      cur.entries.push({
+        date: e.entry_date,
+        will_do_today: e.will_do_today ?? undefined,
+        did_yesterday: e.did_yesterday ?? undefined,
+      });
+      byUser.set(e.user_id, cur);
+    });
+    const devs = Array.from(byUser.values()).filter((d) => d.entries.length >= 2);
+    const result = await scopeMut.mutateAsync(devs);
+    setScopeAlerts(result);
+    setScopeAnalyzed(true);
+  };
 
   const detailRow = useMemo(() => rows.find((r) => r.id === detailEntryId) ?? null, [rows, detailEntryId]);
 
