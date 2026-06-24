@@ -113,10 +113,7 @@ export default function RegistroPage() {
               <Users className="w-3.5 h-3.5" /> Squad{squads.length > 1 ? "s" : ""}:
             </span>
             {squads.map((s) => (
-              <Badge
-                key={s.id}
-                className="rounded-full bg-gradient-to-r from-orange-500/15 to-orange-500/5 text-orange-600 dark:text-orange-400 border border-orange-500/30 hover:from-orange-500/20"
-              >
+              <Badge key={s.id} variant="secondary">
                 {s.name}
               </Badge>
             ))}
