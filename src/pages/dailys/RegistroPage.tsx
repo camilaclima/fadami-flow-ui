@@ -548,6 +548,16 @@ export default function RegistroPage() {
                           <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES[imp.urgency]}`}>
                             {URGENCY_LABELS[imp.urgency]}
                           </Badge>
+                          {(() => {
+                            const origin = entries.find((e) => e.id === imp.entry_id);
+                            if (!origin || !detailEntry) return null;
+                            if (origin.entry_date === detailEntry.entry_date) return null;
+                            return (
+                              <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground border-border">
+                                Criado em {format(parseISO(origin.entry_date), "dd/MM", { locale: ptBR })}
+                              </Badge>
+                            );
+                          })()}
                           {imp.resolved ? (
                             <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 gap-1">
                               <CircleCheck className="w-2.5 h-2.5" /> Sanado
