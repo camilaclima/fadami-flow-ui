@@ -118,8 +118,21 @@ export default function RegistroPage() {
     [entries, detailEntryId]
   );
   const detailImps = useMemo<DevDailyImpediment[]>(
-    () => (detailEntry ? allImpediments.filter((i) => i.entry_id === detailEntry.id) : []),
-    [allImpediments, detailEntry]
+    () => {
+      if (!detailEntry) return [];
+      const D = detailEntry.entry_date; // YYYY-MM-DD
+      return allImpediments.filter((imp) => {
+        const origin = entries.find((e) => e.id === imp.entry_id);
+        if (!origin) return false;
+        const created = origin.entry_date; // YYYY-MM-DD
+        if (created > D) return false; // criado no futuro
+        if (!imp.resolved) return true; // ainda em aberto -> mostrar em todos os dias desde a criação
+        const resolvedDate = imp.resolved_at ? imp.resolved_at.slice(0, 10) : null;
+        // se resolvido, mostrar até o dia da resolução (inclusive)
+        return resolvedDate ? resolvedDate >= D : true;
+      });
+    },
+    [allImpediments, entries, detailEntry]
   );
 
   const existing = useMemo(() => entries.find((e) => e.entry_date === date), [entries, date]);
