@@ -421,7 +421,16 @@ export default function RegistroPage() {
           </Card>
         )}
         {entries.map((e) => {
-          const imps = allImpediments.filter((i) => i.entry_id === e.id);
+          const D = e.entry_date;
+          const imps = allImpediments.filter((imp) => {
+            const origin = entries.find((e2) => e2.id === imp.entry_id);
+            if (!origin) return false;
+            const created = origin.entry_date;
+            if (created > D) return false;
+            if (!imp.resolved) return true;
+            const resolvedDate = imp.resolved_at ? imp.resolved_at.slice(0, 10) : null;
+            return resolvedDate ? resolvedDate >= D : true;
+          });
           const resolvedCount = imps.filter((i) => i.resolved).length;
           const openCount = imps.length - resolvedCount;
           const byUrg = {
@@ -429,6 +438,10 @@ export default function RegistroPage() {
             medium: imps.filter((i) => i.urgency === "medium").length,
             low: imps.filter((i) => i.urgency === "low").length,
           };
+          const resolvedToday = imps.filter((i) => {
+            if (!i.resolved || !i.resolved_at) return false;
+            return i.resolved_at.slice(0, 10) === D;
+          }).length;
           return (
             <Card
               key={e.id}
@@ -474,15 +487,23 @@ export default function RegistroPage() {
                       <span className="text-muted-foreground">
                         {imps.length} impediment{imps.length === 1 ? "o" : "os"}
                       </span>
-                      {openCount === 0 ? (
-                        <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
-                          Sanados
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30">
-                          {openCount} em aberto
-                        </Badge>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {resolvedToday > 0 && (
+                          <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 gap-1">
+                            <CircleCheck className="w-2.5 h-2.5" /> {resolvedToday} sanado{resolvedToday !== 1 ? "s" : ""}
+                          </Badge>
+                        )}
+                        {openCount > 0 && (
+                          <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30">
+                            {openCount} em aberto
+                          </Badge>
+                        )}
+                        {openCount === 0 && resolvedToday === 0 && (
+                          <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+                            Sanados
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                     <div className="flex flex-wrap gap-1">
                       {byUrg.high > 0 && (
