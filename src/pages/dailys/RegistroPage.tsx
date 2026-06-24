@@ -106,15 +106,37 @@ export default function RegistroPage() {
               </div>
 
               <div>
-                <Label className="mb-1.5">O que fiz ontem?</Label>
-                <Textarea rows={4} value={didYesterday} onChange={(e) => setDidYesterday(e.target.value)} placeholder="Tarefas, entregas, descobertas..." />
+                <Label className="mb-1.5">
+                  O que fiz ontem? <span className="text-orange-500">*</span>
+                </Label>
+                <Textarea
+                  rows={4}
+                  value={didYesterday}
+                  onChange={(e) => { setDidYesterday(e.target.value); setTouched(p => ({ ...p, did: true })); }}
+                  placeholder="Tarefas, entregas, descobertas..."
+                  className={touched.did && didEmpty ? "border-orange-500 focus-visible:ring-orange-500" : ""}
+                />
+                {touched.did && didEmpty && (
+                  <p className="text-xs text-orange-500 mt-1">Campo obrigatório.</p>
+                )}
               </div>
               <div>
-                <Label className="mb-1.5">O que farei hoje?</Label>
-                <Textarea rows={4} value={willDoToday} onChange={(e) => setWillDoToday(e.target.value)} placeholder="Próximos passos planejados..." />
+                <Label className="mb-1.5">
+                  O que farei hoje? <span className="text-orange-500">*</span>
+                </Label>
+                <Textarea
+                  rows={4}
+                  value={willDoToday}
+                  onChange={(e) => { setWillDoToday(e.target.value); setTouched(p => ({ ...p, will: true })); }}
+                  placeholder="Próximos passos planejados..."
+                  className={touched.will && willEmpty ? "border-orange-500 focus-visible:ring-orange-500" : ""}
+                />
+                {touched.will && willEmpty && (
+                  <p className="text-xs text-orange-500 mt-1">Campo obrigatório.</p>
+                )}
               </div>
               <div>
-                <Label className="mb-1.5 flex items-center gap-1.5"><AlertTriangle className="w-4 h-4 text-orange-500" /> Há algum impedimento?</Label>
+                <Label className="mb-1.5 flex items-center gap-1.5"><AlertTriangle className="w-4 h-4 text-orange-500" /> Há algum impedimento? <span className="text-muted-foreground font-normal">(opcional)</span></Label>
                 <Textarea rows={3} value={impediments} onChange={(e) => setImpediments(e.target.value)} placeholder="Bloqueios, dependências, dúvidas..." />
               </div>
 
