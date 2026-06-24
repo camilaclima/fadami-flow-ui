@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ClipboardEdit, AlertTriangle, CheckCircle2, Calendar, Plus, Users,
   CalendarClock, TrendingUp, AlertOctagon, Trash2, CircleCheck, CircleDot,
+  Pencil,
 } from "lucide-react";
 import { useDevDailyEntriesByUser, useUpsertDevDailyEntry } from "@/hooks/useDevDailyEntries";
 import {
