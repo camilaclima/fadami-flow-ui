@@ -110,6 +110,8 @@ export default function RegistroPage() {
   const [newUrg, setNewUrg] = useState<ImpedimentUrgency>("medium");
   const [priorRes, setPriorRes] = useState<Record<string, PriorResolution>>({});
 
+  const skipAutoFill = useRef(false);
+
   const existing = useMemo(() => entries.find((e) => e.entry_date === date), [entries, date]);
 
   // Impedimentos da entry sendo editada (já persistidos)
