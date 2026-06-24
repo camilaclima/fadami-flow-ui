@@ -6,15 +6,43 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ClipboardEdit, AlertTriangle, CheckCircle2, Calendar, Plus, Users } from "lucide-react";
+import {
+  ClipboardEdit, AlertTriangle, CheckCircle2, Calendar, Plus, Users,
+  CalendarClock, TrendingUp, AlertOctagon,
+} from "lucide-react";
 import { useDevDailyEntriesByUser, useUpsertDevDailyEntry } from "@/hooks/useDevDailyEntries";
 import { useDailySim } from "@/contexts/DailySimContext";
 import { AccessDeniedCard } from "@/components/dailys/AccessDeniedCard";
-import { format, parseISO, addDays, subDays } from "date-fns";
+import { format, parseISO, addDays, subDays, startOfWeek, isWeekend, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+
+function isWorkday(d: Date): boolean {
+  const dow = d.getDay();
+  return dow !== 0 && dow !== 6;
+}
+
+function nextWorkday(d: Date): Date {
+  const next = addDays(d, 1);
+  if (isWeekend(next)) {
+    // se sábado, pula para segunda
+    return addDays(next, next.getDay() === 6 ? 2 : 1);
+  }
+  return next;
+}
+
+function workdaysInRange(start: Date, end: Date): Date[] {
+  const days: Date[] = [];
+  let cur = new Date(start);
+  const limit = new Date(end);
+  while (cur <= limit) {
+    if (isWorkday(cur)) days.push(new Date(cur));
+    cur = addDays(cur, 1);
+  }
+  return days;
+}
 
 function toISO(d: Date): string {
   return format(d, "yyyy-MM-dd");
@@ -79,6 +107,39 @@ export default function RegistroPage() {
   const didEmpty = !didYesterday.trim();
   const willEmpty = !willDoToday.trim();
 
+  /* ---------- KPIs ---------- */
+  const kpis = useMemo(() => {
+    const today = new Date();
+    const tomorrow = nextWorkday(today);
+    const tomorrowISO = toISO(tomorrow);
+    const tomorrowRegistered = entries.some((e) => e.entry_date === tomorrowISO);
+
+    // Assiduidade: semana atual (segunda → sexta)
+    const monday = startOfWeek(today, { weekStartsOn: 1 });
+    const friday = addDays(monday, 4);
+    const weekWorkdays = workdaysInRange(monday, friday);
+    const registeredWeekDays = weekWorkdays.filter((wd) =>
+      entries.some((e) => e.entry_date === toISO(wd))
+    ).length;
+    const attendanceRate = weekWorkdays.length > 0
+      ? Math.round((registeredWeekDays / weekWorkdays.length) * 100)
+      : 0;
+
+    // Impedimentos na semana atual (segunda → hoje)
+    const weekUntilToday = workdaysInRange(monday, today);
+    const impedimentsCount = entries.filter((e) => {
+      if (!e.impediments?.trim()) return false;
+      const ed = parseISO(e.entry_date);
+      return weekUntilToday.some((wd) => isSameDay(ed, wd));
+    }).length;
+
+    return {
+      tomorrowRegistered,
+      attendanceRate,
+      impedimentsCount,
+    };
+  }, [entries]);
+
   const submit = async () => {
     setTouched({ did: true, will: true });
     if (didEmpty || willEmpty) {
@@ -119,6 +180,50 @@ export default function RegistroPage() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
+        {/* Status de Amanhã */}
+        <Card className="rounded-2xl">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${kpis.tomorrowRegistered ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"}`}>
+              <CalendarClock className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground mb-0.5">Status de Amanhã</p>
+              <Badge variant={kpis.tomorrowRegistered ? "default" : "destructive"} className="text-xs">
+                {kpis.tomorrowRegistered ? "Concluído" : "Pendente"}
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Assiduidade Pessoal */}
+        <Card className="rounded-2xl">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-primary/10 text-primary">
+              <TrendingUp className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground mb-0.5">Sua Assiduidade</p>
+              <p className="text-lg font-semibold leading-tight">{kpis.attendanceRate}%</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Impedimentos */}
+        <Card className="rounded-2xl">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${kpis.impedimentsCount > 0 ? "bg-orange-500/10 text-orange-500" : "bg-muted text-muted-foreground"}`}>
+              <AlertOctagon className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground mb-0.5">Impedimentos Ativos</p>
+              <p className="text-lg font-semibold leading-tight">{kpis.impedimentsCount} Impedimento{kpis.impedimentsCount !== 1 ? "s" : ""}</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="mb-5 flex justify-end">
