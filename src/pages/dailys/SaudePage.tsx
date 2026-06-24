@@ -86,6 +86,10 @@ export default function SaudePage() {
     });
   }, [last7, entries]);
 
+  if (sim.role === "dev") {
+    return <AccessDeniedCard message="Métricas de saúde são restritas a GPs e Diretores." />;
+  }
+
   return (
     <div className="p-4 md:p-6 w-full max-w-[1400px] mx-auto">
       <div className="mb-6">
