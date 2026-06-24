@@ -1,4 +1,4 @@
-import { LayoutDashboard, ListTodo, Package, Users, Settings, ChevronLeft, ChevronDown, Briefcase, Shield, UserCog, ClipboardList, ShieldCheck, UsersRound, Zap, CalendarCheck, Users2, KeyRound, SlidersHorizontal, FolderKanban } from "lucide-react";
+import { LayoutDashboard, ListTodo, Package, Users, Settings, ChevronLeft, ChevronDown, Briefcase, Shield, UserCog, ClipboardList, ShieldCheck, UsersRound, Zap, CalendarCheck, Users2, KeyRound, SlidersHorizontal, FolderKanban, MessageSquare, ClipboardEdit, Sparkles, History, Activity } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { FadamiFlowLogo } from "@/components/FadamiFlowLogo";
 import menuIcon from "@/assets/menu-icon.png";
@@ -44,6 +44,16 @@ const NAV_GROUPS: NavGroup[] = [
     icon: FolderKanban,
     items: [
       { title: "Controle e Gestão", url: "/controle-gestao", icon: FolderKanban, permission: "__always__" },
+    ],
+  },
+  {
+    label: "Dailys",
+    icon: MessageSquare,
+    items: [
+      { title: "Minha Daily", url: "/dailys/registro", icon: ClipboardEdit, permission: "__always__" },
+      { title: "Painel do GP", url: "/dailys/painel", icon: Sparkles, permission: "__always__" },
+      { title: "Histórico", url: "/dailys/historico", icon: History, permission: "__always__" },
+      { title: "Saúde & Engajamento", url: "/dailys/saude", icon: Activity, permission: "__always__" },
     ],
   },
   {
