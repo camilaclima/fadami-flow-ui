@@ -31,6 +31,22 @@ export function useMyDevDailyEntries() {
   });
 }
 
+/** Filtra entradas por um user_id específico — usado pelo simulador de Dev. */
+export function useDevDailyEntriesByUser(userId: string | null) {
+  return useQuery({
+    queryKey: ["dev_daily_entries", "by-user", userId ?? "none"],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("dev_daily_entries") as any)
+        .select("*")
+        .eq("user_id", userId!)
+        .order("entry_date", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as DevDailyEntry[];
+    },
+  });
+}
+
 export function useDevDailyEntriesByDate(date: string, squadId?: string | null) {
   return useQuery({
     queryKey: ["dev_daily_entries", "by-date", date, squadId ?? "all"],
