@@ -151,6 +151,46 @@ export default function PainelGPPage() {
     return m;
   }, [profiles]);
 
+  // Universo de impedimentos da squad SEM filtro de data (para a área "Todos os impedimentos").
+  const { data: allUserEntries = [] } = useQuery({
+    queryKey: ["dev_daily_entries", "by-users-all", userIds.sort().join(",")],
+    enabled: userIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("dev_daily_entries") as any)
+        .select("id,user_id,entry_date")
+        .in("user_id", userIds);
+      if (error) throw error;
+      return (data ?? []) as { id: string; user_id: string; entry_date: string }[];
+    },
+  });
+  const allUserEntryIds = useMemo(() => allUserEntries.map((e) => e.id), [allUserEntries]);
+  const { data: squadAllImpediments = [] } = useDevDailyImpedimentsByEntries(allUserEntryIds);
+  const [impFilter, setImpFilter] = useState<"all" | "open" | "resolved">("open");
+  const reporterByEntry = useMemo(() => {
+    const m = new Map<string, string>();
+    const nameByUser = new Map<string, string>();
+    squadProfiles.forEach((sp) => { if (sp.user_id) nameByUser.set(sp.user_id, sp.name); });
+    allUserEntries.forEach((e) => {
+      const p = profileByUser.get(e.user_id);
+      const fromProfile = p ? (`${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || p.email) : null;
+      m.set(e.id, fromProfile || nameByUser.get(e.user_id) || "—");
+    });
+    return m;
+  }, [allUserEntries, profileByUser, squadProfiles]);
+  const filteredSquadImps = useMemo(() => {
+    const list = squadAllImpediments.filter((i) => {
+      if (impFilter === "open") return !i.resolved;
+      if (impFilter === "resolved") return i.resolved;
+      return true;
+    });
+    return [...list].sort((a, b) => {
+      if (a.resolved !== b.resolved) return a.resolved ? 1 : -1;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [squadAllImpediments, impFilter]);
+  const openImpsCount = squadAllImpediments.filter((i) => !i.resolved).length;
+  const resolvedImpsCount = squadAllImpediments.filter((i) => i.resolved).length;
+
   const rows = useMemo(() => {
     return entries.map(e => {
       const p = profileByUser.get(e.user_id);
