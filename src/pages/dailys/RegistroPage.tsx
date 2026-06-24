@@ -332,7 +332,7 @@ export default function RegistroPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 w-full max-w-[1100px] mx-auto">
+    <div className="p-4 md:p-6 w-full">
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Minha Daily — {sim.personName ?? ""}</h1>
         <p className="text-sm text-muted-foreground">Registre seu status diário e acompanhe o histórico.</p>
