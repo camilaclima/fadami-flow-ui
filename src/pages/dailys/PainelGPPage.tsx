@@ -6,11 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sparkles, Play, CheckCircle2, Clock, Users, RefreshCcw } from "lucide-react";
+import { History, Activity } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSquads } from "@/hooks/useSquads";
 import { useDevDailyEntriesByDate } from "@/hooks/useDevDailyEntries";
 import { useGenerateDailyInsights, type DailyInsight } from "@/hooks/useDailyInsights";
 import { useProfiles } from "@/hooks/useProfiles";
 import { IniciarDailyModal } from "@/components/dailys/IniciarDailyModal";
+import HistoricoPage from "./HistoricoPage";
+import SaudePage from "./SaudePage";
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 
@@ -51,12 +55,22 @@ export default function PainelGPPage() {
 
   return (
     <div className="p-4 md:p-6 w-full max-w-[1400px] mx-auto">
-      <div className="mb-6 flex items-end justify-between flex-wrap gap-4">
+      <div className="mb-4 flex items-end justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold">Painel do Analista / GP</h1>
           <p className="text-sm text-muted-foreground">Acompanhe quem preencheu e conduza a daily com insights da IA.</p>
         </div>
-        <div className="flex items-end gap-3">
+      </div>
+
+      <Tabs defaultValue="painel" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="painel" className="gap-2"><Sparkles className="w-4 h-4" /> Painel</TabsTrigger>
+          <TabsTrigger value="historico" className="gap-2"><History className="w-4 h-4" /> Histórico</TabsTrigger>
+          <TabsTrigger value="saude" className="gap-2"><Activity className="w-4 h-4" /> Saúde & Engajamento</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="painel" className="mt-0">
+        <div className="flex items-end gap-3 flex-wrap mb-4 justify-end">
           <div>
             <Label className="mb-1.5">Data</Label>
             <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-[170px]" />
@@ -75,8 +89,6 @@ export default function PainelGPPage() {
             <Play className="w-4 h-4" /> Iniciar Daily
           </Button>
         </div>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
         <Card className="rounded-2xl">
           <CardContent className="pt-5 flex items-center gap-3">
@@ -144,6 +156,16 @@ export default function PainelGPPage() {
           </CardContent>
         </Card>
       </div>
+        </TabsContent>
+
+        <TabsContent value="historico" className="mt-0">
+          <HistoricoPage />
+        </TabsContent>
+
+        <TabsContent value="saude" className="mt-0">
+          <SaudePage />
+        </TabsContent>
+      </Tabs>
 
       <IniciarDailyModal
         open={openModal}
