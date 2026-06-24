@@ -1,12 +1,13 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, AlertTriangle, Camera, VolumeX } from "lucide-react";
-import { useMyDevDailyEntries } from "@/hooks/useDevDailyEntries";
 import { useDailyMeetings, useAllAttendance } from "@/hooks/useDailyMeetings";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, Legend, LineChart, Line } from "recharts";
 import { format, parseISO, subDays } from "date-fns";
+import { useDailySim, isSquadAllowed } from "@/contexts/DailySimContext";
+import { AccessDeniedCard } from "@/components/dailys/AccessDeniedCard";
 
 function useAllEntries() {
   return useQuery({
@@ -20,12 +21,31 @@ function useAllEntries() {
 }
 
 export default function SaudePage() {
-  const { data: entries = [] } = useAllEntries();
-  const { data: meetings = [] } = useDailyMeetings();
-  const { data: attendance = [] } = useAllAttendance();
+  const { current: sim } = useDailySim();
+  const { data: allEntries = [] } = useAllEntries();
+  const { data: allMeetings = [] } = useDailyMeetings();
+  const { data: allAttendance = [] } = useAllAttendance();
+
+  const entries = useMemo(
+    () => allEntries.filter((e: any) => isSquadAllowed(sim, e.squad_id)),
+    [allEntries, sim]
+  );
+  const meetings = useMemo(
+    () => allMeetings.filter((m: any) => isSquadAllowed(sim, m.squad_id)),
+    [allMeetings, sim]
+  );
+  const allowedMeetingIds = useMemo(() => new Set(meetings.map((m: any) => m.id)), [meetings]);
+  const attendance = useMemo(
+    () => allAttendance.filter((a: any) => allowedMeetingIds.has(a.meeting_id)),
+    [allAttendance, allowedMeetingIds]
+  );
 
   const today = new Date();
   const last7 = useMemo(() => Array.from({ length: 7 }, (_, i) => subDays(today, 6 - i)), []);
+
+  if (sim.role === "dev") {
+    return <AccessDeniedCard message="Métricas de saúde são restritas a GPs e Diretores." />;
+  }
 
   const impedimentRate = useMemo(() => {
     const sevenAgo = subDays(today, 7).toISOString().slice(0, 10);
