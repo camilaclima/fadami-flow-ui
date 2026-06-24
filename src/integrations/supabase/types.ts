@@ -446,6 +446,7 @@ export type Database = {
           meeting_id: string
           member_name: string | null
           member_user_id: string | null
+          notes: string | null
           stayed_silent: boolean
           updated_at: string
         }
@@ -457,6 +458,7 @@ export type Database = {
           meeting_id: string
           member_name?: string | null
           member_user_id?: string | null
+          notes?: string | null
           stayed_silent?: boolean
           updated_at?: string
         }
@@ -468,6 +470,7 @@ export type Database = {
           meeting_id?: string
           member_name?: string | null
           member_user_id?: string | null
+          notes?: string | null
           stayed_silent?: boolean
           updated_at?: string
         }
