@@ -1,52 +1,40 @@
-## Painel de Tarefas — Central de Ações do Coordenador
+## Menu "Dailys" — Sistema de Daily Monitorada com IA
 
-Substituir o "Em desenvolvimento" da aba **Painel de Tarefas** por uma central que combina **tarefas geradas por IA** (a partir das dailys + atividades de metas/cronogramas) com **tarefas manuais** criadas pelo coordenador.
+Novo menu pai **Dailys** no sidebar, agrupando 5 telas filhas. A UI atual (Saúde do Projeto em `/daily-status`) permanece intacta — este é um sistema paralelo focado no rito da reunião diária.
 
-### Layout (top → bottom)
+### Telas (rotas)
 
-1. **Cards de Métricas (topo)**
-   - Total de Ações Pendentes
-   - Alertas Críticos (vermelho)
-   - Sugestões de Melhoria (azul)
-   - Botão `[+ Nova Tarefa]` no canto, alinhado aos cards.
+1. `/dailys/registro` — **Área do Dev**: abas "Novo Registro" (3 textareas: ontem / hoje / impedimentos) + "Meu Histórico" (cards por data).
+2. `/dailys/painel` — **Painel do Analista/GP**: lista da squad com badges Preencheu/Pendente, card de Insights da IA (sugestões de perguntas por dev), botão "Iniciar Daily".
+3. **Modal "Iniciar Daily"** (acionado do painel): fluxo sequencial com respostas concatenadas, textarea de observações, drag&drop de transcrição, tabela com checkboxes [Câmera Ligada] e [Não Falou] por membro.
+4. `/dailys/historico` — **Histórico Geral**: tabela/timeline filtrável por data e squad, abre relatório completo.
+5. `/dailys/saude` — **Saúde e Engajamento**: KPIs + gráficos (impedimentos ativos %, assiduidade de preenchimento, câmeras ligadas vs silêncio).
 
-2. **Botão "Gerar análise com IA"** — dispara edge function que lê últimas dailys + atividades atrasadas/sobrecarregadas e popula tarefas tipo `ai_suggestion` (idempotente via hash do conteúdo nas últimas 24h).
+### Backend (Lovable Cloud)
 
-3. **Sub-abas de triagem**
-   - 🚨 **Bloqueios e Gargalos** — tarefas com `category = "blocker"` (travas de daily, impedimentos)
-   - 📅 **Riscos de Cronograma & Dependências** — `category = "schedule_risk"` (sobrecarga, atraso de marco, dependência travada)
-   - Cada aba mostra cards com: tag de Projeto, tag de Sprint, badge de urgência (crítico/alto/médio), timestamp relativo ("Gerado há 2h após a Daily"), responsável sugerido.
+Novas tabelas:
+- `dev_daily_entries` — registro individual do dev: `user_id`, `squad_id`, `entry_date`, `did_yesterday`, `will_do_today`, `impediments`, timestamps.
+- `daily_meetings` — reunião conduzida pelo GP: `squad_id`, `meeting_date`, `conducted_by`, `observations`, `transcript_url`, timestamps.
+- `daily_meeting_attendance` — 1 linha por membro presente: `meeting_id`, `member_user_id`, `camera_on` bool, `stayed_silent` bool, `dev_entry_id` (FK opcional).
 
-4. **Card de tarefa** — exibe título, descrição, contexto, e botões:
-   - **Bloqueios**: `[💬 Gerar Mensagem de Cobrança]` (abre popover com texto pronto gerado pela IA, botão copiar) + `[Marcar como Resolvido]`.
-   - **Riscos**: `[🔄 Sugerir Realocação]` (popover lista membros do time com menor carga atual baseada em sprint_backlog_items) + `[Adiar Prazo do Marco]` (abre date picker e atualiza `deadline_date` da atividade vinculada).
-   - **Manuais**: `[Editar]` + `[Marcar como Resolvido]`.
-   - Ao resolver: animação `animate-fade-out` e contadores atualizam.
+RLS: authenticated CRUD; GRANTs explícitos. Storage: reusar bucket `attachments` (pasta `daily-transcripts/`).
 
-5. **Modal "Nova Tarefa"** — campos: nome, projeto (select de productIds autorizados), sprint (select filtrado pelo projeto), prazo (date), descrição, categoria (blocker/schedule_risk/custom), urgência.
+Edge function `generate-daily-insights`: lê os `dev_daily_entries` da squad/data, chama Lovable AI (`google/gemini-2.5-flash`) e devolve `[{ dev_name, suggested_questions: string[] }]`.
 
-### Banco
+### Frontend
 
-Nova tabela `coordinator_tasks`:
-- `id`, `title`, `description`, `category` (blocker/schedule_risk/custom), `urgency` (critical/high/medium/low), `source` (ai/manual), `status` (pending/resolved), `product_id`, `sprint_id`, `activity_id`, `daily_status_id`, `responsible_member_id`, `deadline_date`, `context_payload` jsonb (snapshot da daily/atividade que gerou), `ai_message` text (mensagem de cobrança), `dedup_hash` text, `created_at`, `updated_at`, `created_by`, `resolved_at`, `resolved_by`.
-- Padrão: RLS authenticated CRUD, GRANTs explícitos.
+- `src/components/layout/AppSidebar.tsx`: novo grupo **Dailys** (ícone `MessageSquare`) com 5 itens filhos. Permissão `__always__` por ora.
+- `src/App.tsx`: 5 rotas novas protegidas pelo `AppLayout`.
+- Páginas: `src/pages/dailys/RegistroPage.tsx`, `PainelGPPage.tsx`, `HistoricoPage.tsx`, `SaudePage.tsx`.
+- Componentes: `src/components/dailys/IniciarDailyModal.tsx`, `DevEntryForm.tsx`, `DevHistoryList.tsx`, `SquadStatusList.tsx`, `AiInsightsCard.tsx`, `AttendanceTable.tsx`.
+- Hooks: `src/hooks/useDevDailyEntries.ts`, `useDailyMeetings.ts`, `useDailyInsights.ts`.
 
-### Edge function `generate-coordinator-tasks`
-- Lê últimas dailys (7 dias) com `blocker_level >= 3` e/ou bullets de impedimento, lê `project_backlog_items` atrasados/sobrecarregados, filtra por productIds do usuário.
-- Chama Lovable AI (`google/gemini-2.5-flash`) com tool-calling para retornar `[{title, description, category, urgency, product_id, sprint_id, activity_id, daily_status_id, ai_message}]`.
-- Faz upsert por `dedup_hash` (sha do título+contexto) para não duplicar.
+### Identidade visual
 
-### Frontend (arquivos novos)
-- `src/pages/PainelTarefasPage.tsx` — wrapper com métricas + sub-abas.
-- `src/pages/painel/BloqueiosTab.tsx`, `RiscosTab.tsx` — listas filtradas.
-- `src/components/painel/TaskCard.tsx` — card universal com ações.
-- `src/components/painel/CobrancaPopover.tsx` — mostra `ai_message`, botão copiar.
-- `src/components/painel/RealocacaoPopover.tsx` — busca membros com menor carga.
-- `src/components/painel/NewTaskModal.tsx` — criar/editar manual.
-- `src/hooks/useCoordinatorTasks.ts` — CRUD + invocar edge function.
-- Atualizar `ControleGestaoPage.tsx` para usar `<PainelTarefasPage />` em `TabsContent value="tasks"`.
+Reuso total dos tokens existentes (cards, badges, tabs, drawer), accent âmbar `#F97316`, rounded 2xl, neumorfismo/glassmorfismo. Recharts para a tela de saúde, mesmo padrão da `DashboardGeralPage`.
 
 ### Fora de escopo
-- Envio real para Slack/Teams (apenas copy-to-clipboard).
-- Auto-realocação efetiva (apenas sugestão; clicar confirma e atualiza `responsible_ids` da atividade).
-- Notificações push / e-mail.
+
+- Geração automática de transcrição (apenas upload).
+- Notificações de cobrança automáticas.
+- Integração com Slack/Teams.

@@ -437,6 +437,93 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_meeting_attendance: {
+        Row: {
+          camera_on: boolean
+          created_at: string
+          dev_entry_id: string | null
+          id: string
+          meeting_id: string
+          member_name: string | null
+          member_user_id: string | null
+          stayed_silent: boolean
+          updated_at: string
+        }
+        Insert: {
+          camera_on?: boolean
+          created_at?: string
+          dev_entry_id?: string | null
+          id?: string
+          meeting_id: string
+          member_name?: string | null
+          member_user_id?: string | null
+          stayed_silent?: boolean
+          updated_at?: string
+        }
+        Update: {
+          camera_on?: boolean
+          created_at?: string
+          dev_entry_id?: string | null
+          id?: string
+          meeting_id?: string
+          member_name?: string | null
+          member_user_id?: string | null
+          stayed_silent?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_meeting_attendance_dev_entry_id_fkey"
+            columns: ["dev_entry_id"]
+            isOneToOne: false
+            referencedRelation: "dev_daily_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_meeting_attendance_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "daily_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_meetings: {
+        Row: {
+          conducted_by: string | null
+          created_at: string
+          id: string
+          meeting_date: string
+          observations: string | null
+          squad_id: string | null
+          transcript_url: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          conducted_by?: string | null
+          created_at?: string
+          id?: string
+          meeting_date?: string
+          observations?: string | null
+          squad_id?: string | null
+          transcript_url?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          conducted_by?: string | null
+          created_at?: string
+          id?: string
+          meeting_date?: string
+          observations?: string | null
+          squad_id?: string | null
+          transcript_url?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       daily_status: {
         Row: {
           ai_insights: Json | null
@@ -479,6 +566,45 @@ export type Database = {
           status_date?: string
           summary?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      dev_daily_entries: {
+        Row: {
+          created_at: string
+          did_yesterday: string | null
+          entry_date: string
+          id: string
+          impediments: string | null
+          squad_id: string | null
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+          will_do_today: string | null
+        }
+        Insert: {
+          created_at?: string
+          did_yesterday?: string | null
+          entry_date?: string
+          id?: string
+          impediments?: string | null
+          squad_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+          will_do_today?: string | null
+        }
+        Update: {
+          created_at?: string
+          did_yesterday?: string | null
+          entry_date?: string
+          id?: string
+          impediments?: string | null
+          squad_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+          will_do_today?: string | null
         }
         Relationships: []
       }
