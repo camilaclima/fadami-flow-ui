@@ -43,10 +43,6 @@ export default function SaudePage() {
   const today = new Date();
   const last7 = useMemo(() => Array.from({ length: 7 }, (_, i) => subDays(today, 6 - i)), []);
 
-  if (sim.role === "dev") {
-    return <AccessDeniedCard message="Métricas de saúde são restritas a GPs e Diretores." />;
-  }
-
   const impedimentRate = useMemo(() => {
     const sevenAgo = subDays(today, 7).toISOString().slice(0, 10);
     const recent = entries.filter(e => e.entry_date >= sevenAgo);
