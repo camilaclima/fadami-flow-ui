@@ -1,8 +1,11 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDailySim } from "@/contexts/DailySimContext";
 
 /**
  * Decide a página inicial conforme as permissões do usuário.
+ * - GP (grupo líderes) → Painel do GP (/dailys/painel)
+ * - Dev (grupo desenvolvedor) → Minha Daily (/dailys/registro)
  * - Tem "dashboard" → cockpit executivo (/cockpit)
  * - Senão tem "daily" → Saúde do Projeto (/daily-status)
  * - Senão cai no primeiro módulo permitido conhecido
@@ -10,14 +13,19 @@ import { useAuth } from "@/contexts/AuthContext";
  */
 export default function HomeRedirect() {
   const { permissions, loading } = useAuth();
+  const { current: sim, loading: simLoading } = useDailySim();
 
-  if (loading) {
+  if (loading || simLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
+
+  // Redirecionamento preferencial por papel no módulo Daily
+  if (sim.role === "gp") return <Navigate to="/dailys/painel" replace />;
+  if (sim.role === "dev") return <Navigate to="/dailys/registro" replace />;
 
   const has = (p: string) => permissions.includes(p);
 
