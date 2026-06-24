@@ -22,6 +22,11 @@ import { useActiveProducts } from "@/hooks/useProducts";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useSaveSquad, type Squad } from "@/hooks/useSquads";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAccessGroups } from "@/hooks/useAccessGroups";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+
+const LEADER_PERMISSION = "painel_gp";
 
 interface Props {
   open: boolean;
@@ -33,6 +38,15 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
   const { data: teamMembers = [] } = useTeamMembers();
   const { data: products = [] } = useActiveProducts();
   const { data: profiles = [] } = useProfiles();
+  const { data: accessGroups = [] } = useAccessGroups();
+  const { data: profileGroups = [] } = useQuery({
+    queryKey: ["profile_groups", "all"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("profile_groups").select("profile_id,group_id");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
   const save = useSaveSquad();
   const addMember = useAddTeamMember();
   const { user } = useAuth();
@@ -127,6 +141,19 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
     }
   };
 
+  const leaderGroupIds = new Set(
+    accessGroups
+      .filter((g) => (g.permissions ?? []).includes(LEADER_PERMISSION as any))
+      .map((g) => g.id),
+  );
+  const leaderProfileIds = new Set<string>([
+    ...profiles.filter((p) => p.group_id && leaderGroupIds.has(p.group_id)).map((p) => p.id),
+    ...(profileGroups as any[])
+      .filter((pg) => leaderGroupIds.has(pg.group_id))
+      .map((pg) => pg.profile_id),
+  ]);
+  const leaderCandidates = profiles.filter((p) => p.active && leaderProfileIds.has(p.id));
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -149,13 +176,16 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Sem líder definido</SelectItem>
-                  {profiles
-                    .filter((p) => p.active)
-                    .map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.first_name} {p.last_name}
-                      </SelectItem>
-                    ))}
+                  {leaderCandidates.length === 0 && (
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                      Nenhum usuário no grupo de líderes
+                    </div>
+                  )}
+                  {leaderCandidates.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.first_name} {p.last_name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
