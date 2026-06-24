@@ -8,9 +8,17 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ClipboardEdit, AlertTriangle, CheckCircle2, Calendar, Plus, Users,
-  CalendarClock, TrendingUp, AlertOctagon,
+  CalendarClock, TrendingUp, AlertOctagon, Trash2, CircleCheck, CircleDot,
 } from "lucide-react";
 import { useDevDailyEntriesByUser, useUpsertDevDailyEntry } from "@/hooks/useDevDailyEntries";
+import {
+  useDevDailyImpedimentsByEntries,
+  useImpedimentMutations,
+  URGENCY_LABELS,
+  URGENCY_STYLES,
+  type ImpedimentUrgency,
+  type DevDailyImpediment,
+} from "@/hooks/useDevDailyImpediments";
 import { useDailySim } from "@/contexts/DailySimContext";
 import { AccessDeniedCard } from "@/components/dailys/AccessDeniedCard";
 import { format, parseISO, addDays, subDays, startOfWeek, isWeekend, isSameDay } from "date-fns";
@@ -18,6 +26,9 @@ import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+
+type DraftImpediment = { id: string; description: string; urgency: ImpedimentUrgency };
+type PriorResolution = { resolved: boolean | null; note: string };
 
 function isWorkday(d: Date): boolean {
   const dow = d.getDay();
