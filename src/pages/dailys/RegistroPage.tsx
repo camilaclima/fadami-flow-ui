@@ -337,7 +337,9 @@ export default function RegistroPage() {
             <CardContent className="py-10 text-center text-muted-foreground">Nenhum registro ainda.</CardContent>
           </Card>
         )}
-        {entries.map((e) => (
+        {entries.map((e) => {
+          const imps = allImpediments.filter((i) => i.entry_id === e.id);
+          return (
           <Card key={e.id} className="rounded-2xl">
             <CardHeader>
               <CardTitle className="text-base flex items-center justify-between">
@@ -348,10 +350,40 @@ export default function RegistroPage() {
             <CardContent className="space-y-2 text-sm">
               <div><span className="font-medium">Ontem:</span> <span className="text-muted-foreground whitespace-pre-wrap">{e.did_yesterday || "—"}</span></div>
               <div><span className="font-medium">Hoje:</span> <span className="text-muted-foreground whitespace-pre-wrap">{e.will_do_today || "—"}</span></div>
-              <div><span className="font-medium text-orange-500">Impedimentos:</span> <span className="text-muted-foreground whitespace-pre-wrap">{e.impediments || "—"}</span></div>
+              <div className="space-y-1.5">
+                <span className="font-medium text-orange-500">Impedimentos:</span>
+                {imps.length === 0 && !e.impediments?.trim() && (
+                  <span className="text-muted-foreground"> —</span>
+                )}
+                {e.impediments?.trim() && imps.length === 0 && (
+                  <span className="text-muted-foreground whitespace-pre-wrap"> {e.impediments}</span>
+                )}
+                {imps.length > 0 && (
+                  <div className="space-y-1.5 mt-1">
+                    {imps.map((imp) => (
+                      <div key={imp.id} className="flex items-start gap-2 rounded-lg border bg-muted/30 p-2">
+                        <Badge variant="outline" className={`text-[10px] mt-0.5 ${URGENCY_STYLES[imp.urgency]}`}>
+                          {URGENCY_LABELS[imp.urgency]}
+                        </Badge>
+                        <p className="text-sm flex-1 whitespace-pre-wrap break-words text-foreground">{imp.description}</p>
+                        {imp.resolved ? (
+                          <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+                            Sanado
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30">
+                            Em aberto
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
