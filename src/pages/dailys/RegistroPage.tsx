@@ -6,15 +6,43 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ClipboardEdit, AlertTriangle, CheckCircle2, Calendar, Plus, Users } from "lucide-react";
+import {
+  ClipboardEdit, AlertTriangle, CheckCircle2, Calendar, Plus, Users,
+  CalendarClock, TrendingUp, AlertOctagon,
+} from "lucide-react";
 import { useDevDailyEntriesByUser, useUpsertDevDailyEntry } from "@/hooks/useDevDailyEntries";
 import { useDailySim } from "@/contexts/DailySimContext";
 import { AccessDeniedCard } from "@/components/dailys/AccessDeniedCard";
-import { format, parseISO, addDays, subDays } from "date-fns";
+import { format, parseISO, addDays, subDays, startOfWeek, isWeekend, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+
+function isWorkday(d: Date): boolean {
+  const dow = d.getDay();
+  return dow !== 0 && dow !== 6;
+}
+
+function nextWorkday(d: Date): Date {
+  const next = addDays(d, 1);
+  if (isWeekend(next)) {
+    // se sábado, pula para segunda
+    return addDays(next, next.getDay() === 6 ? 2 : 1);
+  }
+  return next;
+}
+
+function workdaysInRange(start: Date, end: Date): Date[] {
+  const days: Date[] = [];
+  let cur = new Date(start);
+  const limit = new Date(end);
+  while (cur <= limit) {
+    if (isWorkday(cur)) days.push(new Date(cur));
+    cur = addDays(cur, 1);
+  }
+  return days;
+}
 
 function toISO(d: Date): string {
   return format(d, "yyyy-MM-dd");
