@@ -4,6 +4,7 @@ import { FadamiFlowLogo } from "@/components/FadamiFlowLogo";
 import { Outlet, useNavigate } from "react-router-dom";
 import { Bell, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { DailySimProvider } from "@/contexts/DailySimContext";
 
 export function AppLayout() {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ export function AppLayout() {
   };
 
   return (
+    <DailySimProvider>
     <div className="min-h-screen bg-background">
       <AppSidebar />
       <div className="ml-16">
@@ -46,5 +48,6 @@ export function AppLayout() {
         </main>
       </div>
     </div>
+    </DailySimProvider>
   );
 }
