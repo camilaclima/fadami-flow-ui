@@ -401,12 +401,157 @@ export default function RegistroPage() {
               {touched.will && willEmpty && <p className="text-xs text-orange-500 mt-1">Campo obrigatório.</p>}
             </div>
 
-            <div>
-              <Label className="mb-1.5 flex items-center gap-1.5">
+            {/* Resolução de impedimentos anteriores em aberto */}
+            {priorOpen.length > 0 && (
+              <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-3 space-y-3">
+                <Label className="flex items-center gap-1.5 text-sm">
+                  <AlertOctagon className="w-4 h-4 text-orange-500" />
+                  Impedimentos anteriores em aberto
+                  <span className="text-xs text-muted-foreground font-normal">
+                    (sinalize cada um antes de salvar)
+                  </span>
+                </Label>
+                {priorOpen.map((p) => {
+                  const r = priorRes[p.id] ?? { resolved: null, note: "" };
+                  const entry = entries.find((e) => e.id === p.entry_id);
+                  return (
+                    <div key={p.id} className="rounded-lg border bg-background p-3 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES[p.urgency]}`}>
+                              {URGENCY_LABELS[p.urgency]}
+                            </Badge>
+                            {entry && (
+                              <span className="text-[11px] text-muted-foreground">
+                                {format(parseISO(entry.entry_date), "dd/MM", { locale: ptBR })}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm whitespace-pre-wrap break-words">{p.description}</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={r.resolved === true ? "default" : "outline"}
+                          className="rounded-lg gap-1.5 h-8"
+                          onClick={() => setPriorRes((prev) => ({ ...prev, [p.id]: { ...r, resolved: true } }))}
+                        >
+                          <CircleCheck className="w-3.5 h-3.5" /> Sanado
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={r.resolved === false ? "destructive" : "outline"}
+                          className="rounded-lg gap-1.5 h-8"
+                          onClick={() => setPriorRes((prev) => ({ ...prev, [p.id]: { ...r, resolved: false } }))}
+                        >
+                          <CircleDot className="w-3.5 h-3.5" /> Ainda em aberto
+                        </Button>
+                      </div>
+                      <Textarea
+                        rows={2}
+                        placeholder="Observação (opcional)..."
+                        value={r.note}
+                        onChange={(e) => setPriorRes((prev) => ({ ...prev, [p.id]: { ...r, note: e.target.value } }))}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Novos impedimentos */}
+            <div className="space-y-3">
+              <Label className="flex items-center gap-1.5">
                 <AlertTriangle className="w-4 h-4 text-orange-500" />
-                Há algum impedimento? <span className="text-muted-foreground font-normal">(opcional)</span>
+                Impedimentos <span className="text-muted-foreground font-normal text-xs">(opcional)</span>
               </Label>
-              <Textarea rows={3} value={impediments} onChange={(e) => setImpediments(e.target.value)} placeholder="Bloqueios, dependências, dúvidas..." />
+
+              {/* Impedimentos já persistidos nesta entry (somente leitura para edição) */}
+              {existingImps.length > 0 && (
+                <div className="space-y-2">
+                  {existingImps.map((imp) => (
+                    <div key={imp.id} className="flex items-start gap-2 rounded-lg border bg-muted/30 p-2.5">
+                      <Badge variant="outline" className={`text-[10px] mt-0.5 ${URGENCY_STYLES[imp.urgency]}`}>
+                        {URGENCY_LABELS[imp.urgency]}
+                      </Badge>
+                      <p className="text-sm flex-1 whitespace-pre-wrap break-words">{imp.description}</p>
+                      {imp.resolved ? (
+                        <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+                          Sanado
+                        </Badge>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => removeImp.mutate(imp.id)}
+                          title="Remover"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Drafts adicionados nesta sessão */}
+              {draftImps.length > 0 && (
+                <div className="space-y-2">
+                  {draftImps.map((d) => (
+                    <div key={d.id} className="flex items-start gap-2 rounded-lg border bg-background p-2.5">
+                      <Badge variant="outline" className={`text-[10px] mt-0.5 ${URGENCY_STYLES[d.urgency]}`}>
+                        {URGENCY_LABELS[d.urgency]}
+                      </Badge>
+                      <p className="text-sm flex-1 whitespace-pre-wrap break-words">{d.description}</p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => setDraftImps((prev) => prev.filter((x) => x.id !== d.id))}
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Form para adicionar novo */}
+              <div className="rounded-lg border border-dashed p-3 space-y-2">
+                <Textarea
+                  rows={2}
+                  value={newDesc}
+                  onChange={(e) => setNewDesc(e.target.value)}
+                  placeholder="Descreva o impedimento..."
+                />
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Select value={newUrg} onValueChange={(v) => setNewUrg(v as ImpedimentUrgency)}>
+                    <SelectTrigger className="sm:w-44">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Urgência: Baixa</SelectItem>
+                      <SelectItem value="medium">Urgência: Média</SelectItem>
+                      <SelectItem value="high">Urgência: Alta</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={addDraftImpediment}
+                    className="rounded-xl gap-1.5"
+                  >
+                    <Plus className="w-4 h-4" /> Adicionar impedimento
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
 
