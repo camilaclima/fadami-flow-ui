@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export type SimRole = "diretor" | "gp" | "dev";
 
@@ -37,79 +38,107 @@ const DailySimContext = createContext<Ctx>({
   loading: false,
 });
 
-const STORAGE_KEY = "daily-sim-user-id";
-
 export function DailySimProvider({ children }: { children: ReactNode }) {
-  const [options, setOptions] = useState<SimOption[]>([DEFAULT]);
-  const [currentId, setCurrentIdState] = useState<string>(
-    () => localStorage.getItem(STORAGE_KEY) ?? "diretor"
-  );
+  const { profile, user } = useAuth();
+  const [current, setCurrent] = useState<SimOption>(DEFAULT);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
+      if (!profile?.id || !user?.id) {
+        if (!cancelled) {
+          setCurrent(DEFAULT);
+          setLoading(false);
+        }
+        return;
+      }
       setLoading(true);
       try {
-        const [squadsRes, profilesRes, smRes, tmRes] = await Promise.all([
-          (supabase.from("squads") as any).select("id,name,leader_profile_id").eq("active", true).order("name"),
-          (supabase.from("profiles") as any).select("id,user_id,first_name,last_name,email"),
-          (supabase.from("squad_members") as any).select("squad_id,team_member_id"),
-          (supabase.from("team_members") as any).select("id,name,email"),
-        ]);
-        const profById = new Map<string, any>((profilesRes.data ?? []).map((p: any) => [p.id, p]));
-        const profByEmail = new Map<string, any>(
-          (profilesRes.data ?? []).map((p: any) => [String(p.email ?? "").toLowerCase(), p])
-        );
-        const tmById = new Map<string, any>((tmRes.data ?? []).map((t: any) => [t.id, t]));
+        // 1) Grupos do usuário autenticado
+        const { data: pGroups } = await (supabase.from("profile_groups") as any)
+          .select("group_id")
+          .eq("profile_id", profile.id);
+        const groupIds = (pGroups ?? []).map((g: any) => g.group_id);
 
-        const opts: SimOption[] = [DEFAULT];
+        let groupNames: string[] = [];
+        if (groupIds.length > 0) {
+          const { data: groups } = await (supabase.from("access_groups") as any)
+            .select("name")
+            .in("id", groupIds);
+          groupNames = (groups ?? []).map((g: any) => String(g.name ?? "").toLowerCase());
+        }
 
-        (squadsRes.data ?? []).forEach((s: any) => {
-          const leader = s.leader_profile_id ? profById.get(s.leader_profile_id) : null;
-          const leaderName = leader
-            ? `${leader.first_name ?? ""} ${leader.last_name ?? ""}`.trim() || leader.email
-            : "sem responsável";
-          opts.push({
-            id: `gp:${s.id}`,
-            label: `GP — ${s.name} (${leaderName})`,
-            role: "gp",
-            squadIds: [s.id],
-            devUserId: leader?.user_id ?? null,
-            personName: leaderName,
-          });
+        const isDev = groupNames.some((n) => n.includes("desenvolvedor"));
+        const isLeader = groupNames.some((n) => n.includes("líder") || n.includes("lider"));
+        const isDiretor = groupNames.some((n) => n.includes("diretor") || n.includes("admin"));
 
-          const memberRows = (smRes.data ?? []).filter((m: any) => m.squad_id === s.id);
-          memberRows.slice(0, 4).forEach((m: any) => {
-            const tm = tmById.get(m.team_member_id);
-            if (!tm) return;
-            const matched = profByEmail.get(String(tm.email ?? "").toLowerCase());
-            opts.push({
-              id: `dev:${s.id}:${tm.id}`,
-              label: `Dev — ${tm.name} (${s.name})`,
-              role: "dev",
-              squadIds: [s.id],
-              devUserId: matched?.user_id ?? null,
-              personName: tm.name,
+        const personName =
+          `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim() || profile.email;
+
+        // 2) Resolver squads relacionadas
+        if (isLeader && !isDiretor) {
+          const { data: squads } = await (supabase.from("squads") as any)
+            .select("id")
+            .eq("leader_profile_id", profile.id)
+            .eq("active", true);
+          const squadIds = (squads ?? []).map((s: any) => s.id);
+          if (!cancelled) {
+            setCurrent({
+              id: `gp:${profile.id}`,
+              label: `GP — ${personName}`,
+              role: "gp",
+              squadIds,
+              devUserId: user.id,
+              personName,
             });
-          });
-        });
-
-        setOptions(opts);
+          }
+        } else if (isDev && !isDiretor && !isLeader) {
+          // Encontra team_member pelo email e squads em que está
+          const { data: tm } = await (supabase.from("team_members") as any)
+            .select("id")
+            .ilike("email", profile.email)
+            .maybeSingle();
+          let squadIds: string[] = [];
+          if (tm?.id) {
+            const { data: sm } = await (supabase.from("squad_members") as any)
+              .select("squad_id")
+              .eq("team_member_id", tm.id);
+            squadIds = (sm ?? []).map((r: any) => r.squad_id);
+          }
+          if (!cancelled) {
+            setCurrent({
+              id: `dev:${profile.id}`,
+              label: `Dev — ${personName}`,
+              role: "dev",
+              squadIds,
+              devUserId: user.id,
+              personName,
+            });
+          }
+        } else {
+          // Diretor / Admin / fallback → visão completa
+          if (!cancelled) {
+            setCurrent({
+              ...DEFAULT,
+              personName,
+              devUserId: user.id,
+            });
+          }
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.id, user?.id, profile?.email, profile?.first_name, profile?.last_name]);
 
-  const setCurrentId = (id: string) => {
-    setCurrentIdState(id);
-    try { localStorage.setItem(STORAGE_KEY, id); } catch {}
+  const options = useMemo(() => [current], [current]);
+  const setCurrentId = (_id: string) => {
+    // Simulação removida — papel é derivado do usuário autenticado.
   };
-
-  const current = useMemo(
-    () => options.find((o) => o.id === currentId) ?? options[0] ?? DEFAULT,
-    [options, currentId]
-  );
 
   return (
     <DailySimContext.Provider value={{ options, current, setCurrentId, loading }}>
