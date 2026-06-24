@@ -30,6 +30,7 @@ import DailysRegistroPage from "./pages/dailys/RegistroPage";
 import DailysPainelGPPage from "./pages/dailys/PainelGPPage";
 import DailysHistoricoPage from "./pages/dailys/HistoricoPage";
 import DailysSaudePage from "./pages/dailys/SaudePage";
+import DailysLayout from "./components/dailys/DailysLayout";
 
 const queryClient = new QueryClient();
 
@@ -57,10 +58,12 @@ const App = () => (
                 <Route path="/squads" element={<SquadsPage />} />
                 <Route path="/team-project-config" element={<TeamProjectConfigPage />} />
                 <Route path="/controle-gestao" element={<ControleGestaoPage />} />
-                <Route path="/dailys/registro" element={<DailysRegistroPage />} />
-                <Route path="/dailys/painel" element={<DailysPainelGPPage />} />
-                <Route path="/dailys/historico" element={<DailysHistoricoPage />} />
-                <Route path="/dailys/saude" element={<DailysSaudePage />} />
+                <Route path="/dailys" element={<DailysLayout />}>
+                  <Route path="registro" element={<DailysRegistroPage />} />
+                  <Route path="painel" element={<DailysPainelGPPage />} />
+                  <Route path="historico" element={<DailysHistoricoPage />} />
+                  <Route path="saude" element={<DailysSaudePage />} />
+                </Route>
                 <Route path="/products" element={<ProductsPage />} />
                 <Route path="/clients" element={<ClientsPage />} />
                 <Route path="/users" element={<UsersPage />} />
