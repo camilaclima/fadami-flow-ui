@@ -371,7 +371,7 @@ export default function RegistroPage() {
       </div>
 
       <div className="mb-5 flex justify-end">
-        <Button onClick={() => { setDate(dateOptions[0]?.value ?? toISO(new Date())); setOpen(true); }} className="rounded-xl gap-2">
+        <Button onClick={handleOpenCreate} className="rounded-xl gap-2">
           <Plus className="w-4 h-4" /> Registrar daily
         </Button>
       </div>
