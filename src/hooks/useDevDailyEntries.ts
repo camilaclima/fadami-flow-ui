@@ -132,9 +132,14 @@ export function useUpsertDevDailyEntry() {
           .update(payload)
           .eq("id", input.id);
         if (error) throw error;
+        return { id: input.id };
       } else {
-        const { error } = await (supabase.from("dev_daily_entries") as any).insert(payload);
+        const { data, error } = await (supabase.from("dev_daily_entries") as any)
+          .insert(payload)
+          .select("id")
+          .single();
         if (error) throw error;
+        return { id: (data as any)?.id as string };
       }
     },
     onSuccess: () => {
