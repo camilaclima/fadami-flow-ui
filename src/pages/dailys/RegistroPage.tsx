@@ -51,6 +51,7 @@ export default function RegistroPage() {
     await upsert.mutateAsync({
       id: existing?.id,
       entry_date: date,
+      squad_id: sim.squadIds?.[0] ?? null,
       did_yesterday: didYesterday,
       will_do_today: willDoToday,
       impediments,
