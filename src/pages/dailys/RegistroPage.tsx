@@ -29,7 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 
 type DraftImpediment = { id: string; description: string; urgency: ImpedimentUrgency };
-type PriorResolution = { resolved: boolean | null; note: string };
+type PriorResolution = { resolved: boolean | null };
 
 function isWorkday(d: Date): boolean {
   const dow = d.getDay();
@@ -106,8 +106,9 @@ export default function RegistroPage() {
   const [willDoToday, setWillDoToday] = useState("");
   const [touched, setTouched] = useState({ did: false, will: false });
   const [draftImps, setDraftImps] = useState<DraftImpediment[]>([]);
+  const [showNewImp, setShowNewImp] = useState(false);
   const [newDesc, setNewDesc] = useState("");
-  const [newUrg, setNewUrg] = useState<ImpedimentUrgency>("medium");
+  const [newUrg, setNewUrg] = useState<ImpedimentUrgency | null>(null);
   const [priorRes, setPriorRes] = useState<Record<string, PriorResolution>>({});
 
   const skipAutoFill = useRef(false);
@@ -139,8 +140,9 @@ export default function RegistroPage() {
     setWillDoToday("");
     setTouched({ did: false, will: false });
     setDraftImps([]);
+    setShowNewImp(false);
     setNewDesc("");
-    setNewUrg("medium");
+    setNewUrg(null);
     const init: Record<string, PriorResolution> = {};
     const openForDate = targetDate;
     const prior = allImpediments
@@ -151,7 +153,7 @@ export default function RegistroPage() {
         return entry.entry_date < openForDate;
       });
     prior.forEach((p) => {
-      init[p.id] = { resolved: null, note: "" };
+      init[p.id] = { resolved: null };
     });
     setPriorRes(init);
     skipAutoFill.current = true;
@@ -164,11 +166,12 @@ export default function RegistroPage() {
     setWillDoToday(entry.will_do_today ?? "");
     setTouched({ did: false, will: false });
     setDraftImps([]);
+    setShowNewImp(false);
     setNewDesc("");
-    setNewUrg("medium");
+    setNewUrg(null);
     const init: Record<string, PriorResolution> = {};
     priorOpen.forEach((p) => {
-      init[p.id] = { resolved: null, note: "" };
+      init[p.id] = { resolved: null };
     });
     setPriorRes(init);
     setOpen(true);
@@ -180,11 +183,12 @@ export default function RegistroPage() {
       setWillDoToday(existing?.will_do_today ?? "");
       setTouched({ did: false, will: false });
       setDraftImps([]);
+      setShowNewImp(false);
       setNewDesc("");
-      setNewUrg("medium");
+      setNewUrg(null);
       const init: Record<string, PriorResolution> = {};
       priorOpen.forEach((p) => {
-        init[p.id] = { resolved: null, note: "" };
+        init[p.id] = { resolved: null };
       });
       setPriorRes(init);
     }
@@ -266,7 +270,7 @@ export default function RegistroPage() {
         return resolveImp.mutateAsync({
           id: p.id,
           resolved: !!r.resolved,
-          resolution_note: r.note?.trim() ? r.note.trim() : null,
+          resolution_note: null,
         });
       })
     );
@@ -293,12 +297,17 @@ export default function RegistroPage() {
       toast.error("Descreva o impedimento.");
       return;
     }
+    if (!newUrg) {
+      toast.error("Selecione a urgência do impedimento.");
+      return;
+    }
     setDraftImps((prev) => [
       ...prev,
       { id: crypto.randomUUID(), description: desc, urgency: newUrg },
     ]);
     setNewDesc("");
-    setNewUrg("medium");
+    setNewUrg(null);
+    setShowNewImp(false);
   };
 
   if (sim.role !== "dev") {
