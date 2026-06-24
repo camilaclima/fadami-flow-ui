@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ClipboardEdit, AlertTriangle, CheckCircle2, Calendar, Plus, Users,
   CalendarClock, TrendingUp, AlertOctagon, Trash2, CircleCheck, CircleDot,
+  Pencil,
 } from "lucide-react";
 import { useDevDailyEntriesByUser, useUpsertDevDailyEntry } from "@/hooks/useDevDailyEntries";
 import {
@@ -109,6 +110,8 @@ export default function RegistroPage() {
   const [newUrg, setNewUrg] = useState<ImpedimentUrgency>("medium");
   const [priorRes, setPriorRes] = useState<Record<string, PriorResolution>>({});
 
+  const skipAutoFill = useRef(false);
+
   const existing = useMemo(() => entries.find((e) => e.entry_date === date), [entries, date]);
 
   // Impedimentos da entry sendo editada (já persistidos)
@@ -128,21 +131,64 @@ export default function RegistroPage() {
       });
   }, [allImpediments, entries, date]);
 
+  const handleOpenCreate = () => {
+    const available = dateOptions.find((o) => !entries.some((e) => e.entry_date === o.value));
+    const targetDate = available?.value ?? dateOptions[0]?.value ?? toISO(new Date());
+    setDate(targetDate);
+    setDidYesterday("");
+    setWillDoToday("");
+    setTouched({ did: false, will: false });
+    setDraftImps([]);
+    setNewDesc("");
+    setNewUrg("medium");
+    const init: Record<string, PriorResolution> = {};
+    const openForDate = targetDate;
+    const prior = allImpediments
+      .filter((imp) => !imp.resolved)
+      .filter((imp) => {
+        const entry = entries.find((e) => e.id === imp.entry_id);
+        if (!entry) return false;
+        return entry.entry_date < openForDate;
+      });
+    prior.forEach((p) => {
+      init[p.id] = { resolved: null, note: "" };
+    });
+    setPriorRes(init);
+    skipAutoFill.current = true;
+    setOpen(true);
+  };
+
+  const handleOpenEdit = (entry: any) => {
+    setDate(entry.entry_date);
+    setDidYesterday(entry.did_yesterday ?? "");
+    setWillDoToday(entry.will_do_today ?? "");
+    setTouched({ did: false, will: false });
+    setDraftImps([]);
+    setNewDesc("");
+    setNewUrg("medium");
+    const init: Record<string, PriorResolution> = {};
+    priorOpen.forEach((p) => {
+      init[p.id] = { resolved: null, note: "" };
+    });
+    setPriorRes(init);
+    setOpen(true);
+  };
+
   useEffect(() => {
-    if (open) {
+    if (open && !skipAutoFill.current) {
       setDidYesterday(existing?.did_yesterday ?? "");
       setWillDoToday(existing?.will_do_today ?? "");
       setTouched({ did: false, will: false });
       setDraftImps([]);
       setNewDesc("");
       setNewUrg("medium");
-      // Inicializa resoluções pendentes
       const init: Record<string, PriorResolution> = {};
       priorOpen.forEach((p) => {
         init[p.id] = { resolved: null, note: "" };
       });
       setPriorRes(init);
     }
+    skipAutoFill.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, existing?.id, date]);
 
@@ -325,7 +371,7 @@ export default function RegistroPage() {
       </div>
 
       <div className="mb-5 flex justify-end">
-        <Button onClick={() => { setDate(dateOptions[0]?.value ?? toISO(new Date())); setOpen(true); }} className="rounded-xl gap-2">
+        <Button onClick={handleOpenCreate} className="rounded-xl gap-2">
           <Plus className="w-4 h-4" /> Registrar daily
         </Button>
       </div>
@@ -344,7 +390,18 @@ export default function RegistroPage() {
             <CardHeader>
               <CardTitle className="text-base flex items-center justify-between">
                 <span>{format(parseISO(e.entry_date), "PPP", { locale: ptBR })}</span>
-                <Badge variant="outline">{format(parseISO(e.created_at), "dd/MM HH:mm")}</Badge>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => handleOpenEdit(e)}
+                    title="Editar daily"
+                  >
+                    <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                  </Button>
+                  <Badge variant="outline">{format(parseISO(e.created_at), "dd/MM HH:mm")}</Badge>
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
