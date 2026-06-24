@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ClipboardEdit, AlertTriangle, CheckCircle2, Calendar, Plus, Users,
   CalendarClock, TrendingUp, AlertOctagon, Trash2, CircleCheck, CircleDot,
-  Pencil,
+  Pencil, Eye,
 } from "lucide-react";
 import { useDevDailyEntriesByUser, useUpsertDevDailyEntry } from "@/hooks/useDevDailyEntries";
 import {
@@ -112,6 +112,15 @@ export default function RegistroPage() {
   const [priorRes, setPriorRes] = useState<Record<string, PriorResolution>>({});
 
   const skipAutoFill = useRef(false);
+  const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
+  const detailEntry = useMemo(
+    () => entries.find((e) => e.id === detailEntryId) ?? null,
+    [entries, detailEntryId]
+  );
+  const detailImps = useMemo<DevDailyImpediment[]>(
+    () => (detailEntry ? allImpediments.filter((i) => i.entry_id === detailEntry.id) : []),
+    [allImpediments, detailEntry]
+  );
 
   const existing = useMemo(() => entries.find((e) => e.entry_date === date), [entries, date]);
 
