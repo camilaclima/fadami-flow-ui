@@ -94,23 +94,54 @@ export default function RegistroPage() {
   const { data: entries = [], isLoading } = useDevDailyEntriesByUser(sim.devUserId);
   const { data: squads = [] } = useMySquadNames(sim.squadIds);
   const upsert = useUpsertDevDailyEntry();
+  const entryIds = useMemo(() => entries.map((e) => e.id), [entries]);
+  const { data: allImpediments = [] } = useDevDailyImpedimentsByEntries(entryIds);
+  const { create: createImp, resolve: resolveImp, remove: removeImp } = useImpedimentMutations();
 
   const dateOptions = useMemo(() => allowedDates(), []);
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<string>(dateOptions[0]?.value ?? toISO(new Date()));
   const [didYesterday, setDidYesterday] = useState("");
   const [willDoToday, setWillDoToday] = useState("");
-  const [impediments, setImpediments] = useState("");
   const [touched, setTouched] = useState({ did: false, will: false });
+  const [draftImps, setDraftImps] = useState<DraftImpediment[]>([]);
+  const [newDesc, setNewDesc] = useState("");
+  const [newUrg, setNewUrg] = useState<ImpedimentUrgency>("medium");
+  const [priorRes, setPriorRes] = useState<Record<string, PriorResolution>>({});
 
   const existing = useMemo(() => entries.find((e) => e.entry_date === date), [entries, date]);
+
+  // Impedimentos da entry sendo editada (já persistidos)
+  const existingImps = useMemo<DevDailyImpediment[]>(
+    () => (existing ? allImpediments.filter((i) => i.entry_id === existing.id) : []),
+    [allImpediments, existing]
+  );
+
+  // Impedimentos em aberto de dailys ANTERIORES à data selecionada
+  const priorOpen = useMemo<DevDailyImpediment[]>(() => {
+    return allImpediments
+      .filter((imp) => !imp.resolved)
+      .filter((imp) => {
+        const entry = entries.find((e) => e.id === imp.entry_id);
+        if (!entry) return false;
+        return entry.entry_date < date;
+      });
+  }, [allImpediments, entries, date]);
 
   useEffect(() => {
     if (open) {
       setDidYesterday(existing?.did_yesterday ?? "");
       setWillDoToday(existing?.will_do_today ?? "");
-      setImpediments(existing?.impediments ?? "");
       setTouched({ did: false, will: false });
+      setDraftImps([]);
+      setNewDesc("");
+      setNewUrg("medium");
+      // Inicializa resoluções pendentes
+      const init: Record<string, PriorResolution> = {};
+      priorOpen.forEach((p) => {
+        init[p.id] = { resolved: null, note: "" };
+      });
+      setPriorRes(init);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, existing?.id, date]);
