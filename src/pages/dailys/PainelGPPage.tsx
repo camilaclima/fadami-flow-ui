@@ -24,6 +24,17 @@ import { useQuery } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
+function daysAgoLabel(iso: string): string {
+  const created = new Date(iso);
+  const now = new Date();
+  const startCreated = new Date(created.getFullYear(), created.getMonth(), created.getDate()).getTime();
+  const startNow = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const days = Math.floor((startNow - startCreated) / 86400000);
+  if (days <= 0) return "Criado hoje";
+  if (days === 1) return "Há 1 dia";
+  return `Há ${days} dias`;
+}
+
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 
 export default function PainelGPPage() {
@@ -115,6 +126,7 @@ export default function PainelGPPage() {
   const allEntryIds = useMemo(() => userEntries.map((e) => e.id), [userEntries]);
   const { data: allImpediments = [] } = useDevDailyImpedimentsByEntries(allEntryIds);
 
+
   const impsByUser = useMemo(() => {
     const entryDateById = new Map(userEntries.map((e) => [e.id, e]));
     const m = new Map<string, typeof allImpediments>();
@@ -138,6 +150,46 @@ export default function PainelGPPage() {
     profiles.forEach((p: any) => m.set(p.user_id, p));
     return m;
   }, [profiles]);
+
+  // Universo de impedimentos da squad SEM filtro de data (para a área "Todos os impedimentos").
+  const { data: allUserEntries = [] } = useQuery({
+    queryKey: ["dev_daily_entries", "by-users-all", userIds.sort().join(",")],
+    enabled: userIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("dev_daily_entries") as any)
+        .select("id,user_id,entry_date")
+        .in("user_id", userIds);
+      if (error) throw error;
+      return (data ?? []) as { id: string; user_id: string; entry_date: string }[];
+    },
+  });
+  const allUserEntryIds = useMemo(() => allUserEntries.map((e) => e.id), [allUserEntries]);
+  const { data: squadAllImpediments = [] } = useDevDailyImpedimentsByEntries(allUserEntryIds);
+  const [impFilter, setImpFilter] = useState<"all" | "open" | "resolved">("open");
+  const reporterByEntry = useMemo(() => {
+    const m = new Map<string, string>();
+    const nameByUser = new Map<string, string>();
+    squadProfiles.forEach((sp) => { if (sp.user_id) nameByUser.set(sp.user_id, sp.name); });
+    allUserEntries.forEach((e) => {
+      const p = profileByUser.get(e.user_id);
+      const fromProfile = p ? (`${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || p.email) : null;
+      m.set(e.id, fromProfile || nameByUser.get(e.user_id) || "—");
+    });
+    return m;
+  }, [allUserEntries, profileByUser, squadProfiles]);
+  const filteredSquadImps = useMemo(() => {
+    const list = squadAllImpediments.filter((i) => {
+      if (impFilter === "open") return !i.resolved;
+      if (impFilter === "resolved") return i.resolved;
+      return true;
+    });
+    return [...list].sort((a, b) => {
+      if (a.resolved !== b.resolved) return a.resolved ? 1 : -1;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [squadAllImpediments, impFilter]);
+  const openImpsCount = squadAllImpediments.filter((i) => !i.resolved).length;
+  const resolvedImpsCount = squadAllImpediments.filter((i) => i.resolved).length;
 
   const rows = useMemo(() => {
     return entries.map(e => {
@@ -291,7 +343,6 @@ export default function PainelGPPage() {
                 <span className="text-sm text-muted-foreground">Resolvidos</span>
               </div>
               <p className="text-sm font-medium text-emerald-600 mt-1.5">{aderencia}% de Aderência ao Envio Prévio</p>
-              <p className="text-xs text-muted-foreground">{filledCount} de {totalMembers} {totalMembers === 1 ? "colaborador preencheu" : "colaboradores preencheram"} a daily</p>
             </div>
           </CardContent>
         </Card>
@@ -393,6 +444,86 @@ export default function PainelGPPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="rounded-2xl mt-4">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
+          <CardTitle className="text-base flex items-center gap-2">
+            <AlertOctagon className="w-4 h-4 text-orange-500" /> Impedimentos da Squad
+            <span className="text-xs font-normal text-muted-foreground ml-1">(todas as datas)</span>
+          </CardTitle>
+          <div className="flex items-center gap-1 rounded-xl bg-muted/40 p-1">
+            <Button
+              size="sm"
+              variant={impFilter === "open" ? "default" : "ghost"}
+              className="rounded-lg h-7 px-3 text-xs"
+              onClick={() => setImpFilter("open")}
+            >
+              Pendentes <span className="ml-1 opacity-70">({openImpsCount})</span>
+            </Button>
+            <Button
+              size="sm"
+              variant={impFilter === "resolved" ? "default" : "ghost"}
+              className="rounded-lg h-7 px-3 text-xs"
+              onClick={() => setImpFilter("resolved")}
+            >
+              Sanados <span className="ml-1 opacity-70">({resolvedImpsCount})</span>
+            </Button>
+            <Button
+              size="sm"
+              variant={impFilter === "all" ? "default" : "ghost"}
+              className="rounded-lg h-7 px-3 text-xs"
+              onClick={() => setImpFilter("all")}
+            >
+              Todos <span className="ml-1 opacity-70">({squadAllImpediments.length})</span>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {filteredSquadImps.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum impedimento encontrado.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {filteredSquadImps.map((imp) => {
+                const reporter = reporterByEntry.get(imp.entry_id) || "—";
+                const dateLabel = imp.resolved && imp.resolved_at
+                  ? `Sanado em ${format(parseISO(imp.resolved_at), "dd/MM", { locale: ptBR })}`
+                  : daysAgoLabel(imp.created_at);
+                return (
+                  <div
+                    key={imp.id}
+                    className={`flex items-start gap-2.5 p-3 rounded-xl border ${
+                      imp.resolved
+                        ? "bg-emerald-500/5 border-emerald-500/20"
+                        : "bg-orange-500/5 border-orange-500/20"
+                    }`}
+                  >
+                    <div className="shrink-0 mt-0.5">
+                      {imp.resolved ? (
+                        <CircleCheck className="w-4 h-4 text-emerald-600" />
+                      ) : (
+                        <AlertTriangle className="w-4 h-4 text-orange-600" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground line-clamp-2 break-words">
+                        {imp.description}
+                      </p>
+                      <div className="mt-1 flex items-center gap-1.5 flex-wrap text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground/80">{reporter}</span>
+                        <span>•</span>
+                        <span>{dateLabel}</span>
+                        <Badge variant="outline" className={`text-[10px] ml-1 ${URGENCY_STYLES[imp.urgency]}`}>
+                          {URGENCY_LABELS[imp.urgency]}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
         </TabsContent>
 
         <TabsContent value="historico" className="mt-0">
