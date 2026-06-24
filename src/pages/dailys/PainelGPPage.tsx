@@ -15,18 +15,37 @@ import { useProfiles } from "@/hooks/useProfiles";
 import { IniciarDailyModal } from "@/components/dailys/IniciarDailyModal";
 import HistoricoPage from "./HistoricoPage";
 import SaudePage from "./SaudePage";
+import { useDailySim } from "@/contexts/DailySimContext";
+import { AccessDeniedCard } from "@/components/dailys/AccessDeniedCard";
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 
 export default function PainelGPPage() {
+  const { current: sim } = useDailySim();
   const [date, setDate] = useState<string>(todayISO());
   const [squadId, setSquadId] = useState<string | null>(null);
   const [openModal, setOpenModal] = useState(false);
   const [insights, setInsights] = useState<DailyInsight[]>([]);
 
-  const { data: squads = [] } = useSquads();
+  const { data: allSquads = [] } = useSquads();
+  const squads = useMemo(() => {
+    if (sim.role === "diretor") return allSquads;
+    const allowed = new Set(sim.squadIds ?? []);
+    return allSquads.filter((s: any) => allowed.has(s.id));
+  }, [allSquads, sim]);
+
+  // GP só pode olhar squads onde é responsável.
+  // Se nenhuma squad selecionada, o GP enxerga a primeira; o Diretor enxerga "todas".
+  const effectiveSquadId = useMemo(() => {
+    if (sim.role === "gp") {
+      if (squadId && (sim.squadIds ?? []).includes(squadId)) return squadId;
+      return squads[0]?.id ?? null;
+    }
+    return squadId;
+  }, [sim, squadId, squads]);
+
   const { data: profiles = [] } = useProfiles();
-  const { data: entries = [], isLoading } = useDevDailyEntriesByDate(date, squadId);
+  const { data: entries = [], isLoading } = useDevDailyEntriesByDate(date, effectiveSquadId);
   const gen = useGenerateDailyInsights();
 
   const profileByUser = useMemo(() => {
@@ -53,12 +72,25 @@ export default function PainelGPPage() {
     setInsights(result);
   };
 
+  if (sim.role === "dev") {
+    return (
+      <AccessDeniedCard message="Desenvolvedores não têm acesso ao Painel do GP. Selecione um perfil de GP ou Diretor no seletor acima." />
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 w-full max-w-[1400px] mx-auto">
       <div className="mb-4 flex items-end justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Painel do Analista / GP</h1>
-          <p className="text-sm text-muted-foreground">Acompanhe quem preencheu e conduza a daily com insights da IA.</p>
+          <h1 className="text-2xl font-bold">
+            Painel do Analista / GP
+            {sim.role === "gp" && sim.personName && <span className="text-base font-normal text-muted-foreground ml-2">— {sim.personName}</span>}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {sim.role === "diretor"
+              ? "Visão consolidada de todas as squads."
+              : "Você só vê as squads onde está cadastrado como responsável."}
+          </p>
         </div>
       </div>
 
@@ -77,10 +109,13 @@ export default function PainelGPPage() {
           </div>
           <div>
             <Label className="mb-1.5">Squad</Label>
-            <Select value={squadId ?? "__all__"} onValueChange={(v) => setSquadId(v === "__all__" ? null : v)}>
+            <Select
+              value={effectiveSquadId ?? "__all__"}
+              onValueChange={(v) => setSquadId(v === "__all__" ? null : v)}
+            >
               <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="__all__">Todas as squads</SelectItem>
+                {sim.role === "diretor" && <SelectItem value="__all__">Todas as squads</SelectItem>}
                 {squads.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -171,7 +206,7 @@ export default function PainelGPPage() {
         open={openModal}
         onOpenChange={setOpenModal}
         date={date}
-        squadId={squadId}
+        squadId={effectiveSquadId}
         entries={rows}
       />
     </div>
