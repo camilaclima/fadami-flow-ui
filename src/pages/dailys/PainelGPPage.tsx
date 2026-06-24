@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Play, CheckCircle2, Clock, Users, RefreshCcw, AlertOctagon, CircleCheck, Eye, Calendar } from "lucide-react";
+import { Sparkles, Play, Users, RefreshCcw, AlertOctagon, CircleCheck, Eye, Calendar, ShieldCheck, AlertTriangle, CircleDashed } from "lucide-react";
 import { History, Activity } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -55,9 +55,51 @@ export default function PainelGPPage() {
   const gen = useGenerateDailyInsights();
   const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
 
+  // Membros da squad selecionada (para mostrar quem ainda não preencheu).
+  const { data: squadProfiles = [] } = useQuery({
+    queryKey: ["squad_profiles", effectiveSquadId ?? "none"],
+    enabled: !!effectiveSquadId,
+    queryFn: async () => {
+      const { data: sm } = await (supabase.from("squad_members") as any)
+        .select("team_member_id")
+        .eq("squad_id", effectiveSquadId);
+      const tmIds = (sm ?? []).map((r: any) => r.team_member_id);
+      if (tmIds.length === 0) return [] as { user_id: string | null; name: string; email: string | null }[];
+      const { data: tms } = await (supabase.from("team_members") as any)
+        .select("id,email,name").in("id", tmIds);
+      const emails = (tms ?? []).map((t: any) => String(t.email ?? "").trim().toLowerCase()).filter(Boolean);
+      const names = (tms ?? []).map((t: any) => String(t.name ?? "").trim().toLowerCase()).filter(Boolean);
+      const { data: profs } = await (supabase.from("profiles") as any)
+        .select("user_id,email,first_name,last_name");
+      const byEmail = new Map<string, any>();
+      const byName = new Map<string, any>();
+      (profs ?? []).forEach((p: any) => {
+        const em = String(p.email ?? "").trim().toLowerCase();
+        const full = `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim().toLowerCase();
+        if (em) byEmail.set(em, p);
+        if (full) byName.set(full, p);
+      });
+      return (tms ?? []).map((t: any) => {
+        const em = String(t.email ?? "").trim().toLowerCase();
+        const nm = String(t.name ?? "").trim().toLowerCase();
+        const p = (em && byEmail.get(em)) || (nm && byName.get(nm)) || null;
+        return {
+          user_id: p?.user_id ?? null,
+          name: t.name as string,
+          email: t.email as string | null,
+        };
+      }) as { user_id: string | null; name: string; email: string | null }[];
+    },
+  });
+
   // Para mostrar impedimentos visíveis no dia D (criados <= D, ainda em aberto
   // ou sanados >= D), precisamos de TODAS as entries dos mesmos usuários até D.
-  const userIds = useMemo(() => Array.from(new Set(entries.map((e) => e.user_id))), [entries]);
+  const userIds = useMemo(() => {
+    const ids = new Set<string>();
+    entries.forEach((e) => ids.add(e.user_id));
+    squadProfiles.forEach((p) => { if (p.user_id) ids.add(p.user_id); });
+    return Array.from(ids);
+  }, [entries, squadProfiles]);
   const { data: userEntries = [] } = useQuery({
     queryKey: ["dev_daily_entries", "by-users-upto", date, userIds.sort().join(",")],
     enabled: userIds.length > 0,
@@ -105,6 +147,72 @@ export default function PainelGPPage() {
       return { ...e, dev_name: name, imps };
     });
   }, [entries, profileByUser, impsByUser]);
+
+  // Lista unificada: todos os membros da squad, marcando quem preencheu.
+  const memberRows = useMemo(() => {
+    if (!effectiveSquadId) {
+      return rows.map((r) => ({
+        key: r.id,
+        name: r.dev_name,
+        filled: true as const,
+        entry: r,
+        imps: r.imps,
+      }));
+    }
+    const entryByUser = new Map(rows.map((r) => [r.user_id, r]));
+    const out: Array<{
+      key: string;
+      name: string;
+      filled: boolean;
+      entry: (typeof rows)[number] | null;
+      imps: typeof allImpediments;
+    }> = [];
+    squadProfiles.forEach((m) => {
+      const r = m.user_id ? entryByUser.get(m.user_id) ?? null : null;
+      const imps = (m.user_id && impsByUser.get(m.user_id)) || [];
+      out.push({
+        key: m.user_id ?? m.email ?? m.name,
+        name: m.name,
+        filled: !!r,
+        entry: r,
+        imps,
+      });
+    });
+    // Garante que entries de devs fora da squad também apareçam (fallback).
+    rows.forEach((r) => {
+      if (!out.find((o) => o.entry?.id === r.id) && !squadProfiles.find((m) => m.user_id === r.user_id)) {
+        out.push({ key: r.id, name: r.dev_name, filled: true, entry: r, imps: r.imps });
+      }
+    });
+    return out.sort((a, b) => Number(b.filled) - Number(a.filled) || a.name.localeCompare(b.name));
+  }, [effectiveSquadId, rows, squadProfiles, impsByUser, allImpediments]);
+
+  // ---------- KPIs ----------
+  const totalMembers = effectiveSquadId ? squadProfiles.length : rows.length;
+  const filledCount = memberRows.filter((m) => m.filled).length;
+  const aderencia = totalMembers > 0 ? Math.round((filledCount / totalMembers) * 100) : 0;
+
+  // Universo de impedimentos da squad (todos relacionados aos membros) — usado
+  // como proxy de "impedimentos da sprint" enquanto não há vínculo com sprint.
+  const totalImps = allImpediments.length;
+  const resolvedImps = allImpediments.filter((i) => i.resolved).length;
+
+  // Devs travados: dev com impedimento em aberto há mais de 48h.
+  const TRAVADO_MS = 48 * 60 * 60 * 1000;
+  const now = Date.now();
+  const stuckUserIds = useMemo(() => {
+    const ids = new Set<string>();
+    const entryById = new Map(userEntries.map((e) => [e.id, e]));
+    allImpediments.forEach((imp) => {
+      if (imp.resolved) return;
+      const created = new Date(imp.created_at).getTime();
+      if (now - created < TRAVADO_MS) return;
+      const origin = entryById.get(imp.entry_id);
+      if (origin) ids.add(origin.user_id);
+    });
+    return ids;
+  }, [allImpediments, userEntries, now]);
+  const stuckCount = stuckUserIds.size;
 
   const detailRow = useMemo(() => rows.find((r) => r.id === detailEntryId) ?? null, [rows, detailEntryId]);
 
@@ -170,23 +278,36 @@ export default function PainelGPPage() {
             <Play className="w-4 h-4" /> Iniciar Daily
           </Button>
         </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-        <Card className="rounded-2xl">
-          <CardContent className="pt-5 flex items-center gap-3">
-            <CheckCircle2 className="w-8 h-8 text-emerald-500" />
-            <div><div className="text-2xl font-bold">{rows.length}</div><div className="text-xs text-muted-foreground">Devs preencheram</div></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <Card className="rounded-2xl overflow-hidden">
+          <CardContent className="p-5 flex items-start gap-4">
+            <div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Status e Impedimentos da Sprint</p>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="text-3xl font-bold leading-none">{resolvedImps}<span className="text-muted-foreground">/{totalImps}</span></span>
+                <span className="text-sm text-muted-foreground">Resolvidos</span>
+              </div>
+              <p className="text-sm font-medium text-emerald-600 mt-1.5">{aderencia}% de Aderência ao Envio Prévio</p>
+              <p className="text-xs text-muted-foreground">{filledCount} de {totalMembers} {totalMembers === 1 ? "colaborador preencheu" : "colaboradores preencheram"} a daily</p>
+            </div>
           </CardContent>
         </Card>
-        <Card className="rounded-2xl">
-          <CardContent className="pt-5 flex items-center gap-3">
-            <Clock className="w-8 h-8 text-orange-500" />
-            <div><div className="text-2xl font-bold">{rows.filter(r => r.imps.length > 0).length}</div><div className="text-xs text-muted-foreground">Com impedimento</div></div>
-          </CardContent>
-        </Card>
-        <Card className="rounded-2xl">
-          <CardContent className="pt-5 flex items-center gap-3">
-            <Users className="w-8 h-8 text-primary" />
-            <div><div className="text-2xl font-bold">{insights.length}</div><div className="text-xs text-muted-foreground">Insights de IA gerados</div></div>
+        <Card className={`rounded-2xl overflow-hidden border-l-4 ${stuckCount > 0 ? "border-l-orange-500" : "border-l-transparent"}`}>
+          <CardContent className="p-5 flex items-start gap-4">
+            <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${stuckCount > 0 ? "bg-orange-500/10 text-orange-600" : "bg-muted text-muted-foreground"}`}>
+              {stuckCount > 0 ? <AlertTriangle className="w-5 h-5" /> : <CircleDashed className="w-5 h-5" />}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Alertas de Alocação</p>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className={`text-3xl font-bold leading-none ${stuckCount > 0 ? "text-orange-600" : ""}`}>{stuckCount}</span>
+                <span className="text-sm text-muted-foreground">{stuckCount === 1 ? "Dev Travado" : "Devs Travados"}</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1.5">Atividades sem evolução há mais de 48h</p>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -198,31 +319,35 @@ export default function PainelGPPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {isLoading && <p className="text-sm text-muted-foreground">Carregando...</p>}
-            {!isLoading && rows.length === 0 && <p className="text-sm text-muted-foreground">Nenhum registro para a data.</p>}
-            {rows.map(r => {
-              const openCount = r.imps.filter(i => !i.resolved).length;
-              const resolvedToday = r.imps.filter(i => i.resolved && i.resolved_at?.slice(0, 10) === date).length;
+            {!isLoading && memberRows.length === 0 && <p className="text-sm text-muted-foreground">Nenhum membro encontrado para esta squad.</p>}
+            {memberRows.map((m) => {
+              const openCount = m.imps.filter((i) => !i.resolved).length;
+              const resolvedToday = m.imps.filter((i) => i.resolved && i.resolved_at?.slice(0, 10) === date).length;
+              const clickable = m.filled && !!m.entry;
               return (
                 <button
-                  key={r.id}
+                  key={m.key}
                   type="button"
-                  onClick={() => setDetailEntryId(r.id)}
-                  className="w-full text-left flex items-center justify-between p-3 rounded-xl bg-surface-hover/40 hover:bg-surface-hover transition-colors"
+                  onClick={() => clickable && setDetailEntryId(m.entry!.id)}
+                  disabled={!clickable}
+                  className={`w-full text-left flex items-center justify-between p-3 rounded-xl transition-colors ${
+                    m.filled
+                      ? "bg-surface-hover/40 hover:bg-surface-hover cursor-pointer"
+                      : "bg-muted/20 border border-dashed border-border/60 cursor-default"
+                  }`}
                 >
                   <div className="min-w-0">
-                    <div className="text-sm font-medium">{r.dev_name}</div>
-                    <div className="text-xs text-muted-foreground line-clamp-1">{r.will_do_today || "Sem plano informado"}</div>
+                    <div className={`text-sm font-medium ${m.filled ? "" : "text-muted-foreground"}`}>{m.name}</div>
+                    <div className="text-xs text-muted-foreground line-clamp-1">
+                      {m.filled
+                        ? (m.entry?.will_do_today || "Sem plano informado")
+                        : "Ainda não preencheu a daily"}
+                    </div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {r.imps.length > 0 && (
-                      <Badge variant="outline" className="border-orange-500/40 text-orange-600 gap-1">
-                        <AlertOctagon className="w-3 h-3" />
-                        {r.imps.length} impediment{r.imps.length !== 1 ? "os" : "o"}
-                      </Badge>
-                    )}
                     {openCount > 0 && (
-                      <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30">
-                        {openCount} em aberto
+                      <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30 gap-1">
+                        <AlertOctagon className="w-2.5 h-2.5" /> {openCount} em aberto
                       </Badge>
                     )}
                     {resolvedToday > 0 && (
@@ -230,8 +355,14 @@ export default function PainelGPPage() {
                         <CircleCheck className="w-2.5 h-2.5" /> {resolvedToday} sanado{resolvedToday !== 1 ? "s" : ""}
                       </Badge>
                     )}
-                    <Badge className="bg-emerald-500/15 text-emerald-600">Preencheu</Badge>
-                    <Eye className="w-3.5 h-3.5 text-muted-foreground" />
+                    {m.filled ? (
+                      <>
+                        <Badge className="bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/15">Preencheu</Badge>
+                        <Eye className="w-3.5 h-3.5 text-muted-foreground" />
+                      </>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] border-border/60 text-muted-foreground">Pendente</Badge>
+                    )}
                   </div>
                 </button>
               );
