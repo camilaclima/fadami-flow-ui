@@ -444,6 +444,86 @@ export default function PainelGPPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="rounded-2xl mt-4">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
+          <CardTitle className="text-base flex items-center gap-2">
+            <AlertOctagon className="w-4 h-4 text-orange-500" /> Impedimentos da Squad
+            <span className="text-xs font-normal text-muted-foreground ml-1">(todas as datas)</span>
+          </CardTitle>
+          <div className="flex items-center gap-1 rounded-xl bg-muted/40 p-1">
+            <Button
+              size="sm"
+              variant={impFilter === "open" ? "default" : "ghost"}
+              className="rounded-lg h-7 px-3 text-xs"
+              onClick={() => setImpFilter("open")}
+            >
+              Pendentes <span className="ml-1 opacity-70">({openImpsCount})</span>
+            </Button>
+            <Button
+              size="sm"
+              variant={impFilter === "resolved" ? "default" : "ghost"}
+              className="rounded-lg h-7 px-3 text-xs"
+              onClick={() => setImpFilter("resolved")}
+            >
+              Sanados <span className="ml-1 opacity-70">({resolvedImpsCount})</span>
+            </Button>
+            <Button
+              size="sm"
+              variant={impFilter === "all" ? "default" : "ghost"}
+              className="rounded-lg h-7 px-3 text-xs"
+              onClick={() => setImpFilter("all")}
+            >
+              Todos <span className="ml-1 opacity-70">({squadAllImpediments.length})</span>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {filteredSquadImps.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum impedimento encontrado.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {filteredSquadImps.map((imp) => {
+                const reporter = reporterByEntry.get(imp.entry_id) || "—";
+                const dateLabel = imp.resolved && imp.resolved_at
+                  ? `Sanado em ${format(parseISO(imp.resolved_at), "dd/MM", { locale: ptBR })}`
+                  : daysAgoLabel(imp.created_at);
+                return (
+                  <div
+                    key={imp.id}
+                    className={`flex items-start gap-2.5 p-3 rounded-xl border ${
+                      imp.resolved
+                        ? "bg-emerald-500/5 border-emerald-500/20"
+                        : "bg-orange-500/5 border-orange-500/20"
+                    }`}
+                  >
+                    <div className="shrink-0 mt-0.5">
+                      {imp.resolved ? (
+                        <CircleCheck className="w-4 h-4 text-emerald-600" />
+                      ) : (
+                        <AlertTriangle className="w-4 h-4 text-orange-600" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground line-clamp-2 break-words">
+                        {imp.description}
+                      </p>
+                      <div className="mt-1 flex items-center gap-1.5 flex-wrap text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground/80">{reporter}</span>
+                        <span>•</span>
+                        <span>{dateLabel}</span>
+                        <Badge variant="outline" className={`text-[10px] ml-1 ${URGENCY_STYLES[imp.urgency]}`}>
+                          {URGENCY_LABELS[imp.urgency]}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
         </TabsContent>
 
         <TabsContent value="historico" className="mt-0">
