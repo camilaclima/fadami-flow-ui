@@ -114,7 +114,7 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto p-0">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b">
+        <DialogHeader className="px-6 pt-6 pb-4 pr-12 border-b">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-11 h-11 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center shrink-0">
