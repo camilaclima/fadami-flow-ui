@@ -169,18 +169,24 @@ export default function RegistroPage() {
 
     // Impedimentos na semana atual (segunda → hoje)
     const weekUntilToday = workdaysInRange(monday, today);
-    const impedimentsCount = entries.filter((e) => {
-      if (!e.impediments?.trim()) return false;
-      const ed = parseISO(e.entry_date);
-      return weekUntilToday.some((wd) => isSameDay(ed, wd));
-    }).length;
+    const weekEntryIds = new Set(
+      entries
+        .filter((e) => {
+          const ed = parseISO(e.entry_date);
+          return weekUntilToday.some((wd) => isSameDay(ed, wd));
+        })
+        .map((e) => e.id)
+    );
+    const impedimentsCount = allImpediments.filter(
+      (imp) => !imp.resolved && weekEntryIds.has(imp.entry_id)
+    ).length;
 
     return {
       tomorrowRegistered,
       attendanceRate,
       impedimentsCount,
     };
-  }, [entries]);
+  }, [entries, allImpediments]);
 
   const submit = async () => {
     setTouched({ did: true, will: true });
@@ -188,15 +194,65 @@ export default function RegistroPage() {
       toast.error("Preencha os campos obrigatórios: 'O que fiz ontem?' e 'O que farei hoje?'.");
       return;
     }
-    await upsert.mutateAsync({
+    // Valida resolução dos impedimentos anteriores em aberto
+    const pending = priorOpen.filter((p) => priorRes[p.id]?.resolved === null || priorRes[p.id]?.resolved === undefined);
+    if (pending.length > 0) {
+      toast.error("Indique se cada impedimento anterior em aberto foi sanado ou não.");
+      return;
+    }
+
+    const result = await upsert.mutateAsync({
       id: existing?.id,
       entry_date: date,
       squad_id: sim.squadIds?.[0] ?? null,
       did_yesterday: didYesterday,
       will_do_today: willDoToday,
-      impediments,
+      impediments: "",
     });
+
+    const entryId = result?.id;
+
+    // Persiste resoluções de impedimentos anteriores
+    await Promise.all(
+      priorOpen.map((p) => {
+        const r = priorRes[p.id];
+        if (!r) return Promise.resolve();
+        return resolveImp.mutateAsync({
+          id: p.id,
+          resolved: !!r.resolved,
+          resolution_note: r.note?.trim() ? r.note.trim() : null,
+        });
+      })
+    );
+
+    // Persiste novos impedimentos adicionados nesta daily
+    if (entryId && draftImps.length > 0) {
+      await Promise.all(
+        draftImps.map((d) =>
+          createImp.mutateAsync({
+            entry_id: entryId,
+            description: d.description,
+            urgency: d.urgency,
+          })
+        )
+      );
+    }
+
     setOpen(false);
+  };
+
+  const addDraftImpediment = () => {
+    const desc = newDesc.trim();
+    if (!desc) {
+      toast.error("Descreva o impedimento.");
+      return;
+    }
+    setDraftImps((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), description: desc, urgency: newUrg },
+    ]);
+    setNewDesc("");
+    setNewUrg("medium");
   };
 
   if (sim.role !== "dev") {
