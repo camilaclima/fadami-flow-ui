@@ -390,7 +390,18 @@ export default function RegistroPage() {
             <CardHeader>
               <CardTitle className="text-base flex items-center justify-between">
                 <span>{format(parseISO(e.entry_date), "PPP", { locale: ptBR })}</span>
-                <Badge variant="outline">{format(parseISO(e.created_at), "dd/MM HH:mm")}</Badge>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => handleOpenEdit(e)}
+                    title="Editar daily"
+                  >
+                    <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                  </Button>
+                  <Badge variant="outline">{format(parseISO(e.created_at), "dd/MM HH:mm")}</Badge>
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
