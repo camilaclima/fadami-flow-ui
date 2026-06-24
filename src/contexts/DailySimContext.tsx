@@ -94,17 +94,20 @@ export function DailySimProvider({ children }: { children: ReactNode }) {
             });
           }
         } else if (isDev && !isDiretor && !isLeader) {
-          // Encontra team_member pelo email e squads em que está
-          const { data: tm } = await (supabase.from("team_members") as any)
-            .select("id")
-            .ilike("email", profile.email)
-            .maybeSingle();
+          // Encontra team_member pelo email OU pelo nome completo
+          const fullName = `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim();
+          const { data: tms } = await (supabase.from("team_members") as any)
+            .select("id,email,name")
+            .or(
+              `email.ilike.${profile.email},name.ilike.${fullName}`
+            );
+          const tmIds = (tms ?? []).map((t: any) => t.id);
           let squadIds: string[] = [];
-          if (tm?.id) {
+          if (tmIds.length > 0) {
             const { data: sm } = await (supabase.from("squad_members") as any)
               .select("squad_id")
-              .eq("team_member_id", tm.id);
-            squadIds = (sm ?? []).map((r: any) => r.squad_id);
+              .in("team_member_id", tmIds);
+            squadIds = Array.from(new Set((sm ?? []).map((r: any) => r.squad_id)));
           }
           if (!cancelled) {
             setCurrent({

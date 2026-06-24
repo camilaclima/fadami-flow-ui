@@ -51,11 +51,54 @@ export function useDevDailyEntriesByDate(date: string, squadId?: string | null) 
   return useQuery({
     queryKey: ["dev_daily_entries", "by-date", date, squadId ?? "all"],
     queryFn: async () => {
-      let q = (supabase.from("dev_daily_entries") as any)
+      if (!squadId) {
+        const { data, error } = await (supabase.from("dev_daily_entries") as any)
+          .select("*")
+          .eq("entry_date", date)
+          .order("created_at", { ascending: true });
+        if (error) throw error;
+        return (data ?? []) as DevDailyEntry[];
+      }
+
+      // Resolve os user_ids dos membros da squad (por email OU nome).
+      const { data: sm } = await (supabase.from("squad_members") as any)
+        .select("team_member_id")
+        .eq("squad_id", squadId);
+      const tmIds = (sm ?? []).map((r: any) => r.team_member_id);
+
+      let userIds: string[] = [];
+      if (tmIds.length > 0) {
+        const { data: tms } = await (supabase.from("team_members") as any)
+          .select("id,email,name")
+          .in("id", tmIds);
+        const emails = (tms ?? [])
+          .map((t: any) => String(t.email ?? "").trim().toLowerCase())
+          .filter(Boolean);
+        const names = (tms ?? [])
+          .map((t: any) => String(t.name ?? "").trim().toLowerCase())
+          .filter(Boolean);
+        const { data: profs } = await (supabase.from("profiles") as any)
+          .select("user_id,email,first_name,last_name");
+        userIds = (profs ?? [])
+          .filter((p: any) => {
+            const em = String(p.email ?? "").trim().toLowerCase();
+            const full = `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim().toLowerCase();
+            return (em && emails.includes(em)) || (full && names.includes(full));
+          })
+          .map((p: any) => p.user_id)
+          .filter(Boolean);
+      }
+
+      // Busca entradas com squad_id correspondente OU user_id de algum membro da squad.
+      const orParts = [`squad_id.eq.${squadId}`];
+      if (userIds.length > 0) {
+        orParts.push(`user_id.in.(${userIds.join(",")})`);
+      }
+      const { data, error } = await (supabase.from("dev_daily_entries") as any)
         .select("*")
-        .eq("entry_date", date);
-      if (squadId) q = q.eq("squad_id", squadId);
-      const { data, error } = await q.order("created_at", { ascending: true });
+        .eq("entry_date", date)
+        .or(orParts.join(","))
+        .order("created_at", { ascending: true });
       if (error) throw error;
       return (data ?? []) as DevDailyEntry[];
     },
