@@ -569,6 +569,63 @@ export default function PainelGPPage() {
           )}
         </CardContent>
       </Card>
+
+      <Card className="rounded-2xl mt-4">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
+          <div>
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-500" /> Indicador de Escopo
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              A IA analisa o campo "Hoje" dos últimos 7 dias e identifica devs presos na mesma tarefa sem reportar impedimento.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-xl gap-2"
+            onClick={handleAnalyzeScope}
+            disabled={scopeMut.isPending || recentEntries.length === 0}
+          >
+            <RefreshCcw className={`w-3.5 h-3.5 ${scopeMut.isPending ? "animate-spin" : ""}`} />
+            {scopeAnalyzed ? "Reanalisar" : "Analisar escopo"}
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {!scopeAnalyzed && !scopeMut.isPending && (
+            <p className="text-sm text-muted-foreground">Clique em <b>Analisar escopo</b> para que a IA verifique se algum dev está travado na mesma tarefa há vários dias.</p>
+          )}
+          {scopeMut.isPending && (
+            <p className="text-sm text-muted-foreground">Analisando dailies dos últimos 7 dias…</p>
+          )}
+          {scopeAnalyzed && !scopeMut.isPending && scopeAlerts.length === 0 && (
+            <div className="flex items-center gap-2 text-sm text-emerald-600">
+              <CircleCheck className="w-4 h-4" />
+              Nenhum dev preso na mesma tarefa. Escopo fluindo bem.
+            </div>
+          )}
+          {scopeAlerts.length > 0 && (
+            <div className="space-y-2">
+              {scopeAlerts.map((a, i) => (
+                <div key={i} className="flex items-start gap-2.5 p-3 rounded-xl border bg-amber-500/5 border-amber-500/30">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground">{a.message}</p>
+                    <div className="mt-1 flex items-center gap-1.5 flex-wrap text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground/80">{a.dev_name}</span>
+                      <span>•</span>
+                      <span>Tarefa: {a.task}</span>
+                      <Badge variant="outline" className="text-[10px] ml-1 bg-amber-500/10 text-amber-700 border-amber-500/30">
+                        {a.days} dias
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
         </TabsContent>
 
         <TabsContent value="historico" className="mt-0">
