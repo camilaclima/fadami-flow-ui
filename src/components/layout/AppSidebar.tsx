@@ -5,6 +5,7 @@ import menuIcon from "@/assets/menu-icon.png";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDailySim } from "@/contexts/DailySimContext";
 import type { SystemPage } from "@/types/admin";
 
 interface NavItem {
@@ -82,6 +83,7 @@ export function AppSidebar() {
     Object.fromEntries(NAV_GROUPS.map((g) => [g.label, false]))
   );
   const { permissions } = useAuth();
+  const { current: sim } = useDailySim();
 
   const visibleGroups = useMemo(() => {
     return NAV_GROUPS
@@ -91,8 +93,26 @@ export function AppSidebar() {
           (item) => item.permission === "__always__" || permissions.includes(item.permission as SystemPage)
         ),
       }))
+      .map((group) => {
+        // Aplica isolamento do simulador de Dailys.
+        if (group.label === "Dailys") {
+          let items = group.items;
+          if (sim.role === "dev") items = items.filter((i) => i.url === "/dailys/registro");
+          else if (sim.role === "gp") items = items.filter((i) => i.url === "/dailys/painel");
+          return { ...group, items };
+        }
+        // Cadastros e Permissões só para Diretor/Admin.
+        if (group.label === "Cadastros e Permissões" && sim.role !== "diretor") {
+          return { ...group, items: [] };
+        }
+        // Sistema -> mantém "Alterar Senha" para todos, "Configurações" só para diretor
+        if (group.label === "Sistema" && sim.role !== "diretor") {
+          return { ...group, items: group.items.filter((i) => i.url !== "/settings") };
+        }
+        return group;
+      })
       .filter((group) => group.items.length > 0);
-  }, [permissions]);
+  }, [permissions, sim.role]);
 
   const toggleGroup = (label: string) => {
     setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
