@@ -182,6 +182,50 @@ export default function RegistroPage() {
         )}
       </div>
 
+      {/* KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
+        {/* Status de Amanhã */}
+        <Card className="rounded-2xl">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${kpis.tomorrowRegistered ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"}`}>
+              <CalendarClock className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground mb-0.5">Status de Amanhã</p>
+              <Badge variant={kpis.tomorrowRegistered ? "default" : "destructive"} className="text-xs">
+                {kpis.tomorrowRegistered ? "Concluído" : "Pendente"}
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Assiduidade Pessoal */}
+        <Card className="rounded-2xl">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-primary/10 text-primary">
+              <TrendingUp className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground mb-0.5">Sua Assiduidade</p>
+              <p className="text-lg font-semibold leading-tight">{kpis.attendanceRate}%</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Impedimentos */}
+        <Card className="rounded-2xl">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${kpis.impedimentsCount > 0 ? "bg-orange-500/10 text-orange-500" : "bg-muted text-muted-foreground"}`}>
+              <AlertOctagon className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground mb-0.5">Impedimentos Ativos</p>
+              <p className="text-lg font-semibold leading-tight">{kpis.impedimentsCount} Impedimento{kpis.impedimentsCount !== 1 ? "s" : ""}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="mb-5 flex justify-end">
         <Button onClick={() => { setDate(dateOptions[0]?.value ?? toISO(new Date())); setOpen(true); }} className="rounded-xl gap-2">
           <Plus className="w-4 h-4" /> Registrar daily
