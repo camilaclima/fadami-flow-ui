@@ -26,7 +26,7 @@ import { useAccessGroups } from "@/hooks/useAccessGroups";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-const LEADER_PERMISSION = "painel_gp";
+const LEADER_GROUP_NAME = "líderes";
 
 interface Props {
   open: boolean;
@@ -141,17 +141,17 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
     }
   };
 
+  // Estrito: apenas usuários cujo grupo atribuído (profile_groups) seja "Líderes".
   const leaderGroupIds = new Set(
     accessGroups
-      .filter((g) => (g.permissions ?? []).includes(LEADER_PERMISSION as any))
+      .filter((g) => (g.name ?? "").trim().toLowerCase() === LEADER_GROUP_NAME)
       .map((g) => g.id),
   );
-  const leaderProfileIds = new Set<string>([
-    ...profiles.filter((p) => p.group_id && leaderGroupIds.has(p.group_id)).map((p) => p.id),
-    ...(profileGroups as any[])
+  const leaderProfileIds = new Set<string>(
+    (profileGroups as any[])
       .filter((pg) => leaderGroupIds.has(pg.group_id))
       .map((pg) => pg.profile_id),
-  ]);
+  );
   const leaderCandidates = profiles.filter((p) => p.active && leaderProfileIds.has(p.id));
 
   return (
