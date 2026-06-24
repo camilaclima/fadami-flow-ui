@@ -107,6 +107,39 @@ export default function RegistroPage() {
   const didEmpty = !didYesterday.trim();
   const willEmpty = !willDoToday.trim();
 
+  /* ---------- KPIs ---------- */
+  const kpis = useMemo(() => {
+    const today = new Date();
+    const tomorrow = nextWorkday(today);
+    const tomorrowISO = toISO(tomorrow);
+    const tomorrowRegistered = entries.some((e) => e.entry_date === tomorrowISO);
+
+    // Assiduidade: semana atual (segunda → sexta)
+    const monday = startOfWeek(today, { weekStartsOn: 1 });
+    const friday = addDays(monday, 4);
+    const weekWorkdays = workdaysInRange(monday, friday);
+    const registeredWeekDays = weekWorkdays.filter((wd) =>
+      entries.some((e) => e.entry_date === toISO(wd))
+    ).length;
+    const attendanceRate = weekWorkdays.length > 0
+      ? Math.round((registeredWeekDays / weekWorkdays.length) * 100)
+      : 0;
+
+    // Impedimentos na semana atual (segunda → hoje)
+    const weekUntilToday = workdaysInRange(monday, today);
+    const impedimentsCount = entries.filter((e) => {
+      if (!e.impediments?.trim()) return false;
+      const ed = parseISO(e.entry_date);
+      return weekUntilToday.some((wd) => isSameDay(ed, wd));
+    }).length;
+
+    return {
+      tomorrowRegistered,
+      attendanceRate,
+      impedimentsCount,
+    };
+  }, [entries]);
+
   const submit = async () => {
     setTouched({ did: true, will: true });
     if (didEmpty || willEmpty) {
