@@ -510,32 +510,26 @@ export default function RegistroPage() {
                   </span>
                 </Label>
                 {priorOpen.map((p) => {
-                  const r = priorRes[p.id] ?? { resolved: null, note: "" };
+                  const r = priorRes[p.id] ?? { resolved: null };
                   const entry = entries.find((e) => e.id === p.entry_id);
                   return (
-                    <div key={p.id} className="rounded-lg border bg-background p-3 space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES[p.urgency]}`}>
-                              {URGENCY_LABELS[p.urgency]}
-                            </Badge>
-                            {entry && (
-                              <span className="text-[11px] text-muted-foreground">
-                                {format(parseISO(entry.entry_date), "dd/MM", { locale: ptBR })}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm whitespace-pre-wrap break-words">{p.description}</p>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
+                    <div key={p.id} className="flex items-center gap-2 rounded-lg border bg-background p-2">
+                      <Badge variant="outline" className={`text-[10px] shrink-0 ${URGENCY_STYLES[p.urgency]}`}>
+                        {URGENCY_LABELS[p.urgency]}
+                      </Badge>
+                      {entry && (
+                        <span className="text-[11px] text-muted-foreground shrink-0">
+                          {format(parseISO(entry.entry_date), "dd/MM", { locale: ptBR })}
+                        </span>
+                      )}
+                      <p className="text-sm flex-1 min-w-0 truncate" title={p.description}>{p.description}</p>
+                      <div className="flex gap-1.5 shrink-0">
                         <Button
                           type="button"
                           size="sm"
                           variant={r.resolved === true ? "default" : "outline"}
                           className="rounded-lg gap-1.5 h-8"
-                          onClick={() => setPriorRes((prev) => ({ ...prev, [p.id]: { ...r, resolved: true } }))}
+                          onClick={() => setPriorRes((prev) => ({ ...prev, [p.id]: { resolved: true } }))}
                         >
                           <CircleCheck className="w-3.5 h-3.5" /> Sanado
                         </Button>
@@ -544,17 +538,11 @@ export default function RegistroPage() {
                           size="sm"
                           variant={r.resolved === false ? "destructive" : "outline"}
                           className="rounded-lg gap-1.5 h-8"
-                          onClick={() => setPriorRes((prev) => ({ ...prev, [p.id]: { ...r, resolved: false } }))}
+                          onClick={() => setPriorRes((prev) => ({ ...prev, [p.id]: { resolved: false } }))}
                         >
-                          <CircleDot className="w-3.5 h-3.5" /> Ainda em aberto
+                          <CircleDot className="w-3.5 h-3.5" /> Ainda impedido
                         </Button>
                       </div>
-                      <Textarea
-                        rows={2}
-                        placeholder="Observação (opcional)..."
-                        value={r.note}
-                        onChange={(e) => setPriorRes((prev) => ({ ...prev, [p.id]: { ...r, note: e.target.value } }))}
-                      />
                     </div>
                   );
                 })}
@@ -622,34 +610,52 @@ export default function RegistroPage() {
               )}
 
               {/* Form para adicionar novo */}
-              <div className="rounded-lg border border-dashed p-3 space-y-2">
-                <Textarea
-                  rows={2}
-                  value={newDesc}
-                  onChange={(e) => setNewDesc(e.target.value)}
-                  placeholder="Descreva o impedimento..."
-                />
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <Select value={newUrg} onValueChange={(v) => setNewUrg(v as ImpedimentUrgency)}>
-                    <SelectTrigger className="sm:w-44">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Urgência: Baixa</SelectItem>
-                      <SelectItem value="medium">Urgência: Média</SelectItem>
-                      <SelectItem value="high">Urgência: Alta</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={addDraftImpediment}
-                    className="rounded-xl gap-1.5"
-                  >
-                    <Plus className="w-4 h-4" /> Adicionar impedimento
-                  </Button>
+              {!showNewImp ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowNewImp(true)}
+                  className="rounded-xl gap-1.5"
+                >
+                  <Plus className="w-4 h-4" /> Criar impedimento
+                </Button>
+              ) : (
+                <div className="rounded-lg border border-dashed p-3 space-y-2">
+                  <Textarea
+                    rows={2}
+                    value={newDesc}
+                    onChange={(e) => setNewDesc(e.target.value)}
+                    placeholder="Descreva o impedimento..."
+                  />
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Select value={newUrg ?? undefined} onValueChange={(v) => setNewUrg(v as ImpedimentUrgency)}>
+                      <SelectTrigger className="sm:w-56">
+                        <SelectValue placeholder="Urgência *" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Urgência: Baixa</SelectItem>
+                        <SelectItem value="medium">Urgência: Média</SelectItem>
+                        <SelectItem value="high">Urgência: Alta</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      onClick={addDraftImpediment}
+                      className="rounded-xl gap-1.5"
+                    >
+                      <Plus className="w-4 h-4" /> Adicionar
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => { setShowNewImp(false); setNewDesc(""); setNewUrg(null); }}
+                      className="rounded-xl"
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
