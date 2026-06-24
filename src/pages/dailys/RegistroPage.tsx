@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ClipboardEdit, AlertTriangle, CheckCircle2, Calendar, Plus, Users,
   CalendarClock, TrendingUp, AlertOctagon, Trash2, CircleCheck, CircleDot,
-  Pencil,
+  Pencil, Eye,
 } from "lucide-react";
 import { useDevDailyEntriesByUser, useUpsertDevDailyEntry } from "@/hooks/useDevDailyEntries";
 import {
@@ -112,6 +112,15 @@ export default function RegistroPage() {
   const [priorRes, setPriorRes] = useState<Record<string, PriorResolution>>({});
 
   const skipAutoFill = useRef(false);
+  const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
+  const detailEntry = useMemo(
+    () => entries.find((e) => e.id === detailEntryId) ?? null,
+    [entries, detailEntryId]
+  );
+  const detailImps = useMemo<DevDailyImpediment[]>(
+    () => (detailEntry ? allImpediments.filter((i) => i.entry_id === detailEntry.id) : []),
+    [allImpediments, detailEntry]
+  );
 
   const existing = useMemo(() => entries.find((e) => e.entry_date === date), [entries, date]);
 
@@ -323,7 +332,7 @@ export default function RegistroPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 w-full max-w-[1100px] mx-auto">
+    <div className="p-4 md:p-6 w-full">
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Minha Daily — {sim.personName ?? ""}</h1>
         <p className="text-sm text-muted-foreground">Registre seu status diário e acompanhe o histórico.</p>
@@ -391,10 +400,10 @@ export default function RegistroPage() {
         </Button>
       </div>
 
-      <div className="space-y-3">
-        {isLoading && <p className="text-sm text-muted-foreground">Carregando...</p>}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+        {isLoading && <p className="text-sm text-muted-foreground col-span-full">Carregando...</p>}
         {!isLoading && entries.length === 0 && (
-          <Card className="rounded-2xl">
+          <Card className="rounded-2xl col-span-full">
             <CardContent className="py-10 text-center text-muted-foreground">Nenhum registro ainda.</CardContent>
           </Card>
         )}
@@ -402,94 +411,168 @@ export default function RegistroPage() {
           const imps = allImpediments.filter((i) => i.entry_id === e.id);
           const resolvedCount = imps.filter((i) => i.resolved).length;
           const openCount = imps.length - resolvedCount;
+          const byUrg = {
+            high: imps.filter((i) => i.urgency === "high").length,
+            medium: imps.filter((i) => i.urgency === "medium").length,
+            low: imps.filter((i) => i.urgency === "low").length,
+          };
           return (
-          <Card key={e.id} className="rounded-2xl overflow-hidden">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Calendar className="w-4 h-4 text-primary shrink-0" />
-                  <span className="truncate">{format(parseISO(e.entry_date), "PPP", { locale: ptBR })}</span>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {imps.length > 0 && openCount === 0 && (
-                    <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
-                      Tudo sanado
-                    </Badge>
-                  )}
-                  {openCount > 0 && (
-                    <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30">
-                      {openCount} em aberto
-                    </Badge>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => handleOpenEdit(e)}
-                    title="Editar daily"
-                  >
-                    <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-                  </Button>
-                  <Badge variant="outline" className="text-[10px]">{format(parseISO(e.created_at), "dd/MM HH:mm")}</Badge>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-                {/* Ontem */}
-                <div className="rounded-xl border bg-muted/30 p-3 flex flex-col">
-                  <p className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5">Ontem</p>
-                  <p className="text-sm whitespace-pre-wrap break-words flex-1">{e.did_yesterday || <span className="text-muted-foreground">—</span>}</p>
-                </div>
-                {/* Hoje */}
-                <div className="rounded-xl border bg-primary/5 p-3 flex flex-col">
-                  <p className="text-[11px] uppercase tracking-wide font-semibold text-primary/80 mb-1.5">Hoje</p>
-                  <p className="text-sm whitespace-pre-wrap break-words flex-1">{e.will_do_today || <span className="text-muted-foreground">—</span>}</p>
-                </div>
-                {/* Impedimentos */}
-                <div className="rounded-xl border bg-orange-500/5 p-3 flex flex-col">
-                  <p className="text-[11px] uppercase tracking-wide font-semibold text-orange-600 mb-1.5 flex items-center gap-1">
-                    <AlertOctagon className="w-3 h-3" /> Impedimentos
-                  </p>
-                  {imps.length === 0 && !e.impediments?.trim() && (
-                    <p className="text-sm text-muted-foreground flex-1">—</p>
-                  )}
-                  {e.impediments?.trim() && imps.length === 0 && (
-                    <p className="text-sm whitespace-pre-wrap break-words flex-1">{e.impediments}</p>
-                  )}
-                  {imps.length > 0 && (
-                    <div className="space-y-1.5 flex-1">
-                      {imps.map((imp) => (
-                        <div key={imp.id} className="rounded-lg border bg-background/70 p-2 space-y-1">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES[imp.urgency]}`}>
-                              {URGENCY_LABELS[imp.urgency]}
-                            </Badge>
-                            {imp.resolved ? (
-                              <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 gap-1">
-                                <CircleCheck className="w-2.5 h-2.5" /> Sanado
-                                {imp.resolved_at && (
-                                  <span className="font-normal">em {format(parseISO(imp.resolved_at), "dd/MM", { locale: ptBR })}</span>
-                                )}
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30">
-                                Em aberto
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-xs whitespace-pre-wrap break-words text-foreground/90">{imp.description}</p>
-                        </div>
-                      ))}
+            <Card
+              key={e.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => setDetailEntryId(e.id)}
+              onKeyDown={(ev) => { if (ev.key === "Enter") setDetailEntryId(e.id); }}
+              className="rounded-2xl cursor-pointer hover:border-primary/40 hover:shadow-md transition-all group"
+            >
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground uppercase tracking-wide">
+                      <Calendar className="w-3 h-3 text-primary" />
+                      {format(parseISO(e.entry_date), "EEE", { locale: ptBR })}
                     </div>
-                  )}
+                    <p className="text-sm font-semibold leading-tight mt-0.5 truncate">
+                      {format(parseISO(e.entry_date), "dd 'de' MMM", { locale: ptBR })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(ev) => { ev.stopPropagation(); handleOpenEdit(e); }}
+                      title="Editar daily"
+                    >
+                      <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                    </Button>
+                    <Eye className="w-3.5 h-3.5 text-muted-foreground opacity-60" />
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+
+                {imps.length === 0 ? (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <CircleCheck className="w-3.5 h-3.5 text-emerald-500" />
+                    Sem impedimentos
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground">
+                        {imps.length} impediment{imps.length === 1 ? "o" : "os"}
+                      </span>
+                      {openCount === 0 ? (
+                        <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+                          Sanados
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30">
+                          {openCount} em aberto
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {byUrg.high > 0 && (
+                        <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES.high}`}>
+                          Alta · {byUrg.high}
+                        </Badge>
+                      )}
+                      {byUrg.medium > 0 && (
+                        <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES.medium}`}>
+                          Média · {byUrg.medium}
+                        </Badge>
+                      )}
+                      {byUrg.low > 0 && (
+                        <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES.low}`}>
+                          Baixa · {byUrg.low}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="text-[10px] text-muted-foreground pt-2 border-t border-border/50">
+                  Registrado {format(parseISO(e.created_at), "dd/MM HH:mm")}
+                </div>
+              </CardContent>
+            </Card>
           );
         })}
       </div>
+
+      {/* Detalhes da daily */}
+      <Dialog open={!!detailEntryId} onOpenChange={(o) => !o && setDetailEntryId(null)}>
+        <DialogContent className="max-w-2xl rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-primary" />
+              {detailEntry && format(parseISO(detailEntry.entry_date), "PPP", { locale: ptBR })}
+            </DialogTitle>
+          </DialogHeader>
+          {detailEntry && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                <div className="rounded-xl border bg-muted/30 p-3">
+                  <p className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5">Ontem</p>
+                  <p className="text-sm whitespace-pre-wrap break-words">{detailEntry.did_yesterday || <span className="text-muted-foreground">—</span>}</p>
+                </div>
+                <div className="rounded-xl border bg-primary/5 p-3">
+                  <p className="text-[11px] uppercase tracking-wide font-semibold text-primary/80 mb-1.5">Hoje</p>
+                  <p className="text-sm whitespace-pre-wrap break-words">{detailEntry.will_do_today || <span className="text-muted-foreground">—</span>}</p>
+                </div>
+              </div>
+              <div className="rounded-xl border bg-orange-500/5 p-3">
+                <p className="text-[11px] uppercase tracking-wide font-semibold text-orange-600 mb-2 flex items-center gap-1">
+                  <AlertOctagon className="w-3 h-3" /> Impedimentos
+                </p>
+                {detailImps.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhum impedimento registrado.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {detailImps.map((imp) => (
+                      <div key={imp.id} className="rounded-lg border bg-background/70 p-2 space-y-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES[imp.urgency]}`}>
+                            {URGENCY_LABELS[imp.urgency]}
+                          </Badge>
+                          {imp.resolved ? (
+                            <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 gap-1">
+                              <CircleCheck className="w-2.5 h-2.5" /> Sanado
+                              {imp.resolved_at && (
+                                <span className="font-normal">em {format(parseISO(imp.resolved_at), "dd/MM", { locale: ptBR })}</span>
+                              )}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30">
+                              Em aberto
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs whitespace-pre-wrap break-words text-foreground/90">{imp.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="text-[10px] text-muted-foreground text-right">
+                Registrado em {format(parseISO(detailEntry.created_at), "dd/MM/yyyy HH:mm")}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            {detailEntry && (
+              <Button
+                variant="outline"
+                className="rounded-xl gap-1.5"
+                onClick={() => { const e = detailEntry; setDetailEntryId(null); handleOpenEdit(e); }}
+              >
+                <Pencil className="w-3.5 h-3.5" /> Editar
+              </Button>
+            )}
+            <Button onClick={() => setDetailEntryId(null)} className="rounded-xl">Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl rounded-2xl">
