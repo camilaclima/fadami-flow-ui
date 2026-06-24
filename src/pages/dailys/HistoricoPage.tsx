@@ -9,22 +9,40 @@ import { History, FileText, Camera, VolumeX } from "lucide-react";
 import { useDailyMeetings, useDailyMeeting } from "@/hooks/useDailyMeetings";
 import { useSquads } from "@/hooks/useSquads";
 import { format, parseISO } from "date-fns";
+import { useDailySim, isSquadAllowed } from "@/contexts/DailySimContext";
+import { AccessDeniedCard } from "@/components/dailys/AccessDeniedCard";
 
 export default function HistoricoPage() {
+  const { current: sim } = useDailySim();
   const [squadId, setSquadId] = useState<string | null>(null);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
 
-  const { data: squads = [] } = useSquads();
-  const { data: meetings = [], isLoading } = useDailyMeetings({ squadId, from: from || undefined, to: to || undefined });
+  const { data: allSquads = [] } = useSquads();
+  const squads = useMemo(() => {
+    if (sim.role === "diretor") return allSquads;
+    const allowed = new Set(sim.squadIds ?? []);
+    return allSquads.filter((s: any) => allowed.has(s.id));
+  }, [allSquads, sim]);
+
+  const effectiveSquadId = sim.role === "gp" && !squadId ? (squads[0]?.id ?? null) : squadId;
+  const { data: meetingsRaw = [], isLoading } = useDailyMeetings({ squadId: effectiveSquadId, from: from || undefined, to: to || undefined });
+  const meetings = useMemo(
+    () => meetingsRaw.filter((m) => isSquadAllowed(sim, m.squad_id)),
+    [meetingsRaw, sim]
+  );
   const { data: detail } = useDailyMeeting(openId);
 
   const squadName = useMemo(() => {
     const m = new Map<string, string>();
-    squads.forEach((s: any) => m.set(s.id, s.name));
+    allSquads.forEach((s: any) => m.set(s.id, s.name));
     return (id: string | null) => (id ? m.get(id) ?? "—" : "—");
-  }, [squads]);
+  }, [allSquads]);
+
+  if (sim.role === "dev") {
+    return <AccessDeniedCard message="Histórico geral é restrito a GPs e Diretores." />;
+  }
 
   return (
     <div className="p-4 md:p-6 w-full max-w-[1400px] mx-auto">
@@ -37,10 +55,10 @@ export default function HistoricoPage() {
         <CardContent className="pt-5 grid grid-cols-1 md:grid-cols-4 gap-3">
           <div>
             <Label className="mb-1.5">Squad</Label>
-            <Select value={squadId ?? "__all__"} onValueChange={v => setSquadId(v === "__all__" ? null : v)}>
+            <Select value={effectiveSquadId ?? "__all__"} onValueChange={v => setSquadId(v === "__all__" ? null : v)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="__all__">Todas</SelectItem>
+                {sim.role === "diretor" && <SelectItem value="__all__">Todas</SelectItem>}
                 {squads.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
               </SelectContent>
             </Select>

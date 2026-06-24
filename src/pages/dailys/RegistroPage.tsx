@@ -7,7 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ClipboardEdit, History, AlertTriangle, CheckCircle2, Calendar } from "lucide-react";
-import { useMyDevDailyEntries, useUpsertDevDailyEntry } from "@/hooks/useDevDailyEntries";
+import { useDevDailyEntriesByUser, useUpsertDevDailyEntry } from "@/hooks/useDevDailyEntries";
+import { useDailySim } from "@/contexts/DailySimContext";
+import { AccessDeniedCard } from "@/components/dailys/AccessDeniedCard";
 import { format, parseISO, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -21,7 +23,8 @@ function nextWorkdayISO(): string {
 }
 
 export default function RegistroPage() {
-  const { data: entries = [], isLoading } = useMyDevDailyEntries();
+  const { current: sim } = useDailySim();
+  const { data: entries = [], isLoading } = useDevDailyEntriesByUser(sim.devUserId);
   const upsert = useUpsertDevDailyEntry();
 
   const [date, setDate] = useState<string>(nextWorkdayISO());
@@ -54,10 +57,16 @@ export default function RegistroPage() {
     });
   };
 
+  if (sim.role !== "dev") {
+    return (
+      <AccessDeniedCard message="A área 'Minha Daily' é exclusiva para Desenvolvedores. Selecione um perfil de Dev no seletor acima para visualizar." />
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 w-full max-w-[1100px] mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Minha Daily</h1>
+        <h1 className="text-2xl font-bold">Minha Daily — {sim.personName ?? ""}</h1>
         <p className="text-sm text-muted-foreground">Registre o seu status do dia anterior para preparar a reunião.</p>
       </div>
 
