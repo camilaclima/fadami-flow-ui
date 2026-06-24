@@ -608,6 +608,53 @@ export type Database = {
         }
         Relationships: []
       }
+      dev_daily_impediments: {
+        Row: {
+          created_at: string
+          description: string
+          entry_id: string
+          id: string
+          resolution_note: string | null
+          resolved: boolean
+          resolved_at: string | null
+          updated_at: string
+          updated_by: string | null
+          urgency: Database["public"]["Enums"]["impediment_urgency"]
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          entry_id: string
+          id?: string
+          resolution_note?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          urgency?: Database["public"]["Enums"]["impediment_urgency"]
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          entry_id?: string
+          id?: string
+          resolution_note?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          urgency?: Database["public"]["Enums"]["impediment_urgency"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dev_daily_impediments_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "dev_daily_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       password_change_logs: {
         Row: {
           changed_by: string | null
@@ -1474,7 +1521,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      impediment_urgency: "low" | "medium" | "high"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1601,6 +1648,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      impediment_urgency: ["low", "medium", "high"],
+    },
   },
 } as const
