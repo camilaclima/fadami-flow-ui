@@ -489,7 +489,7 @@ export default function PainelGPPage() {
             </span>
           </div>
       {/* Status de preenchimento + Resumo da Daily */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4 mb-4">
         <Card className="rounded-2xl">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2"><Users className="w-4 h-4" /> Status de preenchimento</CardTitle>
