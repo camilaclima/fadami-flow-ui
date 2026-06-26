@@ -594,6 +594,7 @@ export default function PainelGPPage() {
             <AlertOctagon className="w-4 h-4 text-orange-500" /> Impedimentos da Squad
             <span className="text-xs font-normal text-muted-foreground ml-1">(todas as datas)</span>
           </CardTitle>
+          {null}
           <div className="flex items-center gap-1 rounded-xl bg-muted/40 p-1">
             <Button
               size="sm"
