@@ -432,6 +432,38 @@ export default function PainelGPPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [summaryKey]);
 
+  // Auto-análise de escopo conforme as dailies chegam.
+  useEffect(() => {
+    if (scopeMut.isPending || recentEntries.length === 0) return;
+    const byUser = new Map<string, { dev_name: string; entries: { date: string; will_do_today?: string; did_yesterday?: string }[] }>();
+    recentEntries.forEach((e) => {
+      const p = profileByUser.get(e.user_id);
+      const nameFromProfile = p ? (`${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || p.email) : null;
+      const nameFromSquad = squadProfiles.find((sp) => sp.user_id === e.user_id)?.name ?? null;
+      const dev_name = nameFromProfile || nameFromSquad || "Dev";
+      const cur = byUser.get(e.user_id) ?? { dev_name, entries: [] };
+      cur.entries.push({
+        date: e.entry_date,
+        will_do_today: e.will_do_today ?? undefined,
+        did_yesterday: e.did_yesterday ?? undefined,
+      });
+      byUser.set(e.user_id, cur);
+    });
+    const devs = Array.from(byUser.values()).filter((d) => d.entries.length >= 2);
+    if (devs.length === 0) {
+      setScopeAlerts([]);
+      setScopeAnalyzed(true);
+      return;
+    }
+    scopeMut.mutateAsync(devs).then((result) => {
+      setScopeAlerts(result);
+      setScopeAnalyzed(true);
+    }).catch(() => {
+      // erro já tratado no mutation onError
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recentEntries]);
+
   if (sim.role === "dev") {
     return (
       <AccessDeniedCard message="Desenvolvedores não têm acesso ao Painel do GP. Selecione um perfil de GP ou Diretor no seletor acima." />
@@ -638,6 +670,41 @@ export default function PainelGPPage() {
                       </ul>
                     )}
                   </div>
+                </div>
+                {/* Indicador de Escopo */}
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+                  <p className="text-sm font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5 mb-2">
+                    <AlertTriangle className="w-4 h-4" /> Indicador de Escopo
+                  </p>
+                  {scopeMut.isPending && (
+                    <p className="text-xs text-muted-foreground">Analisando dailies dos últimos 7 dias…</p>
+                  )}
+                  {!scopeMut.isPending && scopeAlerts.length === 0 && scopeAnalyzed && (
+                    <div className="flex items-center gap-2 text-xs text-emerald-600">
+                      <CircleCheck className="w-4 h-4" />
+                      Nenhum dev preso na mesma tarefa. Escopo fluindo bem.
+                    </div>
+                  )}
+                  {scopeAlerts.length > 0 && (
+                    <div className="space-y-2">
+                      {scopeAlerts.map((a, i) => (
+                        <div key={i} className="flex items-start gap-2.5 p-2 rounded-xl border bg-amber-500/5 border-amber-500/30">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-foreground">{a.message}</p>
+                            <div className="mt-1 flex items-center gap-1.5 flex-wrap text-xs text-muted-foreground">
+                              <span className="font-medium text-foreground/80">{a.dev_name}</span>
+                              <span>•</span>
+                              <span>Tarefa: {a.task}</span>
+                              <Badge variant="outline" className="text-[10px] ml-1 bg-amber-500/10 text-amber-700 border-amber-500/30">
+                                {a.days} dias
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </>
             )}
