@@ -648,7 +648,7 @@ export default function PainelGPPage() {
       {/* Impedimentos da Squad + Indicador de Escopo */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-      <Card className="rounded-2xl mt-4">
+      <Card className="rounded-2xl">
         <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
           <CardTitle className="text-base flex items-center gap-2">
             <AlertOctagon className="w-4 h-4 text-orange-500" /> Impedimentos da Squad
