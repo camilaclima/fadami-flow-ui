@@ -784,6 +784,7 @@ export default function PainelGPPage() {
           )}
         </CardContent>
       </Card>
+      </div>
         </TabsContent>
 
         <TabsContent value="historico" className="mt-0">
