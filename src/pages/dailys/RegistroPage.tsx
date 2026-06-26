@@ -91,7 +91,7 @@ function useMySquadNames(squadIds: string[] | null | undefined) {
 }
 
 export default function RegistroPage() {
-  const { current: sim } = useDailySim();
+  const { current: sim, loading: simLoading } = useDailySim();
   const { data: entries = [], isLoading } = useDevDailyEntriesByUser(sim.devUserId);
   const { data: squads = [] } = useMySquadNames(sim.squadIds);
   const upsert = useUpsertDevDailyEntry();
@@ -337,6 +337,14 @@ export default function RegistroPage() {
     setNewUrg(null);
     setShowNewImp(false);
   };
+
+  if (simLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (sim.role !== "dev") {
     return (
