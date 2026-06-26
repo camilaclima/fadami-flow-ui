@@ -40,6 +40,14 @@ function todayISO() { return new Date().toISOString().slice(0, 10); }
 export default function PainelGPPage() {
   const { current: sim } = useDailySim();
   const [date, setDate] = useState<string>(todayISO());
+  // Mantém a data sempre no dia atual (atualiza à meia-noite sem reload).
+  useEffect(() => {
+    const id = setInterval(() => {
+      const t = todayISO();
+      setDate((cur) => (cur === t ? cur : t));
+    }, 60_000);
+    return () => clearInterval(id);
+  }, []);
   const [squadId, setSquadId] = useState<string | null>(null);
   const [openModal, setOpenModal] = useState(false);
   const [insights, setInsights] = useState<DailyInsight[]>([]);
