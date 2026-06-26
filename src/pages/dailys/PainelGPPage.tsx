@@ -331,6 +331,94 @@ export default function PainelGPPage() {
     setInsights(result);
   };
 
+  // ---------- Resumo da Daily (IA) ----------
+  type DailySummaryInsights = {
+    resumo_executivo?: string;
+    resumo_curto?: string;
+    avancos?: string[];
+    riscos?: string[];
+    recorrencias?: Array<string | { titulo?: string; responsavel?: string; dias?: number }>;
+    blocker_level?: number;
+  };
+  const [summary, setSummary] = useState<DailySummaryInsights | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const lastSummaryKey = useRef<string>("");
+
+  const summaryKey = useMemo(() => {
+    return [
+      date,
+      effectiveSquadId ?? "all",
+      ...rows.map((r) => `${r.id}:${r.updated_at}`),
+    ].join("|");
+  }, [date, effectiveSquadId, rows]);
+
+  const buildCompositeForSummary = () => {
+    const blocks = rows
+      .filter((r) => (r.did_yesterday || r.will_do_today || r.impediments))
+      .map((r) => {
+        const parts: string[] = [];
+        if (r.did_yesterday) parts.push(`Ontem: ${r.did_yesterday}`);
+        if (r.will_do_today) parts.push(`Hoje: ${r.will_do_today}`);
+        const openImps = r.imps.filter((i) => !i.resolved);
+        if (openImps.length > 0) {
+          parts.push(`Impedimentos: ${openImps.map((i) => i.description).join(" | ")}`);
+        } else if (r.impediments) {
+          parts.push(`Impedimentos: ${r.impediments}`);
+        }
+        return `=== ${r.dev_name} ===\n${parts.join("\n")}`;
+      });
+    return blocks.join("\n\n");
+  };
+
+  const refreshSummary = async (opts?: { silent?: boolean }) => {
+    if (rows.length === 0) {
+      setSummary(null);
+      lastSummaryKey.current = summaryKey;
+      return;
+    }
+    const composite = buildCompositeForSummary();
+    if (!composite.trim()) {
+      setSummary(null);
+      lastSummaryKey.current = summaryKey;
+      return;
+    }
+    const presentNames = rows.map((r) => r.dev_name);
+    if (!opts?.silent) setSummaryLoading(true);
+    setSummaryError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("analyze-daily-status", {
+        body: {
+          todaySummary: composite,
+          presentMembers: presentNames,
+          history: [],
+          masterContext: "",
+          masterBacklog: [],
+        },
+      });
+      if (error) throw error;
+      setSummary((data?.insights ?? null) as DailySummaryInsights | null);
+      lastSummaryKey.current = summaryKey;
+    } catch (e: any) {
+      setSummaryError(e?.message ?? "Erro ao gerar resumo");
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
+  // Atualiza automaticamente o resumo conforme os devs vão preenchendo.
+  useEffect(() => {
+    if (rows.length === 0) {
+      setSummary(null);
+      lastSummaryKey.current = "";
+      return;
+    }
+    if (lastSummaryKey.current === summaryKey) return;
+    const t = setTimeout(() => { refreshSummary({ silent: !!summary }); }, 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [summaryKey]);
+
   if (sim.role === "dev") {
     return (
       <AccessDeniedCard message="Desenvolvedores não têm acesso ao Painel do GP. Selecione um perfil de GP ou Diretor no seletor acima." />
