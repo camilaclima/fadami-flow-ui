@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Play, Users, RefreshCcw, AlertOctagon, CircleCheck, Calendar, AlertTriangle, CircleDashed, FileText, TrendingUp, Flame } from "lucide-react";
+import { Sparkles, Play, Users, RefreshCcw, AlertOctagon, CircleCheck, Calendar, AlertTriangle, CircleDashed, FileText, TrendingUp, Flame, X, Eye } from "lucide-react";
 import { History, Activity } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -520,41 +520,62 @@ export default function PainelGPPage() {
             {!isLoading && memberRows.length === 0 && <p className="text-sm text-muted-foreground">Nenhum membro encontrado para esta squad.</p>}
             {memberRows.map((m) => {
               const impCount = m.imps.length;
+              const clickable = m.filled && !!m.entry;
               return (
                 <div
                   key={m.key}
-                  className={`flex items-start justify-between p-3 rounded-xl ${
+                  role={clickable ? "button" : undefined}
+                  tabIndex={clickable ? 0 : undefined}
+                  onClick={() => clickable && setDetailEntryId(m.entry!.id)}
+                  onKeyDown={(e) => {
+                    if (clickable && (e.key === "Enter" || e.key === " ")) {
+                      e.preventDefault();
+                      setDetailEntryId(m.entry!.id);
+                    }
+                  }}
+                  className={`flex items-start justify-between gap-2 p-3 rounded-xl transition-colors ${
                     m.filled
-                      ? "bg-surface-hover/40"
+                      ? "bg-surface-hover/40 hover:bg-surface-hover/70 cursor-pointer"
                       : "bg-muted/20 border border-dashed border-border/60"
                   }`}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
                     {m.filled ? (
-                      <CircleCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500 text-white shrink-0 mt-0.5">
+                        <CircleCheck className="w-3.5 h-3.5" strokeWidth={2.5} />
+                      </span>
                     ) : (
-                      <CircleDashed className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-muted-foreground/40 text-white shrink-0 mt-0.5">
+                        <X className="w-3.5 h-3.5" strokeWidth={2.5} />
+                      </span>
                     )}
                     <div className="min-w-0">
-                      <span className={`text-sm font-medium truncate block ${m.filled ? "" : "text-muted-foreground"}`}>
+                      <span className={`text-sm font-medium block break-words ${m.filled ? "" : "text-muted-foreground"}`}>
                         {m.entry?.dev_name ?? m.name}
                       </span>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/20">
-                          {impCount} impedimento{impCount !== 1 ? "s" : ""}
-                        </Badge>
-                        {m.filled ? (
-                          <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-                            Preenchido
+                      {impCount > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/20">
+                            {impCount} impedimento{impCount !== 1 ? "s" : ""}
                           </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground border-border/60">
-                            Não preenchido
-                          </Badge>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
+                  {clickable && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDetailEntryId(m.entry!.id);
+                      }}
+                      aria-label="Ver preenchimento"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
               );
             })}
