@@ -362,9 +362,11 @@ export default function PainelGPPage() {
 
         <TabsContent value="painel" className="mt-0">
         <div className="flex items-end gap-3 flex-wrap mb-4 justify-end">
-          <div>
-            <Label className="mb-1.5">Data</Label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-[170px]" />
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground mr-auto">
+            <Calendar className="w-4 h-4" />
+            <span className="capitalize">
+              {format(parseISO(date), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+            </span>
           </div>
           <div>
             <Label className="mb-1.5">Squad</Label>
