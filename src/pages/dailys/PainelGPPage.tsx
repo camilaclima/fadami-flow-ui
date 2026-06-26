@@ -474,14 +474,9 @@ export default function PainelGPPage() {
     <div className="p-4 md:p-6 w-full max-w-[1400px] mx-auto">
       <div className="mb-4 flex items-end justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold">
-            Painel do Analista / GP
-            {sim.role === "gp" && sim.personName && <span className="text-base font-normal text-muted-foreground ml-2">— {sim.personName}</span>}
-          </h1>
+          <h1 className="text-2xl font-bold">Painel da Daily</h1>
           <p className="text-sm text-muted-foreground">
-            {sim.role === "diretor"
-              ? "Visão consolidada de todas as squads."
-              : "Você só vê as squads onde está cadastrado como responsável."}
+            Centralize as dailys, identifique bloqueios e destrave o fluxo das suas squads.
           </p>
         </div>
       </div>
