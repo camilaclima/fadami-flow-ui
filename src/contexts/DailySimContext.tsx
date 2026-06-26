@@ -49,7 +49,10 @@ export function DailySimProvider({ children }: { children: ReactNode }) {
       if (!profile?.id || !user?.id) {
         if (!cancelled) {
           setCurrent(DEFAULT);
-          setLoading(false);
+          // Mantém loading=true até o profile carregar, evitando que o
+          // HomeRedirect decida pelo papel "diretor" default antes do
+          // papel real do usuário ser resolvido.
+          setLoading(!!user?.id && !profile?.id ? true : false);
         }
         return;
       }
