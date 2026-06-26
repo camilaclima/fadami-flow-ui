@@ -520,11 +520,10 @@ export default function PainelGPPage() {
             {!isLoading && memberRows.length === 0 && <p className="text-sm text-muted-foreground">Nenhum membro encontrado para esta squad.</p>}
             {memberRows.map((m) => {
               const impCount = m.imps.length;
-              const openCount = m.imps.filter((i) => !i.resolved).length;
               return (
                 <div
                   key={m.key}
-                  className={`flex items-center justify-between p-3 rounded-xl ${
+                  className={`flex items-start justify-between p-3 rounded-xl ${
                     m.filled
                       ? "bg-surface-hover/40"
                       : "bg-muted/20 border border-dashed border-border/60"
@@ -532,17 +531,30 @@ export default function PainelGPPage() {
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     {m.filled ? (
-                      <CircleCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <CircleCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                     ) : (
-                      <CircleDashed className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <CircleDashed className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
                     )}
-                    <span className={`text-sm font-medium truncate ${m.filled ? "" : "text-muted-foreground"}`}>
-                      {m.name}
-                    </span>
+                    <div className="min-w-0">
+                      <span className={`text-sm font-medium truncate block ${m.filled ? "" : "text-muted-foreground"}`}>
+                        {m.entry?.dev_name ?? m.name}
+                      </span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/20">
+                          {impCount} impedimento{impCount !== 1 ? "s" : ""}
+                        </Badge>
+                        {m.filled ? (
+                          <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                            Preenchido
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground border-border/60">
+                            Não preenchido
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <span className={`text-xs shrink-0 ${openCount > 0 ? "text-orange-600 font-medium" : "text-muted-foreground"}`}>
-                    {impCount === 0 ? "Sem impedimentos" : `${impCount} impedimento${impCount !== 1 ? "s" : ""}`}
-                  </span>
                 </div>
               );
             })}
