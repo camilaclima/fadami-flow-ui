@@ -34,15 +34,29 @@ function daysAgoLabel(iso: string): string {
   return `Há ${days} dias`;
 }
 
-function todayISO() { return new Date().toISOString().slice(0, 10); }
+/** Retorna a data (YYYY-MM-DD) do último dia útil anterior à data atual.
+ *  Segunda-feira → sexta anterior. Sábado/Domingo → sexta anterior. */
+function previousBusinessDayISO(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  while (d.getDay() === 0 || d.getDay() === 6) {
+    d.setDate(d.getDate() - 1);
+  }
+  // Normaliza para meia-noite local antes de serializar.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 export default function PainelGPPage() {
   const { current: sim } = useDailySim();
-  const [date, setDate] = useState<string>(todayISO());
-  // Mantém a data sempre no dia atual (atualiza à meia-noite sem reload).
+  const [date, setDate] = useState<string>(previousBusinessDayISO());
+  // Mantém a data sempre apontando para o último dia útil anterior
+  // (atualiza automaticamente após a virada do dia, sem reload).
   useEffect(() => {
     const id = setInterval(() => {
-      const t = todayISO();
+      const t = previousBusinessDayISO();
       setDate((cur) => (cur === t ? cur : t));
     }, 60_000);
     return () => clearInterval(id);
@@ -591,7 +605,7 @@ export default function PainelGPPage() {
         <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
           <div>
             <CardTitle className="text-base flex items-center gap-2">
-              <FileText className="w-4 h-4 text-primary" /> Resumo da Daily de hoje
+              <FileText className="w-4 h-4 text-primary" /> Resumo da Daily do último dia útil
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
               Atualiza automaticamente conforme os devs preenchem suas dailies.
@@ -611,7 +625,7 @@ export default function PainelGPPage() {
         <CardContent className="space-y-4">
           {rows.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              Ninguém preencheu a daily de hoje ainda. O resumo aparecerá aqui assim que houver pelo menos um registro.
+              Ninguém preencheu a daily do último dia útil. O resumo aparecerá aqui assim que houver pelo menos um registro.
             </p>
           )}
           {rows.length > 0 && !summary && !summaryLoading && !summaryError && (
