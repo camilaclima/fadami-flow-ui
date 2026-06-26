@@ -565,11 +565,14 @@ export default function PainelGPPage() {
           <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
             <div>
               <CardTitle className="text-base flex items-center gap-2">
-                <FileText className="w-4 h-4 text-primary" /> Resumo da Daily do último dia útil
+                <FileText className="w-4 h-4 text-primary" /> Resumo da Daily
               </CardTitle>
-              <p className="text-xs text-muted-foreground mt-1">
-                Atualiza automaticamente conforme os devs preenchem suas dailies.
-              </p>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+                <Calendar className="w-3.5 h-3.5" />
+                <span className="capitalize">
+                  {format(parseISO(date), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                </span>
+              </div>
             </div>
             <Button
               size="sm"
