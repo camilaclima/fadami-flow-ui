@@ -509,12 +509,6 @@ export default function PainelGPPage() {
         </div>
 
         <TabsContent value="painel" className="mt-0">
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-4">
-            <Calendar className="w-4 h-4" />
-            <span className="capitalize">
-              {format(parseISO(date), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-            </span>
-          </div>
       {/* Status de preenchimento + Resumo da Daily */}
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4 mb-4">
         <Card className="rounded-2xl">
