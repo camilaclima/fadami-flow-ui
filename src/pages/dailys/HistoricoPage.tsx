@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
-import { format, differenceInHours, parseISO } from "date-fns";
+import { useEffect, useMemo, useState } from "react";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  CalendarCheck, AlertOctagon, Download, Sparkles, TrendingUp, AlertTriangle, Flame,
-  CheckCircle2, Pencil, Lock, History,
+  CalendarCheck, AlertOctagon, Sparkles, TrendingUp, AlertTriangle, Flame,
+  CheckCircle2, History, Users, Loader2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -17,165 +17,183 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
-import { useActiveProducts } from "@/hooks/useProducts";
-import { useSprints } from "@/hooks/useSprints";
-import { useTeamMembers } from "@/hooks/useTeamMembers";
-import { useAuthorizedProducts } from "@/hooks/useAuthorizedProducts";
-import { EditDailyDialog } from "@/components/daily/EditDailyDialog";
-import { downloadDailyReportPdf, parseRawReport } from "@/lib/dailyReportPdf";
+import { useDailySim } from "@/contexts/DailySimContext";
+import { useProfiles } from "@/hooks/useProfiles";
+import { useDevDailyImpedimentsByEntries, URGENCY_LABELS, URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
 
 interface AIRecorrencia { descricao: string; dias_consecutivos: number; responsavel?: string; }
 interface AIInsights {
-  avancos: string[];
-  riscos: string[];
-  recorrencias: AIRecorrencia[];
+  avancos?: string[];
+  riscos?: string[];
+  recorrencias?: AIRecorrencia[];
   status_geral?: "saudavel" | "atencao" | "critico";
   resumo_executivo?: string;
   resumo_curto?: string;
   proximos_passos?: string[];
 }
 
-interface DailyRow {
+interface DevEntryRow {
   id: string;
-  product_id: string;
-  sprint_id: string;
-  sprint_label?: string;
-  status_date: string;
-  present_member_ids: string[];
-  summary: string;
-  blocker_level: number;
-  ai_insights: AIInsights | null;
+  user_id: string;
+  squad_id: string | null;
+  entry_date: string;
+  did_yesterday: string | null;
+  will_do_today: string | null;
+  impediments: string | null;
   created_at: string;
 }
 
-/** Conta impedimentos a partir do summary bruto (linhas "Impedimentos: a | b | c"). */
-function countImpediments(summary: string): number {
-  if (!summary) return 0;
-  const blocks = parseRawReport(summary);
-  let total = 0;
-  for (const b of blocks) {
-    const m = b.text.match(/impedimentos?\s*:\s*([^\n]+)/i);
-    if (!m) continue;
-    const items = m[1].split("|").map((s) => s.trim()).filter((s) => {
-      if (!s) return false;
-      const low = s.toLowerCase();
-      return low !== "—" && low !== "-" && !/^(nenhum|sem impedimento|n\/a)/i.test(low);
-    });
-    total += items.length;
-  }
-  return total;
+interface DayGroup {
+  date: string;
+  entries: DevEntryRow[];
 }
 
 export default function HistoricoPage() {
-  const { data: allProducts = [] } = useActiveProducts();
-  const { data: sprints = [] } = useSprints();
-  const { data: teamMembers = [] } = useTeamMembers();
-  const { isAdmin, productIds: allowedIds } = useAuthorizedProducts();
+  const { current: sim } = useDailySim();
+  const { data: profiles = [] } = useProfiles();
+  const [selectedDay, setSelectedDay] = useState<DayGroup | null>(null);
 
-  const [selectedDaily, setSelectedDaily] = useState<DailyRow | null>(null);
-  const [editingDaily, setEditingDaily] = useState<DailyRow | null>(null);
+  // Resolve os user_ids visíveis: GP vê apenas membros das suas squads;
+  // Diretor vê todos os user_ids que registraram dailys.
+  const squadIds = sim.role === "gp" ? (sim.squadIds ?? []) : null;
 
-  const products = useMemo(
-    () => isAdmin || !allowedIds ? allProducts : allProducts.filter((p) => allowedIds.includes(p.id)),
-    [allProducts, allowedIds, isAdmin],
-  );
-  const viewProductIds = useMemo(() => products.map((p) => p.id), [products]);
-  const productNameMap = useMemo(() => Object.fromEntries(allProducts.map((p) => [p.id, p.name])), [allProducts]);
-
-  const { data: dailies = [], isLoading } = useQuery({
-    queryKey: ["daily_status_history_painel", isAdmin ? "admin" : viewProductIds.join(",")],
-    enabled: viewProductIds.length > 0 || isAdmin,
+  const { data: allowedUserIds = null } = useQuery<string[] | null>({
+    queryKey: ["historico_allowed_users", sim.role, (squadIds ?? []).slice().sort().join(",")],
+    enabled: sim.role === "diretor" || (squadIds !== null && squadIds.length > 0),
     queryFn: async () => {
-      let q = (supabase.from("daily_status") as any)
-        .select("*")
-        .order("status_date", { ascending: false });
-      if (!isAdmin) {
-        if (viewProductIds.length === 0) return [] as DailyRow[];
-        q = q.in("product_id", viewProductIds);
-      }
-      const { data, error } = await q;
-      if (error) throw error;
-      return data as DailyRow[];
+      if (sim.role === "diretor") return null; // null = sem filtro
+      if (!squadIds || squadIds.length === 0) return [];
+      const { data: sm } = await (supabase.from("squad_members") as any)
+        .select("team_member_id")
+        .in("squad_id", squadIds);
+      const tmIds = (sm ?? []).map((r: any) => r.team_member_id);
+      if (tmIds.length === 0) return [];
+      const { data: tms } = await (supabase.from("team_members") as any)
+        .select("id,email,name").in("id", tmIds);
+      const emails = (tms ?? []).map((t: any) => String(t.email ?? "").trim().toLowerCase()).filter(Boolean);
+      const names = (tms ?? []).map((t: any) => String(t.name ?? "").trim().toLowerCase()).filter(Boolean);
+      const { data: profs } = await (supabase.from("profiles") as any)
+        .select("user_id,email,first_name,last_name");
+      const ids = (profs ?? [])
+        .filter((p: any) => {
+          const em = String(p.email ?? "").trim().toLowerCase();
+          const full = `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim().toLowerCase();
+          return (em && emails.includes(em)) || (full && names.includes(full));
+        })
+        .map((p: any) => p.user_id)
+        .filter(Boolean);
+      return Array.from(new Set(ids)) as string[];
     },
   });
 
-  const sprintNameMap = useMemo(() => Object.fromEntries(sprints.map((s) => [s.id, s.name])), [sprints]);
-  const memberNameMap = useMemo(() => Object.fromEntries(teamMembers.map((m) => [m.id, m.name])), [teamMembers]);
+  const { data: entries = [], isLoading } = useQuery<DevEntryRow[]>({
+    queryKey: ["historico_dev_entries", sim.role, (allowedUserIds ?? ["__all__"]).slice().sort().join(",")],
+    enabled: sim.role === "diretor" || (Array.isArray(allowedUserIds) && allowedUserIds.length > 0),
+    queryFn: async () => {
+      let q = (supabase.from("dev_daily_entries") as any)
+        .select("*")
+        .order("entry_date", { ascending: false });
+      if (sim.role !== "diretor" && allowedUserIds && allowedUserIds.length > 0) {
+        q = q.in("user_id", allowedUserIds);
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as DevEntryRow[];
+    },
+  });
 
-  const dailyNumberMap = useMemo(() => {
-    const sortedAsc = [...dailies].sort((a, b) => a.status_date.localeCompare(b.status_date));
-    const map: Record<string, number> = {};
-    sortedAsc.forEach((d, i) => { map[d.id] = i + 1; });
-    return map;
-  }, [dailies]);
+  const profileByUser = useMemo(() => {
+    const m = new Map<string, any>();
+    profiles.forEach((p: any) => m.set(p.user_id, p));
+    return m;
+  }, [profiles]);
 
-  const canEdit = (d: DailyRow) => differenceInHours(new Date(), new Date(d.created_at)) <= 72;
-
-  const handleDownloadDaily = (d: DailyRow, e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    downloadDailyReportPdf({
-      productName: productNameMap[d.product_id] ?? "Projeto",
-      dailyNumber: dailyNumberMap[d.id] ?? 0,
-      statusDate: d.status_date,
-      sprintLabel: d.sprint_label?.trim() || (sprintNameMap[d.sprint_id] ?? "—"),
-      blockerLevel: d.blocker_level,
-      presentMembers: (d.present_member_ids ?? []).map((id) => memberNameMap[id] ?? id),
-      rawSummary: d.summary ?? "",
-      insights: d.ai_insights,
-    });
+  const nameFor = (uid: string): string => {
+    const p = profileByUser.get(uid);
+    if (!p) return "Colaborador";
+    return `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || p.email || "Colaborador";
   };
+
+  // Agrupa por entry_date (desc).
+  const days: DayGroup[] = useMemo(() => {
+    const grouped = new Map<string, DevEntryRow[]>();
+    entries.forEach((e) => {
+      const list = grouped.get(e.entry_date) ?? [];
+      list.push(e);
+      grouped.set(e.entry_date, list);
+    });
+    return Array.from(grouped.entries())
+      .map(([date, list]) => ({ date, entries: list }))
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [entries]);
+
+  // Impedimentos para entries do dia selecionado (lazy).
+  const selectedEntryIds = useMemo(
+    () => (selectedDay?.entries ?? []).map((e) => e.id),
+    [selectedDay],
+  );
+  const { data: dayImpediments = [] } = useDevDailyImpedimentsByEntries(selectedEntryIds);
+
+  // Impedimentos globais (para contagem no card de cada dia).
+  const allEntryIds = useMemo(() => entries.map((e) => e.id), [entries]);
+  const { data: allImps = [] } = useDevDailyImpedimentsByEntries(allEntryIds);
+  const impCountByEntry = useMemo(() => {
+    const m = new Map<string, number>();
+    allImps.forEach((i) => {
+      if (i.resolved) return;
+      m.set(i.entry_id, (m.get(i.entry_id) ?? 0) + 1);
+    });
+    return m;
+  }, [allImps]);
 
   return (
     <div className="p-4 md:p-6 w-full max-w-[1400px] mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold flex items-center gap-2"><History className="w-6 h-6" /> Histórico de Dailies</h1>
-        <p className="text-sm text-muted-foreground">Audite as reuniões já realizadas, com observações e métricas anexadas.</p>
+        <p className="text-sm text-muted-foreground">Registros consolidados por dia, com o que cada desenvolvedor preencheu.</p>
       </div>
 
       <p className="text-xs text-muted-foreground mb-2">
-        {isLoading ? "Carregando..." : `Mostrando ${dailies.length} daily(s).`}
+        {isLoading ? "Carregando..." : `Mostrando ${days.length} dia(s) de registros.`}
       </p>
 
       <div className="space-y-2">
-        {!isLoading && dailies.length === 0 && (
+        {!isLoading && days.length === 0 && (
           <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">Nenhuma daily registrada.</CardContent></Card>
         )}
-        {dailies.map((d) => {
-          const resumo = d.ai_insights?.resumo_curto ?? d.ai_insights?.resumo_executivo ?? d.summary;
-          const num = dailyNumberMap[d.id];
-          const impCount = countImpediments(d.summary);
+        {days.map((day) => {
+          const totalImps = day.entries.reduce((acc, e) => acc + (impCountByEntry.get(e.id) ?? 0), 0);
+          const names = day.entries.map((e) => nameFor(e.user_id)).slice(0, 3).join(", ");
+          const extras = day.entries.length - 3;
           return (
-            <motion.div key={d.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
+            <motion.div key={day.date} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
               <Card
-                onClick={() => setSelectedDaily(d)}
+                onClick={() => setSelectedDay(day)}
                 className="cursor-pointer hover:border-primary/50 hover:bg-accent/30 transition-all"
               >
                 <CardContent className="py-3 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <Badge className="flex-shrink-0 bg-primary/15 text-primary border-primary/30 hover:bg-primary/15">
-                      Daily #{num}
+                    <Badge className="flex-shrink-0 bg-primary/15 text-primary border-primary/30 hover:bg-primary/15 gap-1">
+                      <CalendarCheck className="h-3 w-3" />
+                      {format(parseISO(day.date), "dd/MM/yyyy", { locale: ptBR })}
                     </Badge>
-                    <Badge variant="outline" className="flex-shrink-0">
-                      {format(parseISO(d.status_date), "dd/MM/yyyy", { locale: ptBR })}
+                    <Badge variant="outline" className="flex-shrink-0 text-xs capitalize">
+                      {format(parseISO(day.date), "EEEE", { locale: ptBR })}
                     </Badge>
-                    <Badge variant="secondary" className="flex-shrink-0 text-xs">
-                      {d.sprint_label?.trim() ? d.sprint_label : (sprintNameMap[d.sprint_id] ?? "Sprint —")}
+                    <Badge variant="secondary" className="flex-shrink-0 text-xs gap-1">
+                      <Users className="h-3 w-3" /> {day.entries.length} {day.entries.length === 1 ? "dev" : "devs"}
                     </Badge>
-                    <p className="text-sm text-muted-foreground truncate italic">"{resumo}"</p>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {names}{extras > 0 ? ` +${extras}` : ""}
+                    </p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <Badge variant="outline" className="text-xs gap-1">
-                      <AlertOctagon className="h-3 w-3" />
-                      {impCount} {impCount === 1 ? "impedimento" : "impedimentos"}
-                    </Badge>
-                    <Button
-                      size="icon" variant="ghost"
-                      title="Baixar relatório PDF desta daily"
-                      onClick={(e) => handleDownloadDaily(d, e)}
-                      className="h-8 w-8"
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
+                    {totalImps > 0 && (
+                      <Badge variant="outline" className="text-xs gap-1 border-orange-500/50 text-orange-600">
+                        <AlertOctagon className="h-3 w-3" />
+                        {totalImps} {totalImps === 1 ? "impedimento" : "impedimentos"}
+                      </Badge>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -184,114 +202,214 @@ export default function HistoricoPage() {
         })}
       </div>
 
-      <EditDailyDialog open={!!editingDaily} onOpenChange={(o) => !o && setEditingDaily(null)} daily={editingDaily} onSaved={() => setSelectedDaily(null)} />
-
-      {/* Modal de detalhe da daily — espelha exatamente o de Registro de Dailys */}
-      <Dialog open={!!selectedDaily} onOpenChange={(o) => !o && setSelectedDaily(null)}>
-        <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] flex flex-col">
-          {selectedDaily && (
-            <>
-              <DialogHeader>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <DialogTitle className="flex items-center gap-2 flex-wrap">
-                      <CalendarCheck className="h-5 w-5 text-primary" />
-                      Daily #{dailyNumberMap[selectedDaily.id]} —{" "}
-                      {format(parseISO(selectedDaily.status_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                    </DialogTitle>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline" onClick={() => handleDownloadDaily(selectedDaily)}>
-                      <Download className="h-4 w-4 mr-2" /> Baixar PDF
-                    </Button>
-                    {canEdit(selectedDaily) ? (
-                      <Button size="sm" variant="outline" onClick={() => setEditingDaily(selectedDaily)}>
-                        <Pencil className="h-4 w-4 mr-2" /> Editar
-                      </Button>
-                    ) : (
-                      <Badge variant="outline" className="gap-1.5">
-                        <Lock className="h-3 w-3" /> Somente leitura
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                <DialogDescription className="flex items-center gap-2 flex-wrap">
-                  <Badge variant="secondary">{sprintNameMap[selectedDaily.sprint_id] ?? "Sprint —"}</Badge>
-                  <Badge variant="outline" className="gap-1">
-                    <Sparkles className="h-3 w-3" /> Bloqueio IA {selectedDaily.blocker_level}/5
-                  </Badge>
-                  {(selectedDaily.present_member_ids ?? []).length > 0 && (
-                    <span className="text-xs">{(selectedDaily.present_member_ids ?? []).length} membro(s) presente(s)</span>
-                  )}
-                  <span className="text-xs text-muted-foreground">
-                    · Criada em {format(new Date(selectedDaily.created_at), "dd/MM HH:mm", { locale: ptBR })}
-                  </span>
-                </DialogDescription>
-              </DialogHeader>
-
-              <Tabs defaultValue="bruto" className="flex-1 flex flex-col min-h-0">
-                <TabsList className="self-start">
-                  <TabsTrigger value="bruto">Relatório Bruto</TabsTrigger>
-                  <TabsTrigger value="ia">Análise da IA</TabsTrigger>
-                </TabsList>
-                <TabsContent value="bruto" className="flex-1 min-h-0">
-                  <ScrollArea className="h-[55vh] pr-3">
-                    <RawReportView
-                      summary={selectedDaily.summary}
-                      presentMembers={(selectedDaily.present_member_ids ?? []).map((id) => memberNameMap[id] ?? id)}
-                    />
-                  </ScrollArea>
-                </TabsContent>
-                <TabsContent value="ia" className="flex-1 min-h-0">
-                  <ScrollArea className="h-[55vh] pr-3">
-                    {!selectedDaily.ai_insights ? (
-                      <p className="text-sm text-muted-foreground py-6 text-center">Esta daily não possui análise de IA.</p>
-                    ) : (
-                      <DailyAIDetail insights={selectedDaily.ai_insights} />
-                    )}
-                  </ScrollArea>
-                </TabsContent>
-              </Tabs>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      <DayDetailDialog
+        day={selectedDay}
+        onClose={() => setSelectedDay(null)}
+        nameFor={nameFor}
+        impediments={dayImpediments}
+      />
     </div>
   );
 }
 
-function RawReportView({ summary, presentMembers }: { summary: string; presentMembers: string[] }) {
-  const blocks = parseRawReport(summary || "");
-  const initials = (name: string) => name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
-  if (!summary?.trim()) return <p className="text-sm text-muted-foreground italic">Sem texto registrado.</p>;
+function initials(name: string) {
+  return name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
+}
+
+function buildSummaryForAI(
+  day: DayGroup,
+  nameFor: (uid: string) => string,
+  impsByEntry: Map<string, { description: string; urgency: string; resolved: boolean }[]>,
+): { summary: string; members: string[] } {
+  const parts: string[] = [];
+  const members: string[] = [];
+  day.entries.forEach((e) => {
+    const name = nameFor(e.user_id);
+    members.push(name);
+    const imps = (impsByEntry.get(e.id) ?? []).map((i) =>
+      `- ${i.description} (urgência ${i.urgency}${i.resolved ? ", resolvido" : ""})`,
+    );
+    parts.push(
+      `=== ${name} ===\n` +
+        `Ontem: ${e.did_yesterday?.trim() || "—"}\n` +
+        `Hoje: ${e.will_do_today?.trim() || "—"}\n` +
+        `Impedimentos: ${imps.length ? "\n" + imps.join("\n") : "—"}`,
+    );
+  });
+  return { summary: parts.join("\n\n"), members };
+}
+
+function DayDetailDialog({
+  day,
+  onClose,
+  nameFor,
+  impediments,
+}: {
+  day: DayGroup | null;
+  onClose: () => void;
+  nameFor: (uid: string) => string;
+  impediments: { id: string; entry_id: string; description: string; urgency: string; resolved: boolean }[];
+}) {
+  const [insights, setInsights] = useState<AIInsights | null>(null);
+  const [loadingAI, setLoadingAI] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const impsByEntry = useMemo(() => {
+    const m = new Map<string, typeof impediments>();
+    impediments.forEach((i) => {
+      const list = m.get(i.entry_id) ?? [];
+      list.push(i);
+      m.set(i.entry_id, list);
+    });
+    return m;
+  }, [impediments]);
+
+  // Reset insights ao trocar de dia.
+  useEffect(() => {
+    setInsights(null);
+    setAiError(null);
+  }, [day?.date]);
+
+  const runAnalysis = async () => {
+    if (!day) return;
+    setLoadingAI(true);
+    setAiError(null);
+    try {
+      const { summary, members } = buildSummaryForAI(day, nameFor, impsByEntry as any);
+      const { data, error } = await supabase.functions.invoke("analyze-daily-status", {
+        body: {
+          todaySummary: summary,
+          presentMembers: members,
+          history: [],
+        },
+      });
+      if (error) throw error;
+      setInsights((data?.insights ?? null) as AIInsights | null);
+    } catch (e: any) {
+      setAiError(e?.message ?? "Falha ao gerar análise");
+    } finally {
+      setLoadingAI(false);
+    }
+  };
+
   return (
-    <div className="space-y-3">
-      {presentMembers.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {presentMembers.map((n, i) => <Badge key={i} variant="secondary" className="text-xs">{n}</Badge>)}
-        </div>
-      )}
-      <div className="space-y-2.5">
-        {blocks.map((b, i) => {
-          const isMeta = /observa|coordena/i.test(b.name);
-          return (
-            <Card key={i} className={cn("border-l-4", isMeta ? "border-l-amber-500/60 bg-amber-500/5" : "border-l-primary/60 bg-card/40")}>
-              <CardHeader className="pb-2">
-                <div className="flex items-center gap-2">
-                  <div className={cn("h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0",
-                    isMeta ? "bg-amber-500/20 text-amber-700" : "bg-primary/15 text-primary")}>
-                    {isMeta ? "📝" : initials(b.name)}
+    <Dialog open={!!day} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] flex flex-col">
+        {day && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 flex-wrap">
+                <CalendarCheck className="h-5 w-5 text-primary" />
+                Daily de {format(parseISO(day.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+              </DialogTitle>
+              <DialogDescription className="flex items-center gap-2 flex-wrap">
+                <Badge variant="secondary" className="gap-1">
+                  <Users className="h-3 w-3" /> {day.entries.length} {day.entries.length === 1 ? "desenvolvedor" : "desenvolvedores"}
+                </Badge>
+                <Badge variant="outline" className="capitalize">
+                  {format(parseISO(day.date), "EEEE", { locale: ptBR })}
+                </Badge>
+              </DialogDescription>
+            </DialogHeader>
+
+            <Tabs defaultValue="bruto" className="flex-1 flex flex-col min-h-0">
+              <TabsList className="self-start">
+                <TabsTrigger value="bruto">Relatório Bruto</TabsTrigger>
+                <TabsTrigger value="ia">Análise da IA</TabsTrigger>
+              </TabsList>
+              <TabsContent value="bruto" className="flex-1 min-h-0">
+                <ScrollArea className="h-[60vh] pr-3">
+                  <div className="space-y-2.5">
+                    {day.entries.map((e) => {
+                      const name = nameFor(e.user_id);
+                      const imps = impsByEntry.get(e.id) ?? [];
+                      return (
+                        <Card key={e.id} className="border-l-4 border-l-primary/60 bg-card/40">
+                          <CardHeader className="pb-2">
+                            <div className="flex items-center gap-2">
+                              <div className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 bg-primary/15 text-primary">
+                                {initials(name)}
+                              </div>
+                              <CardTitle className="text-sm">{name}</CardTitle>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-2.5">
+                            <Section label="Ontem" text={e.did_yesterday} />
+                            <Section label="Hoje" text={e.will_do_today} />
+                            <div>
+                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Impedimentos</p>
+                              {imps.length === 0 ? (
+                                <p className="text-sm text-muted-foreground italic">Nenhum impedimento registrado.</p>
+                              ) : (
+                                <div className="space-y-1.5">
+                                  {imps.map((i) => (
+                                    <div key={i.id} className="flex items-start gap-2 text-sm">
+                                      <Badge
+                                        variant="outline"
+                                        className={cn(
+                                          "text-[10px] flex-shrink-0 mt-0.5",
+                                          URGENCY_STYLES[i.urgency as keyof typeof URGENCY_STYLES],
+                                        )}
+                                      >
+                                        {URGENCY_LABELS[i.urgency as keyof typeof URGENCY_LABELS]}
+                                      </Badge>
+                                      <span className={i.resolved ? "text-muted-foreground line-through" : ""}>
+                                        {i.description}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
-                  <CardTitle className="text-sm">{b.name}</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground/90">{b.text || "—"}</p>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                </ScrollArea>
+              </TabsContent>
+              <TabsContent value="ia" className="flex-1 min-h-0">
+                <ScrollArea className="h-[60vh] pr-3">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <p className="text-xs text-muted-foreground">
+                        Análise consolidada de tudo que foi escrito por todos os desenvolvedores neste dia.
+                      </p>
+                      <Button size="sm" variant="outline" onClick={runAnalysis} disabled={loadingAI}>
+                        {loadingAI ? (
+                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Analisando...</>
+                        ) : (
+                          <><Sparkles className="h-4 w-4 mr-2" /> {insights ? "Reanalisar" : "Analisar com IA"}</>
+                        )}
+                      </Button>
+                    </div>
+                    {aiError && (
+                      <p className="text-sm text-destructive">{aiError}</p>
+                    )}
+                    {!insights && !loadingAI && !aiError && (
+                      <p className="text-sm text-muted-foreground py-6 text-center">
+                        Clique em "Analisar com IA" para gerar avanços, riscos e recorrências deste dia.
+                      </p>
+                    )}
+                    {insights && <DailyAIDetail insights={insights} />}
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+            </Tabs>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Section({ label, text }: { label: string; text: string | null }) {
+  return (
+    <div>
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">{label}</p>
+      <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground/90">
+        {text?.trim() ? text : "—"}
+      </p>
     </div>
   );
 }
@@ -309,21 +427,21 @@ function DailyAIDetail({ insights }: { insights: AIInsights }) {
         <Card className="border-emerald-500/30 bg-emerald-500/5">
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><TrendingUp className="h-4 w-4 text-emerald-600" /> Avanços</CardTitle></CardHeader>
           <CardContent>
-            {insights.avancos.length === 0 ? <p className="text-xs text-muted-foreground">—</p> :
+            {!insights.avancos?.length ? <p className="text-xs text-muted-foreground">—</p> :
               <ul className="space-y-1.5">{insights.avancos.map((a, i) => <li key={i} className="text-xs flex gap-1.5"><CheckCircle2 className="h-3 w-3 text-emerald-600 mt-0.5 flex-shrink-0" />{a}</li>)}</ul>}
           </CardContent>
         </Card>
         <Card className="border-amber-500/30 bg-amber-500/5">
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-600" /> Riscos</CardTitle></CardHeader>
           <CardContent>
-            {insights.riscos.length === 0 ? <p className="text-xs text-muted-foreground">—</p> :
+            {!insights.riscos?.length ? <p className="text-xs text-muted-foreground">—</p> :
               <ul className="space-y-1.5">{insights.riscos.map((r, i) => <li key={i} className="text-xs flex gap-1.5"><AlertTriangle className="h-3 w-3 text-amber-600 mt-0.5 flex-shrink-0" />{r}</li>)}</ul>}
           </CardContent>
         </Card>
         <Card className="border-red-500/30 bg-red-500/5">
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Flame className="h-4 w-4 text-red-600" /> Recorrências</CardTitle></CardHeader>
           <CardContent>
-            {insights.recorrencias.length === 0 ? <p className="text-xs text-muted-foreground">—</p> :
+            {!insights.recorrencias?.length ? <p className="text-xs text-muted-foreground">—</p> :
               <ul className="space-y-1.5">{insights.recorrencias.map((r, i) => (
                 <li key={i} className="text-xs">
                   <div className="flex items-start justify-between gap-1.5">
