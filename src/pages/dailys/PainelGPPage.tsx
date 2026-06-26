@@ -488,40 +488,8 @@ export default function PainelGPPage() {
               {format(parseISO(date), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
             </span>
           </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <Card className="rounded-2xl overflow-hidden">
-          <CardContent className="p-5 flex items-start gap-4">
-            <div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Status e Impedimentos da Sprint</p>
-              <div className="mt-1 flex items-baseline gap-2">
-                <span className="text-3xl font-bold leading-none">{resolvedImps}<span className="text-muted-foreground">/{totalImps}</span></span>
-                <span className="text-sm text-muted-foreground">Resolvidos</span>
-              </div>
-              <p className="text-sm font-medium text-emerald-600 mt-1.5">{aderencia}% de Aderência ao Envio Prévio</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className={`rounded-2xl overflow-hidden border-l-4 ${stuckCount > 0 ? "border-l-orange-500" : "border-l-transparent"}`}>
-          <CardContent className="p-5 flex items-start gap-4">
-            <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${stuckCount > 0 ? "bg-orange-500/10 text-orange-600" : "bg-muted text-muted-foreground"}`}>
-              {stuckCount > 0 ? <AlertTriangle className="w-5 h-5" /> : <CircleDashed className="w-5 h-5" />}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Alertas de Alocação</p>
-              <div className="mt-1 flex items-baseline gap-2">
-                <span className={`text-3xl font-bold leading-none ${stuckCount > 0 ? "text-orange-600" : ""}`}>{stuckCount}</span>
-                <span className="text-sm text-muted-foreground">{stuckCount === 1 ? "Dev Travado" : "Devs Travados"}</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1.5">Atividades sem evolução há mais de 48h</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Status de preenchimento + Resumo da Daily */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         <Card className="rounded-2xl">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2"><Users className="w-4 h-4" /> Status de preenchimento</CardTitle>
@@ -530,75 +498,149 @@ export default function PainelGPPage() {
             {isLoading && <p className="text-sm text-muted-foreground">Carregando...</p>}
             {!isLoading && memberRows.length === 0 && <p className="text-sm text-muted-foreground">Nenhum membro encontrado para esta squad.</p>}
             {memberRows.map((m) => {
+              const impCount = m.imps.length;
               const openCount = m.imps.filter((i) => !i.resolved).length;
-              const resolvedToday = m.imps.filter((i) => i.resolved && i.resolved_at?.slice(0, 10) === date).length;
-              const clickable = m.filled && !!m.entry;
               return (
-                <button
+                <div
                   key={m.key}
-                  type="button"
-                  onClick={() => clickable && setDetailEntryId(m.entry!.id)}
-                  disabled={!clickable}
-                  className={`w-full text-left flex items-center justify-between p-3 rounded-xl transition-colors ${
+                  className={`flex items-center justify-between p-3 rounded-xl ${
                     m.filled
-                      ? "bg-surface-hover/40 hover:bg-surface-hover cursor-pointer"
-                      : "bg-muted/20 border border-dashed border-border/60 cursor-default"
+                      ? "bg-surface-hover/40"
+                      : "bg-muted/20 border border-dashed border-border/60"
                   }`}
                 >
-                  <div className="min-w-0">
-                    <div className={`text-sm font-medium ${m.filled ? "" : "text-muted-foreground"}`}>{m.name}</div>
-                    <div className="text-xs text-muted-foreground line-clamp-1">
-                      {m.filled
-                        ? (m.entry?.will_do_today || "Sem plano informado")
-                        : "Ainda não preencheu a daily"}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {openCount > 0 && (
-                      <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30 gap-1">
-                        <AlertOctagon className="w-2.5 h-2.5" /> {openCount} em aberto
-                      </Badge>
-                    )}
-                    {resolvedToday > 0 && (
-                      <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 gap-1">
-                        <CircleCheck className="w-2.5 h-2.5" /> {resolvedToday} sanado{resolvedToday !== 1 ? "s" : ""}
-                      </Badge>
-                    )}
+                  <div className="flex items-center gap-3 min-w-0">
                     {m.filled ? (
-                      <>
-                        <Badge className="bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/15">Preencheu</Badge>
-                        <Eye className="w-3.5 h-3.5 text-muted-foreground" />
-                      </>
+                      <CircleCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                     ) : (
-                      <Badge variant="outline" className="text-[10px] border-border/60 text-muted-foreground">Pendente</Badge>
+                      <CircleDashed className="w-4 h-4 text-muted-foreground shrink-0" />
                     )}
+                    <span className={`text-sm font-medium truncate ${m.filled ? "" : "text-muted-foreground"}`}>
+                      {m.name}
+                    </span>
                   </div>
-                </button>
+                  <span className={`text-xs shrink-0 ${openCount > 0 ? "text-orange-600 font-medium" : "text-muted-foreground"}`}>
+                    {impCount === 0 ? "Sem impedimentos" : `${impCount} impedimento${impCount !== 1 ? "s" : ""}`}
+                  </span>
+                </div>
               );
             })}
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary" /> Insights da IA</CardTitle>
-            <Button size="sm" variant="outline" className="rounded-xl gap-2" onClick={handleGenerate} disabled={gen.isPending || rows.length === 0}>
-              <RefreshCcw className={`w-3.5 h-3.5 ${gen.isPending ? "animate-spin" : ""}`} />
-              {insights.length ? "Regenerar" : "Gerar perguntas"}
+        {/* Resumo da Daily */}
+        <Card className="rounded-2xl overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileText className="w-4 h-4 text-primary" /> Resumo da Daily do último dia útil
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                Atualiza automaticamente conforme os devs preenchem suas dailies.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-xl gap-2"
+              onClick={() => refreshSummary()}
+              disabled={summaryLoading || rows.length === 0}
+            >
+              <RefreshCcw className={`w-3.5 h-3.5 ${summaryLoading ? "animate-spin" : ""}`} />
+              {summary ? "Atualizar resumo" : "Gerar resumo"}
             </Button>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {insights.length === 0 && (
-              <p className="text-sm text-muted-foreground">Clique em <b>Gerar perguntas</b> para receber sugestões para cada dev.</p>
+          <CardContent className="space-y-4">
+            {rows.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Ninguém preencheu a daily do último dia útil. O resumo aparecerá aqui assim que houver pelo menos um registro.
+              </p>
             )}
-            {insights.map((it, i) => (
-              <div key={i} className="p-3 rounded-xl border border-border/60 bg-card">
-                <div className="text-sm font-semibold mb-1.5">{it.dev_name}</div>
-                <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
-                  {it.suggested_questions.map((q, j) => <li key={j}>{q}</li>)}
-                </ul>
-              </div>
-            ))}
+            {rows.length > 0 && !summary && !summaryLoading && !summaryError && (
+              <p className="text-sm text-muted-foreground">Gerando resumo…</p>
+            )}
+            {summaryLoading && (
+              <p className="text-sm text-muted-foreground">Analisando relatos com IA…</p>
+            )}
+            {summaryError && (
+              <p className="text-sm text-red-600">{summaryError}</p>
+            )}
+            {summary && (
+              <>
+                <div className="rounded-xl border bg-muted/30 p-4">
+                  <p className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2">Resumo Executivo</p>
+                  <p className="text-sm whitespace-pre-wrap break-words text-foreground/90 italic">
+                    {summary.resumo_executivo || summary.resumo_curto || "Sem resumo disponível."}
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+                    <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 mb-2">
+                      <TrendingUp className="w-4 h-4" /> Avanços
+                    </p>
+                    {(summary.avancos ?? []).length === 0 ? (
+                      <p className="text-xs text-muted-foreground">Nada registrado.</p>
+                    ) : (
+                      <ul className="space-y-1.5">
+                        {(summary.avancos ?? []).map((a, i) => (
+                          <li key={i} className="text-xs flex gap-1.5 text-foreground/90">
+                            <CircleCheck className="w-3 h-3 text-emerald-600 shrink-0 mt-0.5" />
+                            <span className="break-words">{a}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+                    <p className="text-sm font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5 mb-2">
+                      <AlertTriangle className="w-4 h-4" /> Riscos
+                    </p>
+                    {(summary.riscos ?? []).length === 0 ? (
+                      <p className="text-xs text-muted-foreground">Nenhum risco identificado.</p>
+                    ) : (
+                      <ul className="space-y-1.5">
+                        {(summary.riscos ?? []).map((r, i) => (
+                          <li key={i} className="text-xs flex gap-1.5 text-foreground/90">
+                            <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0 mt-0.5" />
+                            <span className="break-words">{r}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-3">
+                    <p className="text-sm font-semibold text-rose-700 dark:text-rose-400 flex items-center gap-1.5 mb-2">
+                      <Flame className="w-4 h-4" /> Recorrências
+                    </p>
+                    {(summary.recorrencias ?? []).length === 0 ? (
+                      <p className="text-xs text-muted-foreground">Sem padrões recorrentes.</p>
+                    ) : (
+                      <ul className="space-y-1.5">
+                        {(summary.recorrencias ?? []).map((r, i) => {
+                          const isObj = typeof r === "object" && r !== null;
+                          const titulo = isObj ? (r as any).titulo ?? "" : String(r);
+                          const resp = isObj ? (r as any).responsavel : undefined;
+                          const dias = isObj ? (r as any).dias : undefined;
+                          return (
+                            <li key={i} className="text-xs text-foreground/90">
+                              <div className="flex gap-1.5">
+                                <Flame className="w-3 h-3 text-rose-600 shrink-0 mt-0.5" />
+                                <span className="break-words">{titulo}</span>
+                              </div>
+                              {(resp || dias != null) && (
+                                <div className="ml-4 text-[10px] text-muted-foreground">
+                                  {resp ? `Resp: ${resp}` : ""}{resp && dias != null ? " · " : ""}{dias != null ? `${dias}d` : ""}
+                                </div>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
