@@ -21,7 +21,7 @@ function useAllEntries() {
 }
 
 export default function SaudePage() {
-  const { current: sim } = useDailySim();
+  const { current: sim, loading: simLoading } = useDailySim();
   const { data: allEntries = [] } = useAllEntries();
   const { data: allMeetings = [] } = useDailyMeetings();
   const { data: allAttendance = [] } = useAllAttendance();
@@ -85,6 +85,14 @@ export default function SaudePage() {
       return { date: format(d, "dd/MM"), impedimentos: imp, total: rows.length };
     });
   }, [last7, entries]);
+
+  if (simLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (sim.role === "dev") {
     return <AccessDeniedCard message="Métricas de saúde são restritas a GPs e Diretores." />;

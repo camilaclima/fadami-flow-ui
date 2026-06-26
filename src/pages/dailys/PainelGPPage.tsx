@@ -50,7 +50,7 @@ function previousBusinessDayISO(): string {
 }
 
 export default function PainelGPPage() {
-  const { current: sim } = useDailySim();
+  const { current: sim, loading: simLoading } = useDailySim();
   const [date, setDate] = useState<string>(previousBusinessDayISO());
   // Mantém a data sempre apontando para o último dia útil anterior
   // (atualiza automaticamente após a virada do dia, sem reload).
@@ -463,6 +463,14 @@ export default function PainelGPPage() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recentEntries]);
+
+  if (simLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (sim.role === "dev") {
     return (
