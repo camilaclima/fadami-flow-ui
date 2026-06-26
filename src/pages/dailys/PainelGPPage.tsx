@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Play, Users, RefreshCcw, AlertOctagon, CircleCheck, Eye, Calendar, ShieldCheck, AlertTriangle, CircleDashed, FileText, TrendingUp, Flame } from "lucide-react";
+import { Sparkles, Play, Users, RefreshCcw, AlertOctagon, CircleCheck, Calendar, AlertTriangle, CircleDashed, FileText, TrendingUp, Flame } from "lucide-react";
 import { History, Activity } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
