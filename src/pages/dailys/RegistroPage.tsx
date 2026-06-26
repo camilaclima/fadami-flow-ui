@@ -112,6 +112,7 @@ export default function RegistroPage() {
   const [priorRes, setPriorRes] = useState<Record<string, PriorResolution>>({});
 
   const skipAutoFill = useRef(false);
+  const [mode, setMode] = useState<"create" | "edit">("create");
   const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
   const detailEntry = useMemo(
     () => entries.find((e) => e.id === detailEntryId) ?? null,
@@ -157,6 +158,7 @@ export default function RegistroPage() {
   const handleOpenCreate = () => {
     const available = dateOptions.find((o) => !entries.some((e) => e.entry_date === o.value));
     const targetDate = available?.value ?? dateOptions[0]?.value ?? toISO(new Date());
+    setMode("create");
     setDate(targetDate);
     setDidYesterday("");
     setWillDoToday("");
@@ -183,6 +185,7 @@ export default function RegistroPage() {
   };
 
   const handleOpenEdit = (entry: any) => {
+    setMode("edit");
     setDate(entry.entry_date);
     setDidYesterday(entry.did_yesterday ?? "");
     setWillDoToday(entry.will_do_today ?? "");
@@ -201,8 +204,13 @@ export default function RegistroPage() {
 
   useEffect(() => {
     if (open && !skipAutoFill.current) {
-      setDidYesterday(existing?.did_yesterday ?? "");
-      setWillDoToday(existing?.will_do_today ?? "");
+      if (mode === "edit") {
+        setDidYesterday(existing?.did_yesterday ?? "");
+        setWillDoToday(existing?.will_do_today ?? "");
+      } else {
+        setDidYesterday("");
+        setWillDoToday("");
+      }
       setTouched({ did: false, will: false });
       setDraftImps([]);
       setShowNewImp(false);
@@ -632,7 +640,7 @@ export default function RegistroPage() {
             <DialogTitle className="flex items-center gap-2">
               <ClipboardEdit className="w-5 h-5 text-primary" />
               Registrar daily
-              {existing && <Badge variant="outline" className="ml-2">Editando</Badge>}
+              {mode === "edit" && <Badge variant="outline" className="ml-2">Editando</Badge>}
             </DialogTitle>
           </DialogHeader>
 
