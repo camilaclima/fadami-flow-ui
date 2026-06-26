@@ -605,7 +605,7 @@ export default function PainelGPPage() {
         <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
           <div>
             <CardTitle className="text-base flex items-center gap-2">
-              <FileText className="w-4 h-4 text-primary" /> Resumo da Daily de hoje
+              <FileText className="w-4 h-4 text-primary" /> Resumo da Daily do último dia útil
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
               Atualiza automaticamente conforme os devs preenchem suas dailies.
@@ -625,7 +625,7 @@ export default function PainelGPPage() {
         <CardContent className="space-y-4">
           {rows.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              Ninguém preencheu a daily de hoje ainda. O resumo aparecerá aqui assim que houver pelo menos um registro.
+              Ninguém preencheu a daily do último dia útil. O resumo aparecerá aqui assim que houver pelo menos um registro.
             </p>
           )}
           {rows.length > 0 && !summary && !summaryLoading && !summaryError && (
