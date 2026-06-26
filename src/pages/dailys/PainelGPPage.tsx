@@ -455,37 +455,39 @@ export default function PainelGPPage() {
       </div>
 
       <Tabs defaultValue="painel" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="painel" className="gap-2"><Sparkles className="w-4 h-4" /> Painel</TabsTrigger>
-          <TabsTrigger value="historico" className="gap-2"><History className="w-4 h-4" /> Histórico</TabsTrigger>
-          <TabsTrigger value="saude" className="gap-2"><Activity className="w-4 h-4" /> Saúde & Engajamento</TabsTrigger>
-        </TabsList>
+        <div className="flex items-end justify-between flex-wrap gap-3 mb-4">
+          <TabsList>
+            <TabsTrigger value="painel" className="gap-2"><Sparkles className="w-4 h-4" /> Painel</TabsTrigger>
+            <TabsTrigger value="historico" className="gap-2"><History className="w-4 h-4" /> Histórico</TabsTrigger>
+            <TabsTrigger value="saude" className="gap-2"><Activity className="w-4 h-4" /> Saúde & Engajamento</TabsTrigger>
+          </TabsList>
+          <div className="flex items-end gap-3 flex-wrap">
+            <div>
+              <Label className="mb-1.5 block text-xs">Squad</Label>
+              <Select
+                value={effectiveSquadId ?? "__all__"}
+                onValueChange={(v) => setSquadId(v === "__all__" ? null : v)}
+              >
+                <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {sim.role === "diretor" && <SelectItem value="__all__">Todas as squads</SelectItem>}
+                  {squads.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={() => setOpenModal(true)} className="rounded-xl gap-2 bg-orange-500 hover:bg-orange-600 text-white">
+              <Play className="w-4 h-4" /> Iniciar Daily
+            </Button>
+          </div>
+        </div>
 
         <TabsContent value="painel" className="mt-0">
-        <div className="flex items-end gap-3 flex-wrap mb-4 justify-end">
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground mr-auto">
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-4">
             <Calendar className="w-4 h-4" />
             <span className="capitalize">
               {format(parseISO(date), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
             </span>
           </div>
-          <div>
-            <Label className="mb-1.5">Squad</Label>
-            <Select
-              value={effectiveSquadId ?? "__all__"}
-              onValueChange={(v) => setSquadId(v === "__all__" ? null : v)}
-            >
-              <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {sim.role === "diretor" && <SelectItem value="__all__">Todas as squads</SelectItem>}
-                {squads.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button onClick={() => setOpenModal(true)} className="rounded-xl gap-2 bg-orange-500 hover:bg-orange-600 text-white">
-            <Play className="w-4 h-4" /> Iniciar Daily
-          </Button>
-        </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <Card className="rounded-2xl overflow-hidden">
           <CardContent className="p-5 flex items-start gap-4">
