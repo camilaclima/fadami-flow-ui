@@ -1,11 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Play, Users, RefreshCcw, AlertOctagon, CircleCheck, Eye, Calendar, ShieldCheck, AlertTriangle, CircleDashed } from "lucide-react";
+import { Sparkles, Play, Users, RefreshCcw, AlertOctagon, CircleCheck, Eye, Calendar, ShieldCheck, AlertTriangle, CircleDashed, FileText, TrendingUp, Flame } from "lucide-react";
 import { History, Activity } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -40,6 +39,14 @@ function todayISO() { return new Date().toISOString().slice(0, 10); }
 export default function PainelGPPage() {
   const { current: sim } = useDailySim();
   const [date, setDate] = useState<string>(todayISO());
+  // Mantém a data sempre no dia atual (atualiza à meia-noite sem reload).
+  useEffect(() => {
+    const id = setInterval(() => {
+      const t = todayISO();
+      setDate((cur) => (cur === t ? cur : t));
+    }, 60_000);
+    return () => clearInterval(id);
+  }, []);
   const [squadId, setSquadId] = useState<string | null>(null);
   const [openModal, setOpenModal] = useState(false);
   const [insights, setInsights] = useState<DailyInsight[]>([]);
@@ -323,6 +330,94 @@ export default function PainelGPPage() {
     setInsights(result);
   };
 
+  // ---------- Resumo da Daily (IA) ----------
+  type DailySummaryInsights = {
+    resumo_executivo?: string;
+    resumo_curto?: string;
+    avancos?: string[];
+    riscos?: string[];
+    recorrencias?: Array<string | { titulo?: string; responsavel?: string; dias?: number }>;
+    blocker_level?: number;
+  };
+  const [summary, setSummary] = useState<DailySummaryInsights | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const lastSummaryKey = useRef<string>("");
+
+  const summaryKey = useMemo(() => {
+    return [
+      date,
+      effectiveSquadId ?? "all",
+      ...rows.map((r) => `${r.id}:${r.updated_at}`),
+    ].join("|");
+  }, [date, effectiveSquadId, rows]);
+
+  const buildCompositeForSummary = () => {
+    const blocks = rows
+      .filter((r) => (r.did_yesterday || r.will_do_today || r.impediments))
+      .map((r) => {
+        const parts: string[] = [];
+        if (r.did_yesterday) parts.push(`Ontem: ${r.did_yesterday}`);
+        if (r.will_do_today) parts.push(`Hoje: ${r.will_do_today}`);
+        const openImps = r.imps.filter((i) => !i.resolved);
+        if (openImps.length > 0) {
+          parts.push(`Impedimentos: ${openImps.map((i) => i.description).join(" | ")}`);
+        } else if (r.impediments) {
+          parts.push(`Impedimentos: ${r.impediments}`);
+        }
+        return `=== ${r.dev_name} ===\n${parts.join("\n")}`;
+      });
+    return blocks.join("\n\n");
+  };
+
+  const refreshSummary = async (opts?: { silent?: boolean }) => {
+    if (rows.length === 0) {
+      setSummary(null);
+      lastSummaryKey.current = summaryKey;
+      return;
+    }
+    const composite = buildCompositeForSummary();
+    if (!composite.trim()) {
+      setSummary(null);
+      lastSummaryKey.current = summaryKey;
+      return;
+    }
+    const presentNames = rows.map((r) => r.dev_name);
+    if (!opts?.silent) setSummaryLoading(true);
+    setSummaryError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("analyze-daily-status", {
+        body: {
+          todaySummary: composite,
+          presentMembers: presentNames,
+          history: [],
+          masterContext: "",
+          masterBacklog: [],
+        },
+      });
+      if (error) throw error;
+      setSummary((data?.insights ?? null) as DailySummaryInsights | null);
+      lastSummaryKey.current = summaryKey;
+    } catch (e: any) {
+      setSummaryError(e?.message ?? "Erro ao gerar resumo");
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
+  // Atualiza automaticamente o resumo conforme os devs vão preenchendo.
+  useEffect(() => {
+    if (rows.length === 0) {
+      setSummary(null);
+      lastSummaryKey.current = "";
+      return;
+    }
+    if (lastSummaryKey.current === summaryKey) return;
+    const t = setTimeout(() => { refreshSummary({ silent: !!summary }); }, 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [summaryKey]);
+
   if (sim.role === "dev") {
     return (
       <AccessDeniedCard message="Desenvolvedores não têm acesso ao Painel do GP. Selecione um perfil de GP ou Diretor no seletor acima." />
@@ -354,9 +449,11 @@ export default function PainelGPPage() {
 
         <TabsContent value="painel" className="mt-0">
         <div className="flex items-end gap-3 flex-wrap mb-4 justify-end">
-          <div>
-            <Label className="mb-1.5">Data</Label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-[170px]" />
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground mr-auto">
+            <Calendar className="w-4 h-4" />
+            <span className="capitalize">
+              {format(parseISO(date), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+            </span>
           </div>
           <div>
             <Label className="mb-1.5">Squad</Label>
@@ -489,6 +586,121 @@ export default function PainelGPPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="rounded-2xl mt-4 overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
+          <div>
+            <CardTitle className="text-base flex items-center gap-2">
+              <FileText className="w-4 h-4 text-primary" /> Resumo da Daily de hoje
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Atualiza automaticamente conforme os devs preenchem suas dailies.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-xl gap-2"
+            onClick={() => refreshSummary()}
+            disabled={summaryLoading || rows.length === 0}
+          >
+            <RefreshCcw className={`w-3.5 h-3.5 ${summaryLoading ? "animate-spin" : ""}`} />
+            {summary ? "Atualizar resumo" : "Gerar resumo"}
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {rows.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Ninguém preencheu a daily de hoje ainda. O resumo aparecerá aqui assim que houver pelo menos um registro.
+            </p>
+          )}
+          {rows.length > 0 && !summary && !summaryLoading && !summaryError && (
+            <p className="text-sm text-muted-foreground">Gerando resumo…</p>
+          )}
+          {summaryLoading && (
+            <p className="text-sm text-muted-foreground">Analisando relatos com IA…</p>
+          )}
+          {summaryError && (
+            <p className="text-sm text-red-600">{summaryError}</p>
+          )}
+          {summary && (
+            <>
+              <div className="rounded-xl border bg-muted/30 p-4">
+                <p className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2">Resumo Executivo</p>
+                <p className="text-sm whitespace-pre-wrap break-words text-foreground/90 italic">
+                  {summary.resumo_executivo || summary.resumo_curto || "Sem resumo disponível."}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+                  <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 mb-2">
+                    <TrendingUp className="w-4 h-4" /> Avanços
+                  </p>
+                  {(summary.avancos ?? []).length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Nada registrado.</p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {(summary.avancos ?? []).map((a, i) => (
+                        <li key={i} className="text-xs flex gap-1.5 text-foreground/90">
+                          <CircleCheck className="w-3 h-3 text-emerald-600 shrink-0 mt-0.5" />
+                          <span className="break-words">{a}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+                  <p className="text-sm font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5 mb-2">
+                    <AlertTriangle className="w-4 h-4" /> Riscos
+                  </p>
+                  {(summary.riscos ?? []).length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Nenhum risco identificado.</p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {(summary.riscos ?? []).map((r, i) => (
+                        <li key={i} className="text-xs flex gap-1.5 text-foreground/90">
+                          <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0 mt-0.5" />
+                          <span className="break-words">{r}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-3">
+                  <p className="text-sm font-semibold text-rose-700 dark:text-rose-400 flex items-center gap-1.5 mb-2">
+                    <Flame className="w-4 h-4" /> Recorrências
+                  </p>
+                  {(summary.recorrencias ?? []).length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Sem padrões recorrentes.</p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {(summary.recorrencias ?? []).map((r, i) => {
+                        const isObj = typeof r === "object" && r !== null;
+                        const titulo = isObj ? (r as any).titulo ?? "" : String(r);
+                        const resp = isObj ? (r as any).responsavel : undefined;
+                        const dias = isObj ? (r as any).dias : undefined;
+                        return (
+                          <li key={i} className="text-xs text-foreground/90">
+                            <div className="flex gap-1.5">
+                              <Flame className="w-3 h-3 text-rose-600 shrink-0 mt-0.5" />
+                              <span className="break-words">{titulo}</span>
+                            </div>
+                            {(resp || dias != null) && (
+                              <div className="ml-4 text-[10px] text-muted-foreground">
+                                {resp ? `Resp: ${resp}` : ""}{resp && dias != null ? " · " : ""}{dias != null ? `${dias}d` : ""}
+                              </div>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="rounded-2xl mt-4">
         <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
