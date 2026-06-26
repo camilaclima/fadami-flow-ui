@@ -728,7 +728,7 @@ export default function PainelGPPage() {
         </CardContent>
       </Card>
 
-      <Card className="rounded-2xl mt-4">
+      <Card className="rounded-2xl">
         <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
           <div>
             <CardTitle className="text-base flex items-center gap-2">
