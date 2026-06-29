@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ClipboardEdit, AlertTriangle, CheckCircle2, Calendar, Plus, Users,
   CalendarClock, TrendingUp, AlertOctagon, Trash2, CircleCheck, CircleDot,
-  Pencil, Eye,
+  Pencil, Eye, Loader2,
 } from "lucide-react";
 import { useDevDailyEntriesByUser, useUpsertDevDailyEntry } from "@/hooks/useDevDailyEntries";
 import {
@@ -110,6 +110,8 @@ export default function RegistroPage() {
   const [newDesc, setNewDesc] = useState("");
   const [newUrg, setNewUrg] = useState<ImpedimentUrgency | null>(null);
   const [priorRes, setPriorRes] = useState<Record<string, PriorResolution>>({});
+  const [viewImp, setViewImp] = useState<DevDailyImpediment | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const skipAutoFill = useRef(false);
   const [mode, setMode] = useState<"create" | "edit">("create");
@@ -228,6 +230,11 @@ export default function RegistroPage() {
 
   const didEmpty = !didYesterday.trim();
   const willEmpty = !willDoToday.trim();
+  const isToday = date === toISO(new Date());
+  const labelDid = isToday ? "O que fiz hoje?" : "O que fiz ontem?";
+  const labelWill = isToday ? "O que farei amanhã?" : "O que farei hoje?";
+  const placeholderDid = isToday ? "Tarefas, entregas e descobertas de hoje..." : "Tarefas, entregas, descobertas...";
+  const placeholderWill = isToday ? "Próximos passos planejados para amanhã..." : "Próximos passos planejados...";
 
   /* ---------- KPIs ---------- */
   const kpis = useMemo(() => {
@@ -287,19 +294,21 @@ export default function RegistroPage() {
       return;
     }
 
-    const result = await upsert.mutateAsync({
+    setSaving(true);
+    try {
+      const result = await upsert.mutateAsync({
       id: existing?.id,
       entry_date: date,
       squad_id: sim.squadIds?.[0] ?? null,
       did_yesterday: didYesterday,
       will_do_today: willDoToday,
       impediments: "",
-    });
+      });
 
-    const entryId = result?.id;
+      const entryId = result?.id;
 
     // Persiste resoluções de impedimentos anteriores
-    await Promise.all(
+      await Promise.all(
       priorOpen.map((p) => {
         const r = priorRes[p.id];
         if (!r) return Promise.resolve();
@@ -309,11 +318,11 @@ export default function RegistroPage() {
           resolution_note: null,
         });
       })
-    );
+      );
 
     // Persiste novos impedimentos adicionados nesta daily
-    if (entryId && draftImps.length > 0) {
-      await Promise.all(
+      if (entryId && draftImps.length > 0) {
+        await Promise.all(
         draftImps.map((d) =>
           createImp.mutateAsync({
             entry_id: entryId,
@@ -321,10 +330,13 @@ export default function RegistroPage() {
             urgency: d.urgency,
           })
         )
-      );
-    }
+        );
+      }
 
-    setOpen(false);
+      setOpen(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const addDraftImpediment = () => {
@@ -658,24 +670,24 @@ export default function RegistroPage() {
             </div>
 
             <div>
-              <Label className="mb-1.5">O que fiz ontem? <span className="text-orange-500">*</span></Label>
+              <Label className="mb-1.5">{labelDid} <span className="text-orange-500">*</span></Label>
               <Textarea
                 rows={4}
                 value={didYesterday}
                 onChange={(e) => { setDidYesterday(e.target.value); setTouched((p) => ({ ...p, did: true })); }}
-                placeholder="Tarefas, entregas, descobertas..."
+                placeholder={placeholderDid}
                 className={touched.did && didEmpty ? "border-orange-500 focus-visible:ring-orange-500" : ""}
               />
               {touched.did && didEmpty && <p className="text-xs text-orange-500 mt-1">Campo obrigatório.</p>}
             </div>
 
             <div>
-              <Label className="mb-1.5">O que farei hoje? <span className="text-orange-500">*</span></Label>
+              <Label className="mb-1.5">{labelWill} <span className="text-orange-500">*</span></Label>
               <Textarea
                 rows={4}
                 value={willDoToday}
                 onChange={(e) => { setWillDoToday(e.target.value); setTouched((p) => ({ ...p, will: true })); }}
-                placeholder="Próximos passos planejados..."
+                placeholder={placeholderWill}
                 className={touched.will && willEmpty ? "border-orange-500 focus-visible:ring-orange-500" : ""}
               />
               {touched.will && willEmpty && <p className="text-xs text-orange-500 mt-1">Campo obrigatório.</p>}
@@ -704,7 +716,24 @@ export default function RegistroPage() {
                           {format(parseISO(entry.entry_date), "dd/MM", { locale: ptBR })}
                         </span>
                       )}
-                      <p className="text-sm flex-1 min-w-0 truncate" title={p.description}>{p.description}</p>
+                      <button
+                        type="button"
+                        onClick={() => setViewImp(p)}
+                        className="text-sm flex-1 min-w-0 truncate text-left hover:underline cursor-pointer"
+                        title="Ver detalhes do impedimento"
+                      >
+                        {p.description}
+                      </button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 shrink-0"
+                        onClick={() => setViewImp(p)}
+                        title="Ver detalhes"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </Button>
                       <div className="flex gap-1.5 shrink-0">
                         <Button
                           type="button"
@@ -842,11 +871,55 @@ export default function RegistroPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} className="rounded-xl">Cancelar</Button>
-            <Button onClick={submit} disabled={upsert.isPending} className="rounded-xl gap-2">
-              <CheckCircle2 className="w-4 h-4" />
-              {existing ? "Atualizar" : "Salvar"}
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving} className="rounded-xl">Cancelar</Button>
+            <Button onClick={submit} disabled={saving || upsert.isPending} className="rounded-xl gap-2">
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  {existing ? "Atualizar" : "Salvar"}
+                </>
+              )}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de visualização de impedimento anterior */}
+      <Dialog open={!!viewImp} onOpenChange={(o) => { if (!o) setViewImp(null); }}>
+        <DialogContent className="max-w-lg w-[calc(100vw-2rem)] rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertOctagon className="w-5 h-5 text-orange-500" />
+              Detalhes do impedimento
+            </DialogTitle>
+          </DialogHeader>
+          {viewImp && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="outline" className={`${URGENCY_STYLES[viewImp.urgency]}`}>
+                  Urgência: {URGENCY_LABELS[viewImp.urgency]}
+                </Badge>
+                {(() => {
+                  const entry = entries.find((e) => e.id === viewImp.entry_id);
+                  return entry ? (
+                    <span className="text-xs text-muted-foreground">
+                      Criado em {format(parseISO(entry.entry_date), "dd/MM/yyyy", { locale: ptBR })}
+                    </span>
+                  ) : null;
+                })()}
+              </div>
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="text-sm whitespace-pre-wrap break-words">{viewImp.description}</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setViewImp(null)} className="rounded-xl">Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
