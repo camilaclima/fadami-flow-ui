@@ -289,19 +289,21 @@ export default function RegistroPage() {
       return;
     }
 
-    const result = await upsert.mutateAsync({
+    setSaving(true);
+    try {
+      const result = await upsert.mutateAsync({
       id: existing?.id,
       entry_date: date,
       squad_id: sim.squadIds?.[0] ?? null,
       did_yesterday: didYesterday,
       will_do_today: willDoToday,
       impediments: "",
-    });
+      });
 
-    const entryId = result?.id;
+      const entryId = result?.id;
 
     // Persiste resoluções de impedimentos anteriores
-    await Promise.all(
+      await Promise.all(
       priorOpen.map((p) => {
         const r = priorRes[p.id];
         if (!r) return Promise.resolve();
@@ -311,11 +313,11 @@ export default function RegistroPage() {
           resolution_note: null,
         });
       })
-    );
+      );
 
     // Persiste novos impedimentos adicionados nesta daily
-    if (entryId && draftImps.length > 0) {
-      await Promise.all(
+      if (entryId && draftImps.length > 0) {
+        await Promise.all(
         draftImps.map((d) =>
           createImp.mutateAsync({
             entry_id: entryId,
@@ -323,10 +325,13 @@ export default function RegistroPage() {
             urgency: d.urgency,
           })
         )
-      );
-    }
+        );
+      }
 
-    setOpen(false);
+      setOpen(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const addDraftImpediment = () => {
