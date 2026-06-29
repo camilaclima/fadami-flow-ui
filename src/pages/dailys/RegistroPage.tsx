@@ -635,7 +635,7 @@ export default function RegistroPage() {
       </Dialog>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto rounded-2xl">
+        <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ClipboardEdit className="w-5 h-5 text-primary" />
@@ -644,7 +644,7 @@ export default function RegistroPage() {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-5">
+          <div className="space-y-5 min-w-0">
             <div>
               <Label className="mb-1.5 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Data de referência</Label>
               <Select value={date} onValueChange={setDate}>
