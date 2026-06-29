@@ -230,6 +230,11 @@ export default function RegistroPage() {
 
   const didEmpty = !didYesterday.trim();
   const willEmpty = !willDoToday.trim();
+  const isToday = date === toISO(new Date());
+  const labelDid = isToday ? "O que fiz hoje?" : "O que fiz ontem?";
+  const labelWill = isToday ? "O que farei amanhã?" : "O que farei hoje?";
+  const placeholderDid = isToday ? "Tarefas, entregas e descobertas de hoje..." : "Tarefas, entregas, descobertas...";
+  const placeholderWill = isToday ? "Próximos passos planejados para amanhã..." : "Próximos passos planejados...";
 
   /* ---------- KPIs ---------- */
   const kpis = useMemo(() => {
