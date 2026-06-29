@@ -695,7 +695,7 @@ export default function RegistroPage() {
                   const r = priorRes[p.id] ?? { resolved: null };
                   const entry = entries.find((e) => e.id === p.entry_id);
                   return (
-                    <div key={p.id} className="flex items-center gap-2 rounded-lg border bg-background p-2">
+                    <div key={p.id} className="flex items-center gap-2 rounded-lg border bg-background p-2 min-w-0">
                       <Badge variant="outline" className={`text-[10px] shrink-0 ${URGENCY_STYLES[p.urgency]}`}>
                         {URGENCY_LABELS[p.urgency]}
                       </Badge>
