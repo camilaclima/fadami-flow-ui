@@ -71,6 +71,7 @@ interface DayGroup {
 export default function HistoricoPage() {
   const { current: sim } = useDailySim();
   const { data: profiles = [] } = useProfiles();
+  const { data: squads = [] } = useSquads();
   const [selectedDay, setSelectedDay] = useState<DayGroup | null>(null);
 
   // Resolve os user_ids visíveis: GP vê apenas membros das suas squads;
@@ -127,6 +128,12 @@ export default function HistoricoPage() {
     profiles.forEach((p: any) => m.set(p.user_id, p));
     return m;
   }, [profiles]);
+
+  const squadNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    (squads as any[]).forEach((s) => m.set(s.id, s.name));
+    return m;
+  }, [squads]);
 
   const nameFor = (uid: string): string => {
     const p = profileByUser.get(uid);
@@ -227,6 +234,8 @@ export default function HistoricoPage() {
         onClose={() => setSelectedDay(null)}
         nameFor={nameFor}
         impediments={dayImpediments}
+        scopedSquadIds={sim.role === "diretor" ? null : (sim.squadIds ?? [])}
+        squadNameById={squadNameById}
       />
     </div>
   );
