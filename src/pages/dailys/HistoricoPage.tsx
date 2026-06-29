@@ -3,7 +3,7 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   CalendarCheck, AlertOctagon, Sparkles, TrendingUp, AlertTriangle, Flame,
-  CheckCircle2, History, Users, Loader2,
+  CheckCircle2, History, Users, Loader2, Mic, MicOff, Video, VideoOff, Paperclip, MessageSquare, StickyNote,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -20,6 +20,26 @@ import { cn } from "@/lib/utils";
 import { useDailySim } from "@/contexts/DailySimContext";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useDevDailyImpedimentsByEntries, URGENCY_LABELS, URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
+import { useSquads } from "@/hooks/useSquads";
+
+interface MeetingRow {
+  id: string;
+  squad_id: string | null;
+  meeting_date: string;
+  conducted_by: string | null;
+  observations: string | null;
+  transcript_url: string | null;
+}
+interface AttendanceRow {
+  id: string;
+  meeting_id: string;
+  member_user_id: string | null;
+  member_name: string | null;
+  camera_on: boolean;
+  stayed_silent: boolean;
+  dev_entry_id: string | null;
+  notes: string | null;
+}
 
 interface AIRecorrencia { descricao: string; dias_consecutivos: number; responsavel?: string; }
 interface AIInsights {
@@ -51,6 +71,7 @@ interface DayGroup {
 export default function HistoricoPage() {
   const { current: sim } = useDailySim();
   const { data: profiles = [] } = useProfiles();
+  const { data: squads = [] } = useSquads();
   const [selectedDay, setSelectedDay] = useState<DayGroup | null>(null);
 
   // Resolve os user_ids visíveis: GP vê apenas membros das suas squads;
@@ -107,6 +128,12 @@ export default function HistoricoPage() {
     profiles.forEach((p: any) => m.set(p.user_id, p));
     return m;
   }, [profiles]);
+
+  const squadNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    (squads as any[]).forEach((s) => m.set(s.id, s.name));
+    return m;
+  }, [squads]);
 
   const nameFor = (uid: string): string => {
     const p = profileByUser.get(uid);
@@ -207,6 +234,8 @@ export default function HistoricoPage() {
         onClose={() => setSelectedDay(null)}
         nameFor={nameFor}
         impediments={dayImpediments}
+        scopedSquadIds={sim.role === "diretor" ? null : (sim.squadIds ?? [])}
+        squadNameById={squadNameById}
       />
     </div>
   );
@@ -220,6 +249,10 @@ function buildSummaryForAI(
   day: DayGroup,
   nameFor: (uid: string) => string,
   impsByEntry: Map<string, { description: string; urgency: string; resolved: boolean }[]>,
+  meetings: MeetingRow[],
+  attByEntry: Map<string, AttendanceRow[]>,
+  attByUser: Map<string, AttendanceRow[]>,
+  squadNameById: Map<string, string>,
 ): { summary: string; members: string[] } {
   const parts: string[] = [];
   const members: string[] = [];
@@ -229,13 +262,28 @@ function buildSummaryForAI(
     const imps = (impsByEntry.get(e.id) ?? []).map((i) =>
       `- ${i.description} (urgência ${i.urgency}${i.resolved ? ", resolvido" : ""})`,
     );
+    const atts = (attByEntry.get(e.id) ?? []).concat(
+      (attByUser.get(e.user_id) ?? []).filter((a) => !a.dev_entry_id),
+    );
+    const obsLider = atts
+      .map((a) =>
+        `- câmera ${a.camera_on ? "ligada" : "desligada"}, ${a.stayed_silent ? "ficou em silêncio" : "participou da fala"}${a.notes ? `, obs: ${a.notes}` : ""}`,
+      ).join("\n");
     parts.push(
       `=== ${name} ===\n` +
         `Ontem: ${e.did_yesterday?.trim() || "—"}\n` +
         `Hoje: ${e.will_do_today?.trim() || "—"}\n` +
-        `Impedimentos: ${imps.length ? "\n" + imps.join("\n") : "—"}`,
+        `Impedimentos: ${imps.length ? "\n" + imps.join("\n") : "—"}\n` +
+        `Observações do líder: ${obsLider ? "\n" + obsLider : "—"}`,
     );
   });
+  if (meetings.length > 0) {
+    const mt = meetings.map((m) => {
+      const sq = m.squad_id ? squadNameById.get(m.squad_id) ?? "Squad" : "Sem squad";
+      return `- [${sq}] ${m.observations?.trim() || "(sem observações gerais)"}${m.transcript_url ? ` | anexo: ${m.transcript_url}` : ""}`;
+    }).join("\n");
+    parts.push(`=== Observações gerais do líder ===\n${mt}`);
+  }
   return { summary: parts.join("\n\n"), members };
 }
 
@@ -244,11 +292,15 @@ function DayDetailDialog({
   onClose,
   nameFor,
   impediments,
+  scopedSquadIds,
+  squadNameById,
 }: {
   day: DayGroup | null;
   onClose: () => void;
   nameFor: (uid: string) => string;
   impediments: { id: string; entry_id: string; description: string; urgency: string; resolved: boolean }[];
+  scopedSquadIds: string[] | null;
+  squadNameById: Map<string, string>;
 }) {
   const [insights, setInsights] = useState<AIInsights | null>(null);
   const [loadingAI, setLoadingAI] = useState(false);
@@ -264,6 +316,54 @@ function DayDetailDialog({
     return m;
   }, [impediments]);
 
+  // Busca daily meetings (observações do líder) do dia selecionado.
+  const { data: meetings = [] } = useQuery<MeetingRow[]>({
+    queryKey: ["historico_meetings", day?.date ?? "", (scopedSquadIds ?? []).slice().sort().join(",")],
+    enabled: !!day,
+    queryFn: async () => {
+      let q = (supabase.from("daily_meetings") as any)
+        .select("*").eq("meeting_date", day!.date);
+      if (scopedSquadIds && scopedSquadIds.length > 0) q = q.in("squad_id", scopedSquadIds);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as MeetingRow[];
+    },
+  });
+
+  const meetingIds = useMemo(() => meetings.map((m) => m.id), [meetings]);
+  const { data: attendance = [] } = useQuery<AttendanceRow[]>({
+    queryKey: ["historico_attendance", meetingIds.slice().sort().join(",")],
+    enabled: meetingIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("daily_meeting_attendance") as any)
+        .select("*").in("meeting_id", meetingIds);
+      if (error) throw error;
+      return (data ?? []) as AttendanceRow[];
+    },
+  });
+
+  const attByEntry = useMemo(() => {
+    const m = new Map<string, AttendanceRow[]>();
+    attendance.forEach((a) => {
+      if (!a.dev_entry_id) return;
+      const list = m.get(a.dev_entry_id) ?? [];
+      list.push(a);
+      m.set(a.dev_entry_id, list);
+    });
+    return m;
+  }, [attendance]);
+
+  const attByUser = useMemo(() => {
+    const m = new Map<string, AttendanceRow[]>();
+    attendance.forEach((a) => {
+      if (!a.member_user_id) return;
+      const list = m.get(a.member_user_id) ?? [];
+      list.push(a);
+      m.set(a.member_user_id, list);
+    });
+    return m;
+  }, [attendance]);
+
   // Reset insights ao trocar de dia.
   useEffect(() => {
     setInsights(null);
@@ -275,7 +375,9 @@ function DayDetailDialog({
     setLoadingAI(true);
     setAiError(null);
     try {
-      const { summary, members } = buildSummaryForAI(day, nameFor, impsByEntry as any);
+      const { summary, members } = buildSummaryForAI(
+        day, nameFor, impsByEntry as any, meetings, attByEntry, attByUser, squadNameById,
+      );
       const { data, error } = await supabase.functions.invoke("analyze-daily-status", {
         body: {
           todaySummary: summary,
@@ -320,17 +422,65 @@ function DayDetailDialog({
               <TabsContent value="bruto" className="flex-1 min-h-0">
                 <ScrollArea className="h-[60vh] pr-3">
                   <div className="space-y-2.5">
+                    {meetings.length > 0 && (
+                      <div className="space-y-2">
+                        {meetings.map((mt) => {
+                          const sq = mt.squad_id ? squadNameById.get(mt.squad_id) ?? "Squad" : "Sem squad";
+                          return (
+                            <Card key={mt.id} className="border-l-4 border-l-amber-500/70 bg-amber-500/5">
+                              <CardHeader className="pb-2">
+                                <CardTitle className="text-sm flex items-center gap-2">
+                                  <MessageSquare className="h-4 w-4 text-amber-600" />
+                                  Observações do líder — {sq}
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-2">
+                                <Section label="Observações gerais" text={mt.observations} />
+                                {mt.transcript_url && (
+                                  <div className="text-sm flex items-center gap-2">
+                                    <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <a
+                                      href={mt.transcript_url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-primary hover:underline break-all"
+                                    >
+                                      Anexo / transcrição
+                                    </a>
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    )}
                     {day.entries.map((e) => {
                       const name = nameFor(e.user_id);
                       const imps = impsByEntry.get(e.id) ?? [];
+                      const atts = (attByEntry.get(e.id) ?? []).concat(
+                        (attByUser.get(e.user_id) ?? []).filter((a) => !a.dev_entry_id),
+                      );
                       return (
                         <Card key={e.id} className="border-l-4 border-l-primary/60 bg-card/40">
                           <CardHeader className="pb-2">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <div className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 bg-primary/15 text-primary">
                                 {initials(name)}
                               </div>
                               <CardTitle className="text-sm">{name}</CardTitle>
+                              {atts.map((a) => (
+                                <div key={a.id} className="flex items-center gap-1.5 ml-1">
+                                  <Badge variant="outline" className={cn("gap-1 text-[10px]", a.camera_on ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-400" : "border-muted-foreground/30 text-muted-foreground")}>
+                                    {a.camera_on ? <Video className="h-3 w-3" /> : <VideoOff className="h-3 w-3" />}
+                                    {a.camera_on ? "Câmera" : "Sem câmera"}
+                                  </Badge>
+                                  <Badge variant="outline" className={cn("gap-1 text-[10px]", a.stayed_silent ? "border-amber-500/40 text-amber-700 dark:text-amber-400" : "border-emerald-500/40 text-emerald-700 dark:text-emerald-400")}>
+                                    {a.stayed_silent ? <MicOff className="h-3 w-3" /> : <Mic className="h-3 w-3" />}
+                                    {a.stayed_silent ? "Silêncio" : "Falou"}
+                                  </Badge>
+                                </div>
+                              ))}
                             </div>
                           </CardHeader>
                           <CardContent className="space-y-2.5">
@@ -361,6 +511,20 @@ function DayDetailDialog({
                                 </div>
                               )}
                             </div>
+                            {atts.some((a) => a.notes?.trim()) && (
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1 flex items-center gap-1">
+                                  <StickyNote className="h-3 w-3" /> Observação do líder
+                                </p>
+                                <div className="space-y-1">
+                                  {atts.filter((a) => a.notes?.trim()).map((a) => (
+                                    <p key={a.id} className="text-sm whitespace-pre-wrap leading-relaxed text-foreground/90 border-l-2 border-amber-500/40 pl-2">
+                                      {a.notes}
+                                    </p>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </CardContent>
                         </Card>
                       );
