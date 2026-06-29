@@ -3,7 +3,7 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   CalendarCheck, AlertOctagon, Sparkles, TrendingUp, AlertTriangle, Flame,
-  CheckCircle2, History, Users, Loader2,
+  CheckCircle2, History, Users, Loader2, Mic, MicOff, Video, VideoOff, Paperclip, MessageSquare, StickyNote,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
