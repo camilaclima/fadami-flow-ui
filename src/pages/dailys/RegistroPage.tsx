@@ -871,11 +871,55 @@ export default function RegistroPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} className="rounded-xl">Cancelar</Button>
-            <Button onClick={submit} disabled={upsert.isPending} className="rounded-xl gap-2">
-              <CheckCircle2 className="w-4 h-4" />
-              {existing ? "Atualizar" : "Salvar"}
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving} className="rounded-xl">Cancelar</Button>
+            <Button onClick={submit} disabled={saving || upsert.isPending} className="rounded-xl gap-2">
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  {existing ? "Atualizar" : "Salvar"}
+                </>
+              )}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de visualização de impedimento anterior */}
+      <Dialog open={!!viewImp} onOpenChange={(o) => { if (!o) setViewImp(null); }}>
+        <DialogContent className="max-w-lg w-[calc(100vw-2rem)] rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertOctagon className="w-5 h-5 text-orange-500" />
+              Detalhes do impedimento
+            </DialogTitle>
+          </DialogHeader>
+          {viewImp && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="outline" className={`${URGENCY_STYLES[viewImp.urgency]}`}>
+                  Urgência: {URGENCY_LABELS[viewImp.urgency]}
+                </Badge>
+                {(() => {
+                  const entry = entries.find((e) => e.id === viewImp.entry_id);
+                  return entry ? (
+                    <span className="text-xs text-muted-foreground">
+                      Criado em {format(parseISO(entry.entry_date), "dd/MM/yyyy", { locale: ptBR })}
+                    </span>
+                  ) : null;
+                })()}
+              </div>
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="text-sm whitespace-pre-wrap break-words">{viewImp.description}</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setViewImp(null)} className="rounded-xl">Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
