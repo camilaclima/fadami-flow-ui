@@ -249,6 +249,10 @@ function buildSummaryForAI(
   day: DayGroup,
   nameFor: (uid: string) => string,
   impsByEntry: Map<string, { description: string; urgency: string; resolved: boolean }[]>,
+  meetings: MeetingRow[],
+  attByEntry: Map<string, AttendanceRow[]>,
+  attByUser: Map<string, AttendanceRow[]>,
+  squadNameById: Map<string, string>,
 ): { summary: string; members: string[] } {
   const parts: string[] = [];
   const members: string[] = [];
@@ -258,13 +262,28 @@ function buildSummaryForAI(
     const imps = (impsByEntry.get(e.id) ?? []).map((i) =>
       `- ${i.description} (urgência ${i.urgency}${i.resolved ? ", resolvido" : ""})`,
     );
+    const atts = (attByEntry.get(e.id) ?? []).concat(
+      (attByUser.get(e.user_id) ?? []).filter((a) => !a.dev_entry_id),
+    );
+    const obsLider = atts
+      .map((a) =>
+        `- câmera ${a.camera_on ? "ligada" : "desligada"}, ${a.stayed_silent ? "ficou em silêncio" : "participou da fala"}${a.notes ? `, obs: ${a.notes}` : ""}`,
+      ).join("\n");
     parts.push(
       `=== ${name} ===\n` +
         `Ontem: ${e.did_yesterday?.trim() || "—"}\n` +
         `Hoje: ${e.will_do_today?.trim() || "—"}\n` +
-        `Impedimentos: ${imps.length ? "\n" + imps.join("\n") : "—"}`,
+        `Impedimentos: ${imps.length ? "\n" + imps.join("\n") : "—"}\n` +
+        `Observações do líder: ${obsLider ? "\n" + obsLider : "—"}`,
     );
   });
+  if (meetings.length > 0) {
+    const mt = meetings.map((m) => {
+      const sq = m.squad_id ? squadNameById.get(m.squad_id) ?? "Squad" : "Sem squad";
+      return `- [${sq}] ${m.observations?.trim() || "(sem observações gerais)"}${m.transcript_url ? ` | anexo: ${m.transcript_url}` : ""}`;
+    }).join("\n");
+    parts.push(`=== Observações gerais do líder ===\n${mt}`);
+  }
   return { summary: parts.join("\n\n"), members };
 }
 
@@ -273,11 +292,15 @@ function DayDetailDialog({
   onClose,
   nameFor,
   impediments,
+  scopedSquadIds,
+  squadNameById,
 }: {
   day: DayGroup | null;
   onClose: () => void;
   nameFor: (uid: string) => string;
   impediments: { id: string; entry_id: string; description: string; urgency: string; resolved: boolean }[];
+  scopedSquadIds: string[] | null;
+  squadNameById: Map<string, string>;
 }) {
   const [insights, setInsights] = useState<AIInsights | null>(null);
   const [loadingAI, setLoadingAI] = useState(false);
@@ -293,6 +316,54 @@ function DayDetailDialog({
     return m;
   }, [impediments]);
 
+  // Busca daily meetings (observações do líder) do dia selecionado.
+  const { data: meetings = [] } = useQuery<MeetingRow[]>({
+    queryKey: ["historico_meetings", day?.date ?? "", (scopedSquadIds ?? []).slice().sort().join(",")],
+    enabled: !!day,
+    queryFn: async () => {
+      let q = (supabase.from("daily_meetings") as any)
+        .select("*").eq("meeting_date", day!.date);
+      if (scopedSquadIds && scopedSquadIds.length > 0) q = q.in("squad_id", scopedSquadIds);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as MeetingRow[];
+    },
+  });
+
+  const meetingIds = useMemo(() => meetings.map((m) => m.id), [meetings]);
+  const { data: attendance = [] } = useQuery<AttendanceRow[]>({
+    queryKey: ["historico_attendance", meetingIds.slice().sort().join(",")],
+    enabled: meetingIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("daily_meeting_attendance") as any)
+        .select("*").in("meeting_id", meetingIds);
+      if (error) throw error;
+      return (data ?? []) as AttendanceRow[];
+    },
+  });
+
+  const attByEntry = useMemo(() => {
+    const m = new Map<string, AttendanceRow[]>();
+    attendance.forEach((a) => {
+      if (!a.dev_entry_id) return;
+      const list = m.get(a.dev_entry_id) ?? [];
+      list.push(a);
+      m.set(a.dev_entry_id, list);
+    });
+    return m;
+  }, [attendance]);
+
+  const attByUser = useMemo(() => {
+    const m = new Map<string, AttendanceRow[]>();
+    attendance.forEach((a) => {
+      if (!a.member_user_id) return;
+      const list = m.get(a.member_user_id) ?? [];
+      list.push(a);
+      m.set(a.member_user_id, list);
+    });
+    return m;
+  }, [attendance]);
+
   // Reset insights ao trocar de dia.
   useEffect(() => {
     setInsights(null);
@@ -304,7 +375,9 @@ function DayDetailDialog({
     setLoadingAI(true);
     setAiError(null);
     try {
-      const { summary, members } = buildSummaryForAI(day, nameFor, impsByEntry as any);
+      const { summary, members } = buildSummaryForAI(
+        day, nameFor, impsByEntry as any, meetings, attByEntry, attByUser, squadNameById,
+      );
       const { data, error } = await supabase.functions.invoke("analyze-daily-status", {
         body: {
           todaySummary: summary,
