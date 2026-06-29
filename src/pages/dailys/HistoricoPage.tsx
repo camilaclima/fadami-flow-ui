@@ -422,17 +422,65 @@ function DayDetailDialog({
               <TabsContent value="bruto" className="flex-1 min-h-0">
                 <ScrollArea className="h-[60vh] pr-3">
                   <div className="space-y-2.5">
+                    {meetings.length > 0 && (
+                      <div className="space-y-2">
+                        {meetings.map((mt) => {
+                          const sq = mt.squad_id ? squadNameById.get(mt.squad_id) ?? "Squad" : "Sem squad";
+                          return (
+                            <Card key={mt.id} className="border-l-4 border-l-amber-500/70 bg-amber-500/5">
+                              <CardHeader className="pb-2">
+                                <CardTitle className="text-sm flex items-center gap-2">
+                                  <MessageSquare className="h-4 w-4 text-amber-600" />
+                                  Observações do líder — {sq}
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-2">
+                                <Section label="Observações gerais" text={mt.observations} />
+                                {mt.transcript_url && (
+                                  <div className="text-sm flex items-center gap-2">
+                                    <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <a
+                                      href={mt.transcript_url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-primary hover:underline break-all"
+                                    >
+                                      Anexo / transcrição
+                                    </a>
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    )}
                     {day.entries.map((e) => {
                       const name = nameFor(e.user_id);
                       const imps = impsByEntry.get(e.id) ?? [];
+                      const atts = (attByEntry.get(e.id) ?? []).concat(
+                        (attByUser.get(e.user_id) ?? []).filter((a) => !a.dev_entry_id),
+                      );
                       return (
                         <Card key={e.id} className="border-l-4 border-l-primary/60 bg-card/40">
                           <CardHeader className="pb-2">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <div className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 bg-primary/15 text-primary">
                                 {initials(name)}
                               </div>
                               <CardTitle className="text-sm">{name}</CardTitle>
+                              {atts.map((a) => (
+                                <div key={a.id} className="flex items-center gap-1.5 ml-1">
+                                  <Badge variant="outline" className={cn("gap-1 text-[10px]", a.camera_on ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-400" : "border-muted-foreground/30 text-muted-foreground")}>
+                                    {a.camera_on ? <Video className="h-3 w-3" /> : <VideoOff className="h-3 w-3" />}
+                                    {a.camera_on ? "Câmera" : "Sem câmera"}
+                                  </Badge>
+                                  <Badge variant="outline" className={cn("gap-1 text-[10px]", a.stayed_silent ? "border-amber-500/40 text-amber-700 dark:text-amber-400" : "border-emerald-500/40 text-emerald-700 dark:text-emerald-400")}>
+                                    {a.stayed_silent ? <MicOff className="h-3 w-3" /> : <Mic className="h-3 w-3" />}
+                                    {a.stayed_silent ? "Silêncio" : "Falou"}
+                                  </Badge>
+                                </div>
+                              ))}
                             </div>
                           </CardHeader>
                           <CardContent className="space-y-2.5">
@@ -463,6 +511,20 @@ function DayDetailDialog({
                                 </div>
                               )}
                             </div>
+                            {atts.some((a) => a.notes?.trim()) && (
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1 flex items-center gap-1">
+                                  <StickyNote className="h-3 w-3" /> Observação do líder
+                                </p>
+                                <div className="space-y-1">
+                                  {atts.filter((a) => a.notes?.trim()).map((a) => (
+                                    <p key={a.id} className="text-sm whitespace-pre-wrap leading-relaxed text-foreground/90 border-l-2 border-amber-500/40 pl-2">
+                                      {a.notes}
+                                    </p>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </CardContent>
                         </Card>
                       );
