@@ -110,6 +110,8 @@ export default function RegistroPage() {
   const [newDesc, setNewDesc] = useState("");
   const [newUrg, setNewUrg] = useState<ImpedimentUrgency | null>(null);
   const [priorRes, setPriorRes] = useState<Record<string, PriorResolution>>({});
+  const [viewImp, setViewImp] = useState<DevDailyImpediment | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const skipAutoFill = useRef(false);
   const [mode, setMode] = useState<"create" | "edit">("create");
