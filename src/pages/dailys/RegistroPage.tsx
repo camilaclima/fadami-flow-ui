@@ -716,7 +716,24 @@ export default function RegistroPage() {
                           {format(parseISO(entry.entry_date), "dd/MM", { locale: ptBR })}
                         </span>
                       )}
-                      <p className="text-sm flex-1 min-w-0 truncate" title={p.description}>{p.description}</p>
+                      <button
+                        type="button"
+                        onClick={() => setViewImp(p)}
+                        className="text-sm flex-1 min-w-0 truncate text-left hover:underline cursor-pointer"
+                        title="Ver detalhes do impedimento"
+                      >
+                        {p.description}
+                      </button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 shrink-0"
+                        onClick={() => setViewImp(p)}
+                        title="Ver detalhes"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </Button>
                       <div className="flex gap-1.5 shrink-0">
                         <Button
                           type="button"
