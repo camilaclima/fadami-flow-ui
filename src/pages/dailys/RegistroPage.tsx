@@ -552,7 +552,7 @@ export default function RegistroPage() {
 
       {/* Detalhes da daily */}
       <Dialog open={!!detailEntryId} onOpenChange={(o) => !o && setDetailEntryId(null)}>
-        <DialogContent className="max-w-2xl rounded-2xl">
+        <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5 text-primary" />
@@ -635,7 +635,7 @@ export default function RegistroPage() {
       </Dialog>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl rounded-2xl">
+        <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ClipboardEdit className="w-5 h-5 text-primary" />
@@ -695,7 +695,7 @@ export default function RegistroPage() {
                   const r = priorRes[p.id] ?? { resolved: null };
                   const entry = entries.find((e) => e.id === p.entry_id);
                   return (
-                    <div key={p.id} className="flex items-center gap-2 rounded-lg border bg-background p-2">
+                    <div key={p.id} className="flex items-center gap-2 rounded-lg border bg-background p-2 min-w-0">
                       <Badge variant="outline" className={`text-[10px] shrink-0 ${URGENCY_STYLES[p.urgency]}`}>
                         {URGENCY_LABELS[p.urgency]}
                       </Badge>
