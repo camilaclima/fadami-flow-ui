@@ -670,24 +670,24 @@ export default function RegistroPage() {
             </div>
 
             <div>
-              <Label className="mb-1.5">O que fiz ontem? <span className="text-orange-500">*</span></Label>
+              <Label className="mb-1.5">{labelDid} <span className="text-orange-500">*</span></Label>
               <Textarea
                 rows={4}
                 value={didYesterday}
                 onChange={(e) => { setDidYesterday(e.target.value); setTouched((p) => ({ ...p, did: true })); }}
-                placeholder="Tarefas, entregas, descobertas..."
+                placeholder={placeholderDid}
                 className={touched.did && didEmpty ? "border-orange-500 focus-visible:ring-orange-500" : ""}
               />
               {touched.did && didEmpty && <p className="text-xs text-orange-500 mt-1">Campo obrigatório.</p>}
             </div>
 
             <div>
-              <Label className="mb-1.5">O que farei hoje? <span className="text-orange-500">*</span></Label>
+              <Label className="mb-1.5">{labelWill} <span className="text-orange-500">*</span></Label>
               <Textarea
                 rows={4}
                 value={willDoToday}
                 onChange={(e) => { setWillDoToday(e.target.value); setTouched((p) => ({ ...p, will: true })); }}
-                placeholder="Próximos passos planejados..."
+                placeholder={placeholderWill}
                 className={touched.will && willEmpty ? "border-orange-500 focus-visible:ring-orange-500" : ""}
               />
               {touched.will && willEmpty && <p className="text-xs text-orange-500 mt-1">Campo obrigatório.</p>}
