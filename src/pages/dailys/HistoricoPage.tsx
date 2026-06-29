@@ -20,6 +20,26 @@ import { cn } from "@/lib/utils";
 import { useDailySim } from "@/contexts/DailySimContext";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useDevDailyImpedimentsByEntries, URGENCY_LABELS, URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
+import { useSquads } from "@/hooks/useSquads";
+
+interface MeetingRow {
+  id: string;
+  squad_id: string | null;
+  meeting_date: string;
+  conducted_by: string | null;
+  observations: string | null;
+  transcript_url: string | null;
+}
+interface AttendanceRow {
+  id: string;
+  meeting_id: string;
+  member_user_id: string | null;
+  member_name: string | null;
+  camera_on: boolean;
+  stayed_silent: boolean;
+  dev_entry_id: string | null;
+  notes: string | null;
+}
 
 interface AIRecorrencia { descricao: string; dias_consecutivos: number; responsavel?: string; }
 interface AIInsights {
