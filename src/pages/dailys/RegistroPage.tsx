@@ -60,20 +60,20 @@ function toISO(d: Date): string {
   return format(d, "yyyy-MM-dd");
 }
 
-/** Datas permitidas: hoje + dia útil anterior (segunda → sexta). */
+/** Datas permitidas: hoje (a partir das 17h) + dia útil anterior (segunda → sexta). */
 function allowedDates(): { value: string; label: string }[] {
-  const today = new Date();
-  const dow = today.getDay(); // 0=dom, 6=sáb
-  const prev = dow === 1 ? subDays(today, 3) : dow === 0 ? subDays(today, 2) : subDays(today, 1);
-  const opts = [
-    { value: toISO(today), label: `Hoje — ${format(today, "EEEE, dd/MM", { locale: ptBR })}` },
-    { value: toISO(prev), label: `Ontem útil — ${format(prev, "EEEE, dd/MM", { locale: ptBR })}` },
-  ];
-  // Remove sáb/dom de "hoje" se aplicável
-  return opts.filter((o) => {
-    const d = parseISO(o.value).getDay();
-    return d !== 0 && d !== 6;
-  });
+  const now = new Date();
+  const dow = now.getDay(); // 0=dom, 6=sáb
+  const prev = dow === 1 ? subDays(now, 3) : dow === 0 ? subDays(now, 2) : subDays(now, 1);
+  const opts: { value: string; label: string }[] = [];
+
+  // Só mostra "Hoje" se for dia útil e a hora atual for >= 17:00
+  if (dow !== 0 && dow !== 6 && now.getHours() >= 17) {
+    opts.push({ value: toISO(now), label: `Hoje — ${format(now, "EEEE, dd/MM", { locale: ptBR })}` });
+  }
+  opts.push({ value: toISO(prev), label: `Ontem útil — ${format(prev, "EEEE, dd/MM", { locale: ptBR })}` });
+
+  return opts;
 }
 
 function useMySquadNames(squadIds: string[] | null | undefined) {
