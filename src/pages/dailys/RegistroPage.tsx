@@ -302,6 +302,10 @@ export default function RegistroPage() {
       toast.error("Preencha os campos obrigatórios: 'O que fiz ontem?' e 'O que farei hoje?'.");
       return;
     }
+    if (isLocked) {
+      toast.error("Esta daily já foi finalizada pelo líder e não pode mais ser editada.");
+      return;
+    }
     // Valida resolução dos impedimentos anteriores em aberto
     const pending = priorOpen.filter((p) => priorRes[p.id]?.resolved === null || priorRes[p.id]?.resolved === undefined);
     if (pending.length > 0) {
