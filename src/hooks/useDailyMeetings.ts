@@ -22,6 +22,10 @@ export interface DailyAttendance {
   camera_on: boolean;
   stayed_silent: boolean;
   dev_entry_id: string | null;
+  absent_from_work?: boolean;
+  did_not_participate?: boolean;
+  non_participation_reason?: string | null;
+  notes?: string | null;
 }
 
 export function useDailyMeetings(filters?: { squadId?: string | null; from?: string; to?: string }) {
@@ -63,7 +67,17 @@ export function useCreateDailyMeeting() {
       squad_id: string | null;
       observations: string;
       transcript_url: string | null;
-      attendance: { member_name: string; member_user_id?: string | null; camera_on: boolean; stayed_silent: boolean; dev_entry_id?: string | null; notes?: string | null }[];
+      attendance: {
+        member_name: string;
+        member_user_id?: string | null;
+        camera_on: boolean;
+        stayed_silent: boolean;
+        dev_entry_id?: string | null;
+        notes?: string | null;
+        absent_from_work?: boolean;
+        did_not_participate?: boolean;
+        non_participation_reason?: string | null;
+      }[];
     }) => {
       const { data: meeting, error } = await (supabase.from("daily_meetings") as any).insert({
         meeting_date: input.meeting_date,
