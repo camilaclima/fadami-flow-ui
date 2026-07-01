@@ -439,37 +439,46 @@ export type Database = {
       }
       daily_meeting_attendance: {
         Row: {
+          absent_from_work: boolean
           camera_on: boolean
           created_at: string
           dev_entry_id: string | null
+          did_not_participate: boolean
           id: string
           meeting_id: string
           member_name: string | null
           member_user_id: string | null
+          non_participation_reason: string | null
           notes: string | null
           stayed_silent: boolean
           updated_at: string
         }
         Insert: {
+          absent_from_work?: boolean
           camera_on?: boolean
           created_at?: string
           dev_entry_id?: string | null
+          did_not_participate?: boolean
           id?: string
           meeting_id: string
           member_name?: string | null
           member_user_id?: string | null
+          non_participation_reason?: string | null
           notes?: string | null
           stayed_silent?: boolean
           updated_at?: string
         }
         Update: {
+          absent_from_work?: boolean
           camera_on?: boolean
           created_at?: string
           dev_entry_id?: string | null
+          did_not_participate?: boolean
           id?: string
           meeting_id?: string
           member_name?: string | null
           member_user_id?: string | null
+          non_participation_reason?: string | null
           notes?: string | null
           stayed_silent?: boolean
           updated_at?: string
