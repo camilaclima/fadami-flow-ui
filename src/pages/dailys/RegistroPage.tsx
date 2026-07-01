@@ -678,13 +678,29 @@ export default function RegistroPage() {
               <ClipboardEdit className="w-5 h-5 text-primary" />
               Registrar daily
               {mode === "edit" && <Badge variant="outline" className="ml-2">Editando</Badge>}
+              {isLocked && (
+                <Badge variant="outline" className="ml-2 gap-1 bg-muted text-muted-foreground border-border">
+                  <Lock className="w-3 h-3" /> Finalizada
+                </Badge>
+              )}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-5 min-w-0">
+            {isLocked && (
+              <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 flex items-start gap-2">
+                <Lock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-semibold text-amber-700">Daily finalizada pelo líder</p>
+                  <p className="text-xs text-amber-700/90 mt-0.5">
+                    O registro desta data está em modo somente-leitura. Fale com seu líder caso precise ajustar algo.
+                  </p>
+                </div>
+              </div>
+            )}
             <div>
               <Label className="mb-1.5 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Data de referência</Label>
-              <Select value={date} onValueChange={setDate}>
+              <Select value={date} onValueChange={setDate} disabled={isLocked}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {dateOptions.map((o) => (
@@ -701,6 +717,7 @@ export default function RegistroPage() {
                 value={didYesterday}
                 onChange={(e) => { setDidYesterday(e.target.value); setTouched((p) => ({ ...p, did: true })); }}
                 placeholder={placeholderDid}
+                disabled={isLocked}
                 className={touched.did && didEmpty ? "border-orange-500 focus-visible:ring-orange-500" : ""}
               />
               {touched.did && didEmpty && <p className="text-xs text-orange-500 mt-1">Campo obrigatório.</p>}
@@ -713,6 +730,7 @@ export default function RegistroPage() {
                 value={willDoToday}
                 onChange={(e) => { setWillDoToday(e.target.value); setTouched((p) => ({ ...p, will: true })); }}
                 placeholder={placeholderWill}
+                disabled={isLocked}
                 className={touched.will && willEmpty ? "border-orange-500 focus-visible:ring-orange-500" : ""}
               />
               {touched.will && willEmpty && <p className="text-xs text-orange-500 mt-1">Campo obrigatório.</p>}
