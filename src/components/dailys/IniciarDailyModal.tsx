@@ -6,13 +6,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, X, Play, AlertTriangle, MessageSquarePlus, UserX, Paperclip, CheckCircle2, Video, VideoOff, MicOff, Mic, Calendar } from "lucide-react";
+import { FileText, X, Play, AlertTriangle, MessageSquarePlus, UserX, Paperclip, CheckCircle2, Video, VideoOff, MicOff, Mic, Calendar, ChevronDown, ChevronRight, RefreshCcw, UserCheck, CalendarX, UserMinus, ChevronsUpDown } from "lucide-react";
 import { uploadAttachment } from "@/lib/uploadAttachment";
 import { useCreateDailyMeeting } from "@/hooks/useDailyMeetings";
 import { useImpedimentMutations, URGENCY_LABELS, URGENCY_STYLES, type DevDailyImpediment } from "@/hooks/useDevDailyImpediments";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface MemberRow {
   key: string;
@@ -36,27 +37,94 @@ interface Props {
   members: MemberRow[];
 }
 
+type MemberStatus = "present" | "absent_work" | "no_participate";
+
+interface MemberUIState {
+  status: MemberStatus;
+  camera_on: boolean;
+  stayed_silent: boolean;
+  notes: string;
+  absence_reason: string;
+}
+
+const defaultState = (filled: boolean): MemberUIState => ({
+  status: "present",
+  camera_on: filled,
+  stayed_silent: false,
+  notes: "",
+  absence_reason: "",
+});
+
 export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }: Props) {
   const create = useCreateDailyMeeting();
   const { resolve } = useImpedimentMutations();
+  const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [observations, setObservations] = useState("");
   const [transcriptUrl, setTranscriptUrl] = useState<string | null>(null);
   const [transcriptName, setTranscriptName] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [memberState, setMemberState] = useState<Record<string, { camera_on: boolean; stayed_silent: boolean; notes: string }>>({});
+  const [memberState, setMemberState] = useState<Record<string, MemberUIState>>({});
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
+  // Reinicializa somente quando o modal abre
   useEffect(() => {
     if (open) {
       setObservations("");
       setTranscriptUrl(null);
       setTranscriptName(null);
-      const init: Record<string, { camera_on: boolean; stayed_silent: boolean; notes: string }> = {};
-      members.forEach((m) => { init[m.key] = { camera_on: m.filled, stayed_silent: false, notes: "" }; });
+      const init: Record<string, MemberUIState> = {};
+      const exp: Record<string, boolean> = {};
+      members.forEach((m) => {
+        init[m.key] = defaultState(m.filled);
+        // Auto-expandir apenas quem tem impedimento aberto
+        exp[m.key] = m.imps.some((i) => !i.resolved);
+      });
       setMemberState(init);
+      setExpanded(exp);
+      setLastRefresh(new Date());
     }
-  }, [open, members]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // Merge quando a lista de membros muda (por refresh) preservando o já digitado
+  useEffect(() => {
+    if (!open) return;
+    setMemberState((prev) => {
+      const next: Record<string, MemberUIState> = {};
+      members.forEach((m) => {
+        next[m.key] = prev[m.key] ?? defaultState(m.filled);
+      });
+      return next;
+    });
+    setExpanded((prev) => {
+      const next: Record<string, boolean> = {};
+      members.forEach((m) => {
+        next[m.key] = prev[m.key] ?? m.imps.some((i) => !i.resolved);
+      });
+      return next;
+    });
+  }, [members, open]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["dev_daily_entries"] }),
+        queryClient.invalidateQueries({ queryKey: ["dev_daily_impediments"] }),
+        queryClient.invalidateQueries({ queryKey: ["squad_profiles"] }),
+      ]);
+      setLastRefresh(new Date());
+      toast.success("Daily atualizada");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao atualizar");
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleFile = async (file: File) => {
     try {
@@ -76,31 +144,66 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
     const vals = Object.values(memberState);
     return {
       total: vals.length,
-      cam: vals.filter((v) => v.camera_on).length,
-      silent: vals.filter((v) => v.stayed_silent).length,
+      present: vals.filter((v) => v.status === "present").length,
+      absent: vals.filter((v) => v.status === "absent_work").length,
+      noPart: vals.filter((v) => v.status === "no_participate").length,
+      cam: vals.filter((v) => v.status === "present" && v.camera_on).length,
+      silent: vals.filter((v) => v.status === "present" && v.stayed_silent).length,
     };
   }, [memberState]);
 
   const submit = async () => {
+    // Valida motivo obrigatório para "não participou"
+    const missingReason = members.find((m) => {
+      const s = memberState[m.key];
+      return s?.status === "no_participate" && !s.absence_reason.trim();
+    });
+    if (missingReason) {
+      toast.error(`Informe o motivo pelo qual ${missingReason.name} não participou da daily.`);
+      setExpanded((prev) => ({ ...prev, [missingReason.key]: true }));
+      return;
+    }
+
     await create.mutateAsync({
       meeting_date: date,
       squad_id: squadId,
       observations,
       transcript_url: transcriptUrl,
-      attendance: members.map((m) => ({
-        member_name: m.name,
-        member_user_id: m.entry?.user_id ?? null,
-        camera_on: memberState[m.key]?.camera_on ?? false,
-        stayed_silent: memberState[m.key]?.stayed_silent ?? false,
-        dev_entry_id: m.entry?.id ?? null,
-        notes: memberState[m.key]?.notes?.trim() || null,
-      })),
+      attendance: members.map((m) => {
+        const s = memberState[m.key] ?? defaultState(m.filled);
+        const absent = s.status === "absent_work";
+        const noPart = s.status === "no_participate";
+        return {
+          member_name: m.name,
+          member_user_id: m.entry?.user_id ?? null,
+          // Se ausente/não participou, câmera e "ficou em silêncio" não se aplicam
+          camera_on: s.status === "present" ? s.camera_on : false,
+          stayed_silent: s.status === "present" ? s.stayed_silent : false,
+          dev_entry_id: m.entry?.id ?? null,
+          notes: s.notes.trim() || null,
+          absent_from_work: absent,
+          did_not_participate: noPart,
+          non_participation_reason: noPart ? s.absence_reason.trim() : null,
+        };
+      }),
     });
     onOpenChange(false);
   };
 
-  const updateMember = (k: string, patch: Partial<{ camera_on: boolean; stayed_silent: boolean; notes: string }>) =>
+  const updateMember = (k: string, patch: Partial<MemberUIState>) =>
     setMemberState((prev) => ({ ...prev, [k]: { ...prev[k], ...patch } }));
+
+  const toggleExpanded = (k: string) => setExpanded((prev) => ({ ...prev, [k]: !prev[k] }));
+  const expandAll = () => {
+    const next: Record<string, boolean> = {};
+    members.forEach((m) => { next[m.key] = true; });
+    setExpanded(next);
+  };
+  const collapseAll = () => {
+    const next: Record<string, boolean> = {};
+    members.forEach((m) => { next[m.key] = false; });
+    setExpanded(next);
+  };
 
   const dateObj = useMemo(() => {
     try { return parseISO(date); } catch { return new Date(date); }
@@ -113,7 +216,7 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto p-0">
+      <DialogContent className="max-w-6xl w-[calc(100vw-2rem)] max-h-[94vh] overflow-y-auto p-0">
         <DialogHeader className="px-6 pt-6 pb-4 pr-12 border-b">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3 min-w-0">
@@ -127,6 +230,12 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                   <span className="capitalize">{weekday}</span>
                   <span>•</span>
                   <span>{dateLong}</span>
+                  {lastRefresh && (
+                    <>
+                      <span>•</span>
+                      <span className="text-muted-foreground">Atualizado {format(lastRefresh, "HH:mm:ss")}</span>
+                    </>
+                  )}
                 </DialogDescription>
               </div>
             </div>
@@ -135,6 +244,18 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                 <span className="text-muted-foreground">Presença</span>
                 <span className="font-semibold text-foreground">{filledCount}/{members.length}</span>
               </Badge>
+              {stats.absent > 0 && (
+                <Badge variant="outline" className="rounded-lg gap-1 font-normal border-red-500/40 text-red-600 bg-red-500/5">
+                  <CalendarX className="w-3 h-3" />
+                  <span className="font-semibold">{stats.absent}</span>
+                </Badge>
+              )}
+              {stats.noPart > 0 && (
+                <Badge variant="outline" className="rounded-lg gap-1 font-normal border-amber-500/40 text-amber-700 bg-amber-500/5">
+                  <UserMinus className="w-3 h-3" />
+                  <span className="font-semibold">{stats.noPart}</span>
+                </Badge>
+              )}
               <Badge variant="outline" className="rounded-lg gap-1 font-normal">
                 <Video className="w-3 h-3" />
                 <span className="font-semibold">{stats.cam}/{stats.total}</span>
@@ -146,6 +267,18 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                 <MicOff className="w-3 h-3" />
                 <span className="font-semibold">{stats.silent}</span>
               </Badge>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="rounded-lg h-8 gap-1.5 ml-1"
+                title="Recarregar entradas e impedimentos dos devs"
+              >
+                <RefreshCcw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">Atualizar</span>
+              </Button>
             </div>
           </div>
         </DialogHeader>
@@ -155,29 +288,57 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
             <div className="flex items-center gap-2 mb-3">
               <Label className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Colaboradores</Label>
               <div className="h-px flex-1 bg-border" />
+              <div className="flex items-center gap-1">
+                <Button type="button" variant="ghost" size="sm" onClick={expandAll} className="h-7 text-xs gap-1">
+                  <ChevronsUpDown className="w-3 h-3" /> Expandir todos
+                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={collapseAll} className="h-7 text-xs">
+                  Retrair todos
+                </Button>
+              </div>
             </div>
-            <div className="space-y-2.5 max-h-[440px] overflow-y-auto pr-1 -mr-1">
+            <div className="space-y-2 max-h-[540px] overflow-y-auto pr-1 -mr-1">
               {members.length === 0 && (
                 <p className="text-sm text-muted-foreground">Nenhum membro encontrado para esta squad.</p>
               )}
               {members.map((m) => {
-                const st = memberState[m.key] ?? { camera_on: false, stayed_silent: false, notes: "" };
+                const st = memberState[m.key] ?? defaultState(m.filled);
                 const openImps = m.imps.filter((i) => !i.resolved);
                 const noteCount = st.notes.trim().length;
+                const isOpen = expanded[m.key] ?? false;
+                const isAbsent = st.status === "absent_work";
+                const isNoPart = st.status === "no_participate";
+                const isPresent = st.status === "present";
                 return (
                   <Card
                     key={m.key}
-                    className={`rounded-xl overflow-hidden transition-colors ${
-                      m.filled
+                    className={`rounded-xl overflow-hidden transition-all ${
+                      isAbsent
+                        ? "border-red-500/40 bg-red-500/[0.03]"
+                        : isNoPart
+                        ? "border-amber-500/40 bg-amber-500/[0.03]"
+                        : m.filled
                         ? "border-border/70"
                         : "border-dashed bg-muted/20"
-                    } ${openImps.length > 0 ? "border-l-4 border-l-orange-500" : ""}`}
+                    } ${openImps.length > 0 && isPresent ? "border-l-4 border-l-orange-500" : ""}`}
                   >
-                    <CardContent className="p-3.5 space-y-2.5">
-                      <div className="flex items-start gap-3">
+                    <CardContent className="p-0">
+                      {/* Cabeçalho compacto — sempre visível */}
+                      <button
+                        type="button"
+                        onClick={() => toggleExpanded(m.key)}
+                        className="w-full flex items-center gap-3 p-3 text-left hover:bg-muted/30 transition-colors"
+                      >
+                        <div className="text-muted-foreground shrink-0">
+                          {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                        </div>
                         <div
                           className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${
-                            m.filled
+                            isAbsent
+                              ? "bg-red-500/10 text-red-600"
+                              : isNoPart
+                              ? "bg-amber-500/10 text-amber-700"
+                              : m.filled
                               ? "bg-primary/10 text-primary"
                               : "bg-muted text-muted-foreground"
                           }`}
@@ -187,7 +348,15 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-semibold text-sm leading-tight">{m.name}</span>
-                            {m.filled ? (
+                            {isAbsent ? (
+                              <Badge variant="outline" className="text-[10px] gap-1 bg-red-500/10 text-red-600 border-red-500/30">
+                                <CalendarX className="w-2.5 h-2.5" /> Ausente do trabalho
+                              </Badge>
+                            ) : isNoPart ? (
+                              <Badge variant="outline" className="text-[10px] gap-1 bg-amber-500/10 text-amber-700 border-amber-500/30">
+                                <UserMinus className="w-2.5 h-2.5" /> Não participou
+                              </Badge>
+                            ) : m.filled ? (
                               <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
                                 Preencheu
                               </Badge>
@@ -196,95 +365,163 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                 <UserX className="w-2.5 h-2.5" /> Não preencheu
                               </Badge>
                             )}
-                            {openImps.length > 0 && (
+                            {isPresent && openImps.length > 0 && (
                               <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30 gap-1">
                                 <AlertTriangle className="w-2.5 h-2.5" />
                                 {openImps.length} {openImps.length > 1 ? "impedimentos" : "impedimento"}
                               </Badge>
                             )}
+                            {isPresent && (
+                              <>
+                                {st.camera_on && <Badge variant="outline" className="text-[10px] gap-1 bg-primary/5 text-primary border-primary/30"><Video className="w-2.5 h-2.5" /></Badge>}
+                                {st.stayed_silent && <Badge variant="outline" className="text-[10px] gap-1 bg-orange-500/5 text-orange-600 border-orange-500/30"><MicOff className="w-2.5 h-2.5" /></Badge>}
+                                {noteCount > 0 && <Badge variant="outline" className="text-[10px] gap-1"><MessageSquarePlus className="w-2.5 h-2.5" /></Badge>}
+                              </>
+                            )}
                           </div>
+                          {isNoPart && st.absence_reason.trim() && !isOpen && (
+                            <p className="text-[11px] text-amber-700/90 mt-1 truncate">
+                              Motivo: {st.absence_reason}
+                            </p>
+                          )}
                         </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => updateMember(m.key, { camera_on: !st.camera_on })}
-                            className={`h-8 w-8 p-0 rounded-lg ${st.camera_on ? "bg-primary/10 text-primary hover:bg-primary/15" : "text-muted-foreground"}`}
-                            title={st.camera_on ? "Câmera ligada" : "Câmera desligada"}
-                          >
-                            {st.camera_on ? <Video className="w-4 h-4" /> : <VideoOff className="w-4 h-4" />}
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => updateMember(m.key, { stayed_silent: !st.stayed_silent })}
-                            className={`h-8 w-8 p-0 rounded-lg ${st.stayed_silent ? "bg-orange-500/10 text-orange-600 hover:bg-orange-500/15" : "text-muted-foreground"}`}
-                            title={st.stayed_silent ? "Ficou em silêncio" : "Participou"}
-                          >
-                            {st.stayed_silent ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                          </Button>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant={noteCount > 0 ? "default" : "outline"}
-                                className="rounded-lg gap-1.5 h-8 ml-1"
-                              >
-                                <MessageSquarePlus className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">Observação</span>
-                                {noteCount > 0 && <span className="text-[10px] opacity-80">({noteCount})</span>}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-80 rounded-xl" align="end">
-                              <Label className="text-xs font-semibold mb-1.5 block">Observação sobre {m.name}</Label>
+                      </button>
+
+                      {isOpen && (
+                        <div className="px-3 pb-3 pt-1 space-y-3 border-t bg-background/40">
+                          {/* Seletor de status */}
+                          <div className="flex flex-wrap gap-1.5">
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); updateMember(m.key, { status: "present" }); }}
+                              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium border transition-colors ${
+                                isPresent ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/40" : "bg-background text-muted-foreground border-border hover:bg-muted/50"
+                              }`}
+                            >
+                              <UserCheck className="w-3.5 h-3.5" /> Presente
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); updateMember(m.key, { status: "absent_work" }); }}
+                              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium border transition-colors ${
+                                isAbsent ? "bg-red-500/10 text-red-600 border-red-500/40" : "bg-background text-muted-foreground border-border hover:bg-muted/50"
+                              }`}
+                              title="Colaborador não trabalhou neste dia"
+                            >
+                              <CalendarX className="w-3.5 h-3.5" /> Ausente do trabalho
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); updateMember(m.key, { status: "no_participate" }); }}
+                              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium border transition-colors ${
+                                isNoPart ? "bg-amber-500/10 text-amber-700 border-amber-500/40" : "bg-background text-muted-foreground border-border hover:bg-muted/50"
+                              }`}
+                              title="Trabalhou hoje mas não conseguiu participar da daily"
+                            >
+                              <UserMinus className="w-3.5 h-3.5" /> Não participou
+                            </button>
+                          </div>
+
+                          {isNoPart && (
+                            <div>
+                              <Label className="text-[11px] font-semibold text-amber-700 mb-1 block">
+                                Motivo da não participação <span className="text-orange-500">*</span>
+                              </Label>
                               <Textarea
-                                rows={4}
-                                value={st.notes}
-                                onChange={(e) => updateMember(m.key, { notes: e.target.value })}
-                                placeholder="Anote algo específico deste colaborador..."
+                                rows={2}
+                                value={st.absence_reason}
+                                onChange={(e) => updateMember(m.key, { absence_reason: e.target.value })}
+                                placeholder="Ex.: reunião com cliente, treinamento, atendimento urgente..."
+                                className="text-sm"
                               />
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-                      </div>
-
-                      {m.filled && m.entry && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pl-12">
-                          <div className="rounded-lg bg-muted/40 px-3 py-2">
-                            <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-0.5">Ontem</p>
-                            <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">{m.entry.did_yesterday || "—"}</p>
-                          </div>
-                          <div className="rounded-lg bg-primary/5 px-3 py-2">
-                            <p className="text-[10px] uppercase tracking-wide font-semibold text-primary/80 mb-0.5">Hoje</p>
-                            <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">{m.entry.will_do_today || "—"}</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {openImps.length > 0 && (
-                        <div className="space-y-1.5 pl-12">
-                          {openImps.map((imp) => (
-                            <div key={imp.id} className="flex items-start gap-2 p-2.5 rounded-lg bg-orange-500/5 border border-orange-500/20">
-                              <AlertTriangle className="w-3.5 h-3.5 text-orange-600 mt-0.5 shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs whitespace-pre-wrap break-words text-foreground/90">{imp.description}</p>
-                                <Badge variant="outline" className={`text-[10px] mt-1 ${URGENCY_STYLES[imp.urgency]}`}>
-                                  {URGENCY_LABELS[imp.urgency]}
-                                </Badge>
-                              </div>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 rounded-lg gap-1 text-xs border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10 shrink-0"
-                                onClick={() => resolve.mutate({ id: imp.id, resolved: true })}
-                                disabled={resolve.isPending}
-                              >
-                                <CheckCircle2 className="w-3 h-3" /> Sanar
-                              </Button>
                             </div>
-                          ))}
+                          )}
+
+                          {isPresent && (
+                            <>
+                              {/* Câmera / microfone / observação */}
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={(e) => { e.stopPropagation(); updateMember(m.key, { camera_on: !st.camera_on }); }}
+                                  className={`h-8 rounded-lg gap-1.5 ${st.camera_on ? "bg-primary/10 text-primary border-primary/40" : "text-muted-foreground"}`}
+                                >
+                                  {st.camera_on ? <Video className="w-3.5 h-3.5" /> : <VideoOff className="w-3.5 h-3.5" />}
+                                  <span className="text-xs">Câmera {st.camera_on ? "ligada" : "desligada"}</span>
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={(e) => { e.stopPropagation(); updateMember(m.key, { stayed_silent: !st.stayed_silent }); }}
+                                  className={`h-8 rounded-lg gap-1.5 ${st.stayed_silent ? "bg-orange-500/10 text-orange-600 border-orange-500/40" : "text-muted-foreground"}`}
+                                >
+                                  {st.stayed_silent ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                                  <span className="text-xs">{st.stayed_silent ? "Ficou em silêncio" : "Participou verbalmente"}</span>
+                                </Button>
+                              </div>
+
+                              {/* Ontem/Hoje */}
+                              {m.filled && m.entry ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                  <div className="rounded-lg bg-muted/40 px-3 py-2">
+                                    <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-0.5">Ontem</p>
+                                    <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">{m.entry.did_yesterday || "—"}</p>
+                                  </div>
+                                  <div className="rounded-lg bg-primary/5 px-3 py-2">
+                                    <p className="text-[10px] uppercase tracking-wide font-semibold text-primary/80 mb-0.5">Hoje</p>
+                                    <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">{m.entry.will_do_today || "—"}</p>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="rounded-lg border border-dashed bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground text-center">
+                                  Colaborador ainda não registrou a daily. Clique em <span className="font-semibold">Atualizar</span> após ele preencher.
+                                </div>
+                              )}
+
+                              {/* Impedimentos em aberto */}
+                              {openImps.length > 0 && (
+                                <div className="space-y-1.5">
+                                  {openImps.map((imp) => (
+                                    <div key={imp.id} className="flex items-start gap-2 p-2.5 rounded-lg bg-orange-500/5 border border-orange-500/20">
+                                      <AlertTriangle className="w-3.5 h-3.5 text-orange-600 mt-0.5 shrink-0" />
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-xs whitespace-pre-wrap break-words text-foreground/90">{imp.description}</p>
+                                        <Badge variant="outline" className={`text-[10px] mt-1 ${URGENCY_STYLES[imp.urgency]}`}>
+                                          {URGENCY_LABELS[imp.urgency]}
+                                        </Badge>
+                                      </div>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-7 rounded-lg gap-1 text-xs border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10 shrink-0"
+                                        onClick={() => resolve.mutate({ id: imp.id, resolved: true })}
+                                        disabled={resolve.isPending}
+                                      >
+                                        <CheckCircle2 className="w-3 h-3" /> Sanar
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Observação sobre o colaborador */}
+                              <div>
+                                <Label className="text-[11px] font-semibold text-muted-foreground mb-1 block flex items-center gap-1">
+                                  <MessageSquarePlus className="w-3 h-3" /> Observação do líder sobre {m.name.split(" ")[0]}
+                                </Label>
+                                <Textarea
+                                  rows={2}
+                                  value={st.notes}
+                                  onChange={(e) => updateMember(m.key, { notes: e.target.value })}
+                                  placeholder="Opcional — algo específico deste colaborador..."
+                                  className="text-sm"
+                                />
+                              </div>
+                            </>
+                          )}
                         </div>
                       )}
                     </CardContent>
@@ -322,7 +559,11 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
         <DialogFooter className="px-6 py-4 border-t bg-muted/20">
           <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl">Cancelar</Button>
           <Button onClick={submit} disabled={create.isPending || members.length === 0} className="rounded-xl bg-orange-500 hover:bg-orange-600 text-white gap-2">
-            <Play className="w-4 h-4" /> Salvar Daily
+            {create.isPending ? (
+              <><RefreshCcw className="w-4 h-4 animate-spin" /> Salvando...</>
+            ) : (
+              <><Play className="w-4 h-4" /> Salvar Daily</>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

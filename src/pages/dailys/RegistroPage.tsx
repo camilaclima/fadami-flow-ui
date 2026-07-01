@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ClipboardEdit, AlertTriangle, CheckCircle2, Calendar, Plus, Users,
   CalendarClock, TrendingUp, AlertOctagon, Trash2, CircleCheck, CircleDot,
-  Pencil, Eye, Loader2,
+  Pencil, Eye, Loader2, Lock,
 } from "lucide-react";
 import { useDevDailyEntriesByUser, useUpsertDevDailyEntry } from "@/hooks/useDevDailyEntries";
 import {
@@ -99,6 +99,23 @@ export default function RegistroPage() {
   const { data: allImpediments = [] } = useDevDailyImpedimentsByEntries(entryIds);
   const { create: createImp, resolve: resolveImp, remove: removeImp } = useImpedimentMutations();
 
+  // Dailys já finalizadas pelo líder (bloqueiam edição do dev)
+  const { data: lockedMeetings = [] } = useQuery({
+    queryKey: ["daily_meetings_lock", (sim.squadIds ?? []).join(",")],
+    enabled: !!sim.squadIds && sim.squadIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("daily_meetings") as any)
+        .select("meeting_date, squad_id")
+        .in("squad_id", sim.squadIds!);
+      if (error) throw error;
+      return (data ?? []) as { meeting_date: string; squad_id: string }[];
+    },
+  });
+  const lockedDates = useMemo(
+    () => new Set(lockedMeetings.map((m) => m.meeting_date)),
+    [lockedMeetings]
+  );
+
   const dateOptions = useMemo(() => allowedDates(), []);
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<string>(dateOptions[0]?.value ?? toISO(new Date()));
@@ -139,6 +156,7 @@ export default function RegistroPage() {
   );
 
   const existing = useMemo(() => entries.find((e) => e.entry_date === date), [entries, date]);
+  const isLocked = lockedDates.has(date);
 
   // Impedimentos da entry sendo editada (já persistidos)
   const existingImps = useMemo<DevDailyImpediment[]>(
@@ -187,6 +205,9 @@ export default function RegistroPage() {
   };
 
   const handleOpenEdit = (entry: any) => {
+    if (lockedDates.has(entry.entry_date)) {
+      toast.info("Esta daily já foi finalizada pelo líder e não pode mais ser editada.");
+    }
     setMode("edit");
     setDate(entry.entry_date);
     setDidYesterday(entry.did_yesterday ?? "");
@@ -279,6 +300,10 @@ export default function RegistroPage() {
     setTouched({ did: true, will: true });
     if (didEmpty || willEmpty) {
       toast.error("Preencha os campos obrigatórios: 'O que fiz ontem?' e 'O que farei hoje?'.");
+      return;
+    }
+    if (isLocked) {
+      toast.error("Esta daily já foi finalizada pelo líder e não pode mais ser editada.");
       return;
     }
     // Valida resolução dos impedimentos anteriores em aberto
@@ -450,6 +475,7 @@ export default function RegistroPage() {
         )}
         {entries.map((e) => {
           const D = e.entry_date;
+          const dayLocked = lockedDates.has(D);
           const imps = allImpediments.filter((imp) => {
             const origin = entries.find((e2) => e2.id === imp.entry_id);
             if (!origin) return false;
@@ -491,14 +517,17 @@ export default function RegistroPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
+                    {dayLocked && (
+                      <Lock className="w-3.5 h-3.5 text-amber-500" aria-label="Daily finalizada" />
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={(ev) => { ev.stopPropagation(); handleOpenEdit(e); }}
-                      title="Editar daily"
+                      title={dayLocked ? "Daily finalizada (somente leitura)" : "Editar daily"}
                     >
-                      <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                      {dayLocked ? <Eye className="w-3.5 h-3.5 text-muted-foreground" /> : <Pencil className="w-3.5 h-3.5 text-muted-foreground" />}
                     </Button>
                     <Eye className="w-3.5 h-3.5 text-muted-foreground opacity-60" />
                   </div>
@@ -653,13 +682,29 @@ export default function RegistroPage() {
               <ClipboardEdit className="w-5 h-5 text-primary" />
               Registrar daily
               {mode === "edit" && <Badge variant="outline" className="ml-2">Editando</Badge>}
+              {isLocked && (
+                <Badge variant="outline" className="ml-2 gap-1 bg-muted text-muted-foreground border-border">
+                  <Lock className="w-3 h-3" /> Finalizada
+                </Badge>
+              )}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-5 min-w-0">
+            {isLocked && (
+              <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 flex items-start gap-2">
+                <Lock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-semibold text-amber-700">Daily finalizada pelo líder</p>
+                  <p className="text-xs text-amber-700/90 mt-0.5">
+                    O registro desta data está em modo somente-leitura. Fale com seu líder caso precise ajustar algo.
+                  </p>
+                </div>
+              </div>
+            )}
             <div>
               <Label className="mb-1.5 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Data de referência</Label>
-              <Select value={date} onValueChange={setDate}>
+              <Select value={date} onValueChange={setDate} disabled={isLocked}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {dateOptions.map((o) => (
@@ -676,6 +721,7 @@ export default function RegistroPage() {
                 value={didYesterday}
                 onChange={(e) => { setDidYesterday(e.target.value); setTouched((p) => ({ ...p, did: true })); }}
                 placeholder={placeholderDid}
+                disabled={isLocked}
                 className={touched.did && didEmpty ? "border-orange-500 focus-visible:ring-orange-500" : ""}
               />
               {touched.did && didEmpty && <p className="text-xs text-orange-500 mt-1">Campo obrigatório.</p>}
@@ -688,6 +734,7 @@ export default function RegistroPage() {
                 value={willDoToday}
                 onChange={(e) => { setWillDoToday(e.target.value); setTouched((p) => ({ ...p, will: true })); }}
                 placeholder={placeholderWill}
+                disabled={isLocked}
                 className={touched.will && willEmpty ? "border-orange-500 focus-visible:ring-orange-500" : ""}
               />
               {touched.will && willEmpty && <p className="text-xs text-orange-500 mt-1">Campo obrigatório.</p>}
@@ -741,6 +788,7 @@ export default function RegistroPage() {
                           variant={r.resolved === true ? "default" : "outline"}
                           className="rounded-lg gap-1.5 h-8"
                           onClick={() => setPriorRes((prev) => ({ ...prev, [p.id]: { resolved: true } }))}
+                          disabled={isLocked}
                         >
                           <CircleCheck className="w-3.5 h-3.5" /> Sanado
                         </Button>
@@ -750,6 +798,7 @@ export default function RegistroPage() {
                           variant={r.resolved === false ? "destructive" : "outline"}
                           className="rounded-lg gap-1.5 h-8"
                           onClick={() => setPriorRes((prev) => ({ ...prev, [p.id]: { resolved: false } }))}
+                          disabled={isLocked}
                         >
                           <CircleDot className="w-3.5 h-3.5" /> Ainda impedido
                         </Button>
@@ -788,6 +837,7 @@ export default function RegistroPage() {
                           className="h-7 w-7"
                           onClick={() => removeImp.mutate(imp.id)}
                           title="Remover"
+                          disabled={isLocked}
                         >
                           <Trash2 className="w-3.5 h-3.5 text-destructive" />
                         </Button>
@@ -812,6 +862,7 @@ export default function RegistroPage() {
                         size="icon"
                         className="h-7 w-7"
                         onClick={() => setDraftImps((prev) => prev.filter((x) => x.id !== d.id))}
+                        disabled={isLocked}
                       >
                         <Trash2 className="w-3.5 h-3.5 text-destructive" />
                       </Button>
@@ -827,6 +878,7 @@ export default function RegistroPage() {
                   variant="outline"
                   onClick={() => setShowNewImp(true)}
                   className="rounded-xl gap-1.5"
+                  disabled={isLocked}
                 >
                   <Plus className="w-4 h-4" /> Criar impedimento
                 </Button>
@@ -872,11 +924,16 @@ export default function RegistroPage() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={saving} className="rounded-xl">Cancelar</Button>
-            <Button onClick={submit} disabled={saving || upsert.isPending} className="rounded-xl gap-2">
+            <Button onClick={submit} disabled={saving || upsert.isPending || isLocked} className="rounded-xl gap-2">
               {saving ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Salvando...
+                </>
+              ) : isLocked ? (
+                <>
+                  <Lock className="w-4 h-4" />
+                  Bloqueada
                 </>
               ) : (
                 <>
