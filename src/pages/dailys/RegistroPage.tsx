@@ -475,6 +475,7 @@ export default function RegistroPage() {
         )}
         {entries.map((e) => {
           const D = e.entry_date;
+          const dayLocked = lockedDates.has(D);
           const imps = allImpediments.filter((imp) => {
             const origin = entries.find((e2) => e2.id === imp.entry_id);
             if (!origin) return false;
@@ -516,14 +517,17 @@ export default function RegistroPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
+                    {dayLocked && (
+                      <Lock className="w-3.5 h-3.5 text-amber-500" aria-label="Daily finalizada" />
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={(ev) => { ev.stopPropagation(); handleOpenEdit(e); }}
-                      title="Editar daily"
+                      title={dayLocked ? "Daily finalizada (somente leitura)" : "Editar daily"}
                     >
-                      <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                      {dayLocked ? <Eye className="w-3.5 h-3.5 text-muted-foreground" /> : <Pencil className="w-3.5 h-3.5 text-muted-foreground" />}
                     </Button>
                     <Eye className="w-3.5 h-3.5 text-muted-foreground opacity-60" />
                   </div>
