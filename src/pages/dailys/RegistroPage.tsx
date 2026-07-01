@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ClipboardEdit, AlertTriangle, CheckCircle2, Calendar, Plus, Users,
   CalendarClock, TrendingUp, AlertOctagon, Trash2, CircleCheck, CircleDot,
-  Pencil, Eye, Loader2,
+  Pencil, Eye, Loader2, Lock,
 } from "lucide-react";
 import { useDevDailyEntriesByUser, useUpsertDevDailyEntry } from "@/hooks/useDevDailyEntries";
 import {
@@ -99,6 +99,23 @@ export default function RegistroPage() {
   const { data: allImpediments = [] } = useDevDailyImpedimentsByEntries(entryIds);
   const { create: createImp, resolve: resolveImp, remove: removeImp } = useImpedimentMutations();
 
+  // Dailys já finalizadas pelo líder (bloqueiam edição do dev)
+  const { data: lockedMeetings = [] } = useQuery({
+    queryKey: ["daily_meetings_lock", (sim.squadIds ?? []).join(",")],
+    enabled: !!sim.squadIds && sim.squadIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("daily_meetings") as any)
+        .select("meeting_date, squad_id")
+        .in("squad_id", sim.squadIds!);
+      if (error) throw error;
+      return (data ?? []) as { meeting_date: string; squad_id: string }[];
+    },
+  });
+  const lockedDates = useMemo(
+    () => new Set(lockedMeetings.map((m) => m.meeting_date)),
+    [lockedMeetings]
+  );
+
   const dateOptions = useMemo(() => allowedDates(), []);
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<string>(dateOptions[0]?.value ?? toISO(new Date()));
@@ -139,6 +156,7 @@ export default function RegistroPage() {
   );
 
   const existing = useMemo(() => entries.find((e) => e.entry_date === date), [entries, date]);
+  const isLocked = lockedDates.has(date);
 
   // Impedimentos da entry sendo editada (já persistidos)
   const existingImps = useMemo<DevDailyImpediment[]>(
@@ -187,6 +205,9 @@ export default function RegistroPage() {
   };
 
   const handleOpenEdit = (entry: any) => {
+    if (lockedDates.has(entry.entry_date)) {
+      toast.info("Esta daily já foi finalizada pelo líder e não pode mais ser editada.");
+    }
     setMode("edit");
     setDate(entry.entry_date);
     setDidYesterday(entry.did_yesterday ?? "");
