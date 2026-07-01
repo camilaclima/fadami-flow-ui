@@ -784,6 +784,7 @@ export default function RegistroPage() {
                           variant={r.resolved === true ? "default" : "outline"}
                           className="rounded-lg gap-1.5 h-8"
                           onClick={() => setPriorRes((prev) => ({ ...prev, [p.id]: { resolved: true } }))}
+                          disabled={isLocked}
                         >
                           <CircleCheck className="w-3.5 h-3.5" /> Sanado
                         </Button>
@@ -793,6 +794,7 @@ export default function RegistroPage() {
                           variant={r.resolved === false ? "destructive" : "outline"}
                           className="rounded-lg gap-1.5 h-8"
                           onClick={() => setPriorRes((prev) => ({ ...prev, [p.id]: { resolved: false } }))}
+                          disabled={isLocked}
                         >
                           <CircleDot className="w-3.5 h-3.5" /> Ainda impedido
                         </Button>
@@ -831,6 +833,7 @@ export default function RegistroPage() {
                           className="h-7 w-7"
                           onClick={() => removeImp.mutate(imp.id)}
                           title="Remover"
+                          disabled={isLocked}
                         >
                           <Trash2 className="w-3.5 h-3.5 text-destructive" />
                         </Button>
@@ -855,6 +858,7 @@ export default function RegistroPage() {
                         size="icon"
                         className="h-7 w-7"
                         onClick={() => setDraftImps((prev) => prev.filter((x) => x.id !== d.id))}
+                        disabled={isLocked}
                       >
                         <Trash2 className="w-3.5 h-3.5 text-destructive" />
                       </Button>
@@ -870,6 +874,7 @@ export default function RegistroPage() {
                   variant="outline"
                   onClick={() => setShowNewImp(true)}
                   className="rounded-xl gap-1.5"
+                  disabled={isLocked}
                 >
                   <Plus className="w-4 h-4" /> Criar impedimento
                 </Button>
@@ -915,11 +920,16 @@ export default function RegistroPage() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={saving} className="rounded-xl">Cancelar</Button>
-            <Button onClick={submit} disabled={saving || upsert.isPending} className="rounded-xl gap-2">
+            <Button onClick={submit} disabled={saving || upsert.isPending || isLocked} className="rounded-xl gap-2">
               {saving ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Salvando...
+                </>
+              ) : isLocked ? (
+                <>
+                  <Lock className="w-4 h-4" />
+                  Bloqueada
                 </>
               ) : (
                 <>
