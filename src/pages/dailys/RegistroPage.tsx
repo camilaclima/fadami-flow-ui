@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ClipboardEdit, AlertTriangle, CheckCircle2, Calendar, Plus, Users,
   CalendarClock, TrendingUp, AlertOctagon, Trash2, CircleCheck, CircleDot,
-  Pencil, Eye, Loader2, Lock,
+  Pencil, Eye, Loader2, Lock, Ban, ListChecks,
 } from "lucide-react";
 import { useDevDailyEntriesByUser, useUpsertDevDailyEntry } from "@/hooks/useDevDailyEntries";
 import {
@@ -20,6 +21,13 @@ import {
   type ImpedimentUrgency,
   type DevDailyImpediment,
 } from "@/hooks/useDevDailyImpediments";
+import {
+  useDevDailyActivitiesByUser,
+  useDevDailyActivityMutations,
+  ACTIVITY_STATUS_LABELS,
+  ACTIVITY_STATUS_STYLES,
+  type DevDailyActivity,
+} from "@/hooks/useDevDailyActivities";
 import { useDailySim } from "@/contexts/DailySimContext";
 import { AccessDeniedCard } from "@/components/dailys/AccessDeniedCard";
 import { format, parseISO, addDays, subDays, startOfWeek, isWeekend, isSameDay } from "date-fns";
@@ -30,6 +38,10 @@ import { useQuery } from "@tanstack/react-query";
 
 type DraftImpediment = { id: string; description: string; urgency: ImpedimentUrgency };
 type PriorResolution = { resolved: boolean | null };
+/** Decisão do dev para uma atividade pendente carregada na Seção 1. */
+type PastDecision = "pending" | "done" | "inactive";
+type DraftPlanned = { id: string; description: string };
+type DraftDone = { id: string; description: string };
 
 function isWorkday(d: Date): boolean {
   const dow = d.getDay();
@@ -98,6 +110,12 @@ export default function RegistroPage() {
   const entryIds = useMemo(() => entries.map((e) => e.id), [entries]);
   const { data: allImpediments = [] } = useDevDailyImpedimentsByEntries(entryIds);
   const { create: createImp, resolve: resolveImp, remove: removeImp } = useImpedimentMutations();
+  const { data: allActivities = [] } = useDevDailyActivitiesByUser(sim.devUserId);
+  const {
+    create: createActivity,
+    markCompleted: completeActivity,
+    markInactive: inactivateActivity,
+  } = useDevDailyActivityMutations();
 
   // Dailys já finalizadas pelo líder (bloqueiam edição do dev)
   const { data: lockedMeetings = [] } = useQuery({
@@ -119,9 +137,6 @@ export default function RegistroPage() {
   const dateOptions = useMemo(() => allowedDates(), []);
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<string>(dateOptions[0]?.value ?? toISO(new Date()));
-  const [didYesterday, setDidYesterday] = useState("");
-  const [willDoToday, setWillDoToday] = useState("");
-  const [touched, setTouched] = useState({ did: false, will: false });
   const [draftImps, setDraftImps] = useState<DraftImpediment[]>([]);
   const [showNewImp, setShowNewImp] = useState(false);
   const [newDesc, setNewDesc] = useState("");
@@ -129,6 +144,14 @@ export default function RegistroPage() {
   const [priorRes, setPriorRes] = useState<Record<string, PriorResolution>>({});
   const [viewImp, setViewImp] = useState<DevDailyImpediment | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Decisão para cada atividade pendente carregada na Seção 1
+  const [pastDecisions, setPastDecisions] = useState<Record<string, PastDecision>>({});
+  // Atividades novas planejadas (Seção 2) — persistidas ao salvar como pendente
+  const [plannedDrafts, setPlannedDrafts] = useState<DraftPlanned[]>([]);
+  // Atividades feitas fora do planejado (Seção 1, adicionadas manualmente) — persistidas já como concluídas
+  const [doneDrafts, setDoneDrafts] = useState<DraftDone[]>([]);
+  const [touched, setTouched] = useState(false);
 
   const skipAutoFill = useRef(false);
   const [mode, setMode] = useState<"create" | "edit">("create");
@@ -175,14 +198,41 @@ export default function RegistroPage() {
       });
   }, [allImpediments, entries, date]);
 
+  /* -------- Atividades (carry-over + já vinculadas a esta entry) -------- */
+  // Pendentes que devem cair na Seção 1: pendente + criadas em dailys anteriores à data selecionada
+  const carryOverActivities = useMemo<DevDailyActivity[]>(() => {
+    return allActivities.filter((a) => {
+      if (a.status !== "pendente") return false;
+      if (!a.created_entry_id) return true;
+      const origin = entries.find((e) => e.id === a.created_entry_id);
+      if (!origin) return true;
+      return origin.entry_date < date;
+    });
+  }, [allActivities, entries, date]);
+
+  // Atividades já fechadas nesta entry (só no modo edit)
+  const closedInEntry = useMemo<DevDailyActivity[]>(() => {
+    if (!existing) return [];
+    return allActivities.filter((a) => a.closed_entry_id === existing.id && a.status !== "pendente");
+  }, [allActivities, existing]);
+
+  // Atividades planejadas nesta entry (ainda pendentes) — só no modo edit
+  const plannedInEntry = useMemo<DevDailyActivity[]>(() => {
+    if (!existing) return [];
+    return allActivities.filter(
+      (a) => a.created_entry_id === existing.id && a.status === "pendente"
+    );
+  }, [allActivities, existing]);
+
   const handleOpenCreate = () => {
     const available = dateOptions.find((o) => !entries.some((e) => e.entry_date === o.value));
     const targetDate = available?.value ?? dateOptions[0]?.value ?? toISO(new Date());
     setMode("create");
     setDate(targetDate);
-    setDidYesterday("");
-    setWillDoToday("");
-    setTouched({ did: false, will: false });
+    setPastDecisions({});
+    setPlannedDrafts([]);
+    setDoneDrafts([]);
+    setTouched(false);
     setDraftImps([]);
     setShowNewImp(false);
     setNewDesc("");
@@ -210,9 +260,10 @@ export default function RegistroPage() {
     }
     setMode("edit");
     setDate(entry.entry_date);
-    setDidYesterday(entry.did_yesterday ?? "");
-    setWillDoToday(entry.will_do_today ?? "");
-    setTouched({ did: false, will: false });
+    setPastDecisions({});
+    setPlannedDrafts([]);
+    setDoneDrafts([]);
+    setTouched(false);
     setDraftImps([]);
     setShowNewImp(false);
     setNewDesc("");
@@ -227,14 +278,10 @@ export default function RegistroPage() {
 
   useEffect(() => {
     if (open && !skipAutoFill.current) {
-      if (mode === "edit") {
-        setDidYesterday(existing?.did_yesterday ?? "");
-        setWillDoToday(existing?.will_do_today ?? "");
-      } else {
-        setDidYesterday("");
-        setWillDoToday("");
-      }
-      setTouched({ did: false, will: false });
+      setPastDecisions({});
+      setPlannedDrafts([]);
+      setDoneDrafts([]);
+      setTouched(false);
       setDraftImps([]);
       setShowNewImp(false);
       setNewDesc("");
@@ -249,13 +296,9 @@ export default function RegistroPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, existing?.id, date]);
 
-  const didEmpty = !didYesterday.trim();
-  const willEmpty = !willDoToday.trim();
   const isToday = date === toISO(new Date());
-  const labelDid = isToday ? "O que fiz hoje?" : "O que fiz ontem?";
-  const labelWill = isToday ? "O que farei amanhã?" : "O que farei hoje?";
-  const placeholderDid = isToday ? "Tarefas, entregas e descobertas de hoje..." : "Tarefas, entregas, descobertas...";
-  const placeholderWill = isToday ? "Próximos passos planejados para amanhã..." : "Próximos passos planejados...";
+  const labelPast = isToday ? "O que fiz hoje" : "O que fiz ontem";
+  const labelFuture = isToday ? "O que farei amanhã" : "O que farei hoje";
 
   /* ---------- KPIs ---------- */
   const kpis = useMemo(() => {
@@ -297,11 +340,29 @@ export default function RegistroPage() {
   }, [entries, allImpediments]);
 
   const submit = async () => {
-    setTouched({ did: true, will: true });
-    if (didEmpty || willEmpty) {
-      toast.error("Preencha os campos obrigatórios: 'O que fiz ontem?' e 'O que farei hoje?'.");
+    setTouched(true);
+
+    // Valida: cada atividade pendente carregada precisa ter uma decisão
+    const missingDecision = carryOverActivities.find(
+      (a) => !pastDecisions[a.id] // undefined = ainda não decidiu
+    );
+    // (Manter como "pending" é uma decisão válida; então exigimos apenas que exista uma escolha explícita)
+    if (missingDecision) {
+      toast.error(`Decida o destino da atividade: "${missingDecision.description}".`);
       return;
     }
+
+    // Pelo menos alguma coisa foi feita OU planejada?
+    const totalPast =
+      carryOverActivities.filter((a) => pastDecisions[a.id] === "done").length +
+      doneDrafts.length +
+      closedInEntry.filter((a) => a.status === "concluida").length;
+    const totalFuture = plannedDrafts.length + plannedInEntry.length;
+    if (totalPast === 0 && totalFuture === 0) {
+      toast.error("Registre pelo menos uma atividade concluída ou planejada.");
+      return;
+    }
+
     if (isLocked) {
       toast.error("Esta daily já foi finalizada pelo líder e não pode mais ser editada.");
       return;
@@ -325,12 +386,52 @@ export default function RegistroPage() {
       id: existing?.id,
       entry_date: date,
       squad_id: sim.squadIds?.[0] ?? null,
-      did_yesterday: didYesterday,
-      will_do_today: willDoToday,
+      did_yesterday: "",
+      will_do_today: "",
       impediments: "",
       });
 
       const entryId = result?.id;
+
+      // Aplica decisões nas atividades pendentes carregadas
+      if (entryId) {
+        await Promise.all(
+          carryOverActivities.map((a) => {
+            const dec = pastDecisions[a.id];
+            if (dec === "done") return completeActivity.mutateAsync({ id: a.id, closed_entry_id: entryId });
+            if (dec === "inactive") return inactivateActivity.mutateAsync({ id: a.id, closed_entry_id: entryId });
+            return Promise.resolve(); // "pending" — mantém para o próximo dia
+          })
+        );
+
+        // Novas atividades planejadas (Seção 2) → pendentes
+        await Promise.all(
+          plannedDrafts.map((d) =>
+            createActivity.mutateAsync({
+              user_id: sim.devUserId!,
+              squad_id: sim.squadIds?.[0] ?? null,
+              description: d.description,
+              status: "pendente",
+              created_entry_id: entryId,
+            })
+          )
+        );
+
+        // Atividades feitas fora do planejado (Seção 1) → já concluídas
+        await Promise.all(
+          doneDrafts.map((d) =>
+            createActivity.mutateAsync({
+              user_id: sim.devUserId!,
+              squad_id: sim.squadIds?.[0] ?? null,
+              description: d.description,
+              status: "concluida",
+              created_entry_id: entryId,
+              closed_entry_id: entryId,
+              completed_at: new Date().toISOString(),
+            })
+          )
+        );
+      }
 
     // Persiste resoluções de impedimentos anteriores
       await Promise.all(
@@ -358,6 +459,7 @@ export default function RegistroPage() {
         );
       }
 
+      toast.success(mode === "edit" ? "Daily atualizada!" : "Daily registrada!");
       setOpen(false);
     } finally {
       setSaving(false);
@@ -714,31 +816,28 @@ export default function RegistroPage() {
               </Select>
             </div>
 
-            <div>
-              <Label className="mb-1.5">{labelDid} <span className="text-orange-500">*</span></Label>
-              <Textarea
-                rows={4}
-                value={didYesterday}
-                onChange={(e) => { setDidYesterday(e.target.value); setTouched((p) => ({ ...p, did: true })); }}
-                placeholder={placeholderDid}
-                disabled={isLocked}
-                className={touched.did && didEmpty ? "border-orange-500 focus-visible:ring-orange-500" : ""}
-              />
-              {touched.did && didEmpty && <p className="text-xs text-orange-500 mt-1">Campo obrigatório.</p>}
-            </div>
+            {/* ---------- Seção 1: O que fiz (atividades) ---------- */}
+            <ActivitiesPastSection
+              label={labelPast}
+              locked={isLocked}
+              carryOver={carryOverActivities}
+              closedInEntry={closedInEntry}
+              decisions={pastDecisions}
+              setDecisions={setPastDecisions}
+              doneDrafts={doneDrafts}
+              setDoneDrafts={setDoneDrafts}
+              entries={entries}
+              touched={touched}
+            />
 
-            <div>
-              <Label className="mb-1.5">{labelWill} <span className="text-orange-500">*</span></Label>
-              <Textarea
-                rows={4}
-                value={willDoToday}
-                onChange={(e) => { setWillDoToday(e.target.value); setTouched((p) => ({ ...p, will: true })); }}
-                placeholder={placeholderWill}
-                disabled={isLocked}
-                className={touched.will && willEmpty ? "border-orange-500 focus-visible:ring-orange-500" : ""}
-              />
-              {touched.will && willEmpty && <p className="text-xs text-orange-500 mt-1">Campo obrigatório.</p>}
-            </div>
+            {/* ---------- Seção 2: O que farei (novas atividades) ---------- */}
+            <ActivitiesFutureSection
+              label={labelFuture}
+              locked={isLocked}
+              plannedInEntry={plannedInEntry}
+              plannedDrafts={plannedDrafts}
+              setPlannedDrafts={setPlannedDrafts}
+            />
 
             {/* Resolução de impedimentos anteriores em aberto */}
             {priorOpen.length > 0 && (
@@ -980,6 +1079,246 @@ export default function RegistroPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+/* =========================================================
+   Subcomponentes: seções de atividades
+   ========================================================= */
+
+function ActivitiesPastSection(props: {
+  label: string;
+  locked: boolean;
+  carryOver: DevDailyActivity[];
+  closedInEntry: DevDailyActivity[];
+  decisions: Record<string, PastDecision>;
+  setDecisions: React.Dispatch<React.SetStateAction<Record<string, PastDecision>>>;
+  doneDrafts: DraftDone[];
+  setDoneDrafts: React.Dispatch<React.SetStateAction<DraftDone[]>>;
+  entries: Array<{ id: string; entry_date: string }>;
+  touched: boolean;
+}) {
+  const {
+    label, locked, carryOver, closedInEntry, decisions, setDecisions,
+    doneDrafts, setDoneDrafts, entries, touched,
+  } = props;
+
+  const [newDesc, setNewDesc] = useState("");
+
+  const addExtra = () => {
+    const d = newDesc.trim();
+    if (!d) return;
+    setDoneDrafts((p) => [...p, { id: crypto.randomUUID(), description: d }]);
+    setNewDesc("");
+  };
+
+  const setDec = (id: string, dec: PastDecision) => {
+    setDecisions((p) => ({ ...p, [id]: dec }));
+  };
+
+  const empty = carryOver.length === 0 && closedInEntry.length === 0 && doneDrafts.length === 0;
+
+  return (
+    <div className="rounded-xl border bg-card p-3 space-y-3">
+      <div className="flex items-center gap-2">
+        <ListChecks className="w-4 h-4 text-primary" />
+        <Label className="text-sm font-semibold">{label}</Label>
+        <span className="text-xs text-muted-foreground">
+          (marque o destino de cada atividade planejada)
+        </span>
+      </div>
+
+      {carryOver.length === 0 && closedInEntry.length === 0 && (
+        <p className="text-xs text-muted-foreground italic">
+          Nenhuma atividade herdada de dailys anteriores.
+        </p>
+      )}
+
+      {carryOver.map((a) => {
+        const dec = decisions[a.id];
+        const origin = entries.find((e) => e.id === a.created_entry_id);
+        const missing = touched && !dec;
+        return (
+          <div
+            key={a.id}
+            className={`rounded-lg border p-2.5 bg-background flex items-start gap-2 ${
+              missing ? "border-orange-500" : ""
+            }`}
+          >
+            <div className="flex-1 min-w-0">
+              <p className="text-sm break-words">{a.description}</p>
+              {origin && (
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Planejada em {format(parseISO(origin.entry_date), "dd/MM", { locale: ptBR })}
+                </p>
+              )}
+              {missing && (
+                <p className="text-[11px] text-orange-500 mt-0.5">Escolha um destino.</p>
+              )}
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <Button
+                type="button"
+                size="sm"
+                variant={dec === "done" ? "default" : "outline"}
+                className={`h-8 gap-1 ${dec === "done" ? "bg-emerald-600 hover:bg-emerald-700" : ""}`}
+                onClick={() => setDec(a.id, "done")}
+                disabled={locked}
+                title="Marcar como concluída"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" /> Concluí
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={dec === "pending" ? "default" : "outline"}
+                className="h-8 gap-1"
+                onClick={() => setDec(a.id, "pending")}
+                disabled={locked}
+                title="Manter pendente (vai para o próximo dia)"
+              >
+                <CircleDot className="w-3.5 h-3.5" /> Pendente
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={dec === "inactive" ? "default" : "outline"}
+                className={`h-8 gap-1 ${dec === "inactive" ? "bg-muted-foreground/60 hover:bg-muted-foreground/70" : ""}`}
+                onClick={() => setDec(a.id, "inactive")}
+                disabled={locked}
+                title="Perdeu prioridade"
+              >
+                <Ban className="w-3.5 h-3.5" /> Inativar
+              </Button>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Atividades já fechadas nesta entry (histórico do dia — read-only) */}
+      {closedInEntry.map((a) => (
+        <div key={a.id} className="rounded-lg border p-2.5 bg-muted/40 flex items-center gap-2">
+          <Badge variant="outline" className={`text-[10px] ${ACTIVITY_STATUS_STYLES[a.status]}`}>
+            {ACTIVITY_STATUS_LABELS[a.status]}
+          </Badge>
+          <p className="text-sm flex-1 min-w-0 break-words">{a.description}</p>
+        </div>
+      ))}
+
+      {/* Extras adicionadas manualmente (draft) */}
+      {doneDrafts.map((d) => (
+        <div key={d.id} className="rounded-lg border p-2.5 bg-emerald-500/5 border-emerald-500/30 flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <p className="text-sm flex-1 min-w-0 break-words">{d.description}</p>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7"
+            onClick={() => setDoneDrafts((p) => p.filter((x) => x.id !== d.id))}
+            disabled={locked}
+          >
+            <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
+          </Button>
+        </div>
+      ))}
+
+      {/* Adicionar item feito fora do planejado */}
+      {!locked && (
+        <div className="flex items-center gap-2 pt-1">
+          <Input
+            placeholder="Fiz algo fora do planejado? Descreva aqui..."
+            value={newDesc}
+            onChange={(e) => setNewDesc(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); addExtra(); }
+            }}
+          />
+          <Button type="button" size="sm" variant="outline" onClick={addExtra} className="gap-1 shrink-0">
+            <Plus className="w-3.5 h-3.5" /> Adicionar
+          </Button>
+        </div>
+      )}
+
+      {empty && !locked && (
+        <p className="text-[11px] text-muted-foreground">
+          Dica: se não havia atividades planejadas, use "+ Adicionar" para registrar o que você fez hoje.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ActivitiesFutureSection(props: {
+  label: string;
+  locked: boolean;
+  plannedInEntry: DevDailyActivity[];
+  plannedDrafts: DraftPlanned[];
+  setPlannedDrafts: React.Dispatch<React.SetStateAction<DraftPlanned[]>>;
+}) {
+  const { label, locked, plannedInEntry, plannedDrafts, setPlannedDrafts } = props;
+  const [newDesc, setNewDesc] = useState("");
+
+  const add = () => {
+    const d = newDesc.trim();
+    if (!d) return;
+    setPlannedDrafts((p) => [...p, { id: crypto.randomUUID(), description: d }]);
+    setNewDesc("");
+  };
+
+  return (
+    <div className="rounded-xl border bg-card p-3 space-y-3">
+      <div className="flex items-center gap-2">
+        <CalendarClock className="w-4 h-4 text-primary" />
+        <Label className="text-sm font-semibold">{label}</Label>
+        <span className="text-xs text-muted-foreground">(uma atividade por linha)</span>
+      </div>
+
+      {plannedInEntry.map((a) => (
+        <div key={a.id} className="rounded-lg border p-2.5 bg-muted/40 flex items-center gap-2">
+          <CircleDot className="w-4 h-4 text-amber-500 shrink-0" />
+          <p className="text-sm flex-1 min-w-0 break-words">{a.description}</p>
+          <Badge variant="outline" className="text-[10px]">Já salva</Badge>
+        </div>
+      ))}
+
+      {plannedDrafts.map((d) => (
+        <div key={d.id} className="rounded-lg border p-2.5 bg-background flex items-center gap-2">
+          <CircleDot className="w-4 h-4 text-primary shrink-0" />
+          <p className="text-sm flex-1 min-w-0 break-words">{d.description}</p>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7"
+            onClick={() => setPlannedDrafts((p) => p.filter((x) => x.id !== d.id))}
+            disabled={locked}
+          >
+            <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
+          </Button>
+        </div>
+      ))}
+
+      {!locked && (
+        <div className="flex items-center gap-2 pt-1">
+          <Input
+            placeholder="Ex.: Finalizar tela de login"
+            value={newDesc}
+            onChange={(e) => setNewDesc(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); add(); }
+            }}
+          />
+          <Button type="button" size="sm" onClick={add} className="gap-1 shrink-0">
+            <Plus className="w-3.5 h-3.5" /> Adicionar atividade
+          </Button>
+        </div>
+      )}
+
+      {plannedInEntry.length === 0 && plannedDrafts.length === 0 && locked && (
+        <p className="text-xs text-muted-foreground italic">Nenhuma atividade planejada.</p>
+      )}
     </div>
   );
 }
