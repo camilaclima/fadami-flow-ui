@@ -81,8 +81,8 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
       const exp: Record<string, boolean> = {};
       members.forEach((m) => {
         init[m.key] = defaultState(m.filled);
-        // Auto-expandir apenas quem tem impedimento aberto
-        exp[m.key] = m.imps.some((i) => !i.resolved);
+        // Sempre iniciar retraído — líder expande sob demanda
+        exp[m.key] = false;
       });
       setMemberState(init);
       setExpanded(exp);
