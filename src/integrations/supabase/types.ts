@@ -581,6 +581,66 @@ export type Database = {
         }
         Relationships: []
       }
+      dev_daily_activities: {
+        Row: {
+          closed_entry_id: string | null
+          completed_at: string | null
+          created_at: string
+          created_entry_id: string | null
+          description: string
+          id: string
+          inactivated_at: string | null
+          squad_id: string | null
+          status: string
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+        }
+        Insert: {
+          closed_entry_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_entry_id?: string | null
+          description: string
+          id?: string
+          inactivated_at?: string | null
+          squad_id?: string | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+        }
+        Update: {
+          closed_entry_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_entry_id?: string | null
+          description?: string
+          id?: string
+          inactivated_at?: string | null
+          squad_id?: string | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dev_daily_activities_closed_entry_id_fkey"
+            columns: ["closed_entry_id"]
+            isOneToOne: false
+            referencedRelation: "dev_daily_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dev_daily_activities_created_entry_id_fkey"
+            columns: ["created_entry_id"]
+            isOneToOne: false
+            referencedRelation: "dev_daily_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dev_daily_entries: {
         Row: {
           created_at: string
