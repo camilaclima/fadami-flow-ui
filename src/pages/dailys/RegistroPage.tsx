@@ -198,14 +198,41 @@ export default function RegistroPage() {
       });
   }, [allImpediments, entries, date]);
 
+  /* -------- Atividades (carry-over + já vinculadas a esta entry) -------- */
+  // Pendentes que devem cair na Seção 1: pendente + criadas em dailys anteriores à data selecionada
+  const carryOverActivities = useMemo<DevDailyActivity[]>(() => {
+    return allActivities.filter((a) => {
+      if (a.status !== "pendente") return false;
+      if (!a.created_entry_id) return true;
+      const origin = entries.find((e) => e.id === a.created_entry_id);
+      if (!origin) return true;
+      return origin.entry_date < date;
+    });
+  }, [allActivities, entries, date]);
+
+  // Atividades já fechadas nesta entry (só no modo edit)
+  const closedInEntry = useMemo<DevDailyActivity[]>(() => {
+    if (!existing) return [];
+    return allActivities.filter((a) => a.closed_entry_id === existing.id && a.status !== "pendente");
+  }, [allActivities, existing]);
+
+  // Atividades planejadas nesta entry (ainda pendentes) — só no modo edit
+  const plannedInEntry = useMemo<DevDailyActivity[]>(() => {
+    if (!existing) return [];
+    return allActivities.filter(
+      (a) => a.created_entry_id === existing.id && a.status === "pendente"
+    );
+  }, [allActivities, existing]);
+
   const handleOpenCreate = () => {
     const available = dateOptions.find((o) => !entries.some((e) => e.entry_date === o.value));
     const targetDate = available?.value ?? dateOptions[0]?.value ?? toISO(new Date());
     setMode("create");
     setDate(targetDate);
-    setDidYesterday("");
-    setWillDoToday("");
-    setTouched({ did: false, will: false });
+    setPastDecisions({});
+    setPlannedDrafts([]);
+    setDoneDrafts([]);
+    setTouched(false);
     setDraftImps([]);
     setShowNewImp(false);
     setNewDesc("");
@@ -233,9 +260,10 @@ export default function RegistroPage() {
     }
     setMode("edit");
     setDate(entry.entry_date);
-    setDidYesterday(entry.did_yesterday ?? "");
-    setWillDoToday(entry.will_do_today ?? "");
-    setTouched({ did: false, will: false });
+    setPastDecisions({});
+    setPlannedDrafts([]);
+    setDoneDrafts([]);
+    setTouched(false);
     setDraftImps([]);
     setShowNewImp(false);
     setNewDesc("");
@@ -250,14 +278,10 @@ export default function RegistroPage() {
 
   useEffect(() => {
     if (open && !skipAutoFill.current) {
-      if (mode === "edit") {
-        setDidYesterday(existing?.did_yesterday ?? "");
-        setWillDoToday(existing?.will_do_today ?? "");
-      } else {
-        setDidYesterday("");
-        setWillDoToday("");
-      }
-      setTouched({ did: false, will: false });
+      setPastDecisions({});
+      setPlannedDrafts([]);
+      setDoneDrafts([]);
+      setTouched(false);
       setDraftImps([]);
       setShowNewImp(false);
       setNewDesc("");
@@ -272,13 +296,9 @@ export default function RegistroPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, existing?.id, date]);
 
-  const didEmpty = !didYesterday.trim();
-  const willEmpty = !willDoToday.trim();
   const isToday = date === toISO(new Date());
-  const labelDid = isToday ? "O que fiz hoje?" : "O que fiz ontem?";
-  const labelWill = isToday ? "O que farei amanhã?" : "O que farei hoje?";
-  const placeholderDid = isToday ? "Tarefas, entregas e descobertas de hoje..." : "Tarefas, entregas, descobertas...";
-  const placeholderWill = isToday ? "Próximos passos planejados para amanhã..." : "Próximos passos planejados...";
+  const labelPast = isToday ? "O que fiz hoje" : "O que fiz ontem";
+  const labelFuture = isToday ? "O que farei amanhã" : "O que farei hoje";
 
   /* ---------- KPIs ---------- */
   const kpis = useMemo(() => {
