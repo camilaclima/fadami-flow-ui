@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -324,10 +325,12 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                   >
                     <CardContent className="p-0">
                       {/* Cabeçalho compacto — sempre visível */}
-                      <button
-                        type="button"
+                      <div
+                        role="button"
+                        tabIndex={0}
                         onClick={() => toggleExpanded(m.key)}
-                        className="w-full flex items-center gap-3 p-3 text-left hover:bg-muted/30 transition-colors"
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleExpanded(m.key); } }}
+                        className="w-full flex items-center gap-3 p-3 text-left hover:bg-muted/30 transition-colors cursor-pointer"
                       >
                         <div className="text-muted-foreground shrink-0">
                           {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -348,15 +351,7 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-semibold text-sm leading-tight">{m.name}</span>
-                            {isAbsent ? (
-                              <Badge variant="outline" className="text-[10px] gap-1 bg-red-500/10 text-red-600 border-red-500/30">
-                                <CalendarX className="w-2.5 h-2.5" /> Ausente do trabalho
-                              </Badge>
-                            ) : isNoPart ? (
-                              <Badge variant="outline" className="text-[10px] gap-1 bg-amber-500/10 text-amber-700 border-amber-500/30">
-                                <UserMinus className="w-2.5 h-2.5" /> Não participou
-                              </Badge>
-                            ) : m.filled ? (
+                            {m.filled ? (
                               <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
                                 Preencheu
                               </Badge>
@@ -371,13 +366,6 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                 {openImps.length} {openImps.length > 1 ? "impedimentos" : "impedimento"}
                               </Badge>
                             )}
-                            {isPresent && (
-                              <>
-                                {st.camera_on && <Badge variant="outline" className="text-[10px] gap-1 bg-primary/5 text-primary border-primary/30"><Video className="w-2.5 h-2.5" /></Badge>}
-                                {st.stayed_silent && <Badge variant="outline" className="text-[10px] gap-1 bg-orange-500/5 text-orange-600 border-orange-500/30"><MicOff className="w-2.5 h-2.5" /></Badge>}
-                                {noteCount > 0 && <Badge variant="outline" className="text-[10px] gap-1"><MessageSquarePlus className="w-2.5 h-2.5" /></Badge>}
-                              </>
-                            )}
                           </div>
                           {isNoPart && st.absence_reason.trim() && !isOpen && (
                             <p className="text-[11px] text-amber-700/90 mt-1 truncate">
@@ -385,43 +373,99 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                             </p>
                           )}
                         </div>
-                      </button>
+                        {/* Ações à direita, na mesma linha do nome */}
+                        <div
+                          className="flex items-center gap-1.5 shrink-0"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <ToggleGroup
+                            type="single"
+                            value={st.status}
+                            onValueChange={(v) => { if (v) updateMember(m.key, { status: v as MemberStatus }); }}
+                            className="rounded-lg border bg-background p-0.5"
+                          >
+                            <ToggleGroupItem
+                              value="present"
+                              size="sm"
+                              title="Presente"
+                              className="h-7 px-2 gap-1 text-xs data-[state=on]:bg-emerald-500/10 data-[state=on]:text-emerald-700"
+                            >
+                              <UserCheck className="w-3.5 h-3.5" />
+                            </ToggleGroupItem>
+                            <ToggleGroupItem
+                              value="absent_work"
+                              size="sm"
+                              title="Ausente do trabalho"
+                              className="h-7 px-2 gap-1 text-xs data-[state=on]:bg-red-500/10 data-[state=on]:text-red-600"
+                            >
+                              <CalendarX className="w-3.5 h-3.5" />
+                            </ToggleGroupItem>
+                            <ToggleGroupItem
+                              value="no_participate"
+                              size="sm"
+                              title="Não participou da daily"
+                              className="h-7 px-2 gap-1 text-xs data-[state=on]:bg-amber-500/10 data-[state=on]:text-amber-700"
+                            >
+                              <UserMinus className="w-3.5 h-3.5" />
+                            </ToggleGroupItem>
+                          </ToggleGroup>
+                          {isPresent && (
+                            <>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                title={st.camera_on ? "Câmera ligada" : "Câmera desligada"}
+                                onClick={() => updateMember(m.key, { camera_on: !st.camera_on })}
+                                className={`h-8 w-8 rounded-lg ${st.camera_on ? "bg-primary/10 text-primary border-primary/40" : "text-muted-foreground"}`}
+                              >
+                                {st.camera_on ? <Video className="w-3.5 h-3.5" /> : <VideoOff className="w-3.5 h-3.5" />}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                title={st.stayed_silent ? "Ficou em silêncio" : "Participou verbalmente"}
+                                onClick={() => updateMember(m.key, { stayed_silent: !st.stayed_silent })}
+                                className={`h-8 w-8 rounded-lg ${st.stayed_silent ? "bg-orange-500/10 text-orange-600 border-orange-500/40" : "text-muted-foreground"}`}
+                              >
+                                {st.stayed_silent ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                              </Button>
+                            </>
+                          )}
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                title="Observação do líder"
+                                className={`h-8 w-8 rounded-lg relative ${noteCount > 0 ? "bg-primary/10 text-primary border-primary/40" : "text-muted-foreground"}`}
+                              >
+                                <MessageSquarePlus className="w-3.5 h-3.5" />
+                                {noteCount > 0 && (
+                                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary" />
+                                )}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent align="end" className="w-80">
+                              <Label className="text-[11px] font-semibold text-muted-foreground mb-1 block flex items-center gap-1">
+                                <MessageSquarePlus className="w-3 h-3" /> Observação sobre {m.name.split(" ")[0]}
+                              </Label>
+                              <Textarea
+                                rows={4}
+                                value={st.notes}
+                                onChange={(e) => updateMember(m.key, { notes: e.target.value })}
+                                placeholder="Opcional — algo específico deste colaborador..."
+                                className="text-sm"
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </div>
 
                       {isOpen && (
                         <div className="px-3 pb-3 pt-1 space-y-3 border-t bg-background/40">
-                          {/* Seletor de status */}
-                          <div className="flex flex-wrap gap-1.5">
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); updateMember(m.key, { status: "present" }); }}
-                              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium border transition-colors ${
-                                isPresent ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/40" : "bg-background text-muted-foreground border-border hover:bg-muted/50"
-                              }`}
-                            >
-                              <UserCheck className="w-3.5 h-3.5" /> Presente
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); updateMember(m.key, { status: "absent_work" }); }}
-                              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium border transition-colors ${
-                                isAbsent ? "bg-red-500/10 text-red-600 border-red-500/40" : "bg-background text-muted-foreground border-border hover:bg-muted/50"
-                              }`}
-                              title="Colaborador não trabalhou neste dia"
-                            >
-                              <CalendarX className="w-3.5 h-3.5" /> Ausente do trabalho
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); updateMember(m.key, { status: "no_participate" }); }}
-                              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium border transition-colors ${
-                                isNoPart ? "bg-amber-500/10 text-amber-700 border-amber-500/40" : "bg-background text-muted-foreground border-border hover:bg-muted/50"
-                              }`}
-                              title="Trabalhou hoje mas não conseguiu participar da daily"
-                            >
-                              <UserMinus className="w-3.5 h-3.5" /> Não participou
-                            </button>
-                          </div>
-
                           {isNoPart && (
                             <div>
                               <Label className="text-[11px] font-semibold text-amber-700 mb-1 block">
@@ -439,30 +483,6 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
 
                           {isPresent && (
                             <>
-                              {/* Câmera / microfone / observação */}
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={(e) => { e.stopPropagation(); updateMember(m.key, { camera_on: !st.camera_on }); }}
-                                  className={`h-8 rounded-lg gap-1.5 ${st.camera_on ? "bg-primary/10 text-primary border-primary/40" : "text-muted-foreground"}`}
-                                >
-                                  {st.camera_on ? <Video className="w-3.5 h-3.5" /> : <VideoOff className="w-3.5 h-3.5" />}
-                                  <span className="text-xs">Câmera {st.camera_on ? "ligada" : "desligada"}</span>
-                                </Button>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={(e) => { e.stopPropagation(); updateMember(m.key, { stayed_silent: !st.stayed_silent }); }}
-                                  className={`h-8 rounded-lg gap-1.5 ${st.stayed_silent ? "bg-orange-500/10 text-orange-600 border-orange-500/40" : "text-muted-foreground"}`}
-                                >
-                                  {st.stayed_silent ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-                                  <span className="text-xs">{st.stayed_silent ? "Ficou em silêncio" : "Participou verbalmente"}</span>
-                                </Button>
-                              </div>
-
                               {/* Ontem/Hoje */}
                               {m.filled && m.entry ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -506,20 +526,6 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                   ))}
                                 </div>
                               )}
-
-                              {/* Observação sobre o colaborador */}
-                              <div>
-                                <Label className="text-[11px] font-semibold text-muted-foreground mb-1 block flex items-center gap-1">
-                                  <MessageSquarePlus className="w-3 h-3" /> Observação do líder sobre {m.name.split(" ")[0]}
-                                </Label>
-                                <Textarea
-                                  rows={2}
-                                  value={st.notes}
-                                  onChange={(e) => updateMember(m.key, { notes: e.target.value })}
-                                  placeholder="Opcional — algo específico deste colaborador..."
-                                  className="text-sm"
-                                />
-                              </div>
                             </>
                           )}
                         </div>
