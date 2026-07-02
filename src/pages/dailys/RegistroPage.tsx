@@ -110,6 +110,12 @@ export default function RegistroPage() {
   const entryIds = useMemo(() => entries.map((e) => e.id), [entries]);
   const { data: allImpediments = [] } = useDevDailyImpedimentsByEntries(entryIds);
   const { create: createImp, resolve: resolveImp, remove: removeImp } = useImpedimentMutations();
+  const { data: allActivities = [] } = useDevDailyActivitiesByUser(sim.devUserId);
+  const {
+    create: createActivity,
+    markCompleted: completeActivity,
+    markInactive: inactivateActivity,
+  } = useDevDailyActivityMutations();
 
   // Dailys já finalizadas pelo líder (bloqueiam edição do dev)
   const { data: lockedMeetings = [] } = useQuery({
