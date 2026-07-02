@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ClipboardEdit, AlertTriangle, CheckCircle2, Calendar, Plus, Users,
   CalendarClock, TrendingUp, AlertOctagon, Trash2, CircleCheck, CircleDot,
-  Pencil, Eye, Loader2, Lock,
+  Pencil, Eye, Loader2, Lock, Ban, ListChecks,
 } from "lucide-react";
 import { useDevDailyEntriesByUser, useUpsertDevDailyEntry } from "@/hooks/useDevDailyEntries";
 import {
@@ -20,6 +21,13 @@ import {
   type ImpedimentUrgency,
   type DevDailyImpediment,
 } from "@/hooks/useDevDailyImpediments";
+import {
+  useDevDailyActivitiesByUser,
+  useDevDailyActivityMutations,
+  ACTIVITY_STATUS_LABELS,
+  ACTIVITY_STATUS_STYLES,
+  type DevDailyActivity,
+} from "@/hooks/useDevDailyActivities";
 import { useDailySim } from "@/contexts/DailySimContext";
 import { AccessDeniedCard } from "@/components/dailys/AccessDeniedCard";
 import { format, parseISO, addDays, subDays, startOfWeek, isWeekend, isSameDay } from "date-fns";
@@ -30,6 +38,10 @@ import { useQuery } from "@tanstack/react-query";
 
 type DraftImpediment = { id: string; description: string; urgency: ImpedimentUrgency };
 type PriorResolution = { resolved: boolean | null };
+/** Decisão do dev para uma atividade pendente carregada na Seção 1. */
+type PastDecision = "pending" | "done" | "inactive";
+type DraftPlanned = { id: string; description: string };
+type DraftDone = { id: string; description: string };
 
 function isWorkday(d: Date): boolean {
   const dow = d.getDay();
