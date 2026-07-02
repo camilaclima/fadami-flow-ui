@@ -1082,3 +1082,243 @@ export default function RegistroPage() {
     </div>
   );
 }
+
+/* =========================================================
+   Subcomponentes: seções de atividades
+   ========================================================= */
+
+function ActivitiesPastSection(props: {
+  label: string;
+  locked: boolean;
+  carryOver: DevDailyActivity[];
+  closedInEntry: DevDailyActivity[];
+  decisions: Record<string, PastDecision>;
+  setDecisions: React.Dispatch<React.SetStateAction<Record<string, PastDecision>>>;
+  doneDrafts: DraftDone[];
+  setDoneDrafts: React.Dispatch<React.SetStateAction<DraftDone[]>>;
+  entries: Array<{ id: string; entry_date: string }>;
+  touched: boolean;
+}) {
+  const {
+    label, locked, carryOver, closedInEntry, decisions, setDecisions,
+    doneDrafts, setDoneDrafts, entries, touched,
+  } = props;
+
+  const [newDesc, setNewDesc] = useState("");
+
+  const addExtra = () => {
+    const d = newDesc.trim();
+    if (!d) return;
+    setDoneDrafts((p) => [...p, { id: crypto.randomUUID(), description: d }]);
+    setNewDesc("");
+  };
+
+  const setDec = (id: string, dec: PastDecision) => {
+    setDecisions((p) => ({ ...p, [id]: dec }));
+  };
+
+  const empty = carryOver.length === 0 && closedInEntry.length === 0 && doneDrafts.length === 0;
+
+  return (
+    <div className="rounded-xl border bg-card p-3 space-y-3">
+      <div className="flex items-center gap-2">
+        <ListChecks className="w-4 h-4 text-primary" />
+        <Label className="text-sm font-semibold">{label}</Label>
+        <span className="text-xs text-muted-foreground">
+          (marque o destino de cada atividade planejada)
+        </span>
+      </div>
+
+      {carryOver.length === 0 && closedInEntry.length === 0 && (
+        <p className="text-xs text-muted-foreground italic">
+          Nenhuma atividade herdada de dailys anteriores.
+        </p>
+      )}
+
+      {carryOver.map((a) => {
+        const dec = decisions[a.id];
+        const origin = entries.find((e) => e.id === a.created_entry_id);
+        const missing = touched && !dec;
+        return (
+          <div
+            key={a.id}
+            className={`rounded-lg border p-2.5 bg-background flex items-start gap-2 ${
+              missing ? "border-orange-500" : ""
+            }`}
+          >
+            <div className="flex-1 min-w-0">
+              <p className="text-sm break-words">{a.description}</p>
+              {origin && (
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Planejada em {format(parseISO(origin.entry_date), "dd/MM", { locale: ptBR })}
+                </p>
+              )}
+              {missing && (
+                <p className="text-[11px] text-orange-500 mt-0.5">Escolha um destino.</p>
+              )}
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <Button
+                type="button"
+                size="sm"
+                variant={dec === "done" ? "default" : "outline"}
+                className={`h-8 gap-1 ${dec === "done" ? "bg-emerald-600 hover:bg-emerald-700" : ""}`}
+                onClick={() => setDec(a.id, "done")}
+                disabled={locked}
+                title="Marcar como concluída"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" /> Concluí
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={dec === "pending" ? "default" : "outline"}
+                className="h-8 gap-1"
+                onClick={() => setDec(a.id, "pending")}
+                disabled={locked}
+                title="Manter pendente (vai para o próximo dia)"
+              >
+                <CircleDot className="w-3.5 h-3.5" /> Pendente
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={dec === "inactive" ? "default" : "outline"}
+                className={`h-8 gap-1 ${dec === "inactive" ? "bg-muted-foreground/60 hover:bg-muted-foreground/70" : ""}`}
+                onClick={() => setDec(a.id, "inactive")}
+                disabled={locked}
+                title="Perdeu prioridade"
+              >
+                <Ban className="w-3.5 h-3.5" /> Inativar
+              </Button>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Atividades já fechadas nesta entry (histórico do dia — read-only) */}
+      {closedInEntry.map((a) => (
+        <div key={a.id} className="rounded-lg border p-2.5 bg-muted/40 flex items-center gap-2">
+          <Badge variant="outline" className={`text-[10px] ${ACTIVITY_STATUS_STYLES[a.status]}`}>
+            {ACTIVITY_STATUS_LABELS[a.status]}
+          </Badge>
+          <p className="text-sm flex-1 min-w-0 break-words">{a.description}</p>
+        </div>
+      ))}
+
+      {/* Extras adicionadas manualmente (draft) */}
+      {doneDrafts.map((d) => (
+        <div key={d.id} className="rounded-lg border p-2.5 bg-emerald-500/5 border-emerald-500/30 flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <p className="text-sm flex-1 min-w-0 break-words">{d.description}</p>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7"
+            onClick={() => setDoneDrafts((p) => p.filter((x) => x.id !== d.id))}
+            disabled={locked}
+          >
+            <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
+          </Button>
+        </div>
+      ))}
+
+      {/* Adicionar item feito fora do planejado */}
+      {!locked && (
+        <div className="flex items-center gap-2 pt-1">
+          <Input
+            placeholder="Fiz algo fora do planejado? Descreva aqui..."
+            value={newDesc}
+            onChange={(e) => setNewDesc(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); addExtra(); }
+            }}
+          />
+          <Button type="button" size="sm" variant="outline" onClick={addExtra} className="gap-1 shrink-0">
+            <Plus className="w-3.5 h-3.5" /> Adicionar
+          </Button>
+        </div>
+      )}
+
+      {empty && !locked && (
+        <p className="text-[11px] text-muted-foreground">
+          Dica: se não havia atividades planejadas, use "+ Adicionar" para registrar o que você fez hoje.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ActivitiesFutureSection(props: {
+  label: string;
+  locked: boolean;
+  plannedInEntry: DevDailyActivity[];
+  plannedDrafts: DraftPlanned[];
+  setPlannedDrafts: React.Dispatch<React.SetStateAction<DraftPlanned[]>>;
+}) {
+  const { label, locked, plannedInEntry, plannedDrafts, setPlannedDrafts } = props;
+  const [newDesc, setNewDesc] = useState("");
+
+  const add = () => {
+    const d = newDesc.trim();
+    if (!d) return;
+    setPlannedDrafts((p) => [...p, { id: crypto.randomUUID(), description: d }]);
+    setNewDesc("");
+  };
+
+  return (
+    <div className="rounded-xl border bg-card p-3 space-y-3">
+      <div className="flex items-center gap-2">
+        <CalendarClock className="w-4 h-4 text-primary" />
+        <Label className="text-sm font-semibold">{label}</Label>
+        <span className="text-xs text-muted-foreground">(uma atividade por linha)</span>
+      </div>
+
+      {plannedInEntry.map((a) => (
+        <div key={a.id} className="rounded-lg border p-2.5 bg-muted/40 flex items-center gap-2">
+          <CircleDot className="w-4 h-4 text-amber-500 shrink-0" />
+          <p className="text-sm flex-1 min-w-0 break-words">{a.description}</p>
+          <Badge variant="outline" className="text-[10px]">Já salva</Badge>
+        </div>
+      ))}
+
+      {plannedDrafts.map((d) => (
+        <div key={d.id} className="rounded-lg border p-2.5 bg-background flex items-center gap-2">
+          <CircleDot className="w-4 h-4 text-primary shrink-0" />
+          <p className="text-sm flex-1 min-w-0 break-words">{d.description}</p>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7"
+            onClick={() => setPlannedDrafts((p) => p.filter((x) => x.id !== d.id))}
+            disabled={locked}
+          >
+            <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
+          </Button>
+        </div>
+      ))}
+
+      {!locked && (
+        <div className="flex items-center gap-2 pt-1">
+          <Input
+            placeholder="Ex.: Finalizar tela de login"
+            value={newDesc}
+            onChange={(e) => setNewDesc(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); add(); }
+            }}
+          />
+          <Button type="button" size="sm" onClick={add} className="gap-1 shrink-0">
+            <Plus className="w-3.5 h-3.5" /> Adicionar atividade
+          </Button>
+        </div>
+      )}
+
+      {plannedInEntry.length === 0 && plannedDrafts.length === 0 && locked && (
+        <p className="text-xs text-muted-foreground italic">Nenhuma atividade planejada.</p>
+      )}
+    </div>
+  );
+}
