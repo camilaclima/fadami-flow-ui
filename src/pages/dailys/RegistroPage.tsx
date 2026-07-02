@@ -340,11 +340,29 @@ export default function RegistroPage() {
   }, [entries, allImpediments]);
 
   const submit = async () => {
-    setTouched({ did: true, will: true });
-    if (didEmpty || willEmpty) {
-      toast.error("Preencha os campos obrigatórios: 'O que fiz ontem?' e 'O que farei hoje?'.");
+    setTouched(true);
+
+    // Valida: cada atividade pendente carregada precisa ter uma decisão
+    const missingDecision = carryOverActivities.find(
+      (a) => !pastDecisions[a.id] // undefined = ainda não decidiu
+    );
+    // (Manter como "pending" é uma decisão válida; então exigimos apenas que exista uma escolha explícita)
+    if (missingDecision) {
+      toast.error(`Decida o destino da atividade: "${missingDecision.description}".`);
       return;
     }
+
+    // Pelo menos alguma coisa foi feita OU planejada?
+    const totalPast =
+      carryOverActivities.filter((a) => pastDecisions[a.id] === "done").length +
+      doneDrafts.length +
+      closedInEntry.filter((a) => a.status === "concluida").length;
+    const totalFuture = plannedDrafts.length + plannedInEntry.length;
+    if (totalPast === 0 && totalFuture === 0) {
+      toast.error("Registre pelo menos uma atividade concluída ou planejada.");
+      return;
+    }
+
     if (isLocked) {
       toast.error("Esta daily já foi finalizada pelo líder e não pode mais ser editada.");
       return;
@@ -368,12 +386,52 @@ export default function RegistroPage() {
       id: existing?.id,
       entry_date: date,
       squad_id: sim.squadIds?.[0] ?? null,
-      did_yesterday: didYesterday,
-      will_do_today: willDoToday,
+      did_yesterday: "",
+      will_do_today: "",
       impediments: "",
       });
 
       const entryId = result?.id;
+
+      // Aplica decisões nas atividades pendentes carregadas
+      if (entryId) {
+        await Promise.all(
+          carryOverActivities.map((a) => {
+            const dec = pastDecisions[a.id];
+            if (dec === "done") return completeActivity.mutateAsync({ id: a.id, closed_entry_id: entryId });
+            if (dec === "inactive") return inactivateActivity.mutateAsync({ id: a.id, closed_entry_id: entryId });
+            return Promise.resolve(); // "pending" — mantém para o próximo dia
+          })
+        );
+
+        // Novas atividades planejadas (Seção 2) → pendentes
+        await Promise.all(
+          plannedDrafts.map((d) =>
+            createActivity.mutateAsync({
+              user_id: sim.devUserId!,
+              squad_id: sim.squadIds?.[0] ?? null,
+              description: d.description,
+              status: "pendente",
+              created_entry_id: entryId,
+            })
+          )
+        );
+
+        // Atividades feitas fora do planejado (Seção 1) → já concluídas
+        await Promise.all(
+          doneDrafts.map((d) =>
+            createActivity.mutateAsync({
+              user_id: sim.devUserId!,
+              squad_id: sim.squadIds?.[0] ?? null,
+              description: d.description,
+              status: "concluida",
+              created_entry_id: entryId,
+              closed_entry_id: entryId,
+              completed_at: new Date().toISOString(),
+            })
+          )
+        );
+      }
 
     // Persiste resoluções de impedimentos anteriores
       await Promise.all(
@@ -401,6 +459,7 @@ export default function RegistroPage() {
         );
       }
 
+      toast.success(mode === "edit" ? "Daily atualizada!" : "Daily registrada!");
       setOpen(false);
     } finally {
       setSaving(false);
