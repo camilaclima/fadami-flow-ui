@@ -137,9 +137,6 @@ export default function RegistroPage() {
   const dateOptions = useMemo(() => allowedDates(), []);
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<string>(dateOptions[0]?.value ?? toISO(new Date()));
-  const [didYesterday, setDidYesterday] = useState("");
-  const [willDoToday, setWillDoToday] = useState("");
-  const [touched, setTouched] = useState({ did: false, will: false });
   const [draftImps, setDraftImps] = useState<DraftImpediment[]>([]);
   const [showNewImp, setShowNewImp] = useState(false);
   const [newDesc, setNewDesc] = useState("");
@@ -147,6 +144,14 @@ export default function RegistroPage() {
   const [priorRes, setPriorRes] = useState<Record<string, PriorResolution>>({});
   const [viewImp, setViewImp] = useState<DevDailyImpediment | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Decisão para cada atividade pendente carregada na Seção 1
+  const [pastDecisions, setPastDecisions] = useState<Record<string, PastDecision>>({});
+  // Atividades novas planejadas (Seção 2) — persistidas ao salvar como pendente
+  const [plannedDrafts, setPlannedDrafts] = useState<DraftPlanned[]>([]);
+  // Atividades feitas fora do planejado (Seção 1, adicionadas manualmente) — persistidas já como concluídas
+  const [doneDrafts, setDoneDrafts] = useState<DraftDone[]>([]);
+  const [touched, setTouched] = useState(false);
 
   const skipAutoFill = useRef(false);
   const [mode, setMode] = useState<"create" | "edit">("create");
