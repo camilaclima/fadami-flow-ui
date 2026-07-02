@@ -816,31 +816,28 @@ export default function RegistroPage() {
               </Select>
             </div>
 
-            <div>
-              <Label className="mb-1.5">{labelDid} <span className="text-orange-500">*</span></Label>
-              <Textarea
-                rows={4}
-                value={didYesterday}
-                onChange={(e) => { setDidYesterday(e.target.value); setTouched((p) => ({ ...p, did: true })); }}
-                placeholder={placeholderDid}
-                disabled={isLocked}
-                className={touched.did && didEmpty ? "border-orange-500 focus-visible:ring-orange-500" : ""}
-              />
-              {touched.did && didEmpty && <p className="text-xs text-orange-500 mt-1">Campo obrigatório.</p>}
-            </div>
+            {/* ---------- Seção 1: O que fiz (atividades) ---------- */}
+            <ActivitiesPastSection
+              label={labelPast}
+              locked={isLocked}
+              carryOver={carryOverActivities}
+              closedInEntry={closedInEntry}
+              decisions={pastDecisions}
+              setDecisions={setPastDecisions}
+              doneDrafts={doneDrafts}
+              setDoneDrafts={setDoneDrafts}
+              entries={entries}
+              touched={touched}
+            />
 
-            <div>
-              <Label className="mb-1.5">{labelWill} <span className="text-orange-500">*</span></Label>
-              <Textarea
-                rows={4}
-                value={willDoToday}
-                onChange={(e) => { setWillDoToday(e.target.value); setTouched((p) => ({ ...p, will: true })); }}
-                placeholder={placeholderWill}
-                disabled={isLocked}
-                className={touched.will && willEmpty ? "border-orange-500 focus-visible:ring-orange-500" : ""}
-              />
-              {touched.will && willEmpty && <p className="text-xs text-orange-500 mt-1">Campo obrigatório.</p>}
-            </div>
+            {/* ---------- Seção 2: O que farei (novas atividades) ---------- */}
+            <ActivitiesFutureSection
+              label={labelFuture}
+              locked={isLocked}
+              plannedInEntry={plannedInEntry}
+              plannedDrafts={plannedDrafts}
+              setPlannedDrafts={setPlannedDrafts}
+            />
 
             {/* Resolução de impedimentos anteriores em aberto */}
             {priorOpen.length > 0 && (
