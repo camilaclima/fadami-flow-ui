@@ -4,6 +4,7 @@ import { ptBR } from "date-fns/locale";
 import {
   CalendarCheck, AlertOctagon, Sparkles, TrendingUp, AlertTriangle, Flame,
   CheckCircle2, History, Users, Loader2, Mic, MicOff, Video, VideoOff, Paperclip, MessageSquare, StickyNote,
+  UserCheck, UserMinus, CalendarX,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -39,6 +40,9 @@ interface AttendanceRow {
   stayed_silent: boolean;
   dev_entry_id: string | null;
   notes: string | null;
+  absent_from_work: boolean | null;
+  did_not_participate: boolean | null;
+  non_participation_reason: string | null;
 }
 
 interface AIRecorrencia { descricao: string; dias_consecutivos: number; responsavel?: string; }
