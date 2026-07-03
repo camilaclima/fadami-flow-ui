@@ -465,15 +465,53 @@ function DayDetailDialog({
                       const atts = (attByEntry.get(e.id) ?? []).concat(
                         (attByUser.get(e.user_id) ?? []).filter((a) => !a.dev_entry_id),
                       );
+                      const att = atts[0] ?? null;
+                      const isAbsent = !!att?.absent_from_work;
+                      const isNoPart = !!att?.did_not_participate;
+                      const isPresent = !isAbsent && !isNoPart;
                       return (
-                        <Card key={e.id} className="border-l-4 border-l-primary/60 bg-card/40">
+                        <Card
+                          key={e.id}
+                          className={cn(
+                            "border-l-4 bg-card/40",
+                            isAbsent
+                              ? "border-l-red-500/70 bg-red-500/[0.03]"
+                              : isNoPart
+                              ? "border-l-amber-500/70 bg-amber-500/[0.03]"
+                              : "border-l-primary/60",
+                          )}
+                        >
                           <CardHeader className="pb-2">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <div className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 bg-primary/15 text-primary">
+                              <div
+                                className={cn(
+                                  "h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0",
+                                  isAbsent
+                                    ? "bg-red-500/10 text-red-600"
+                                    : isNoPart
+                                    ? "bg-amber-500/10 text-amber-700"
+                                    : "bg-primary/15 text-primary",
+                                )}
+                              >
                                 {initials(name)}
                               </div>
                               <CardTitle className="text-sm">{name}</CardTitle>
-                              {atts.map((a) => (
+                              {isAbsent && (
+                                <Badge variant="outline" className="gap-1 text-[10px] border-red-500/40 text-red-600 bg-red-500/5">
+                                  <CalendarX className="h-3 w-3" /> Ausente do trabalho
+                                </Badge>
+                              )}
+                              {isNoPart && (
+                                <Badge variant="outline" className="gap-1 text-[10px] border-amber-500/40 text-amber-700 bg-amber-500/5">
+                                  <UserMinus className="h-3 w-3" /> Não participou
+                                </Badge>
+                              )}
+                              {isPresent && att && (
+                                <Badge variant="outline" className="gap-1 text-[10px] border-emerald-500/40 text-emerald-700 dark:text-emerald-400">
+                                  <UserCheck className="h-3 w-3" /> Presente
+                                </Badge>
+                              )}
+                              {isPresent && atts.map((a) => (
                                 <div key={a.id} className="flex items-center gap-1.5 ml-1">
                                   <Badge variant="outline" className={cn("gap-1 text-[10px]", a.camera_on ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-400" : "border-muted-foreground/30 text-muted-foreground")}>
                                     {a.camera_on ? <Video className="h-3 w-3" /> : <VideoOff className="h-3 w-3" />}
@@ -488,6 +526,16 @@ function DayDetailDialog({
                             </div>
                           </CardHeader>
                           <CardContent className="space-y-2.5">
+                            {isNoPart && att?.non_participation_reason?.trim() && (
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-amber-700 dark:text-amber-400 mb-1">
+                                  Motivo da não participação
+                                </p>
+                                <p className="text-sm whitespace-pre-wrap leading-relaxed border-l-2 border-amber-500/40 pl-2">
+                                  {att.non_participation_reason}
+                                </p>
+                              </div>
+                            )}
                             <Section label="Ontem" text={e.did_yesterday} />
                             <Section label="Hoje" text={e.will_do_today} />
                             <div>
