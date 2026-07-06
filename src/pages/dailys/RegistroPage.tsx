@@ -1184,6 +1184,57 @@ export default function RegistroPage() {
    Subcomponentes: seções de atividades
    ========================================================= */
 
+function NoteButton({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  const has = value.trim().length > 0;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          disabled={disabled}
+          title={has ? "Editar observação" : "Adicionar observação"}
+          className={`h-7 w-7 rounded-lg relative shrink-0 ${
+            has
+              ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/40"
+              : "text-muted-foreground"
+          }`}
+        >
+          <MessageSquarePlus className="w-3.5 h-3.5" />
+          {has && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-500" />}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-80"
+        onKeyDown={(e) => e.stopPropagation()}
+      >
+        <Label className="text-[11px] font-semibold text-muted-foreground mb-1 block flex items-center gap-1">
+          <MessageSquarePlus className="w-3 h-3" /> Observação sobre esta demanda
+        </Label>
+        <Textarea
+          rows={4}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => e.stopPropagation()}
+          placeholder="Contexto, dificuldades, decisões..."
+          className="text-sm"
+          disabled={disabled}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function ReadonlyActivitiesList({
   activities,
   fallback,
