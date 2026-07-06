@@ -11,6 +11,9 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { useSquads } from "@/hooks/useSquads";
 import { useDevDailyEntriesByDate } from "@/hooks/useDevDailyEntries";
 import { useDevDailyImpedimentsByEntries, URGENCY_LABELS, URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
+import { useDevDailyActivitiesByEntries } from "@/hooks/useDevDailyActivities";
+import { DevActivityCard } from "@/components/dailys/DevActivityCard";
+import { MessageSquarePlus } from "lucide-react";
 import { useGenerateDailyInsights, useAnalyzeScopeStuck, type DailyInsight, type ScopeAlert } from "@/hooks/useDailyInsights";
 import { useProfiles } from "@/hooks/useProfiles";
 import { IniciarDailyModal } from "@/components/dailys/IniciarDailyModal";
