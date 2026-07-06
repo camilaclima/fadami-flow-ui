@@ -7,12 +7,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, X, Play, AlertTriangle, MessageSquarePlus, UserX, Paperclip, CheckCircle2, Video, VideoOff, MicOff, Mic, Calendar, ChevronDown, ChevronRight, RefreshCcw, UserCheck, CalendarX, UserMinus, ChevronsUpDown } from "lucide-react";
+import { FileText, X, Play, AlertTriangle, MessageSquarePlus, UserX, Paperclip, CheckCircle2, Video, VideoOff, Calendar, ChevronDown, ChevronRight, RefreshCcw, UserCheck, CalendarX, UserMinus, ChevronsUpDown, History, Clock, Ban } from "lucide-react";
 import { uploadAttachment } from "@/lib/uploadAttachment";
 import { useCreateDailyMeeting } from "@/hooks/useDailyMeetings";
 import { useImpedimentMutations, URGENCY_LABELS, URGENCY_STYLES, type DevDailyImpediment } from "@/hooks/useDevDailyImpediments";
+import { useDevDailyActivitiesByEntries } from "@/hooks/useDevDailyActivities";
+import { DevHistoryModal } from "@/components/dailys/DevHistoryModal";
 import { toast } from "sonner";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -70,6 +72,13 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [historyFor, setHistoryFor] = useState<{ userId: string | null; name: string } | null>(null);
+
+  const entryIds = useMemo(
+    () => members.map((m) => m.entry?.id).filter((v): v is string => !!v),
+    [members],
+  );
+  const { data: activities = [] } = useDevDailyActivitiesByEntries(open ? entryIds : []);
 
   // Reinicializa somente quando o modal abre
   useEffect(() => {
@@ -149,7 +158,6 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
       absent: vals.filter((v) => v.status === "absent_work").length,
       noPart: vals.filter((v) => v.status === "no_participate").length,
       cam: vals.filter((v) => v.status === "present" && v.camera_on).length,
-      silent: vals.filter((v) => v.status === "present" && v.stayed_silent).length,
     };
   }, [memberState]);
 
@@ -179,7 +187,7 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
           member_user_id: m.entry?.user_id ?? null,
           // Se ausente/não participou, câmera e "ficou em silêncio" não se aplicam
           camera_on: s.status === "present" ? s.camera_on : false,
-          stayed_silent: s.status === "present" ? s.stayed_silent : false,
+          stayed_silent: false,
           dev_entry_id: m.entry?.id ?? null,
           notes: s.notes.trim() || null,
           absent_from_work: absent,
