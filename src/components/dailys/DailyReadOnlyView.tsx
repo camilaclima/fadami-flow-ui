@@ -2,6 +2,9 @@ import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
 import {
   FileText, ChevronDown, ChevronRight, UserCheck, CalendarX, UserMinus, Video, VideoOff,
   MessageSquarePlus, AlertTriangle, CheckCircle2, Clock, Ban, History, Paperclip, UserX,
@@ -143,10 +146,12 @@ export function DailyReadOnlyView({
               } ${openImps.length > 0 && isPresent ? "border-l-4 border-l-orange-500" : ""}`}
             >
               <CardContent className="p-0">
-                <button
-                  type="button"
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => toggle(e.id)}
-                  className="w-full flex items-center gap-3 p-3 text-left hover:bg-muted/30 transition-colors"
+                  onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); toggle(e.id); } }}
+                  className="w-full flex items-center gap-3 p-3 text-left hover:bg-muted/30 transition-colors cursor-pointer"
                 >
                   <div className="text-muted-foreground shrink-0">
                     {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -192,22 +197,98 @@ export function DailyReadOnlyView({
                       </p>
                     )}
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {isPresent && att && (
-                      <div className={`h-8 w-8 rounded-lg border flex items-center justify-center ${
-                        att.camera_on ? "bg-primary/10 text-primary border-primary/40" : "text-muted-foreground"
-                      }`} title={att.camera_on ? "Câmera ligada" : "Câmera desligada"}>
-                        {att.camera_on ? <Video className="w-3.5 h-3.5" /> : <VideoOff className="w-3.5 h-3.5" />}
-                      </div>
+                  <div
+                    className="flex items-center gap-1.5 shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {att && (
+                      <ToggleGroup
+                        type="single"
+                        value={isAbsent ? "absent_work" : isNoPart ? "no_participate" : "present"}
+                        className="rounded-lg border bg-background p-0.5 pointer-events-none"
+                      >
+                        <ToggleGroupItem
+                          value="present"
+                          size="sm"
+                          disabled
+                          title="Presente"
+                          className="h-7 px-2 gap-1 text-xs data-[state=on]:bg-emerald-500/10 data-[state=on]:text-emerald-700 disabled:opacity-100"
+                        >
+                          <UserCheck className="w-3.5 h-3.5" />
+                        </ToggleGroupItem>
+                        <ToggleGroupItem
+                          value="absent_work"
+                          size="sm"
+                          disabled
+                          title="Ausente do trabalho"
+                          className="h-7 px-2 gap-1 text-xs data-[state=on]:bg-red-500/10 data-[state=on]:text-red-600 disabled:opacity-100"
+                        >
+                          <CalendarX className="w-3.5 h-3.5" />
+                        </ToggleGroupItem>
+                        <ToggleGroupItem
+                          value="no_participate"
+                          size="sm"
+                          disabled
+                          title="Não participou da daily"
+                          className="h-7 px-2 gap-1 text-xs data-[state=on]:bg-amber-500/10 data-[state=on]:text-amber-700 disabled:opacity-100"
+                        >
+                          <UserMinus className="w-3.5 h-3.5" />
+                        </ToggleGroupItem>
+                      </ToggleGroup>
                     )}
-                    {hasNote && (
-                      <div className="h-8 w-8 rounded-lg border bg-primary/10 text-primary border-primary/40 flex items-center justify-center relative" title="Observação do líder">
-                        <MessageSquarePlus className="w-3.5 h-3.5" />
-                        <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary" />
-                      </div>
+                    {att && isPresent && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        disabled
+                        title={att.camera_on ? "Câmera ligada" : "Câmera desligada"}
+                        className={`h-8 w-8 rounded-lg disabled:opacity-100 ${
+                          att.camera_on
+                            ? "bg-primary/10 text-primary border-primary/40"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        {att.camera_on ? <Video className="w-3.5 h-3.5" /> : <VideoOff className="w-3.5 h-3.5" />}
+                      </Button>
+                    )}
+                    {att && (
+                      hasNote ? (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              title="Observação do líder"
+                              className="h-8 w-8 rounded-lg relative bg-primary/10 text-primary border-primary/40"
+                            >
+                              <MessageSquarePlus className="w-3.5 h-3.5" />
+                              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent align="end" className="w-80">
+                            <Label className="text-[11px] font-semibold text-muted-foreground mb-1 block flex items-center gap-1">
+                              <MessageSquarePlus className="w-3 h-3" /> Observação sobre {name.split(" ")[0]}
+                            </Label>
+                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{noteText}</p>
+                          </PopoverContent>
+                        </Popover>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          disabled
+                          title="Sem observação"
+                          className="h-8 w-8 rounded-lg text-muted-foreground disabled:opacity-100"
+                        >
+                          <MessageSquarePlus className="w-3.5 h-3.5" />
+                        </Button>
+                      )
                     )}
                   </div>
-                </button>
+                </div>
 
                 {isOpen && (
                   <div className="px-3 pb-3 pt-1 space-y-3 border-t bg-background/40">
@@ -344,38 +425,46 @@ export function DailyReadOnlyView({
       </div>
 
       {/* Observações gerais + anexo */}
-      {meetings.length > 0 && (
-        <div className="space-y-3">
-          {meetings.map((mt) => {
-            const sq = mt.squad_id ? squadNameById.get(mt.squad_id) ?? "Squad" : "Sem squad";
-            return (
-              <div key={mt.id} className="rounded-xl border p-4 bg-muted/20">
-                <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
-                    Observações da reunião — {sq}
-                  </p>
-                  {mt.transcript_url && (
-                    <a
-                      href={mt.transcript_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-1.5 text-xs rounded-lg bg-background border px-2 py-1 hover:bg-muted transition-colors"
-                    >
-                      <Paperclip className="w-3.5 h-3.5 text-primary" />
-                      <span className="text-primary underline">Ver transcrição</span>
-                    </a>
-                  )}
-                </div>
-                {mt.observations?.trim() ? (
-                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{mt.observations}</p>
+      <div className="space-y-3">
+        {(meetings.length > 0 ? meetings : [null]).map((mt, idx) => {
+          const sq = mt?.squad_id ? squadNameById.get(mt.squad_id) ?? "Squad" : null;
+          const hasAttachment = !!mt?.transcript_url;
+          return (
+            <div key={mt?.id ?? `empty-${idx}`} className="rounded-xl border p-4 bg-muted/20">
+              <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                  Observações da reunião{sq ? ` — ${sq}` : ""}
+                </p>
+                {hasAttachment ? (
+                  <a
+                    href={mt!.transcript_url!}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 text-xs rounded-lg border px-2 py-1 border-emerald-500/40 text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors"
+                  >
+                    <Paperclip className="w-3.5 h-3.5" />
+                    <span className="underline">Ver transcrição</span>
+                  </a>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">Sem observações gerais.</p>
+                  <span
+                    aria-disabled="true"
+                    title="Sem transcrição anexada"
+                    className="flex items-center gap-1.5 text-xs rounded-lg border px-2 py-1 border-border bg-muted/40 text-muted-foreground opacity-70 cursor-not-allowed select-none"
+                  >
+                    <Paperclip className="w-3.5 h-3.5" />
+                    <span>Sem transcrição</span>
+                  </span>
                 )}
               </div>
-            );
-          })}
-        </div>
-      )}
+              {mt?.observations?.trim() ? (
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">{mt.observations}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">Não houve registro de observações.</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
     <DevHistoryModal
       open={!!historyFor}
