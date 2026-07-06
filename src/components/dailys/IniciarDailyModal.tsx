@@ -269,13 +269,6 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                 <Video className="w-3 h-3" />
                 <span className="font-semibold">{stats.cam}/{stats.total}</span>
               </Badge>
-              <Badge
-                variant="outline"
-                className={`rounded-lg gap-1 font-normal ${stats.silent > 0 ? "border-orange-500/40 text-orange-600 bg-orange-500/5" : ""}`}
-              >
-                <MicOff className="w-3 h-3" />
-                <span className="font-semibold">{stats.silent}</span>
-              </Badge>
               <Button
                 type="button"
                 variant="outline"
