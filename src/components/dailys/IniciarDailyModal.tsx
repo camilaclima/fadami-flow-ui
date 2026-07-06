@@ -422,16 +422,6 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                               >
                                 {st.camera_on ? <Video className="w-3.5 h-3.5" /> : <VideoOff className="w-3.5 h-3.5" />}
                               </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                title={st.stayed_silent ? "Ficou em silêncio" : "Participou verbalmente"}
-                                onClick={() => updateMember(m.key, { stayed_silent: !st.stayed_silent })}
-                                className={`h-8 w-8 rounded-lg ${st.stayed_silent ? "bg-orange-500/10 text-orange-600 border-orange-500/40" : "text-muted-foreground"}`}
-                              >
-                                {st.stayed_silent ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-                              </Button>
                             </>
                           )}
                           <Popover>
