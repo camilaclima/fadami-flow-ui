@@ -336,7 +336,7 @@ function DayDetailDialog({
         list.push(a);
         map.set(a.closed_entry_id, list);
       }
-      if (a.created_entry_id && a.status === "pendente") {
+      if (a.created_entry_id && !(a.closed_entry_id === a.created_entry_id && a.status !== "pendente")) {
         const list = planned.get(a.created_entry_id) ?? [];
         list.push(a);
         planned.set(a.created_entry_id, list);
