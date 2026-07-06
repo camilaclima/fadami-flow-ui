@@ -177,6 +177,20 @@ export default function RegistroPage() {
     },
     [allImpediments, entries, detailEntry]
   );
+  const detailPastActivities = useMemo<DevDailyActivity[]>(() => {
+    if (!detailEntry) return [];
+    return allActivities.filter(
+      (a) => a.closed_entry_id === detailEntry.id && a.status !== "pendente"
+    );
+  }, [allActivities, detailEntry]);
+  const detailPlannedActivities = useMemo<DevDailyActivity[]>(() => {
+    if (!detailEntry) return [];
+    return allActivities.filter((a) => {
+      if (a.created_entry_id !== detailEntry.id) return false;
+      // Atividades criadas e concluídas no mesmo registro são itens feitos fora do planejado.
+      return !(a.closed_entry_id === detailEntry.id && a.status !== "pendente");
+    });
+  }, [allActivities, detailEntry]);
 
   const existing = useMemo(() => entries.find((e) => e.entry_date === date), [entries, date]);
   const isLocked = lockedDates.has(date);
@@ -219,9 +233,10 @@ export default function RegistroPage() {
   // Atividades planejadas nesta entry (ainda pendentes) — só no modo edit
   const plannedInEntry = useMemo<DevDailyActivity[]>(() => {
     if (!existing) return [];
-    return allActivities.filter(
-      (a) => a.created_entry_id === existing.id && a.status === "pendente"
-    );
+    return allActivities.filter((a) => {
+      if (a.created_entry_id !== existing.id) return false;
+      return !(a.closed_entry_id === existing.id && a.status !== "pendente");
+    });
   }, [allActivities, existing]);
 
   const handleOpenCreate = () => {
@@ -380,14 +395,35 @@ export default function RegistroPage() {
       return;
     }
 
+    const pastSnapshot = [
+      ...carryOverActivities.map((a) => {
+        const dec = pastDecisions[a.id];
+        if (dec === "done") return `✓ ${a.description}`;
+        if (dec === "inactive") return `⊘ ${a.description} (Inativada)`;
+        if (dec === "pending") return `○ ${a.description} (Pendente)`;
+        return null;
+      }),
+      ...closedInEntry.map((a) => {
+        if (a.status === "concluida") return `✓ ${a.description}`;
+        if (a.status === "inativa") return `⊘ ${a.description} (Inativada)`;
+        return null;
+      }),
+      ...doneDrafts.map((d) => `✓ ${d.description}`),
+    ].filter(Boolean).join("\n");
+
+    const futureSnapshot = [
+      ...plannedInEntry.map((a) => `○ ${a.description}`),
+      ...plannedDrafts.map((d) => `○ ${d.description}`),
+    ].join("\n");
+
     setSaving(true);
     try {
       const result = await upsert.mutateAsync({
       id: existing?.id,
       entry_date: date,
       squad_id: sim.squadIds?.[0] ?? null,
-      did_yesterday: "",
-      will_do_today: "",
+      did_yesterday: pastSnapshot,
+      will_do_today: futureSnapshot,
       impediments: "",
       });
 
@@ -707,11 +743,20 @@ export default function RegistroPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                 <div className="rounded-xl border bg-muted/30 p-3">
                   <p className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5">Ontem</p>
-                  <p className="text-sm whitespace-pre-wrap break-words">{detailEntry.did_yesterday || <span className="text-muted-foreground">—</span>}</p>
+                  <ReadonlyActivitiesList
+                    activities={detailPastActivities}
+                    fallback={detailEntry.did_yesterday}
+                    empty="—"
+                    showStatus
+                  />
                 </div>
                 <div className="rounded-xl border bg-primary/5 p-3">
                   <p className="text-[11px] uppercase tracking-wide font-semibold text-primary/80 mb-1.5">Hoje</p>
-                  <p className="text-sm whitespace-pre-wrap break-words">{detailEntry.will_do_today || <span className="text-muted-foreground">—</span>}</p>
+                  <ReadonlyActivitiesList
+                    activities={detailPlannedActivities}
+                    fallback={detailEntry.will_do_today}
+                    empty="—"
+                  />
                 </div>
               </div>
               <div className="rounded-xl border bg-orange-500/5 p-3">
