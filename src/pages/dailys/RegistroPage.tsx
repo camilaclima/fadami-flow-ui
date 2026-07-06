@@ -1482,6 +1482,11 @@ function ActivitiesFutureSection(props: {
           <CircleDot className="w-4 h-4 text-amber-500 shrink-0" />
           <p className="text-sm flex-1 min-w-0 break-words">{a.description}</p>
           <Badge variant="outline" className="text-[10px]">Já salva</Badge>
+          <NoteButton
+            value={activityNotes[a.id] ?? a.dev_notes ?? ""}
+            onChange={(v) => setActivityNotes((p) => ({ ...p, [a.id]: v }))}
+            disabled={locked}
+          />
         </div>
       ))}
 
@@ -1489,6 +1494,11 @@ function ActivitiesFutureSection(props: {
         <div key={d.id} className="rounded-lg border p-2.5 bg-background flex items-center gap-2">
           <CircleDot className="w-4 h-4 text-primary shrink-0" />
           <p className="text-sm flex-1 min-w-0 break-words">{d.description}</p>
+          <NoteButton
+            value={d.notes ?? ""}
+            onChange={(v) => setPlannedDrafts((p) => p.map((x) => (x.id === d.id ? { ...x, notes: v } : x)))}
+            disabled={locked}
+          />
           <Button
             type="button"
             size="icon"
