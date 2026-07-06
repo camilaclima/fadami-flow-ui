@@ -7,12 +7,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, X, Play, AlertTriangle, MessageSquarePlus, UserX, Paperclip, CheckCircle2, Video, VideoOff, MicOff, Mic, Calendar, ChevronDown, ChevronRight, RefreshCcw, UserCheck, CalendarX, UserMinus, ChevronsUpDown } from "lucide-react";
+import { FileText, X, Play, AlertTriangle, MessageSquarePlus, UserX, Paperclip, CheckCircle2, Video, VideoOff, Calendar, ChevronDown, ChevronRight, RefreshCcw, UserCheck, CalendarX, UserMinus, ChevronsUpDown, History, Clock, Ban } from "lucide-react";
 import { uploadAttachment } from "@/lib/uploadAttachment";
 import { useCreateDailyMeeting } from "@/hooks/useDailyMeetings";
 import { useImpedimentMutations, URGENCY_LABELS, URGENCY_STYLES, type DevDailyImpediment } from "@/hooks/useDevDailyImpediments";
+import { useDevDailyActivitiesByEntries } from "@/hooks/useDevDailyActivities";
+import { DevHistoryModal } from "@/components/dailys/DevHistoryModal";
 import { toast } from "sonner";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -70,6 +72,13 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [historyFor, setHistoryFor] = useState<{ userId: string | null; name: string } | null>(null);
+
+  const entryIds = useMemo(
+    () => members.map((m) => m.entry?.id).filter((v): v is string => !!v),
+    [members],
+  );
+  const { data: activities = [] } = useDevDailyActivitiesByEntries(open ? entryIds : []);
 
   // Reinicializa somente quando o modal abre
   useEffect(() => {
@@ -149,7 +158,6 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
       absent: vals.filter((v) => v.status === "absent_work").length,
       noPart: vals.filter((v) => v.status === "no_participate").length,
       cam: vals.filter((v) => v.status === "present" && v.camera_on).length,
-      silent: vals.filter((v) => v.status === "present" && v.stayed_silent).length,
     };
   }, [memberState]);
 
@@ -179,7 +187,7 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
           member_user_id: m.entry?.user_id ?? null,
           // Se ausente/não participou, câmera e "ficou em silêncio" não se aplicam
           camera_on: s.status === "present" ? s.camera_on : false,
-          stayed_silent: s.status === "present" ? s.stayed_silent : false,
+          stayed_silent: false,
           dev_entry_id: m.entry?.id ?? null,
           notes: s.notes.trim() || null,
           absent_from_work: absent,
@@ -216,6 +224,7 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
   const filledCount = members.filter((m) => m.filled).length;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl w-[calc(100vw-2rem)] max-h-[94vh] overflow-y-auto p-0">
         <DialogHeader className="px-6 pt-6 pb-4 pr-12 border-b">
@@ -260,13 +269,6 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
               <Badge variant="outline" className="rounded-lg gap-1 font-normal">
                 <Video className="w-3 h-3" />
                 <span className="font-semibold">{stats.cam}/{stats.total}</span>
-              </Badge>
-              <Badge
-                variant="outline"
-                className={`rounded-lg gap-1 font-normal ${stats.silent > 0 ? "border-orange-500/40 text-orange-600 bg-orange-500/5" : ""}`}
-              >
-                <MicOff className="w-3 h-3" />
-                <span className="font-semibold">{stats.silent}</span>
               </Badge>
               <Button
                 type="button"
@@ -421,16 +423,6 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                               >
                                 {st.camera_on ? <Video className="w-3.5 h-3.5" /> : <VideoOff className="w-3.5 h-3.5" />}
                               </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                title={st.stayed_silent ? "Ficou em silêncio" : "Participou verbalmente"}
-                                onClick={() => updateMember(m.key, { stayed_silent: !st.stayed_silent })}
-                                className={`h-8 w-8 rounded-lg ${st.stayed_silent ? "bg-orange-500/10 text-orange-600 border-orange-500/40" : "text-muted-foreground"}`}
-                              >
-                                {st.stayed_silent ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-                              </Button>
                             </>
                           )}
                           <Popover>
@@ -448,7 +440,11 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                 )}
                               </Button>
                             </PopoverTrigger>
-                            <PopoverContent align="end" className="w-80">
+                            <PopoverContent
+                              align="end"
+                              className="w-80"
+                              onKeyDown={(e) => e.stopPropagation()}
+                            >
                               <Label className="text-[11px] font-semibold text-muted-foreground mb-1 block flex items-center gap-1">
                                 <MessageSquarePlus className="w-3 h-3" /> Observação sobre {m.name.split(" ")[0]}
                               </Label>
@@ -485,16 +481,88 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                             <>
                               {/* Ontem/Hoje */}
                               {m.filled && m.entry ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                  <div className="rounded-lg bg-muted/40 px-3 py-2">
-                                    <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-0.5">Ontem</p>
-                                    <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">{m.entry.did_yesterday || "—"}</p>
+                                <>
+                                  <div className="flex justify-end">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-7 rounded-lg gap-1 text-xs"
+                                      onClick={() =>
+                                        setHistoryFor({ userId: m.entry!.user_id, name: m.name })
+                                      }
+                                    >
+                                      <History className="w-3 h-3" /> Ver histórico do dev
+                                    </Button>
                                   </div>
-                                  <div className="rounded-lg bg-primary/5 px-3 py-2">
-                                    <p className="text-[10px] uppercase tracking-wide font-semibold text-primary/80 mb-0.5">Hoje</p>
-                                    <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">{m.entry.will_do_today || "—"}</p>
-                                  </div>
-                                </div>
+                                  {(() => {
+                                    const acts = activities.filter(
+                                      (a) =>
+                                        a.created_entry_id === m.entry!.id ||
+                                        a.closed_entry_id === m.entry!.id,
+                                    );
+                                    const done = acts.filter(
+                                      (a) => a.status === "concluida" && a.closed_entry_id === m.entry!.id,
+                                    );
+                                    const inactive = acts.filter(
+                                      (a) => a.status === "inativa" && a.closed_entry_id === m.entry!.id,
+                                    );
+                                    const pending = acts.filter(
+                                      (a) => a.status === "pendente" && a.created_entry_id === m.entry!.id,
+                                    );
+                                    const today = new Date();
+                                    return (
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                        <div className="rounded-lg bg-muted/40 px-3 py-2">
+                                          <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-1">Ontem</p>
+                                          {done.length + inactive.length > 0 ? (
+                                            <ul className="space-y-1">
+                                              {done.map((a) => (
+                                                <li key={a.id} className="flex items-start gap-1.5 text-xs">
+                                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
+                                                  <span className="break-words">{a.description}</span>
+                                                </li>
+                                              ))}
+                                              {inactive.map((a) => (
+                                                <li key={a.id} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                                                  <Ban className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                                                  <span className="break-words"><span className="line-through">{a.description}</span> — inativada</span>
+                                                </li>
+                                              ))}
+                                            </ul>
+                                          ) : (
+                                            <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">{m.entry!.did_yesterday || "—"}</p>
+                                          )}
+                                        </div>
+                                        <div className="rounded-lg bg-primary/5 px-3 py-2">
+                                          <p className="text-[10px] uppercase tracking-wide font-semibold text-primary/80 mb-1">Hoje</p>
+                                          {pending.length > 0 ? (
+                                            <ul className="space-y-1">
+                                              {pending.map((a) => {
+                                                const days = differenceInCalendarDays(today, new Date(a.created_at));
+                                                const warn = days >= 2;
+                                                return (
+                                                  <li key={a.id} className="flex items-start gap-1.5 text-xs">
+                                                    <Clock className="w-3.5 h-3.5 text-orange-500 mt-0.5 shrink-0" />
+                                                    <span className="break-words flex-1">{a.description}</span>
+                                                    {warn && (
+                                                      <AlertTriangle
+                                                        className="w-3.5 h-3.5 text-orange-600 mt-0.5 shrink-0"
+                                                        aria-label={`Atenção: pendente há ${days} dias`}
+                                                      />
+                                                    )}
+                                                  </li>
+                                                );
+                                              })}
+                                            </ul>
+                                          ) : (
+                                            <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">{m.entry!.will_do_today || "—"}</p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
+                                </>
                               ) : (
                                 <div className="rounded-lg border border-dashed bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground text-center">
                                   Colaborador ainda não registrou a daily. Clique em <span className="font-semibold">Atualizar</span> após ele preencher.
@@ -504,6 +572,7 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                               {/* Impedimentos em aberto */}
                               {openImps.length > 0 && (
                                 <div className="space-y-1.5">
+                                  <p className="text-[10px] uppercase tracking-wide font-semibold text-orange-600">Impedimentos abertos</p>
                                   {openImps.map((imp) => (
                                     <div key={imp.id} className="flex items-start gap-2 p-2.5 rounded-lg bg-orange-500/5 border border-orange-500/20">
                                       <AlertTriangle className="w-3.5 h-3.5 text-orange-600 mt-0.5 shrink-0" />
@@ -526,6 +595,35 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                   ))}
                                 </div>
                               )}
+
+                              {/* Impedimentos sanados neste registro */}
+                              {(() => {
+                                const resolvedImps = m.imps.filter((i) => i.resolved);
+                                if (resolvedImps.length === 0) return null;
+                                return (
+                                  <div className="space-y-1.5">
+                                    <p className="text-[10px] uppercase tracking-wide font-semibold text-emerald-600">Impedimentos sanados</p>
+                                    {resolvedImps.map((imp) => (
+                                      <div key={imp.id} className="flex items-start gap-2 p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs whitespace-pre-wrap break-words text-foreground/90">{imp.description}</p>
+                                          <div className="flex items-center gap-2 mt-1">
+                                            <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES[imp.urgency]}`}>
+                                              {URGENCY_LABELS[imp.urgency]}
+                                            </Badge>
+                                            {imp.resolved_at && (
+                                              <span className="text-[10px] text-muted-foreground">
+                                                Sanado {format(new Date(imp.resolved_at), "dd/MM HH:mm")}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                );
+                              })()}
                             </>
                           )}
                         </div>
@@ -574,5 +672,12 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <DevHistoryModal
+      open={!!historyFor}
+      onOpenChange={(v) => { if (!v) setHistoryFor(null); }}
+      userId={historyFor?.userId ?? null}
+      name={historyFor?.name ?? ""}
+    />
+    </>
   );
 }

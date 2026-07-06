@@ -1,0 +1,171 @@
+import { useMemo, useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, Clock, Ban, History } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { useDevDailyEntriesByUser } from "@/hooks/useDevDailyEntries";
+import { useDevDailyActivitiesByUser } from "@/hooks/useDevDailyActivities";
+import { useDevDailyImpedimentsByEntries, URGENCY_LABELS, URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
+
+interface Props {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  userId: string | null;
+  name: string;
+}
+
+export function DevHistoryModal({ open, onOpenChange, userId, name }: Props) {
+  const { data: entries = [], isLoading } = useDevDailyEntriesByUser(open ? userId : null);
+  const { data: activities = [] } = useDevDailyActivitiesByUser(open ? userId : null);
+  const entryIds = useMemo(() => entries.map((e) => e.id), [entries]);
+  const { data: impediments = [] } = useDevDailyImpedimentsByEntries(open ? entryIds : []);
+
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const toggle = (id: string) => setExpanded((p) => ({ ...p, [id]: !p[id] }));
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-hidden p-0">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b">
+          <DialogTitle className="flex items-center gap-2 text-lg">
+            <History className="w-5 h-5 text-primary" /> Histórico de dailys — {name}
+          </DialogTitle>
+          <DialogDescription>Todos os registros do desenvolvedor. Clique para expandir.</DialogDescription>
+        </DialogHeader>
+        <ScrollArea className="max-h-[70vh]">
+          <div className="px-6 py-4 space-y-2">
+            {isLoading && <p className="text-sm text-muted-foreground">Carregando...</p>}
+            {!isLoading && entries.length === 0 && (
+              <p className="text-sm text-muted-foreground">Nenhum registro encontrado.</p>
+            )}
+            {entries.map((e) => {
+              const imps = impediments.filter((i) => i.entry_id === e.id);
+              const openImps = imps.filter((i) => !i.resolved);
+              const resolvedImps = imps.filter((i) => i.resolved);
+              const acts = activities.filter(
+                (a) => a.created_entry_id === e.id || a.closed_entry_id === e.id,
+              );
+              const done = acts.filter((a) => a.status === "concluida" && a.closed_entry_id === e.id);
+              const inactive = acts.filter((a) => a.status === "inativa" && a.closed_entry_id === e.id);
+              const pending = acts.filter((a) => a.status === "pendente" && a.created_entry_id === e.id);
+              const isOpen = expanded[e.id] ?? false;
+              let dateLabel = e.entry_date;
+              try {
+                dateLabel = format(parseISO(e.entry_date), "dd 'de' MMMM 'de' yyyy (EEEE)", { locale: ptBR });
+              } catch {}
+              return (
+                <div key={e.id} className="rounded-lg border overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => toggle(e.id)}
+                    className="w-full flex items-center gap-3 p-3 text-left hover:bg-muted/40 transition-colors"
+                  >
+                    <div className="text-muted-foreground">
+                      {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold capitalize truncate">{dateLabel}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {openImps.length > 0 && (
+                        <Badge variant="outline" className="text-[10px] gap-1 bg-orange-500/10 text-orange-600 border-orange-500/30">
+                          <AlertTriangle className="w-2.5 h-2.5" /> {openImps.length} aberto{openImps.length > 1 ? "s" : ""}
+                        </Badge>
+                      )}
+                      {resolvedImps.length > 0 && (
+                        <Badge variant="outline" className="text-[10px] gap-1 bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+                          <CheckCircle2 className="w-2.5 h-2.5" /> {resolvedImps.length} sanado{resolvedImps.length > 1 ? "s" : ""}
+                        </Badge>
+                      )}
+                    </div>
+                  </button>
+                  {isOpen && (
+                    <div className="px-3 pb-3 pt-1 border-t bg-background/40 space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div className="rounded-lg bg-muted/40 px-3 py-2">
+                          <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-1">Ontem</p>
+                          {done.length + inactive.length > 0 ? (
+                            <ul className="space-y-1">
+                              {done.map((a) => (
+                                <li key={a.id} className="flex items-start gap-1.5 text-xs">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
+                                  <span className="break-words">{a.description}</span>
+                                </li>
+                              ))}
+                              {inactive.map((a) => (
+                                <li key={a.id} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                                  <Ban className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                                  <span className="break-words"><span className="line-through">{a.description}</span> — inativada</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-xs whitespace-pre-wrap break-words">{e.did_yesterday || "—"}</p>
+                          )}
+                        </div>
+                        <div className="rounded-lg bg-primary/5 px-3 py-2">
+                          <p className="text-[10px] uppercase tracking-wide font-semibold text-primary/80 mb-1">Hoje</p>
+                          {pending.length > 0 ? (
+                            <ul className="space-y-1">
+                              {pending.map((a) => (
+                                <li key={a.id} className="flex items-start gap-1.5 text-xs">
+                                  <Clock className="w-3.5 h-3.5 text-orange-500 mt-0.5 shrink-0" />
+                                  <span className="break-words">{a.description}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-xs whitespace-pre-wrap break-words">{e.will_do_today || "—"}</p>
+                          )}
+                        </div>
+                      </div>
+                      {openImps.length > 0 && (
+                        <div className="space-y-1.5">
+                          <p className="text-[10px] uppercase tracking-wide font-semibold text-orange-600">Impedimentos abertos</p>
+                          {openImps.map((imp) => (
+                            <div key={imp.id} className="flex items-start gap-2 p-2 rounded-lg bg-orange-500/5 border border-orange-500/20">
+                              <AlertTriangle className="w-3.5 h-3.5 text-orange-600 mt-0.5 shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs whitespace-pre-wrap break-words">{imp.description}</p>
+                                <Badge variant="outline" className={`text-[10px] mt-1 ${URGENCY_STYLES[imp.urgency]}`}>{URGENCY_LABELS[imp.urgency]}</Badge>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {resolvedImps.length > 0 && (
+                        <div className="space-y-1.5">
+                          <p className="text-[10px] uppercase tracking-wide font-semibold text-emerald-600">Impedimentos sanados</p>
+                          {resolvedImps.map((imp) => (
+                            <div key={imp.id} className="flex items-start gap-2 p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs whitespace-pre-wrap break-words">{imp.description}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES[imp.urgency]}`}>{URGENCY_LABELS[imp.urgency]}</Badge>
+                                  {imp.resolved_at && (
+                                    <span className="text-[10px] text-muted-foreground">Sanado {format(new Date(imp.resolved_at), "dd/MM HH:mm")}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </ScrollArea>
+        <div className="px-6 py-3 border-t flex justify-end">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-lg">Fechar</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
