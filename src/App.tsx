@@ -32,7 +32,18 @@ import DailysHistoricoPage from "./pages/dailys/HistoricoPage";
 import DailysSaudePage from "./pages/dailys/SaudePage";
 import DailysLayout from "./components/dailys/DailysLayout";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      gcTime: 15 * 60 * 1000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      refetchOnMount: false,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

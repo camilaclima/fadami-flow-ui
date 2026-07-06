@@ -19,6 +19,7 @@ export function useAuthorizedProducts() {
 
   const { data: links = [], isLoading } = useQuery({
     queryKey: ["profile_products", profile?.id ?? "anon"],
+    staleTime: 300000,
     enabled: !!profile?.id,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -34,7 +35,8 @@ export function useAuthorizedProducts() {
     if (isAdmin) return null; // null = sem restrição
     const set = new Set<string>(links);
     if (profile?.product_id) set.add(profile.product_id);
-    return Array.from(set);
+    const result = Array.from(set).sort();
+    return result;
   }, [isAdmin, links, profile?.product_id]);
 
   /** Verifica se o usuário pode acessar um produto específico. Admin sempre pode. */

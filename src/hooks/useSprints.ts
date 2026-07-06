@@ -29,26 +29,20 @@ export function useSprintMembers(sprintId: string | undefined) {
     },
   });
 }
-
 export function useSprintUnavailabilities(sprintId: string | undefined) {
   return useQuery({
     queryKey: ["sprint_unavailabilities", sprintId],
     enabled: !!sprintId,
+    staleTime: 60000,
     queryFn: async () => {
-      const { data: members } = await (supabase.from("sprint_members") as any)
-        .select("id")
-        .eq("sprint_id", sprintId!);
-      if (!members?.length) return [] as SprintUnavailability[];
-      const memberIds = members.map((m: any) => m.id);
       const { data, error } = await (supabase.from("sprint_unavailabilities") as any)
-        .select("*")
-        .in("sprint_member_id", memberIds);
+        .select("*, sprint_members!inner(sprint_id)")
+        .eq("sprint_members.sprint_id", sprintId!);
       if (error) throw error;
       return data as SprintUnavailability[];
     },
   });
 }
-
 export function useSprintBacklogItems(sprintId: string | undefined) {
   return useQuery({
     queryKey: ["sprint_backlog_items", sprintId],

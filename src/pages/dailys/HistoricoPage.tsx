@@ -86,7 +86,7 @@ export default function HistoricoPage() {
   const squadIds = sim.role === "gp" ? (sim.squadIds ?? []) : null;
 
   const { data: allowedUserIds = null } = useQuery<string[] | null>({
-    queryKey: ["historico_allowed_users", sim.role, (squadIds ?? []).slice().sort().join(",")],
+    queryKey: ["historico_allowed_users", sim.role, (squadIds ?? []).slice().sort().join(",")], staleTime: 1000 * 60 * 5,
     enabled: sim.role === "diretor" || (squadIds !== null && squadIds.length > 0),
     queryFn: async () => {
       if (sim.role === "diretor") return null; // null = sem filtro
@@ -115,7 +115,7 @@ export default function HistoricoPage() {
   });
 
   const { data: entries = [], isLoading } = useQuery<DevEntryRow[]>({
-    queryKey: ["historico_dev_entries", sim.role, (allowedUserIds ?? ["__all__"]).slice().sort().join(",")],
+    queryKey: ["historico_dev_entries", sim.role, (allowedUserIds ?? ["__all__"]).slice().sort().join(",")], staleTime: 1000 * 60,
     enabled: sim.role === "diretor" || (Array.isArray(allowedUserIds) && allowedUserIds.length > 0),
     queryFn: async () => {
       let q = (supabase.from("dev_daily_entries") as any)
@@ -348,7 +348,7 @@ function DayDetailDialog({
 
   // Busca daily meetings (observações do líder) do dia selecionado.
   const { data: meetings = [] } = useQuery<MeetingRow[]>({
-    queryKey: ["historico_meetings", day?.date ?? "", (scopedSquadIds ?? []).slice().sort().join(",")],
+    queryKey: ["historico_meetings", day?.date ?? "", (scopedSquadIds ?? []).slice().sort().join(",")], staleTime: 1000 * 60,
     enabled: !!day,
     queryFn: async () => {
       let q = (supabase.from("daily_meetings") as any)
@@ -362,7 +362,7 @@ function DayDetailDialog({
 
   const meetingIds = useMemo(() => meetings.map((m) => m.id), [meetings]);
   const { data: attendance = [] } = useQuery<AttendanceRow[]>({
-    queryKey: ["historico_attendance", meetingIds.slice().sort().join(",")],
+    queryKey: ["historico_attendance", meetingIds.slice().sort().join(",")], staleTime: 1000 * 60,
     enabled: meetingIds.length > 0,
     queryFn: async () => {
       const { data, error } = await (supabase.from("daily_meeting_attendance") as any)

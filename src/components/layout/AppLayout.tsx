@@ -4,11 +4,20 @@ import { FadamiFlowLogo } from "@/components/FadamiFlowLogo";
 import { Outlet, useNavigate } from "react-router-dom";
 import { Bell, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { DailySimProvider } from "@/contexts/DailySimContext";
+import { DailySimProvider, useDailySim } from "@/contexts/DailySimContext";
 
 export function AppLayout() {
+  return (
+    <DailySimProvider>
+      <AppLayoutContent />
+    </DailySimProvider>
+  );
+}
+
+function AppLayoutContent() {
   const navigate = useNavigate();
   const { profile, signOut } = useAuth();
+  const { loading: simLoading } = useDailySim();
 
   const initials = profile
     ? `${profile.first_name?.[0] ?? ""}${profile.last_name?.[0] ?? ""}`.toUpperCase() || "U"
@@ -20,7 +29,6 @@ export function AppLayout() {
   };
 
   return (
-    <DailySimProvider>
     <div className="min-h-screen bg-background">
       <AppSidebar />
       <div className="ml-16">
@@ -44,10 +52,15 @@ export function AppLayout() {
           </div>
         </header>
         <main className="px-6 py-4">
-          <Outlet />
+          {simLoading ? (
+            <div className="min-h-[60vh] flex items-center justify-center">
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <Outlet />
+          )}
         </main>
       </div>
     </div>
-    </DailySimProvider>
   );
 }
