@@ -19,6 +19,7 @@ interface EntryLike {
   user_id: string;
   did_yesterday: string | null;
   will_do_today: string | null;
+  general_notes?: string | null;
   created_at?: string;
 }
 interface AttendanceLike {
