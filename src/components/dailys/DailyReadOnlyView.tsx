@@ -2,6 +2,9 @@ import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
 import {
   FileText, ChevronDown, ChevronRight, UserCheck, CalendarX, UserMinus, Video, VideoOff,
   MessageSquarePlus, AlertTriangle, CheckCircle2, Clock, Ban, History, Paperclip, UserX,
