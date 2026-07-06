@@ -1,64 +1,43 @@
-## Daily por atividade (mantendo Ontem / Hoje / Impedimentos)
+## Escopo
 
-Trocar os dois textareas livres do formulário "Minha Daily" por **listas dinâmicas de atividades**, preservando as três seções. Impedimentos ficam idênticos ao modelo atual.
+Ajustes no modal "Iniciar Daily" (`src/components/dailys/IniciarDailyModal.tsx`) — visão do líder/coordenador. Todo o trabalho é frontend; nenhuma mudança de banco.
 
-### 1. Formulário — 3 seções
+## Correções
 
-**Seção 1 — O que fiz (passado)**
-- Ao abrir, o sistema carrega automaticamente:
-  - todas as atividades cadastradas em "O que farei" da última daily do dev, +
-  - qualquer atividade ainda `pendente` de dias anteriores (acumulada).
-- Cada linha tem:
-  - Checkbox **Concluir** → status `concluida`, `completed_at` = daily atual.
-  - Botão **Inativar** (perdeu prioridade) → status `inativa`, `inactivated_at` = daily atual, sai do fluxo.
-  - Sem ação → segue `pendente` e migra para a Seção 1 da próxima daily.
-- Botão **+ Adicionar item feito** para registrar algo executado fora do planejado (nasce já `concluida` no dia).
+1. **Espaço no campo de observação retrai/expande o card**
+  - Causa: o cabeçalho do card tem `role="button"` + `onKeyDown` que trata `Enter`/`Space` como toggle. O Popover da observação é portalizado, mas eventos React continuam borbulhando até o pai. Ao digitar espaço, o handler do cabeçalho dispara.
+  - Correção: parar a propagação de teclado dentro do `PopoverContent` da observação (`onKeyDown={(e) => e.stopPropagation()}` no wrapper do conteúdo).
 
-**Seção 2 — O que farei (futuro)**
-- Lista vazia por padrão; botão **+ Adicionar atividade** cria um input por atividade.
-- Texto livre, sem limite, reordenável, removível antes de salvar.
-- Ao salvar, cada item vira uma atividade `pendente` que aparecerá na Seção 1 da próxima daily.
+## Melhorias
 
-**Seção 3 — Impedimentos**
-- Bloco atual mantido sem alterações (sanar existentes / adicionar novos).
+2. **Remover microfone**
+  - Remover o botão de toggle `Mic/MicOff` de cada colaborador.
+  - Remover o badge de contagem "silent" do cabeçalho e o campo `silent` de `stats`.
+  - Manter `stayed_silent: false` fixo no payload salvo (mantém compatibilidade do schema).
+3. **Botão "Ver histórico do dev"**
+  - No detalhe expandido do colaborador, adicionar um botão discreto (ícone `History`) ao lado do bloco Ontem/Hoje.
+  - Ao clicar, abre um novo modal `DevHistoryModal` que lista todos os registros de daily daquele desenvolvedor:
+    - Fonte: `useDevDailyEntriesByUser(entry.user_id)` (já existente).
+    - Cada item mostra data, "Ontem/Hoje/Impedimentos" e as atividades vinculadas via `useDevDailyActivitiesByUser` filtradas por `created_entry_id`/`closed_entry_id`. Deve aparecer retraído (como em historico de dailys e expandir quando clicar para ver o que estava escrito) Retraido aparece data e quantidade de impedimentos.Arquivo novo: `src/components/dailys/DevHistoryModal.tsx`.
+4. **Alerta de atenção (3+ dias sem conclusão)**
+  - Para cada atividade pendente (não `concluida`, não `inativa`), calcular dias desde `created_at`.
+  - Se `>= 2` dias completos (no 3º dia), exibir `AlertTriangle` laranja ao lado da atividade com tooltip "Atenção: pendente há N dias".
+5. **Visual das atividades de "Ontem" (com status)**
+  - Buscar atividades do dev com `useDevDailyActivitiesByUser` e cruzar com `entry.id` (o mesmo padrão já usado no HistoricoPage).
+  - Renderizar como lista de linhas com ícone+cor:
+    - `concluida`: `CheckCircle2` verde, texto normal.
+    - `inativa`: `Ban` (bola cortada) cinza, texto com `line-through`, sufixo " — inativada".
+    - `pendente`: `Clock` laranja, texto normal + eventual triângulo de atenção (item 4).
+  - Fallback para o texto livre `did_yesterday` quando não houver atividades estruturadas.
+6. **Visual das atividades de "Hoje"**
+  - Renderizar como lista de linhas com `Clock` laranja + texto.
+  - Fallback para `will_do_today` quando não houver atividades planejadas.
+7. **Impedimentos sanados no detalhe**
+  - Além dos impedimentos em aberto (`openImps`), listar também os `resolved` do dev (a partir de `m.imps`). Somente o que foi resolvido referente aquele registro
+  - Novo bloco "Sanados" com `CheckCircle2` verde, texto do impedimento, badge de urgência e data em `resolved_at` (formato `dd/MM HH:mm`).
 
-### 2. Regras de negócio
+## Notas técnicas
 
-- **Carry-over automático**: ao abrir o formulário, o sistema busca por `user_id` todas as activities `pendente` (independente da data de origem) para popular a Seção 1.
-- **Rótulos dinâmicos** já existentes continuam: "O que fiz ontem / O que farei hoje" e, quando a data de referência é hoje, "O que fiz hoje / O que farei amanhã".
-- **Trava de edição**: se o líder já finalizou o `daily_meetings` do dia, o dev não pode mais alterar checks/inativações — comportamento igual ao atual.
-- **Histórico**: cada card do dia mostra exatamente as atividades **fechadas naquele dia** (badges Concluída ✓ / Inativada ⊘) e as **novas planejadas** no mesmo card. Impedimentos seguem no bloco atual.
-- **Painel do GP**: substitui os parágrafos "ontem/hoje" do dev pela lista estruturada de atividades daquele entry.
-- **IA** (`analyze-daily-status`, `analyze-scope-stuck`): passam a receber `activities[]` por dev/dia; o alerta "preso na mesma tarefa há N dias" fica preciso comparando o mesmo `activity_id` pendente ao longo dos dias.
-
-### 3. Detalhes técnicos
-
-**Banco — nova tabela `dev_daily_activities`**
-- `id uuid pk`, `user_id uuid`, `squad_id uuid null`
-- `description text not null`
-- `status text` (`pendente` | `concluida` | `inativa`), default `pendente`
-- `created_entry_id uuid` FK → `dev_daily_entries` (daily que planejou/registrou)
-- `closed_entry_id uuid null` FK → `dev_daily_entries` (daily em que foi concluída/inativada)
-- `completed_at timestamptz null`, `inactivated_at timestamptz null`
-- `created_at`, `updated_at`, `updated_by` + trigger de `updated_at`
-- RLS: dev lê/escreve as próprias; GP/diretor lê da squad via `has_permission`; GRANTs a `authenticated` e `service_role`.
-
-`dev_daily_entries` mantém `did_yesterday` / `will_do_today` (compatibilidade + histórico antigo), mas o formulário deixa de usá-los. Painel/histórico priorizam as activities quando existirem.
-
-**Frontend**
-- `src/pages/dailys/RegistroPage.tsx`: substituir os dois textareas por dois componentes (`PastActivitiesList`, `PlannedActivitiesList`). Labels dinâmicas atuais preservadas; bloco de impedimentos intocado.
-- Novo hook `src/hooks/useDevDailyActivities.ts`: `listOpenForUser(userId)`, `listByEntry(entryId)`, mutations `create`, `markCompleted`, `markInactive`, `removeDraft`.
-- Ao clicar **Salvar daily**:
-  1. cria/atualiza o `dev_daily_entries` do dia;
-  2. aplica transições nas activities existentes (`markCompleted` / `markInactive` com `closed_entry_id`);
-  3. insere activities novas da Seção 2 com `created_entry_id` = entry do dia, `status = pendente`;
-  4. insere itens "não planejados" da Seção 1 já com `status = concluida` no mesmo entry.
-- `PainelGPPage.tsx` e `HistoricoPage.tsx`: nos cards do dia, listar activities do entry com badges (Concluída / Inativada / Pendente). Impedimentos permanecem como hoje.
-- Edge functions de IA: adaptar payload para receber `activities[]` por dev; ajustar prompts.
-
-### Fora de escopo
-
-- Prioridade, prazo, links ou anexos por atividade.
-- Aba dedicada "Minhas atividades".
-- Vincular impedimento a uma atividade específica.
-- Migração retroativa dos textos antigos (`did_yesterday` / `will_do_today`) para activities — histórico antigo continua sendo lido dos campos originais.
+- Reutilizar hooks existentes: `useDevDailyActivitiesByUser`, `useDevDailyEntriesByUser`, `useDevDailyImpedimentsByEntries`.
+- Nenhuma migração SQL; nenhuma alteração de tipos.
+- Sem novas dependências.
