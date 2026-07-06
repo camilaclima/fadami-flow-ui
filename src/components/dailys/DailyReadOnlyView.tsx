@@ -146,10 +146,12 @@ export function DailyReadOnlyView({
               } ${openImps.length > 0 && isPresent ? "border-l-4 border-l-orange-500" : ""}`}
             >
               <CardContent className="p-0">
-                <button
-                  type="button"
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => toggle(e.id)}
-                  className="w-full flex items-center gap-3 p-3 text-left hover:bg-muted/30 transition-colors"
+                  onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); toggle(e.id); } }}
+                  className="w-full flex items-center gap-3 p-3 text-left hover:bg-muted/30 transition-colors cursor-pointer"
                 >
                   <div className="text-muted-foreground shrink-0">
                     {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -286,7 +288,7 @@ export function DailyReadOnlyView({
                       )
                     )}
                   </div>
-                </button>
+                </div>
 
                 {isOpen && (
                   <div className="px-3 pb-3 pt-1 space-y-3 border-t bg-background/40">
