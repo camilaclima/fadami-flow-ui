@@ -629,6 +629,7 @@ function DayDetailDialog({
                       );
                     })}
                   </div>
+                  )}
                 </ScrollArea>
               </TabsContent>
               <TabsContent value="ia" className="flex-1 min-h-0">
