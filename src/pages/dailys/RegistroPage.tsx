@@ -311,6 +311,8 @@ export default function RegistroPage() {
       setShowNewImp(false);
       setNewDesc("");
       setNewUrg(null);
+      setActivityNotes({});
+      setGeneralNotes((existing?.general_notes as string | null) ?? "");
       const init: Record<string, PriorResolution> = {};
       priorOpen.forEach((p) => {
         init[p.id] = { resolved: null };
