@@ -1228,10 +1228,13 @@ function ActivitiesPastSection(props: {
   setDoneDrafts: React.Dispatch<React.SetStateAction<DraftDone[]>>;
   entries: Array<{ id: string; entry_date: string }>;
   touched: boolean;
+  activityNotes: Record<string, string>;
+  setActivityNotes: React.Dispatch<React.SetStateAction<Record<string, string>>>;
 }) {
   const {
     label, locked, carryOver, closedInEntry, decisions, setDecisions,
     doneDrafts, setDoneDrafts, entries, touched,
+    activityNotes, setActivityNotes,
   } = props;
 
   const [newDesc, setNewDesc] = useState("");
@@ -1386,8 +1389,10 @@ function ActivitiesFutureSection(props: {
   plannedInEntry: DevDailyActivity[];
   plannedDrafts: DraftPlanned[];
   setPlannedDrafts: React.Dispatch<React.SetStateAction<DraftPlanned[]>>;
+  activityNotes: Record<string, string>;
+  setActivityNotes: React.Dispatch<React.SetStateAction<Record<string, string>>>;
 }) {
-  const { label, locked, plannedInEntry, plannedDrafts, setPlannedDrafts } = props;
+  const { label, locked, plannedInEntry, plannedDrafts, setPlannedDrafts, activityNotes, setActivityNotes } = props;
   const [newDesc, setNewDesc] = useState("");
 
   const add = () => {
