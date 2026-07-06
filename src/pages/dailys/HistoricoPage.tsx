@@ -561,8 +561,17 @@ function DayDetailDialog({
                                 </p>
                               </div>
                             )}
-                            <Section label="Ontem" text={e.did_yesterday} />
-                            <Section label="Hoje" text={e.will_do_today} />
+                            <ActivitiesSection
+                              label="O que fiz"
+                              done={activitiesByEntry.done.get(e.id) ?? []}
+                              inactive={activitiesByEntry.inactive.get(e.id) ?? []}
+                              fallback={e.did_yesterday}
+                            />
+                            <PlannedSection
+                              label="O que farei"
+                              planned={activitiesByEntry.planned.get(e.id) ?? []}
+                              fallback={e.will_do_today}
+                            />
                             <div>
                               <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Impedimentos</p>
                               {imps.length === 0 ? (
