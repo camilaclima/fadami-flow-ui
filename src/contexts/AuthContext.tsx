@@ -20,6 +20,7 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   permissions: string[];
+  groupNames: string[];
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -28,79 +29,122 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+type ProfilePayload = {
+  profile: Profile | null;
+  permissions: string[];
+  groupNames: string[];
+};
+
+const profileCache = new Map<string, { value: ProfilePayload; expiresAt: number }>();
+const profileRequests = new Map<string, Promise<ProfilePayload>>();
+const PROFILE_CACHE_MS = 5 * 60 * 1000;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [permissions, setPermissions] = useState<string[]>([]);
+  const [groupNames, setGroupNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (profileData) {
-      setProfile(profileData as Profile);
-
-      // Fetch permissions from all associated groups (many-to-many)
-      const { data: pGroups } = await supabase
-        .from("profile_groups")
-        .select("group_id")
-        .eq("profile_id", profileData.id);
-
-      if (pGroups && pGroups.length > 0) {
-        const groupIds = pGroups.map((pg: any) => pg.group_id);
-        const { data: groups } = await supabase
-          .from("access_groups")
-          .select("permissions")
-          .in("id", groupIds);
-
-        const allPerms = (groups ?? []).flatMap((g: any) => (g.permissions as string[]) ?? []);
-        setPermissions([...new Set(allPerms)]);
-      } else if (profileData.group_id) {
-        // Fallback to legacy single group_id
-        const { data: group } = await supabase
-          .from("access_groups")
-          .select("permissions")
-          .eq("id", profileData.group_id)
-          .maybeSingle();
-        setPermissions((group?.permissions as string[]) ?? []);
-      } else {
-        setPermissions([]);
-      }
+    const cached = profileCache.get(userId);
+    if (cached && cached.expiresAt > Date.now()) {
+      setProfile(cached.value.profile);
+      setPermissions(cached.value.permissions);
+      setGroupNames(cached.value.groupNames);
+      return cached.value;
     }
+
+    let request = profileRequests.get(userId);
+    if (!request) {
+      request = (async (): Promise<ProfilePayload> => {
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("id,user_id,first_name,last_name,email,product_id,role_id,group_id,active,first_access")
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (profileError || !profileData) return { profile: null, permissions: [], groupNames: [] };
+
+        const groupIds = new Set<string>();
+        const { data: pGroups } = await supabase
+          .from("profile_groups")
+          .select("group_id")
+          .eq("profile_id", profileData.id);
+        (pGroups ?? []).forEach((pg: any) => pg.group_id && groupIds.add(pg.group_id));
+        if (profileData.group_id) groupIds.add(profileData.group_id);
+
+        let permissionsPayload: string[] = [];
+        let namesPayload: string[] = [];
+        if (groupIds.size > 0) {
+          const { data: groups } = await supabase
+            .from("access_groups")
+            .select("name,permissions")
+            .in("id", Array.from(groupIds));
+          permissionsPayload = [
+            ...new Set((groups ?? []).flatMap((g: any) => (g.permissions as string[]) ?? [])),
+          ];
+          namesPayload = (groups ?? [])
+            .map((g: any) => String(g.name ?? "").toLowerCase())
+            .filter(Boolean);
+        }
+
+        return {
+          profile: profileData as Profile,
+          permissions: permissionsPayload,
+          groupNames: namesPayload,
+        };
+      })().finally(() => profileRequests.delete(userId));
+      profileRequests.set(userId, request);
+    }
+
+    const payload = await request;
+    profileCache.set(userId, { value: payload, expiresAt: Date.now() + PROFILE_CACHE_MS });
+    setProfile(payload.profile);
+    setPermissions(payload.permissions);
+    setGroupNames(payload.groupNames);
+    return payload;
   };
 
   const refreshProfile = async () => {
-    if (user) await fetchProfile(user.id);
+    if (user) {
+      profileCache.delete(user.id);
+      await fetchProfile(user.id);
+    }
   };
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
+      (event, newSession) => {
+        if (event === "INITIAL_SESSION") return;
         setSession(newSession);
         setUser(newSession?.user ?? null);
 
         if (newSession?.user) {
-          // Use setTimeout to avoid potential deadlocks with Supabase client
-          setTimeout(() => fetchProfile(newSession.user.id), 0);
+          setLoading(true);
+          setTimeout(async () => {
+            await fetchProfile(newSession.user.id);
+            setLoading(false);
+          }, 0);
         } else {
           setProfile(null);
           setPermissions([]);
+          setGroupNames([]);
+          setLoading(false);
         }
-        setLoading(false);
       }
     );
 
     supabase.auth.getSession()
-      .then(({ data: { session: currentSession } }) => {
+      .then(async ({ data: { session: currentSession } }) => {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         if (currentSession?.user) {
-          fetchProfile(currentSession.user.id);
+          await fetchProfile(currentSession.user.id);
+        } else {
+          setProfile(null);
+          setPermissions([]);
+          setGroupNames([]);
         }
       })
       .catch((err) => {
@@ -141,10 +185,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setProfile(null);
     setPermissions([]);
+    setGroupNames([]);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, permissions, loading, signIn, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, session, profile, permissions, groupNames, loading, signIn, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

@@ -19,7 +19,7 @@ export interface DevDailyEntry {
 export function useMyDevDailyEntries() {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ["dev_daily_entries", "mine", user?.id],
+    queryKey: ["dev_daily_entries", "mine", user?.id], staleTime: 1000 * 60,
     enabled: !!user?.id,
     queryFn: async () => {
       const { data, error } = await (supabase.from("dev_daily_entries") as any)
@@ -35,7 +35,7 @@ export function useMyDevDailyEntries() {
 /** Filtra entradas por um user_id específico — usado pelo simulador de Dev. */
 export function useDevDailyEntriesByUser(userId: string | null) {
   return useQuery({
-    queryKey: ["dev_daily_entries", "by-user", userId ?? "none"],
+    queryKey: ["dev_daily_entries", "by-user", userId ?? "none"], staleTime: 1000 * 60,
     enabled: !!userId,
     queryFn: async () => {
       const { data, error } = await (supabase.from("dev_daily_entries") as any)
@@ -48,9 +48,9 @@ export function useDevDailyEntriesByUser(userId: string | null) {
   });
 }
 
-export function useDevDailyEntriesByDate(date: string, squadId?: string | null) {
+export function useDevDailyEntriesByDate(date: string, squadId?: string | null, memberUserIds?: string[]) {
   return useQuery({
-    queryKey: ["dev_daily_entries", "by-date", date, squadId ?? "all"],
+    queryKey: ["dev_daily_entries", "by-date", date, squadId ?? "all", memberUserIds?.join(",") ?? "auto"], staleTime: 1000 * 30,
     queryFn: async () => {
       if (!squadId) {
         const { data, error } = await (supabase.from("dev_daily_entries") as any)
@@ -61,33 +61,34 @@ export function useDevDailyEntriesByDate(date: string, squadId?: string | null) 
         return (data ?? []) as DevDailyEntry[];
       }
 
-      // Resolve os user_ids dos membros da squad (por email OU nome).
-      const { data: sm } = await (supabase.from("squad_members") as any)
-        .select("team_member_id")
-        .eq("squad_id", squadId);
-      const tmIds = (sm ?? []).map((r: any) => r.team_member_id);
-
-      let userIds: string[] = [];
-      if (tmIds.length > 0) {
-        const { data: tms } = await (supabase.from("team_members") as any)
-          .select("id,email,name")
-          .in("id", tmIds);
-        const emails = (tms ?? [])
-          .map((t: any) => String(t.email ?? "").trim().toLowerCase())
-          .filter(Boolean);
-        const names = (tms ?? [])
-          .map((t: any) => String(t.name ?? "").trim().toLowerCase())
-          .filter(Boolean);
-        const { data: profs } = await (supabase.from("profiles") as any)
-          .select("user_id,email,first_name,last_name");
-        userIds = (profs ?? [])
-          .filter((p: any) => {
-            const em = String(p.email ?? "").trim().toLowerCase();
-            const full = `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim().toLowerCase();
-            return (em && emails.includes(em)) || (full && names.includes(full));
-          })
-          .map((p: any) => p.user_id)
-          .filter(Boolean);
+      // Resolve os user_ids dos membros da squad (por email OU nome), reutilizando dados já carregados quando possível.
+      let userIds: string[] = memberUserIds ?? [];
+      if (!memberUserIds) {
+        const { data: sm } = await (supabase.from("squad_members") as any)
+          .select("team_member_id")
+          .eq("squad_id", squadId);
+        const tmIds = (sm ?? []).map((r: any) => r.team_member_id);
+        if (tmIds.length > 0) {
+          const { data: tms } = await (supabase.from("team_members") as any)
+            .select("id,email,name")
+            .in("id", tmIds);
+          const emails = (tms ?? [])
+            .map((t: any) => String(t.email ?? "").trim().toLowerCase())
+            .filter(Boolean);
+          const names = (tms ?? [])
+            .map((t: any) => String(t.name ?? "").trim().toLowerCase())
+            .filter(Boolean);
+          const { data: profs } = await (supabase.from("profiles") as any)
+            .select("user_id,email,first_name,last_name");
+          userIds = (profs ?? [])
+            .filter((p: any) => {
+              const em = String(p.email ?? "").trim().toLowerCase();
+              const full = `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim().toLowerCase();
+              return (em && emails.includes(em)) || (full && names.includes(full));
+            })
+            .map((p: any) => p.user_id)
+            .filter(Boolean);
+        }
       }
 
       // Busca entradas com squad_id correspondente OU user_id de algum membro da squad.

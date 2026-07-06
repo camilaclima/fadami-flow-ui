@@ -41,12 +41,12 @@ async function fetchSquads(): Promise<Squad[]> {
 }
 
 export function useSquads() {
-  return useQuery({ queryKey: ["squads"], queryFn: fetchSquads });
+  return useQuery({ queryKey: ["squads"], staleTime: 1000 * 60 * 5, gcTime: 1000 * 60 * 30, queryFn: fetchSquads });
 }
 
 export function useActiveSquads() {
   return useQuery({
-    queryKey: ["squads", "active"],
+    queryKey: ["squads", "active"], staleTime: 1000 * 60 * 5, gcTime: 1000 * 60 * 30,
     queryFn: async () => (await fetchSquads()).filter((s) => s.active),
   });
 }
