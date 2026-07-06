@@ -154,6 +154,10 @@ export default function RegistroPage() {
   // Atividades feitas fora do planejado (Seção 1, adicionadas manualmente) — persistidas já como concluídas
   const [doneDrafts, setDoneDrafts] = useState<DraftDone[]>([]);
   const [touched, setTouched] = useState(false);
+  // Notas por demanda (persistidas via updateNote no save) para atividades já existentes
+  const [activityNotes, setActivityNotes] = useState<Record<string, string>>({});
+  // Observações gerais do dev sobre a daily
+  const [generalNotes, setGeneralNotes] = useState<string>("");
 
   const skipAutoFill = useRef(false);
   const [mode, setMode] = useState<"create" | "edit">("create");
