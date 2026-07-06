@@ -671,5 +671,12 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <DevHistoryModal
+      open={!!historyFor}
+      onOpenChange={(v) => { if (!v) setHistoryFor(null); }}
+      userId={historyFor?.userId ?? null}
+      name={historyFor?.name ?? ""}
+    />
+    </>
   );
 }
