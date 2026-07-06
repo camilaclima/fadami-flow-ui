@@ -1175,34 +1175,15 @@ function ReadonlyActivitiesList({
 
   return (
     <div className="space-y-1.5">
-      {activities.map((a) => {
-        const isDone = a.status === "concluida";
-        const isInactive = a.status === "inativa";
-        return (
-          <div key={a.id} className="flex items-start gap-2 text-sm">
-            {isDone ? (
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-            ) : isInactive ? (
-              <Ban className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
-            ) : (
-              <CircleDot className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-            )}
-            <span className={`flex-1 min-w-0 whitespace-pre-wrap break-words ${isInactive ? "text-muted-foreground line-through" : "text-foreground/90"}`}>
-              {a.description}
-            </span>
-            {showStatus && isInactive && (
-              <Badge variant="outline" className="text-[10px] shrink-0">
-                Inativada
-              </Badge>
-            )}
-            {showStatus && a.status === "pendente" && (
-              <Badge variant="outline" className="text-[10px] shrink-0">
-                Pendente
-              </Badge>
-            )}
-          </div>
-        );
-      })}
+      {activities.map((a) => (
+        <DevActivityCard
+          key={a.id}
+          kind={a.status === "concluida" ? "done" : a.status === "inativa" ? "inactive" : "pending"}
+          description={a.description}
+          createdAt={a.created_at}
+          devNotes={a.dev_notes}
+        />
+      ))}
     </div>
   );
 }
