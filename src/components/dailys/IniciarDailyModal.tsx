@@ -29,6 +29,7 @@ interface MemberRow {
     did_yesterday: string | null;
     will_do_today: string | null;
     impediments: string | null;
+    general_notes?: string | null;
   } | null;
   imps: DevDailyImpediment[];
 }
