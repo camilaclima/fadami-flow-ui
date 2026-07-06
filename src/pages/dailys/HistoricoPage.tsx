@@ -322,6 +322,29 @@ function DayDetailDialog({
     return m;
   }, [impediments]);
 
+  const dayEntryIds = useMemo(() => (day?.entries ?? []).map((e) => e.id), [day]);
+  const { data: dayActivities = [] } = useDevDailyActivitiesByEntries(dayEntryIds);
+
+  const activitiesByEntry = useMemo(() => {
+    const done = new Map<string, DevDailyActivity[]>();
+    const inactive = new Map<string, DevDailyActivity[]>();
+    const planned = new Map<string, DevDailyActivity[]>();
+    dayActivities.forEach((a) => {
+      if (a.closed_entry_id && (a.status === "concluida" || a.status === "inativa")) {
+        const map = a.status === "concluida" ? done : inactive;
+        const list = map.get(a.closed_entry_id) ?? [];
+        list.push(a);
+        map.set(a.closed_entry_id, list);
+      }
+      if (a.created_entry_id && a.status === "pendente") {
+        const list = planned.get(a.created_entry_id) ?? [];
+        list.push(a);
+        planned.set(a.created_entry_id, list);
+      }
+    });
+    return { done, inactive, planned };
+  }, [dayActivities]);
+
   // Busca daily meetings (observações do líder) do dia selecionado.
   const { data: meetings = [] } = useQuery<MeetingRow[]>({
     queryKey: ["historico_meetings", day?.date ?? "", (scopedSquadIds ?? []).slice().sort().join(",")],
