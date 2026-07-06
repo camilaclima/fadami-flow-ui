@@ -675,6 +675,10 @@ function ActivitiesSection({
   inactive: DevDailyActivity[];
   fallback: string | null;
 }) {
+  if (fallback?.trim()) {
+    return <Section label={label} text={fallback} />;
+  }
+
   const hasAny = done.length + inactive.length > 0;
   if (!hasAny) {
     return <Section label={label} text={fallback} />;
@@ -712,6 +716,10 @@ function PlannedSection({
   planned: DevDailyActivity[];
   fallback: string | null;
 }) {
+  if (fallback?.trim()) {
+    return <Section label={label} text={fallback} />;
+  }
+
   if (planned.length === 0) {
     return <Section label={label} text={fallback} />;
   }
