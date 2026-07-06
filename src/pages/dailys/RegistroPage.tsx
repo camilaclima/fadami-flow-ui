@@ -258,6 +258,8 @@ export default function RegistroPage() {
     setShowNewImp(false);
     setNewDesc("");
     setNewUrg(null);
+    setActivityNotes({});
+    setGeneralNotes("");
     const init: Record<string, PriorResolution> = {};
     const openForDate = targetDate;
     const prior = allImpediments
@@ -289,6 +291,8 @@ export default function RegistroPage() {
     setShowNewImp(false);
     setNewDesc("");
     setNewUrg(null);
+    setActivityNotes({});
+    setGeneralNotes((entry.general_notes as string | null) ?? "");
     const init: Record<string, PriorResolution> = {};
     priorOpen.forEach((p) => {
       init[p.id] = { resolved: null };
