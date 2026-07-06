@@ -3,12 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, Clock, Ban, History } from "lucide-react";
+import { ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, Clock, Ban, History, MessageSquarePlus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useDevDailyEntriesByUser } from "@/hooks/useDevDailyEntries";
 import { useDevDailyActivitiesByUser } from "@/hooks/useDevDailyActivities";
 import { useDevDailyImpedimentsByEntries, URGENCY_LABELS, URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
+import { DevActivityCard } from "@/components/dailys/DevActivityCard";
 
 interface Props {
   open: boolean;
