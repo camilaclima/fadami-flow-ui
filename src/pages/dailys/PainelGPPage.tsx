@@ -11,9 +11,6 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { useSquads } from "@/hooks/useSquads";
 import { useDevDailyEntriesByDate } from "@/hooks/useDevDailyEntries";
 import { useDevDailyImpedimentsByEntries, URGENCY_LABELS, URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
-import { useDevDailyActivitiesByEntries } from "@/hooks/useDevDailyActivities";
-import { DevActivityCard } from "@/components/dailys/DevActivityCard";
-import { MessageSquarePlus } from "lucide-react";
 import { useGenerateDailyInsights, useAnalyzeScopeStuck, type DailyInsight, type ScopeAlert } from "@/hooks/useDailyInsights";
 import { useProfiles } from "@/hooks/useProfiles";
 import { IniciarDailyModal } from "@/components/dailys/IniciarDailyModal";
@@ -338,7 +335,6 @@ export default function PainelGPPage() {
   };
 
   const detailRow = useMemo(() => rows.find((r) => r.id === detailEntryId) ?? null, [rows, detailEntryId]);
-  const detailActivities = useDevDailyActivitiesByEntries(detailRow ? [detailRow.id] : []);
 
   const handleGenerate = async () => {
     const result = await gen.mutateAsync(rows.map(r => ({
@@ -858,7 +854,6 @@ export default function PainelGPPage() {
                 did_yesterday: m.entry.did_yesterday,
                 will_do_today: m.entry.will_do_today,
                 impediments: m.entry.impediments,
-                general_notes: (m.entry as any).general_notes ?? null,
               }
             : null,
           imps: m.imps,
@@ -890,46 +885,12 @@ export default function PainelGPPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                 <div className="rounded-xl border bg-muted/30 p-3">
                   <p className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5">Ontem</p>
-                  {(() => {
-                    const acts = (detailActivities.data ?? []).filter((a) => a.closed_entry_id === detailRow.id && a.status !== "pendente");
-                    if (acts.length === 0) return (
-                      <p className="text-sm whitespace-pre-wrap break-words">{detailRow.did_yesterday || <span className="text-muted-foreground">—</span>}</p>
-                    );
-                    return (
-                      <div className="space-y-1.5">
-                        {acts.map((a) => (
-                          <DevActivityCard key={a.id} kind={a.status === "concluida" ? "done" : "inactive"} description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
-                        ))}
-                      </div>
-                    );
-                  })()}
+                  <p className="text-sm whitespace-pre-wrap break-words">{detailRow.did_yesterday || <span className="text-muted-foreground">—</span>}</p>
                 </div>
                 <div className="rounded-xl border bg-primary/5 p-3">
                   <p className="text-[11px] uppercase tracking-wide font-semibold text-primary/80 mb-1.5">Hoje</p>
-                  {(() => {
-                    const acts = (detailActivities.data ?? []).filter((a) => a.created_entry_id === detailRow.id && a.status === "pendente");
-                    if (acts.length === 0) return (
-                      <p className="text-sm whitespace-pre-wrap break-words">{detailRow.will_do_today || <span className="text-muted-foreground">—</span>}</p>
-                    );
-                    return (
-                      <div className="space-y-1.5">
-                        {acts.map((a) => (
-                          <DevActivityCard key={a.id} kind="pending" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
-                        ))}
-                      </div>
-                    );
-                  })()}
+                  <p className="text-sm whitespace-pre-wrap break-words">{detailRow.will_do_today || <span className="text-muted-foreground">—</span>}</p>
                 </div>
-              </div>
-              <div className="rounded-xl border bg-muted/30 p-3">
-                <p className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
-                  <MessageSquarePlus className="w-3 h-3" /> Observações gerais do dev
-                </p>
-                {(detailRow as any).general_notes?.trim() ? (
-                  <p className="text-sm whitespace-pre-wrap break-words">{(detailRow as any).general_notes}</p>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">Nenhuma observação geral registrada.</p>
-                )}
               </div>
               <div className="rounded-xl border bg-orange-500/5 p-3">
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-orange-600 mb-2 flex items-center gap-1">

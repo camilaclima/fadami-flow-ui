@@ -13,7 +13,6 @@ import { useCreateDailyMeeting } from "@/hooks/useDailyMeetings";
 import { useImpedimentMutations, URGENCY_LABELS, URGENCY_STYLES, type DevDailyImpediment } from "@/hooks/useDevDailyImpediments";
 import { useDevDailyActivitiesByEntries } from "@/hooks/useDevDailyActivities";
 import { DevHistoryModal } from "@/components/dailys/DevHistoryModal";
-import { DevActivityCard } from "@/components/dailys/DevActivityCard";
 import { toast } from "sonner";
 import { format, parseISO, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -29,7 +28,6 @@ interface MemberRow {
     did_yesterday: string | null;
     will_do_today: string | null;
     impediments: string | null;
-    general_notes?: string | null;
   } | null;
   imps: DevDailyImpediment[];
 }
@@ -518,14 +516,20 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                         <div className="rounded-lg bg-muted/40 px-3 py-2">
                                           <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-1">Ontem</p>
                                           {done.length + inactive.length > 0 ? (
-                                            <div className="space-y-1.5">
+                                            <ul className="space-y-1">
                                               {done.map((a) => (
-                                                <DevActivityCard key={a.id} kind="done" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
+                                                <li key={a.id} className="flex items-start gap-1.5 text-xs">
+                                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
+                                                  <span className="break-words">{a.description}</span>
+                                                </li>
                                               ))}
                                               {inactive.map((a) => (
-                                                <DevActivityCard key={a.id} kind="inactive" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
+                                                <li key={a.id} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                                                  <Ban className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                                                  <span className="break-words"><span className="line-through">{a.description}</span> — inativada</span>
+                                                </li>
                                               ))}
-                                            </div>
+                                            </ul>
                                           ) : (
                                             <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">{m.entry!.did_yesterday || "—"}</p>
                                           )}
@@ -533,11 +537,24 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                         <div className="rounded-lg bg-primary/5 px-3 py-2">
                                           <p className="text-[10px] uppercase tracking-wide font-semibold text-primary/80 mb-1">Hoje</p>
                                           {pending.length > 0 ? (
-                                            <div className="space-y-1.5">
-                                              {pending.map((a) => (
-                                                <DevActivityCard key={a.id} kind="pending" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
-                                              ))}
-                                            </div>
+                                            <ul className="space-y-1">
+                                              {pending.map((a) => {
+                                                const days = differenceInCalendarDays(today, new Date(a.created_at));
+                                                const warn = days >= 2;
+                                                return (
+                                                  <li key={a.id} className="flex items-start gap-1.5 text-xs">
+                                                    <Clock className="w-3.5 h-3.5 text-orange-500 mt-0.5 shrink-0" />
+                                                    <span className="break-words flex-1">{a.description}</span>
+                                                    {warn && (
+                                                      <AlertTriangle
+                                                        className="w-3.5 h-3.5 text-orange-600 mt-0.5 shrink-0"
+                                                        aria-label={`Atenção: pendente há ${days} dias`}
+                                                      />
+                                                    )}
+                                                  </li>
+                                                );
+                                              })}
+                                            </ul>
                                           ) : (
                                             <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">{m.entry!.will_do_today || "—"}</p>
                                           )}
@@ -545,17 +562,6 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                       </div>
                                     );
                                   })()}
-                                  {/* Observações gerais do dev */}
-                                  <div className="rounded-lg border bg-muted/20 px-3 py-2">
-                                    <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-1 flex items-center gap-1">
-                                      <MessageSquarePlus className="w-3 h-3" /> Observações gerais do dev
-                                    </p>
-                                    {m.entry!.general_notes?.trim() ? (
-                                      <p className="text-xs whitespace-pre-wrap break-words text-foreground/90">{m.entry!.general_notes}</p>
-                                    ) : (
-                                      <p className="text-xs text-muted-foreground italic">Nenhuma observação geral registrada.</p>
-                                    )}
-                                  </div>
                                 </>
                               ) : (
                                 <div className="rounded-lg border border-dashed bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground text-center">
