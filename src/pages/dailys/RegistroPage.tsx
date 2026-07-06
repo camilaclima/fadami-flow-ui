@@ -754,7 +754,7 @@ export default function RegistroPage() {
 
       {/* Detalhes da daily */}
       <Dialog open={!!detailEntryId} onOpenChange={(o) => !o && setDetailEntryId(null)}>
-        <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto rounded-2xl">
+        <DialogContent className="max-w-5xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5 text-primary" />
