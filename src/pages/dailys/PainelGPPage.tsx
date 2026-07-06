@@ -14,6 +14,7 @@ import { useDevDailyImpedimentsByEntries, URGENCY_LABELS, URGENCY_STYLES } from 
 import { useGenerateDailyInsights, useAnalyzeScopeStuck, type DailyInsight, type ScopeAlert } from "@/hooks/useDailyInsights";
 import { useProfiles } from "@/hooks/useProfiles";
 import { IniciarDailyModal } from "@/components/dailys/IniciarDailyModal";
+import { DevHistoryModal } from "@/components/dailys/DevHistoryModal";
 import HistoricoPage from "./HistoricoPage";
 import SaudePage from "./SaudePage";
 import { useDailySim } from "@/contexts/DailySimContext";
@@ -89,6 +90,7 @@ export default function PainelGPPage() {
   const { data: entries = [], isLoading } = useDevDailyEntriesByDate(date, effectiveSquadId);
   const gen = useGenerateDailyInsights();
   const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
+  const [historyDev, setHistoryDev] = useState<{ userId: string; name: string } | null>(null);
 
   // Membros da squad selecionada (para mostrar quem ainda não preencheu).
   const { data: squadProfiles = [] } = useQuery({
@@ -861,9 +863,21 @@ export default function PainelGPPage() {
       <Dialog open={!!detailEntryId} onOpenChange={(o) => !o && setDetailEntryId(null)}>
         <DialogContent className="max-w-2xl rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-primary" />
-              {detailRow?.dev_name} — {format(parseISO(date), "PPP", { locale: ptBR })}
+            <DialogTitle className="flex items-center justify-between gap-2 pr-8">
+              <span className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-primary" />
+                {detailRow?.dev_name} — {format(parseISO(date), "PPP", { locale: ptBR })}
+              </span>
+              {detailRow && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-lg gap-1.5"
+                  onClick={() => setHistoryDev({ userId: detailRow.user_id, name: detailRow.dev_name })}
+                >
+                  <History className="w-4 h-4" /> Histórico
+                </Button>
+              )}
             </DialogTitle>
           </DialogHeader>
           {detailRow && (
@@ -927,6 +941,13 @@ export default function PainelGPPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DevHistoryModal
+        open={!!historyDev}
+        onOpenChange={(o) => !o && setHistoryDev(null)}
+        userId={historyDev?.userId ?? null}
+        name={historyDev?.name ?? ""}
+      />
     </div>
   );
 }
