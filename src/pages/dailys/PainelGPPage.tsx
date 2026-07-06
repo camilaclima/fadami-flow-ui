@@ -854,6 +854,7 @@ export default function PainelGPPage() {
                 did_yesterday: m.entry.did_yesterday,
                 will_do_today: m.entry.will_do_today,
                 impediments: m.entry.impediments,
+                general_notes: (m.entry as any).general_notes ?? null,
               }
             : null,
           imps: m.imps,
