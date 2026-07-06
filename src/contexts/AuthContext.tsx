@@ -120,6 +120,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(newSession);
         setUser(newSession?.user ?? null);
 
+        if (event === "TOKEN_REFRESHED") {
+          setLoading(false);
+          return;
+        }
+
         if (newSession?.user) {
           setLoading(true);
           setTimeout(async () => {
