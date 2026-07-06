@@ -13,6 +13,7 @@ import { useCreateDailyMeeting } from "@/hooks/useDailyMeetings";
 import { useImpedimentMutations, URGENCY_LABELS, URGENCY_STYLES, type DevDailyImpediment } from "@/hooks/useDevDailyImpediments";
 import { useDevDailyActivitiesByEntries } from "@/hooks/useDevDailyActivities";
 import { DevHistoryModal } from "@/components/dailys/DevHistoryModal";
+import { DevActivityCard } from "@/components/dailys/DevActivityCard";
 import { toast } from "sonner";
 import { format, parseISO, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
