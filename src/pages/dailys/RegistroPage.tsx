@@ -905,6 +905,8 @@ export default function RegistroPage() {
               setDoneDrafts={setDoneDrafts}
               entries={entries}
               touched={touched}
+              activityNotes={activityNotes}
+              setActivityNotes={setActivityNotes}
             />
 
             {/* ---------- Seção 2: O que farei (novas atividades) ---------- */}
@@ -914,6 +916,8 @@ export default function RegistroPage() {
               plannedInEntry={plannedInEntry}
               plannedDrafts={plannedDrafts}
               setPlannedDrafts={setPlannedDrafts}
+              activityNotes={activityNotes}
+              setActivityNotes={setActivityNotes}
             />
 
             {/* Resolução de impedimentos anteriores em aberto */}
