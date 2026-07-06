@@ -195,19 +195,95 @@ export function DailyReadOnlyView({
                       </p>
                     )}
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {isPresent && att && (
-                      <div className={`h-8 w-8 rounded-lg border flex items-center justify-center ${
-                        att.camera_on ? "bg-primary/10 text-primary border-primary/40" : "text-muted-foreground"
-                      }`} title={att.camera_on ? "Câmera ligada" : "Câmera desligada"}>
-                        {att.camera_on ? <Video className="w-3.5 h-3.5" /> : <VideoOff className="w-3.5 h-3.5" />}
-                      </div>
+                  <div
+                    className="flex items-center gap-1.5 shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {att && (
+                      <ToggleGroup
+                        type="single"
+                        value={isAbsent ? "absent_work" : isNoPart ? "no_participate" : "present"}
+                        className="rounded-lg border bg-background p-0.5 pointer-events-none"
+                      >
+                        <ToggleGroupItem
+                          value="present"
+                          size="sm"
+                          disabled
+                          title="Presente"
+                          className="h-7 px-2 gap-1 text-xs data-[state=on]:bg-emerald-500/10 data-[state=on]:text-emerald-700 disabled:opacity-100"
+                        >
+                          <UserCheck className="w-3.5 h-3.5" />
+                        </ToggleGroupItem>
+                        <ToggleGroupItem
+                          value="absent_work"
+                          size="sm"
+                          disabled
+                          title="Ausente do trabalho"
+                          className="h-7 px-2 gap-1 text-xs data-[state=on]:bg-red-500/10 data-[state=on]:text-red-600 disabled:opacity-100"
+                        >
+                          <CalendarX className="w-3.5 h-3.5" />
+                        </ToggleGroupItem>
+                        <ToggleGroupItem
+                          value="no_participate"
+                          size="sm"
+                          disabled
+                          title="Não participou da daily"
+                          className="h-7 px-2 gap-1 text-xs data-[state=on]:bg-amber-500/10 data-[state=on]:text-amber-700 disabled:opacity-100"
+                        >
+                          <UserMinus className="w-3.5 h-3.5" />
+                        </ToggleGroupItem>
+                      </ToggleGroup>
                     )}
-                    {hasNote && (
-                      <div className="h-8 w-8 rounded-lg border bg-primary/10 text-primary border-primary/40 flex items-center justify-center relative" title="Observação do líder">
-                        <MessageSquarePlus className="w-3.5 h-3.5" />
-                        <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary" />
-                      </div>
+                    {att && isPresent && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        disabled
+                        title={att.camera_on ? "Câmera ligada" : "Câmera desligada"}
+                        className={`h-8 w-8 rounded-lg disabled:opacity-100 ${
+                          att.camera_on
+                            ? "bg-primary/10 text-primary border-primary/40"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        {att.camera_on ? <Video className="w-3.5 h-3.5" /> : <VideoOff className="w-3.5 h-3.5" />}
+                      </Button>
+                    )}
+                    {att && (
+                      hasNote ? (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              title="Observação do líder"
+                              className="h-8 w-8 rounded-lg relative bg-primary/10 text-primary border-primary/40"
+                            >
+                              <MessageSquarePlus className="w-3.5 h-3.5" />
+                              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent align="end" className="w-80">
+                            <Label className="text-[11px] font-semibold text-muted-foreground mb-1 block flex items-center gap-1">
+                              <MessageSquarePlus className="w-3 h-3" /> Observação sobre {name.split(" ")[0]}
+                            </Label>
+                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{noteText}</p>
+                          </PopoverContent>
+                        </Popover>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          disabled
+                          title="Sem observação"
+                          className="h-8 w-8 rounded-lg text-muted-foreground disabled:opacity-100"
+                        >
+                          <MessageSquarePlus className="w-3.5 h-3.5" />
+                        </Button>
+                      )
                     )}
                   </div>
                 </button>
