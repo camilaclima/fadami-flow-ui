@@ -1,26 +1,70 @@
-## Escopo
-Ajustes visuais no `src/components/dailys/DailyReadOnlyView.tsx` (aba "Relatório Bruto" do histórico) para espelhar exatamente o layout do modal Iniciar Daily, em modo leitura.
+## Objetivo
 
-## Mudanças
+Três melhorias no fluxo de daily do desenvolvedor e do líder:
 
-1. **Cabeçalho do dev — mesmos controles do Iniciar Daily, desabilitados**
-   No lado direito do cabeçalho de cada colaborador, renderizar sempre os mesmos elementos que aparecem em `IniciarDailyModal`, refletindo o valor gravado:
-   - `ToggleGroup` de status (Presente / Ausente / Não participou) com o valor selecionado (`data-state=on`) conforme `att.absent_from_work` / `att.did_not_participate`. Adicionar `disabled` nos `ToggleGroupItem` e `pointer-events-none` no grupo para bloquear interação, mantendo as cores originais (verde/vermelho/âmbar).
-   - Botão de câmera (`Video` / `VideoOff`) apenas quando o dev está presente, colorido conforme `att.camera_on`, com `disabled` e `pointer-events-none`.
-   - Botão de observação (`MessageSquarePlus`) sempre visível quando há registro de presença; colorido (primary) apenas quando existe nota. Ao clicar, abre um `Popover` read-only mostrando o texto da observação; se não houver observação, mantém-se cinza e `disabled`.
-   - Quando não houver `att` (nenhum registro de presença), manter apenas o badge "Sem registro de presença" já existente.
+1. Trocar a listagem "em linhas" das demandas por "caixinhas" (mesmo estilo do modal de registrar daily) em todas as visualizações — modo dev e modo líder (Status de Preenchimento, Iniciar Daily e Histórico).
+2. Permitir observação por demanda também na visão do dev (com botão igual ao do líder). Refletir na visão do líder um botão indicando que há texto escrito pelo dev.
+3. Adicionar campo "Observações Gerais" do dev, abaixo dos impedimentos, refletindo em todas as visões do líder (com fallback "Nenhuma observação geral registrada.").
 
-2. **Bloco "Observações da reunião" — sempre visível**
-   - Renderizar o bloco de observações mesmo quando não houver nenhum `meeting` do dia: exibir texto em itálico "Não houve registro de observações.".
-   - Quando houver meetings, exibir um bloco por meeting com o texto; se `mt.observations` estiver vazio, exibir a mesma mensagem.
+---
 
-3. **Anexo/transcrição — sempre visível**
-   - No cabeçalho do bloco de observações, sempre mostrar o botão "Transcrição".
-   - Quando existir `mt.transcript_url`: estilo verde (`border-emerald-500/40 text-emerald-700 bg-emerald-500/10`), como link clicável (`<a href target=_blank>`), rótulo "Ver transcrição".
-   - Quando não existir: estilo cinza (`text-muted-foreground bg-muted/40 border-border`), renderizado como `<span>` com `cursor-not-allowed opacity-70`, rótulo "Sem transcrição".
-   - Quando não houver meeting nenhum, exibir o botão cinza "Sem transcrição" no bloco default.
+## Backend
 
-## Notas técnicas
-- Nenhuma nova dependência. Reutilizar `ToggleGroup`, `Popover`, `Button` já importados no projeto.
-- Nenhuma alteração de banco/tipos.
-- Não mexer em `IniciarDailyModal.tsx` nem em `HistoricoPage.tsx`; toda a mudança fica isolada em `DailyReadOnlyView.tsx`.
+Migration adicionando 2 colunas + grants já existentes preservados:
+
+- `dev_daily_activities.dev_notes text` — observação do dev por demanda (feita/planejada).
+- `dev_daily_entries.general_notes text` — observações gerais do dev naquele registro.
+
+Nenhuma nova tabela, nenhuma mudança em RLS.
+
+---
+
+## Frontend
+
+### Componente reutilizável novo
+
+`src/components/dailys/DevEntryActivitiesView.tsx` — recebe `activities`, `mode: "editable" | "readonly"` e um callback opcional `onUpdateNote`. Renderiza cada demanda como card (borda, padding, ícone de status, descrição, badge de status/dias, botão de observação via `Popover`). Reutilizado em:
+
+- `RegistroPage` (dev, editable — hoje/planejado)
+- `IniciarDailyModal` (líder abre detalhe do dev, readonly com botão de observação apenas para leitura)
+- `DailyReadOnlyView` (histórico, readonly)
+- `DevHistoryModal` (histórico do dev, readonly)
+- `PainelGPPage` dialog "Detalhes do preenchimento"
+
+### 1. Cards no lugar de linhas
+
+Substituir os blocos atuais de listagem plana das demandas nas cinco superfícies acima pelo `DevEntryActivitiesView`. Layout idêntico ao cartão de demanda hoje presente no `IniciarDailyModal` ao registrar (borda arredondada, header com status + botões, descrição em bloco).
+
+### 2. Observação por demanda
+
+- Coluna nova `dev_notes` em `dev_daily_activities`.
+- `useDevDailyActivityMutations` ganha `updateNote({ id, dev_notes })`.
+- `RegistroPage` (dev, ao iniciar/editar): botão `MessageSquarePlus` em cada card abre `Popover` com `Textarea`; ícone fica verde quando há conteúdo (mesmo padrão do líder).
+- Visão líder (`IniciarDailyModal` detalhe do dev, `DailyReadOnlyView`, `DevHistoryModal`, `PainelGPPage`): mesmo botão, somente leitura. Verde quando existe `dev_notes`, cinza quando vazio. Ao clicar, `Popover` exibe o texto (não editável).
+
+### 3. Observações gerais do dev
+
+- Coluna nova `general_notes` em `dev_daily_entries`.
+- `useUpsertDevDailyEntry` passa a aceitar `general_notes`.
+- `RegistroPage`: `Textarea` "Observações gerais" abaixo do bloco de impedimentos, com autosave/salvamento junto do entry.
+- Todas as visualizações do líder passam a mostrar um bloco "Observações gerais do dev" com o conteúdo, ou o texto italico "Nenhuma observação geral registrada." quando vazio/nulo.
+
+### Correção de acessibilidade (mantém padrão já aplicado)
+
+Nos novos `Popover`/`Textarea` de observação, aplicar `onKeyDown` que impede propagação da barra de espaço (bug já corrigido antes em outra tela) — evita que o card colapse/expanda quando o dev digita espaço.
+
+---
+
+## Arquivos afetados
+
+- `supabase/migrations/<timestamp>_dev_notes_and_general_notes.sql` (novo)
+- `src/hooks/useDevDailyActivities.ts` (mutation `updateNote`)
+- `src/hooks/useDevDailyEntries.ts` (campo `general_notes` no upsert e tipo)
+- `src/components/dailys/DevEntryActivitiesView.tsx` (novo)
+- `src/pages/dailys/RegistroPage.tsx` (usar novo componente + campo geral + botão obs por demanda)
+- `src/components/dailys/IniciarDailyModal.tsx` (usar componente readonly nas seções que hoje listam as demandas do dev + exibir obs geral)
+- `src/components/dailys/DailyReadOnlyView.tsx` (idem)
+- `src/components/dailys/DevHistoryModal.tsx` (idem)
+- `src/pages/dailys/PainelGPPage.tsx` (dialog de detalhe do preenchimento: idem)
+
+Sem alterações em RLS, sem novas dependências.
