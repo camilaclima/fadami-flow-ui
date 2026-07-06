@@ -30,7 +30,7 @@ export interface DailyAttendance {
 
 export function useDailyMeetings(filters?: { squadId?: string | null; from?: string; to?: string }) {
   return useQuery({
-    queryKey: ["daily_meetings", filters?.squadId ?? "all", filters?.from ?? "", filters?.to ?? ""], staleTime: 1000 * 60,
+    queryKey: ["daily_meetings", filters?.squadId ?? "all", filters?.from ?? "", filters?.to ?? ""],
     queryFn: async () => {
       let q = (supabase.from("daily_meetings") as any).select("*");
       if (filters?.squadId) q = q.eq("squad_id", filters.squadId);
@@ -105,7 +105,7 @@ export function useCreateDailyMeeting() {
 
 export function useAllAttendance() {
   return useQuery({
-    queryKey: ["daily_meeting_attendance", "all"], staleTime: 1000 * 60 * 5,
+    queryKey: ["daily_meeting_attendance", "all"],
     queryFn: async () => {
       const { data, error } = await (supabase.from("daily_meeting_attendance") as any).select("*");
       if (error) throw error;

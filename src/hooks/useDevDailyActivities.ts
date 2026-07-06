@@ -39,7 +39,7 @@ export function useDevDailyActivitiesByUser(userId: string | null) {
 /** Atividades vinculadas a uma lista de entries (para painéis do GP/Histórico). */
 export function useDevDailyActivitiesByEntries(entryIds: string[]) {
   return useQuery({
-    queryKey: ["dev_daily_activities", "by-entries", [...entryIds].sort().join(",")], staleTime: 1000 * 60,
+    queryKey: ["dev_daily_activities", "by-entries", [...entryIds].sort().join(",")],
     enabled: entryIds.length > 0,
     queryFn: async () => {
       const { data, error } = await (supabase.from("dev_daily_activities") as any)

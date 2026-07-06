@@ -20,7 +20,6 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   permissions: string[];
-  groupNames: string[];
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -29,172 +28,104 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-type ProfilePayload = {
-  profile: Profile | null;
-  permissions: string[];
-  groupNames: string[];
-};
-
-const profileCache = new Map<string, { value: ProfilePayload; expiresAt: number }>();
-const profileRequests = new Map<string, Promise<ProfilePayload>>();
-const PROFILE_CACHE_MS = 5 * 60 * 1000;
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [permissions, setPermissions] = useState<string[]>([]);
-  const [groupNames, setGroupNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
-    const cached = profileCache.get(userId);
-    if (cached && cached.expiresAt > Date.now()) {
-      setProfile(cached.value.profile);
-      setPermissions(cached.value.permissions);
-      setGroupNames(cached.value.groupNames);
-      return cached.value;
-    }
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
 
-    let request = profileRequests.get(userId);
-    if (!request) {
-      request = (async (): Promise<ProfilePayload> => {
-        const { data: profileData, error: profileError } = await supabase
-          .from("profiles")
-          .select("id,user_id,first_name,last_name,email,product_id,role_id,group_id,active,first_access")
-          .eq("user_id", userId)
+    if (profileData) {
+      setProfile(profileData as Profile);
+
+      // Fetch permissions from all associated groups (many-to-many)
+      const { data: pGroups } = await supabase
+        .from("profile_groups")
+        .select("group_id")
+        .eq("profile_id", profileData.id);
+
+      if (pGroups && pGroups.length > 0) {
+        const groupIds = pGroups.map((pg: any) => pg.group_id);
+        const { data: groups } = await supabase
+          .from("access_groups")
+          .select("permissions")
+          .in("id", groupIds);
+
+        const allPerms = (groups ?? []).flatMap((g: any) => (g.permissions as string[]) ?? []);
+        setPermissions([...new Set(allPerms)]);
+      } else if (profileData.group_id) {
+        // Fallback to legacy single group_id
+        const { data: group } = await supabase
+          .from("access_groups")
+          .select("permissions")
+          .eq("id", profileData.group_id)
           .maybeSingle();
-        if (profileError || !profileData) return { profile: null, permissions: [], groupNames: [] };
-
-        const groupIds = new Set<string>();
-        const { data: pGroups } = await supabase
-          .from("profile_groups")
-          .select("group_id")
-          .eq("profile_id", profileData.id);
-        (pGroups ?? []).forEach((pg: any) => pg.group_id && groupIds.add(pg.group_id));
-        if (profileData.group_id) groupIds.add(profileData.group_id);
-
-        let permissionsPayload: string[] = [];
-        let namesPayload: string[] = [];
-        if (groupIds.size > 0) {
-          const { data: groups } = await supabase
-            .from("access_groups")
-            .select("name,permissions")
-            .in("id", Array.from(groupIds));
-          permissionsPayload = [
-            ...new Set((groups ?? []).flatMap((g: any) => (g.permissions as string[]) ?? [])),
-          ];
-          namesPayload = (groups ?? [])
-            .map((g: any) => String(g.name ?? "").toLowerCase())
-            .filter(Boolean);
-        }
-
-        return {
-          profile: profileData as Profile,
-          permissions: permissionsPayload,
-          groupNames: namesPayload,
-        };
-      })().finally(() => profileRequests.delete(userId));
-      profileRequests.set(userId, request);
+        setPermissions((group?.permissions as string[]) ?? []);
+      } else {
+        setPermissions([]);
+      }
     }
-
-    const payload = await request;
-    profileCache.set(userId, { value: payload, expiresAt: Date.now() + PROFILE_CACHE_MS });
-    setProfile(payload.profile);
-    setPermissions(payload.permissions);
-    setGroupNames(payload.groupNames);
-    return payload;
   };
 
   const refreshProfile = async () => {
-    if (user) {
-      profileCache.delete(user.id);
-      await fetchProfile(user.id);
-    }
+    if (user) await fetchProfile(user.id);
   };
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
-        if (event === "INITIAL_SESSION") return;
+      async (event, newSession) => {
         setSession(newSession);
         setUser(newSession?.user ?? null);
 
-        if (event === "TOKEN_REFRESHED") {
-          setLoading(false);
-          return;
-        }
-
         if (newSession?.user) {
-          setLoading(true);
-          setTimeout(async () => {
-            await fetchProfile(newSession.user.id);
-            setLoading(false);
-          }, 0);
+          // Use setTimeout to avoid potential deadlocks with Supabase client
+          setTimeout(() => fetchProfile(newSession.user.id), 0);
         } else {
           setProfile(null);
           setPermissions([]);
-          setGroupNames([]);
-          setLoading(false);
         }
+        setLoading(false);
       }
     );
 
-    supabase.auth.getSession()
-      .then(async ({ data: { session: currentSession } }) => {
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-        if (currentSession?.user) {
-          await fetchProfile(currentSession.user.id);
-        } else {
-          setProfile(null);
-          setPermissions([]);
-          setGroupNames([]);
-        }
-      })
-      .catch((err) => {
-        console.error("getSession failed:", err);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
+      if (currentSession?.user) {
+        fetchProfile(currentSession.user.id);
+      }
+      setLoading(false);
+    });
 
     return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        const msg = error.message || "Erro ao entrar.";
-        if (msg.includes("Invalid login")) {
-          return { error: "Credenciais inválidas." };
-        }
-        if (msg.toLowerCase().includes("failed to fetch")) {
-          return { error: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente." };
-        }
-        return { error: msg };
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      if (error.message.includes("Invalid login")) {
+        return { error: "Credenciais inválidas." };
       }
-      return { error: null };
-    } catch (err: any) {
-      console.error("signIn error:", err);
-      const msg = typeof err?.message === "string" ? err.message : "";
-      if (msg.toLowerCase().includes("failed to fetch")) {
-        return { error: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente." };
-      }
-      return { error: msg || "Erro inesperado ao entrar." };
+      return { error: error.message };
     }
+    return { error: null };
   };
 
   const signOut = async () => {
     await supabase.auth.signOut();
     setProfile(null);
     setPermissions([]);
-    setGroupNames([]);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, permissions, groupNames, loading, signIn, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, session, profile, permissions, loading, signIn, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

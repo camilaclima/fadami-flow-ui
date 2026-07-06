@@ -90,13 +90,14 @@ export default function PainelGPPage() {
   }, [sim, squadId, squads]);
 
   const { data: profiles = [] } = useProfiles();
+  const { data: entries = [], isLoading } = useDevDailyEntriesByDate(date, effectiveSquadId);
   const gen = useGenerateDailyInsights();
   const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
   const [historyDev, setHistoryDev] = useState<{ userId: string; name: string } | null>(null);
 
   // Membros da squad selecionada (para mostrar quem ainda não preencheu).
   const { data: squadProfiles = [] } = useQuery({
-    queryKey: ["squad_profiles", effectiveSquadId ?? "none"], staleTime: 1000 * 60 * 5,
+    queryKey: ["squad_profiles", effectiveSquadId ?? "none"],
     enabled: !!effectiveSquadId,
     queryFn: async () => {
       const { data: sm } = await (supabase.from("squad_members") as any)
@@ -131,17 +132,6 @@ export default function PainelGPPage() {
     },
   });
 
-  const squadUserIds = useMemo(
-    () => squadProfiles.map((p) => p.user_id).filter(Boolean).sort() as string[],
-    [squadProfiles],
-  );
-  const { data: entries = [], isLoading } = useDevDailyEntriesByDate(
-    date,
-    effectiveSquadId,
-    effectiveSquadId ? squadUserIds : undefined,
-    !simLoading,
-  );
-
   // Para mostrar impedimentos visíveis no dia D (criados <= D, ainda em aberto
   // ou sanados >= D), precisamos de TODAS as entries dos mesmos usuários até D.
   const userIds = useMemo(() => {
@@ -150,9 +140,8 @@ export default function PainelGPPage() {
     squadProfiles.forEach((p) => { if (p.user_id) ids.add(p.user_id); });
     return Array.from(ids);
   }, [entries, squadProfiles]);
-  const userIdsKey = useMemo(() => [...userIds].sort().join(","), [userIds]);
   const { data: userEntries = [] } = useQuery({
-    queryKey: ["dev_daily_entries", "by-users-upto", date, userIdsKey], staleTime: 1000 * 60,
+    queryKey: ["dev_daily_entries", "by-users-upto", date, userIds.sort().join(",")],
     enabled: userIds.length > 0,
     queryFn: async () => {
       const { data, error } = await (supabase.from("dev_daily_entries") as any)
@@ -193,7 +182,7 @@ export default function PainelGPPage() {
 
   // Universo de impedimentos da squad SEM filtro de data (para a área "Todos os impedimentos").
   const { data: allUserEntries = [] } = useQuery({
-    queryKey: ["dev_daily_entries", "by-users-all", userIdsKey], staleTime: 1000 * 60,
+    queryKey: ["dev_daily_entries", "by-users-all", userIds.sort().join(",")],
     enabled: userIds.length > 0,
     queryFn: async () => {
       const { data, error } = await (supabase.from("dev_daily_entries") as any)
@@ -313,7 +302,7 @@ export default function PainelGPPage() {
     return d.toISOString().slice(0, 10);
   }, [date]);
   const { data: recentEntries = [] } = useQuery({
-    queryKey: ["dev_daily_entries", "recent-7d", date, userIdsKey], staleTime: 1000 * 60,
+    queryKey: ["dev_daily_entries", "recent-7d", date, userIds.sort().join(",")],
     enabled: userIds.length > 0,
     queryFn: async () => {
       const { data, error } = await (supabase.from("dev_daily_entries") as any)
@@ -450,36 +439,34 @@ export default function PainelGPPage() {
   }, [summaryKey]);
 
   // Auto-análise de escopo conforme as dailies chegam.
-  // Auto-análise de escopo conforme as dailies chegam.
   useEffect(() => {
     if (scopeMut.isPending || recentEntries.length === 0) return;
-    const timer = setTimeout(() => {
-      const byUser = new Map<string, { dev_name: string; entries: { date: string; will_do_today?: string; did_yesterday?: string }[] }>();
-      recentEntries.forEach((e) => {
-        const p = profileByUser.get(e.user_id);
-        const nameFromProfile = p ? (`${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || p.email) : null;
-        const nameFromSquad = squadProfiles.find((sp) => sp.user_id === e.user_id)?.name ?? null;
-        const dev_name = nameFromProfile || nameFromSquad || "Dev";
-        const cur = byUser.get(e.user_id) ?? { dev_name, entries: [] };
-        cur.entries.push({
-          date: e.entry_date,
-          will_do_today: e.will_do_today ?? undefined,
-          did_yesterday: e.did_yesterday ?? undefined,
-        });
-        byUser.set(e.user_id, cur);
+    const byUser = new Map<string, { dev_name: string; entries: { date: string; will_do_today?: string; did_yesterday?: string }[] }>();
+    recentEntries.forEach((e) => {
+      const p = profileByUser.get(e.user_id);
+      const nameFromProfile = p ? (`${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || p.email) : null;
+      const nameFromSquad = squadProfiles.find((sp) => sp.user_id === e.user_id)?.name ?? null;
+      const dev_name = nameFromProfile || nameFromSquad || "Dev";
+      const cur = byUser.get(e.user_id) ?? { dev_name, entries: [] };
+      cur.entries.push({
+        date: e.entry_date,
+        will_do_today: e.will_do_today ?? undefined,
+        did_yesterday: e.did_yesterday ?? undefined,
       });
-      const devs = Array.from(byUser.values()).filter((d) => d.entries.length >= 2);
-      if (devs.length === 0) {
-        setScopeAlerts([]);
-        setScopeAnalyzed(true);
-        return;
-      }
-      scopeMut.mutateAsync(devs).then((result) => {
-        setScopeAlerts(result);
-        setScopeAnalyzed(true);
-      }).catch(() => {});
-    }, 1000);
-    return () => clearTimeout(timer);
+      byUser.set(e.user_id, cur);
+    });
+    const devs = Array.from(byUser.values()).filter((d) => d.entries.length >= 2);
+    if (devs.length === 0) {
+      setScopeAlerts([]);
+      setScopeAnalyzed(true);
+      return;
+    }
+    scopeMut.mutateAsync(devs).then((result) => {
+      setScopeAlerts(result);
+      setScopeAnalyzed(true);
+    }).catch(() => {
+      // erro já tratado no mutation onError
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recentEntries]);
 

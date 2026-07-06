@@ -92,7 +92,7 @@ function allowedDates(): { value: string; label: string }[] {
 
 function useMySquadNames(squadIds: string[] | null | undefined) {
   return useQuery({
-    queryKey: ["my-squad-names", (squadIds ?? []).join(",")], staleTime: 1000 * 60 * 5,
+    queryKey: ["my-squad-names", (squadIds ?? []).join(",")],
     enabled: !!squadIds && squadIds.length > 0,
     queryFn: async () => {
       const { data, error } = await (supabase.from("squads") as any)
@@ -122,7 +122,7 @@ export default function RegistroPage() {
 
   // Dailys já finalizadas pelo líder (bloqueiam edição do dev)
   const { data: lockedMeetings = [] } = useQuery({
-    queryKey: ["daily_meetings_lock", (sim.squadIds ?? []).join(",")], staleTime: 1000 * 60,
+    queryKey: ["daily_meetings_lock", (sim.squadIds ?? []).join(",")],
     enabled: !!sim.squadIds && sim.squadIds.length > 0,
     queryFn: async () => {
       const { data, error } = await (supabase.from("daily_meetings") as any)

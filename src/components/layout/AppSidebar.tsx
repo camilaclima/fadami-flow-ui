@@ -83,7 +83,7 @@ export function AppSidebar() {
     Object.fromEntries(NAV_GROUPS.map((g) => [g.label, false]))
   );
   const { permissions } = useAuth();
-  const { current: sim, loading: simLoading } = useDailySim();
+  const { current: sim } = useDailySim();
 
   const visibleGroups = useMemo(() => {
     return NAV_GROUPS
@@ -94,7 +94,6 @@ export function AppSidebar() {
         ),
       }))
       .map((group) => {
-        if (simLoading) return group;
         // Aplica isolamento do simulador de Dailys.
         if (group.label === "Dailys") {
           let items = group.items;
@@ -113,7 +112,7 @@ export function AppSidebar() {
         return group;
       })
       .filter((group) => group.items.length > 0);
-  }, [permissions, sim.role, simLoading]);
+  }, [permissions, sim.role]);
 
   const toggleGroup = (label: string) => {
     setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));

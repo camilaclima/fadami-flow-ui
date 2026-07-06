@@ -21,17 +21,13 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
-    try {
-      const { error: signInError } = await signIn(email, password);
-      if (signInError) {
-        setError(String(signInError));
-      } else {
-        navigate("/", { replace: true });
-      }
-    } catch (err: any) {
-      setError(typeof err?.message === "string" ? err.message : "Erro inesperado ao entrar.");
-    } finally {
-      setLoading(false);
+    const { error: signInError } = await signIn(email, password);
+    setLoading(false);
+
+    if (signInError) {
+      setError(signInError);
+    } else {
+      navigate("/", { replace: true });
     }
   };
 
@@ -77,7 +73,7 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && typeof error === "string" && error.length > 0 && (
+            {error && (
               <Alert variant="destructive" className="rounded-xl">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>

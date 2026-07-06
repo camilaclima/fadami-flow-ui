@@ -18,7 +18,7 @@ export interface Profile {
 
 export function useProfiles() {
   return useQuery({
-    queryKey: ["profiles"], staleTime: 1000 * 60 * 5, gcTime: 1000 * 60 * 30,
+    queryKey: ["profiles"],
     queryFn: async () => {
       const { data, error } = await supabase.from("profiles").select("*").order("created_at");
       if (error) throw error;

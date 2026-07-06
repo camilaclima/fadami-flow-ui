@@ -20,7 +20,7 @@ export interface DevDailyImpediment {
 /** Lista todos os impedimentos das entries fornecidas. */
 export function useDevDailyImpedimentsByEntries(entryIds: string[]) {
   return useQuery({
-    queryKey: ["dev_daily_impediments", "by-entries", [...entryIds].sort().join(",")], staleTime: 1000 * 60,
+    queryKey: ["dev_daily_impediments", "by-entries", [...entryIds].sort().join(",")],
     enabled: entryIds.length > 0,
     queryFn: async () => {
       const { data, error } = await (supabase.from("dev_daily_impediments") as any)

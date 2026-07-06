@@ -39,10 +39,9 @@ const DailySimContext = createContext<Ctx>({
 });
 
 export function DailySimProvider({ children }: { children: ReactNode }) {
-  const { profile, user, groupNames } = useAuth();
+  const { profile, user } = useAuth();
   const [current, setCurrent] = useState<SimOption>(DEFAULT);
   const [loading, setLoading] = useState(true);
-  const groupNameKey = useMemo(() => groupNames.join("|"), [groupNames]);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,6 +58,20 @@ export function DailySimProvider({ children }: { children: ReactNode }) {
       }
       setLoading(true);
       try {
+        // 1) Grupos do usuário autenticado
+        const { data: pGroups } = await (supabase.from("profile_groups") as any)
+          .select("group_id")
+          .eq("profile_id", profile.id);
+        const groupIds = (pGroups ?? []).map((g: any) => g.group_id);
+
+        let groupNames: string[] = [];
+        if (groupIds.length > 0) {
+          const { data: groups } = await (supabase.from("access_groups") as any)
+            .select("name")
+            .in("id", groupIds);
+          groupNames = (groups ?? []).map((g: any) => String(g.name ?? "").toLowerCase());
+        }
+
         const isDev = groupNames.some((n) => n.includes("desenvolvedor"));
         const isLeader = groupNames.some((n) => n.includes("líder") || n.includes("lider"));
         const isDiretor = groupNames.some((n) => n.includes("diretor") || n.includes("admin"));
@@ -126,7 +139,7 @@ export function DailySimProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [profile?.id, user?.id, profile?.email, profile?.first_name, profile?.last_name, groupNameKey]);
+  }, [profile?.id, user?.id, profile?.email, profile?.first_name, profile?.last_name]);
 
   const options = useMemo(() => [current], [current]);
   const setCurrentId = (_id: string) => {
