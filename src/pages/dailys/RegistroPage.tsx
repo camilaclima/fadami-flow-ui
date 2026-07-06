@@ -437,6 +437,7 @@ export default function RegistroPage() {
       did_yesterday: pastSnapshot,
       will_do_today: futureSnapshot,
       impediments: "",
+      general_notes: generalNotes.trim() ? generalNotes.trim() : null,
       });
 
       const entryId = result?.id;
@@ -461,6 +462,7 @@ export default function RegistroPage() {
               description: d.description,
               status: "pendente",
               created_entry_id: entryId,
+              dev_notes: d.notes?.trim() ? d.notes.trim() : null,
             })
           )
         );
@@ -476,8 +478,16 @@ export default function RegistroPage() {
               created_entry_id: entryId,
               closed_entry_id: entryId,
               completed_at: new Date().toISOString(),
+              dev_notes: d.notes?.trim() ? d.notes.trim() : null,
             })
           )
+        );
+
+        // Persiste notas alteradas em atividades já existentes
+        await Promise.all(
+          Object.entries(activityNotes).map(([id, note]) =>
+            updateActivityNote.mutateAsync({ id, dev_notes: note.trim() ? note.trim() : null }),
+          ),
         );
       }
 
