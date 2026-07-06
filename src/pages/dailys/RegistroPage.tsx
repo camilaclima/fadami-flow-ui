@@ -1376,6 +1376,11 @@ function ActivitiesPastSection(props: {
               >
                 <Ban className="w-3.5 h-3.5" /> Inativar
               </Button>
+              <NoteButton
+                value={activityNotes[a.id] ?? a.dev_notes ?? ""}
+                onChange={(v) => setActivityNotes((p) => ({ ...p, [a.id]: v }))}
+                disabled={locked}
+              />
             </div>
           </div>
         );
@@ -1388,6 +1393,11 @@ function ActivitiesPastSection(props: {
             {ACTIVITY_STATUS_LABELS[a.status]}
           </Badge>
           <p className="text-sm flex-1 min-w-0 break-words">{a.description}</p>
+          <NoteButton
+            value={activityNotes[a.id] ?? a.dev_notes ?? ""}
+            onChange={(v) => setActivityNotes((p) => ({ ...p, [a.id]: v }))}
+            disabled={locked}
+          />
         </div>
       ))}
 
@@ -1396,6 +1406,11 @@ function ActivitiesPastSection(props: {
         <div key={d.id} className="rounded-lg border p-2.5 bg-emerald-500/5 border-emerald-500/30 flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <p className="text-sm flex-1 min-w-0 break-words">{d.description}</p>
+          <NoteButton
+            value={d.notes ?? ""}
+            onChange={(v) => setDoneDrafts((p) => p.map((x) => (x.id === d.id ? { ...x, notes: v } : x)))}
+            disabled={locked}
+          />
           <Button
             type="button"
             size="icon"
