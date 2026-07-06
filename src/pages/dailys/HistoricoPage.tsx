@@ -336,7 +336,7 @@ function DayDetailDialog({
         list.push(a);
         map.set(a.closed_entry_id, list);
       }
-      if (a.created_entry_id && a.status === "pendente") {
+      if (a.created_entry_id && !(a.closed_entry_id === a.created_entry_id && a.status !== "pendente")) {
         const list = planned.get(a.created_entry_id) ?? [];
         list.push(a);
         planned.set(a.created_entry_id, list);
@@ -675,6 +675,10 @@ function ActivitiesSection({
   inactive: DevDailyActivity[];
   fallback: string | null;
 }) {
+  if (fallback?.trim()) {
+    return <Section label={label} text={fallback} />;
+  }
+
   const hasAny = done.length + inactive.length > 0;
   if (!hasAny) {
     return <Section label={label} text={fallback} />;
@@ -712,6 +716,10 @@ function PlannedSection({
   planned: DevDailyActivity[];
   fallback: string | null;
 }) {
+  if (fallback?.trim()) {
+    return <Section label={label} text={fallback} />;
+  }
+
   if (planned.length === 0) {
     return <Section label={label} text={fallback} />;
   }
