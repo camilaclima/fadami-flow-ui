@@ -139,6 +139,7 @@ export default function PainelGPPage() {
     date,
     effectiveSquadId,
     effectiveSquadId ? squadUserIds : undefined,
+    !simLoading,
   );
 
   // Para mostrar impedimentos visíveis no dia D (criados <= D, ainda em aberto

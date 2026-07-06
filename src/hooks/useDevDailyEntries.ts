@@ -48,9 +48,10 @@ export function useDevDailyEntriesByUser(userId: string | null) {
   });
 }
 
-export function useDevDailyEntriesByDate(date: string, squadId?: string | null, memberUserIds?: string[]) {
+export function useDevDailyEntriesByDate(date: string, squadId?: string | null, memberUserIds?: string[], enabled = true) {
   return useQuery({
     queryKey: ["dev_daily_entries", "by-date", date, squadId ?? "all", memberUserIds?.join(",") ?? "auto"], staleTime: 1000 * 30,
+    enabled,
     queryFn: async () => {
       if (!squadId) {
         const { data, error } = await (supabase.from("dev_daily_entries") as any)
