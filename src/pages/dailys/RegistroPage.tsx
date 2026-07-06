@@ -10,8 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ClipboardEdit, AlertTriangle, CheckCircle2, Calendar, Plus, Users,
   CalendarClock, TrendingUp, AlertOctagon, Trash2, CircleCheck, CircleDot,
-  Pencil, Eye, Loader2, Lock, Ban, ListChecks,
+  Pencil, Eye, Loader2, Lock, Ban, ListChecks, MessageSquarePlus,
 } from "lucide-react";
+import { DevActivityCard } from "@/components/dailys/DevActivityCard";
 import { useDevDailyEntriesByUser, useUpsertDevDailyEntry } from "@/hooks/useDevDailyEntries";
 import {
   useDevDailyImpedimentsByEntries,
