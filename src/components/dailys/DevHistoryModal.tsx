@@ -3,12 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, Clock, Ban, History } from "lucide-react";
+import { ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, Clock, Ban, History, MessageSquarePlus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useDevDailyEntriesByUser } from "@/hooks/useDevDailyEntries";
 import { useDevDailyActivitiesByUser } from "@/hooks/useDevDailyActivities";
 import { useDevDailyImpedimentsByEntries, URGENCY_LABELS, URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
+import { DevActivityCard } from "@/components/dailys/DevActivityCard";
 
 interface Props {
   open: boolean;
@@ -88,20 +89,14 @@ export function DevHistoryModal({ open, onOpenChange, userId, name }: Props) {
                         <div className="rounded-lg bg-muted/40 px-3 py-2">
                           <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-1">Ontem</p>
                           {done.length + inactive.length > 0 ? (
-                            <ul className="space-y-1">
+                            <div className="space-y-1.5">
                               {done.map((a) => (
-                                <li key={a.id} className="flex items-start gap-1.5 text-xs">
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
-                                  <span className="break-words">{a.description}</span>
-                                </li>
+                                <DevActivityCard key={a.id} kind="done" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
                               ))}
                               {inactive.map((a) => (
-                                <li key={a.id} className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                                  <Ban className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                                  <span className="break-words"><span className="line-through">{a.description}</span> — inativada</span>
-                                </li>
+                                <DevActivityCard key={a.id} kind="inactive" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
                               ))}
-                            </ul>
+                            </div>
                           ) : (
                             <p className="text-xs whitespace-pre-wrap break-words">{e.did_yesterday || "—"}</p>
                           )}
@@ -109,18 +104,25 @@ export function DevHistoryModal({ open, onOpenChange, userId, name }: Props) {
                         <div className="rounded-lg bg-primary/5 px-3 py-2">
                           <p className="text-[10px] uppercase tracking-wide font-semibold text-primary/80 mb-1">Hoje</p>
                           {pending.length > 0 ? (
-                            <ul className="space-y-1">
+                            <div className="space-y-1.5">
                               {pending.map((a) => (
-                                <li key={a.id} className="flex items-start gap-1.5 text-xs">
-                                  <Clock className="w-3.5 h-3.5 text-orange-500 mt-0.5 shrink-0" />
-                                  <span className="break-words">{a.description}</span>
-                                </li>
+                                <DevActivityCard key={a.id} kind="pending" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
                               ))}
-                            </ul>
+                            </div>
                           ) : (
                             <p className="text-xs whitespace-pre-wrap break-words">{e.will_do_today || "—"}</p>
                           )}
                         </div>
+                      </div>
+                      <div className="rounded-lg border bg-muted/20 px-3 py-2">
+                        <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-1 flex items-center gap-1">
+                          <MessageSquarePlus className="w-3 h-3" /> Observações gerais do dev
+                        </p>
+                        {e.general_notes?.trim() ? (
+                          <p className="text-xs whitespace-pre-wrap break-words">{e.general_notes}</p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground italic">Nenhuma observação geral registrada.</p>
+                        )}
                       </div>
                       {openImps.length > 0 && (
                         <div className="space-y-1.5">

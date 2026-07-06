@@ -15,6 +15,7 @@ export interface DevDailyActivity {
   closed_entry_id: string | null;
   completed_at: string | null;
   inactivated_at: string | null;
+  dev_notes: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -67,6 +68,7 @@ export function useDevDailyActivityMutations() {
       created_entry_id: string;
       closed_entry_id?: string | null;
       completed_at?: string | null;
+      dev_notes?: string | null;
     }) => {
       const payload: any = {
         user_id: input.user_id,
@@ -76,6 +78,7 @@ export function useDevDailyActivityMutations() {
         created_entry_id: input.created_entry_id,
         closed_entry_id: input.closed_entry_id ?? null,
         completed_at: input.completed_at ?? null,
+        dev_notes: input.dev_notes ?? null,
         updated_by: user?.id ?? null,
       };
       const { data, error } = await (supabase.from("dev_daily_activities") as any)
@@ -151,7 +154,18 @@ export function useDevDailyActivityMutations() {
     onError: (e: any) => toast.error(e?.message ?? "Erro ao remover atividade"),
   });
 
-  return { create, markCompleted, markInactive, revertPending, remove };
+  const updateNote = useMutation({
+    mutationFn: async (input: { id: string; dev_notes: string | null }) => {
+      const { error } = await (supabase.from("dev_daily_activities") as any)
+        .update({ dev_notes: input.dev_notes, updated_by: user?.id ?? null })
+        .eq("id", input.id);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar observação"),
+  });
+
+  return { create, markCompleted, markInactive, revertPending, remove, updateNote };
 }
 
 export const ACTIVITY_STATUS_LABELS: Record<ActivityStatus, string> = {

@@ -7,11 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   ClipboardEdit, AlertTriangle, CheckCircle2, Calendar, Plus, Users,
   CalendarClock, TrendingUp, AlertOctagon, Trash2, CircleCheck, CircleDot,
-  Pencil, Eye, Loader2, Lock, Ban, ListChecks,
+  Pencil, Eye, Loader2, Lock, Ban, ListChecks, MessageSquarePlus,
 } from "lucide-react";
+import { DevActivityCard } from "@/components/dailys/DevActivityCard";
 import { useDevDailyEntriesByUser, useUpsertDevDailyEntry } from "@/hooks/useDevDailyEntries";
 import {
   useDevDailyImpedimentsByEntries,
@@ -40,8 +42,8 @@ type DraftImpediment = { id: string; description: string; urgency: ImpedimentUrg
 type PriorResolution = { resolved: boolean | null };
 /** Decisão do dev para uma atividade pendente carregada na Seção 1. */
 type PastDecision = "pending" | "done" | "inactive";
-type DraftPlanned = { id: string; description: string };
-type DraftDone = { id: string; description: string };
+type DraftPlanned = { id: string; description: string; notes?: string };
+type DraftDone = { id: string; description: string; notes?: string };
 
 function isWorkday(d: Date): boolean {
   const dow = d.getDay();
@@ -115,6 +117,7 @@ export default function RegistroPage() {
     create: createActivity,
     markCompleted: completeActivity,
     markInactive: inactivateActivity,
+    updateNote: updateActivityNote,
   } = useDevDailyActivityMutations();
 
   // Dailys já finalizadas pelo líder (bloqueiam edição do dev)
@@ -152,6 +155,10 @@ export default function RegistroPage() {
   // Atividades feitas fora do planejado (Seção 1, adicionadas manualmente) — persistidas já como concluídas
   const [doneDrafts, setDoneDrafts] = useState<DraftDone[]>([]);
   const [touched, setTouched] = useState(false);
+  // Notas por demanda (persistidas via updateNote no save) para atividades já existentes
+  const [activityNotes, setActivityNotes] = useState<Record<string, string>>({});
+  // Observações gerais do dev sobre a daily
+  const [generalNotes, setGeneralNotes] = useState<string>("");
 
   const skipAutoFill = useRef(false);
   const [mode, setMode] = useState<"create" | "edit">("create");
@@ -252,6 +259,8 @@ export default function RegistroPage() {
     setShowNewImp(false);
     setNewDesc("");
     setNewUrg(null);
+    setActivityNotes({});
+    setGeneralNotes("");
     const init: Record<string, PriorResolution> = {};
     const openForDate = targetDate;
     const prior = allImpediments
@@ -283,6 +292,8 @@ export default function RegistroPage() {
     setShowNewImp(false);
     setNewDesc("");
     setNewUrg(null);
+    setActivityNotes({});
+    setGeneralNotes((entry.general_notes as string | null) ?? "");
     const init: Record<string, PriorResolution> = {};
     priorOpen.forEach((p) => {
       init[p.id] = { resolved: null };
@@ -301,6 +312,8 @@ export default function RegistroPage() {
       setShowNewImp(false);
       setNewDesc("");
       setNewUrg(null);
+      setActivityNotes({});
+      setGeneralNotes((existing?.general_notes as string | null) ?? "");
       const init: Record<string, PriorResolution> = {};
       priorOpen.forEach((p) => {
         init[p.id] = { resolved: null };
@@ -425,6 +438,7 @@ export default function RegistroPage() {
       did_yesterday: pastSnapshot,
       will_do_today: futureSnapshot,
       impediments: "",
+      general_notes: generalNotes.trim() ? generalNotes.trim() : null,
       });
 
       const entryId = result?.id;
@@ -449,6 +463,7 @@ export default function RegistroPage() {
               description: d.description,
               status: "pendente",
               created_entry_id: entryId,
+              dev_notes: d.notes?.trim() ? d.notes.trim() : null,
             })
           )
         );
@@ -464,8 +479,16 @@ export default function RegistroPage() {
               created_entry_id: entryId,
               closed_entry_id: entryId,
               completed_at: new Date().toISOString(),
+              dev_notes: d.notes?.trim() ? d.notes.trim() : null,
             })
           )
+        );
+
+        // Persiste notas alteradas em atividades já existentes
+        await Promise.all(
+          Object.entries(activityNotes).map(([id, note]) =>
+            updateActivityNote.mutateAsync({ id, dev_notes: note.trim() ? note.trim() : null }),
+          ),
         );
       }
 
@@ -802,6 +825,16 @@ export default function RegistroPage() {
                   </div>
                 )}
               </div>
+              <div className="rounded-xl border bg-muted/30 p-3">
+                <p className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
+                  <MessageSquarePlus className="w-3 h-3" /> Observações gerais do dev
+                </p>
+                {detailEntry.general_notes?.trim() ? (
+                  <p className="text-sm whitespace-pre-wrap break-words">{detailEntry.general_notes}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Nenhuma observação geral registrada.</p>
+                )}
+              </div>
               <div className="text-[10px] text-muted-foreground text-right">
                 Registrado em {format(parseISO(detailEntry.created_at), "dd/MM/yyyy HH:mm")}
               </div>
@@ -873,6 +906,8 @@ export default function RegistroPage() {
               setDoneDrafts={setDoneDrafts}
               entries={entries}
               touched={touched}
+              activityNotes={activityNotes}
+              setActivityNotes={setActivityNotes}
             />
 
             {/* ---------- Seção 2: O que farei (novas atividades) ---------- */}
@@ -882,6 +917,8 @@ export default function RegistroPage() {
               plannedInEntry={plannedInEntry}
               plannedDrafts={plannedDrafts}
               setPlannedDrafts={setPlannedDrafts}
+              activityNotes={activityNotes}
+              setActivityNotes={setActivityNotes}
             />
 
             {/* Resolução de impedimentos anteriores em aberto */}
@@ -1064,6 +1101,21 @@ export default function RegistroPage() {
                 </div>
               )}
             </div>
+
+            {/* Observações gerais do dev */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <MessageSquarePlus className="w-4 h-4 text-primary" />
+                Observações gerais <span className="text-muted-foreground font-normal text-xs">(opcional)</span>
+              </Label>
+              <Textarea
+                rows={3}
+                value={generalNotes}
+                onChange={(e) => setGeneralNotes(e.target.value)}
+                placeholder="Comentários gerais sobre esta daily (contexto, decisões, alertas...)"
+                disabled={isLocked}
+              />
+            </div>
           </div>
 
           <DialogFooter>
@@ -1132,6 +1184,57 @@ export default function RegistroPage() {
    Subcomponentes: seções de atividades
    ========================================================= */
 
+function NoteButton({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  const has = value.trim().length > 0;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          disabled={disabled}
+          title={has ? "Editar observação" : "Adicionar observação"}
+          className={`h-7 w-7 rounded-lg relative shrink-0 ${
+            has
+              ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/40"
+              : "text-muted-foreground"
+          }`}
+        >
+          <MessageSquarePlus className="w-3.5 h-3.5" />
+          {has && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-500" />}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-80"
+        onKeyDown={(e) => e.stopPropagation()}
+      >
+        <Label className="text-[11px] font-semibold text-muted-foreground mb-1 block flex items-center gap-1">
+          <MessageSquarePlus className="w-3 h-3" /> Observação sobre esta demanda
+        </Label>
+        <Textarea
+          rows={4}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => e.stopPropagation()}
+          placeholder="Contexto, dificuldades, decisões..."
+          className="text-sm"
+          disabled={disabled}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function ReadonlyActivitiesList({
   activities,
   fallback,
@@ -1153,34 +1256,15 @@ function ReadonlyActivitiesList({
 
   return (
     <div className="space-y-1.5">
-      {activities.map((a) => {
-        const isDone = a.status === "concluida";
-        const isInactive = a.status === "inativa";
-        return (
-          <div key={a.id} className="flex items-start gap-2 text-sm">
-            {isDone ? (
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-            ) : isInactive ? (
-              <Ban className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
-            ) : (
-              <CircleDot className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-            )}
-            <span className={`flex-1 min-w-0 whitespace-pre-wrap break-words ${isInactive ? "text-muted-foreground line-through" : "text-foreground/90"}`}>
-              {a.description}
-            </span>
-            {showStatus && isInactive && (
-              <Badge variant="outline" className="text-[10px] shrink-0">
-                Inativada
-              </Badge>
-            )}
-            {showStatus && a.status === "pendente" && (
-              <Badge variant="outline" className="text-[10px] shrink-0">
-                Pendente
-              </Badge>
-            )}
-          </div>
-        );
-      })}
+      {activities.map((a) => (
+        <DevActivityCard
+          key={a.id}
+          kind={a.status === "concluida" ? "done" : a.status === "inativa" ? "inactive" : "pending"}
+          description={a.description}
+          createdAt={a.created_at}
+          devNotes={a.dev_notes}
+        />
+      ))}
     </div>
   );
 }
@@ -1196,10 +1280,13 @@ function ActivitiesPastSection(props: {
   setDoneDrafts: React.Dispatch<React.SetStateAction<DraftDone[]>>;
   entries: Array<{ id: string; entry_date: string }>;
   touched: boolean;
+  activityNotes: Record<string, string>;
+  setActivityNotes: React.Dispatch<React.SetStateAction<Record<string, string>>>;
 }) {
   const {
     label, locked, carryOver, closedInEntry, decisions, setDecisions,
     doneDrafts, setDoneDrafts, entries, touched,
+    activityNotes, setActivityNotes,
   } = props;
 
   const [newDesc, setNewDesc] = useState("");
@@ -1289,6 +1376,11 @@ function ActivitiesPastSection(props: {
               >
                 <Ban className="w-3.5 h-3.5" /> Inativar
               </Button>
+              <NoteButton
+                value={activityNotes[a.id] ?? a.dev_notes ?? ""}
+                onChange={(v) => setActivityNotes((p) => ({ ...p, [a.id]: v }))}
+                disabled={locked}
+              />
             </div>
           </div>
         );
@@ -1301,6 +1393,11 @@ function ActivitiesPastSection(props: {
             {ACTIVITY_STATUS_LABELS[a.status]}
           </Badge>
           <p className="text-sm flex-1 min-w-0 break-words">{a.description}</p>
+          <NoteButton
+            value={activityNotes[a.id] ?? a.dev_notes ?? ""}
+            onChange={(v) => setActivityNotes((p) => ({ ...p, [a.id]: v }))}
+            disabled={locked}
+          />
         </div>
       ))}
 
@@ -1309,6 +1406,11 @@ function ActivitiesPastSection(props: {
         <div key={d.id} className="rounded-lg border p-2.5 bg-emerald-500/5 border-emerald-500/30 flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <p className="text-sm flex-1 min-w-0 break-words">{d.description}</p>
+          <NoteButton
+            value={d.notes ?? ""}
+            onChange={(v) => setDoneDrafts((p) => p.map((x) => (x.id === d.id ? { ...x, notes: v } : x)))}
+            disabled={locked}
+          />
           <Button
             type="button"
             size="icon"
@@ -1354,8 +1456,10 @@ function ActivitiesFutureSection(props: {
   plannedInEntry: DevDailyActivity[];
   plannedDrafts: DraftPlanned[];
   setPlannedDrafts: React.Dispatch<React.SetStateAction<DraftPlanned[]>>;
+  activityNotes: Record<string, string>;
+  setActivityNotes: React.Dispatch<React.SetStateAction<Record<string, string>>>;
 }) {
-  const { label, locked, plannedInEntry, plannedDrafts, setPlannedDrafts } = props;
+  const { label, locked, plannedInEntry, plannedDrafts, setPlannedDrafts, activityNotes, setActivityNotes } = props;
   const [newDesc, setNewDesc] = useState("");
 
   const add = () => {
@@ -1378,6 +1482,11 @@ function ActivitiesFutureSection(props: {
           <CircleDot className="w-4 h-4 text-amber-500 shrink-0" />
           <p className="text-sm flex-1 min-w-0 break-words">{a.description}</p>
           <Badge variant="outline" className="text-[10px]">Já salva</Badge>
+          <NoteButton
+            value={activityNotes[a.id] ?? a.dev_notes ?? ""}
+            onChange={(v) => setActivityNotes((p) => ({ ...p, [a.id]: v }))}
+            disabled={locked}
+          />
         </div>
       ))}
 
@@ -1385,6 +1494,11 @@ function ActivitiesFutureSection(props: {
         <div key={d.id} className="rounded-lg border p-2.5 bg-background flex items-center gap-2">
           <CircleDot className="w-4 h-4 text-primary shrink-0" />
           <p className="text-sm flex-1 min-w-0 break-words">{d.description}</p>
+          <NoteButton
+            value={d.notes ?? ""}
+            onChange={(v) => setPlannedDrafts((p) => p.map((x) => (x.id === d.id ? { ...x, notes: v } : x)))}
+            disabled={locked}
+          />
           <Button
             type="button"
             size="icon"

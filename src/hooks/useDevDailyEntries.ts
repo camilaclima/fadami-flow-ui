@@ -11,6 +11,7 @@ export interface DevDailyEntry {
   did_yesterday: string | null;
   will_do_today: string | null;
   impediments: string | null;
+  general_notes: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -116,6 +117,7 @@ export function useUpsertDevDailyEntry() {
       did_yesterday: string;
       will_do_today: string;
       impediments: string;
+      general_notes?: string | null;
     }) => {
       if (!user?.id) throw new Error("Não autenticado");
       const payload: any = {
@@ -125,6 +127,7 @@ export function useUpsertDevDailyEntry() {
         did_yesterday: input.did_yesterday,
         will_do_today: input.will_do_today,
         impediments: input.impediments,
+        general_notes: input.general_notes ?? null,
         updated_by: user.id,
       };
       if (input.id) {

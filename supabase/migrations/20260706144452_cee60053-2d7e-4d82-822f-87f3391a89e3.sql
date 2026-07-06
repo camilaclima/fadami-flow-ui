@@ -1,0 +1,1 @@
+ALTER TABLE public.dev_daily_activities ADD COLUMN IF NOT EXISTS dev_notes text; ALTER TABLE public.dev_daily_entries ADD COLUMN IF NOT EXISTS general_notes text;
