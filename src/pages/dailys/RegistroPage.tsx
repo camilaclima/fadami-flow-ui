@@ -41,8 +41,8 @@ type DraftImpediment = { id: string; description: string; urgency: ImpedimentUrg
 type PriorResolution = { resolved: boolean | null };
 /** Decisão do dev para uma atividade pendente carregada na Seção 1. */
 type PastDecision = "pending" | "done" | "inactive";
-type DraftPlanned = { id: string; description: string };
-type DraftDone = { id: string; description: string };
+type DraftPlanned = { id: string; description: string; notes?: string };
+type DraftDone = { id: string; description: string; notes?: string };
 
 function isWorkday(d: Date): boolean {
   const dow = d.getDay();
