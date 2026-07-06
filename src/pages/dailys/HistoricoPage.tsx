@@ -22,6 +22,8 @@ import { useDailySim } from "@/contexts/DailySimContext";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useDevDailyImpedimentsByEntries, URGENCY_LABELS, URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
 import { useSquads } from "@/hooks/useSquads";
+import { useDevDailyActivitiesByEntries, ACTIVITY_STATUS_STYLES, type DevDailyActivity } from "@/hooks/useDevDailyActivities";
+import { CheckCircle2 as CheckIcon, Circle, XCircle } from "lucide-react";
 
 interface MeetingRow {
   id: string;
