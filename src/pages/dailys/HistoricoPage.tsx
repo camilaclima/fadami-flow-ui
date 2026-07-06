@@ -664,6 +664,72 @@ function Section({ label, text }: { label: string; text: string | null }) {
   );
 }
 
+function ActivitiesSection({
+  label,
+  done,
+  inactive,
+  fallback,
+}: {
+  label: string;
+  done: DevDailyActivity[];
+  inactive: DevDailyActivity[];
+  fallback: string | null;
+}) {
+  const hasAny = done.length + inactive.length > 0;
+  if (!hasAny) {
+    return <Section label={label} text={fallback} />;
+  }
+  return (
+    <div>
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">{label}</p>
+      <div className="space-y-1">
+        {done.map((a) => (
+          <div key={a.id} className="flex items-start gap-2 text-sm">
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 mt-0.5 flex-shrink-0" />
+            <span className="whitespace-pre-wrap leading-relaxed">{a.description}</span>
+          </div>
+        ))}
+        {inactive.map((a) => (
+          <div key={a.id} className="flex items-start gap-2 text-sm">
+            <XCircle className="h-3.5 w-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
+            <span className="whitespace-pre-wrap leading-relaxed text-muted-foreground line-through">
+              {a.description}
+            </span>
+            <Badge variant="outline" className="text-[10px]">Inativada</Badge>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PlannedSection({
+  label,
+  planned,
+  fallback,
+}: {
+  label: string;
+  planned: DevDailyActivity[];
+  fallback: string | null;
+}) {
+  if (planned.length === 0) {
+    return <Section label={label} text={fallback} />;
+  }
+  return (
+    <div>
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">{label}</p>
+      <div className="space-y-1">
+        {planned.map((a) => (
+          <div key={a.id} className="flex items-start gap-2 text-sm">
+            <Circle className="h-3.5 w-3.5 text-primary mt-0.5 flex-shrink-0" />
+            <span className="whitespace-pre-wrap leading-relaxed">{a.description}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function DailyAIDetail({ insights }: { insights: AIInsights }) {
   return (
     <div className="space-y-4">
