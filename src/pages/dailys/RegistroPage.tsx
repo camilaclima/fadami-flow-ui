@@ -116,6 +116,7 @@ export default function RegistroPage() {
     create: createActivity,
     markCompleted: completeActivity,
     markInactive: inactivateActivity,
+    updateNote: updateActivityNote,
   } = useDevDailyActivityMutations();
 
   // Dailys já finalizadas pelo líder (bloqueiam edição do dev)
