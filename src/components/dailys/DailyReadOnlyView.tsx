@@ -425,38 +425,46 @@ export function DailyReadOnlyView({
       </div>
 
       {/* Observações gerais + anexo */}
-      {meetings.length > 0 && (
-        <div className="space-y-3">
-          {meetings.map((mt) => {
-            const sq = mt.squad_id ? squadNameById.get(mt.squad_id) ?? "Squad" : "Sem squad";
-            return (
-              <div key={mt.id} className="rounded-xl border p-4 bg-muted/20">
-                <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
-                    Observações da reunião — {sq}
-                  </p>
-                  {mt.transcript_url && (
-                    <a
-                      href={mt.transcript_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-1.5 text-xs rounded-lg bg-background border px-2 py-1 hover:bg-muted transition-colors"
-                    >
-                      <Paperclip className="w-3.5 h-3.5 text-primary" />
-                      <span className="text-primary underline">Ver transcrição</span>
-                    </a>
-                  )}
-                </div>
-                {mt.observations?.trim() ? (
-                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{mt.observations}</p>
+      <div className="space-y-3">
+        {(meetings.length > 0 ? meetings : [null]).map((mt, idx) => {
+          const sq = mt?.squad_id ? squadNameById.get(mt.squad_id) ?? "Squad" : null;
+          const hasAttachment = !!mt?.transcript_url;
+          return (
+            <div key={mt?.id ?? `empty-${idx}`} className="rounded-xl border p-4 bg-muted/20">
+              <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                  Observações da reunião{sq ? ` — ${sq}` : ""}
+                </p>
+                {hasAttachment ? (
+                  <a
+                    href={mt!.transcript_url!}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 text-xs rounded-lg border px-2 py-1 border-emerald-500/40 text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors"
+                  >
+                    <Paperclip className="w-3.5 h-3.5" />
+                    <span className="underline">Ver transcrição</span>
+                  </a>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">Sem observações gerais.</p>
+                  <span
+                    aria-disabled="true"
+                    title="Sem transcrição anexada"
+                    className="flex items-center gap-1.5 text-xs rounded-lg border px-2 py-1 border-border bg-muted/40 text-muted-foreground opacity-70 cursor-not-allowed select-none"
+                  >
+                    <Paperclip className="w-3.5 h-3.5" />
+                    <span>Sem transcrição</span>
+                  </span>
                 )}
               </div>
-            );
-          })}
-        </div>
-      )}
+              {mt?.observations?.trim() ? (
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">{mt.observations}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">Não houve registro de observações.</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
     <DevHistoryModal
       open={!!historyFor}
