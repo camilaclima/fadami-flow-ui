@@ -24,6 +24,7 @@ import { useDevDailyImpedimentsByEntries, URGENCY_LABELS, URGENCY_STYLES } from 
 import { useSquads } from "@/hooks/useSquads";
 import { useDevDailyActivitiesByEntries, type DevDailyActivity } from "@/hooks/useDevDailyActivities";
 import { Circle, XCircle } from "lucide-react";
+import { DailyReadOnlyView } from "@/components/dailys/DailyReadOnlyView";
 
 interface MeetingRow {
   id: string;
@@ -450,6 +451,18 @@ function DayDetailDialog({
               </TabsList>
               <TabsContent value="bruto" className="flex-1 min-h-0">
                 <ScrollArea className="h-[60vh] pr-3">
+                  <DailyReadOnlyView
+                    date={day.date}
+                    entries={day.entries as any}
+                    meetings={meetings as any}
+                    attByEntry={attByEntry as any}
+                    attByUser={attByUser as any}
+                    impsByEntry={impsByEntry as any}
+                    activitiesByEntry={activitiesByEntry}
+                    nameFor={nameFor}
+                    squadNameById={squadNameById}
+                  />
+                  {false && (
                   <div className="space-y-2.5">
                     {meetings.length > 0 && (
                       <div className="space-y-2">
@@ -616,6 +629,7 @@ function DayDetailDialog({
                       );
                     })}
                   </div>
+                  )}
                 </ScrollArea>
               </TabsContent>
               <TabsContent value="ia" className="flex-1 min-h-0">
