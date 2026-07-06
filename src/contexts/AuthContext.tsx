@@ -95,27 +95,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-      if (currentSession?.user) {
-        fetchProfile(currentSession.user.id);
-      }
-      setLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session: currentSession } }) => {
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+        if (currentSession?.user) {
+          fetchProfile(currentSession.user.id);
+        }
+      })
+      .catch((err) => {
+        console.error("getSession failed:", err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
 
     return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      if (error.message.includes("Invalid login")) {
-        return { error: "Credenciais inválidas." };
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        const msg = error.message || "Erro ao entrar.";
+        if (msg.includes("Invalid login")) {
+          return { error: "Credenciais inválidas." };
+        }
+        if (msg.toLowerCase().includes("failed to fetch")) {
+          return { error: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente." };
+        }
+        return { error: msg };
       }
-      return { error: error.message };
+      return { error: null };
+    } catch (err: any) {
+      console.error("signIn error:", err);
+      const msg = typeof err?.message === "string" ? err.message : "";
+      if (msg.toLowerCase().includes("failed to fetch")) {
+        return { error: "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente." };
+      }
+      return { error: msg || "Erro inesperado ao entrar." };
     }
-    return { error: null };
   };
 
   const signOut = async () => {
