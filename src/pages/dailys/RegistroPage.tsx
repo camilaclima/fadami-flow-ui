@@ -824,6 +824,16 @@ export default function RegistroPage() {
                   </div>
                 )}
               </div>
+              <div className="rounded-xl border bg-muted/30 p-3">
+                <p className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
+                  <MessageSquarePlus className="w-3 h-3" /> Observações gerais do dev
+                </p>
+                {detailEntry.general_notes?.trim() ? (
+                  <p className="text-sm whitespace-pre-wrap break-words">{detailEntry.general_notes}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Nenhuma observação geral registrada.</p>
+                )}
+              </div>
               <div className="text-[10px] text-muted-foreground text-right">
                 Registrado em {format(parseISO(detailEntry.created_at), "dd/MM/yyyy HH:mm")}
               </div>
