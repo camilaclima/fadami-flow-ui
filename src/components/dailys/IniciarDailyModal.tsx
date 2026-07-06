@@ -224,6 +224,7 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
   const filledCount = members.filter((m) => m.filled).length;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl w-[calc(100vw-2rem)] max-h-[94vh] overflow-y-auto p-0">
         <DialogHeader className="px-6 pt-6 pb-4 pr-12 border-b">
