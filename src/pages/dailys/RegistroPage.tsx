@@ -1096,6 +1096,21 @@ export default function RegistroPage() {
                 </div>
               )}
             </div>
+
+            {/* Observações gerais do dev */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <MessageSquarePlus className="w-4 h-4 text-primary" />
+                Observações gerais <span className="text-muted-foreground font-normal text-xs">(opcional)</span>
+              </Label>
+              <Textarea
+                rows={3}
+                value={generalNotes}
+                onChange={(e) => setGeneralNotes(e.target.value)}
+                placeholder="Comentários gerais sobre esta daily (contexto, decisões, alertas...)"
+                disabled={isLocked}
+              />
+            </div>
           </div>
 
           <DialogFooter>
