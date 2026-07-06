@@ -338,6 +338,7 @@ export default function PainelGPPage() {
   };
 
   const detailRow = useMemo(() => rows.find((r) => r.id === detailEntryId) ?? null, [rows, detailEntryId]);
+  const detailActivities = useDevDailyActivitiesByEntries(detailRow ? [detailRow.id] : []);
 
   const handleGenerate = async () => {
     const result = await gen.mutateAsync(rows.map(r => ({
