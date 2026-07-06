@@ -12,6 +12,7 @@ import {
 import { format, parseISO, differenceInCalendarDays } from "date-fns";
 import { URGENCY_LABELS, URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
 import { DevHistoryModal } from "@/components/dailys/DevHistoryModal";
+import { DevActivityCard } from "@/components/dailys/DevActivityCard";
 import type { DevDailyActivity } from "@/hooks/useDevDailyActivities";
 
 interface EntryLike {
