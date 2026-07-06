@@ -22,6 +22,8 @@ import { useDailySim } from "@/contexts/DailySimContext";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useDevDailyImpedimentsByEntries, URGENCY_LABELS, URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
 import { useSquads } from "@/hooks/useSquads";
+import { useDevDailyActivitiesByEntries, type DevDailyActivity } from "@/hooks/useDevDailyActivities";
+import { Circle, XCircle } from "lucide-react";
 
 interface MeetingRow {
   id: string;
@@ -320,6 +322,29 @@ function DayDetailDialog({
     return m;
   }, [impediments]);
 
+  const dayEntryIds = useMemo(() => (day?.entries ?? []).map((e) => e.id), [day]);
+  const { data: dayActivities = [] } = useDevDailyActivitiesByEntries(dayEntryIds);
+
+  const activitiesByEntry = useMemo(() => {
+    const done = new Map<string, DevDailyActivity[]>();
+    const inactive = new Map<string, DevDailyActivity[]>();
+    const planned = new Map<string, DevDailyActivity[]>();
+    dayActivities.forEach((a) => {
+      if (a.closed_entry_id && (a.status === "concluida" || a.status === "inativa")) {
+        const map = a.status === "concluida" ? done : inactive;
+        const list = map.get(a.closed_entry_id) ?? [];
+        list.push(a);
+        map.set(a.closed_entry_id, list);
+      }
+      if (a.created_entry_id && a.status === "pendente") {
+        const list = planned.get(a.created_entry_id) ?? [];
+        list.push(a);
+        planned.set(a.created_entry_id, list);
+      }
+    });
+    return { done, inactive, planned };
+  }, [dayActivities]);
+
   // Busca daily meetings (observações do líder) do dia selecionado.
   const { data: meetings = [] } = useQuery<MeetingRow[]>({
     queryKey: ["historico_meetings", day?.date ?? "", (scopedSquadIds ?? []).slice().sort().join(",")],
@@ -536,8 +561,17 @@ function DayDetailDialog({
                                 </p>
                               </div>
                             )}
-                            <Section label="Ontem" text={e.did_yesterday} />
-                            <Section label="Hoje" text={e.will_do_today} />
+                            <ActivitiesSection
+                              label="O que fiz"
+                              done={activitiesByEntry.done.get(e.id) ?? []}
+                              inactive={activitiesByEntry.inactive.get(e.id) ?? []}
+                              fallback={e.did_yesterday}
+                            />
+                            <PlannedSection
+                              label="O que farei"
+                              planned={activitiesByEntry.planned.get(e.id) ?? []}
+                              fallback={e.will_do_today}
+                            />
                             <div>
                               <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Impedimentos</p>
                               {imps.length === 0 ? (
@@ -626,6 +660,72 @@ function Section({ label, text }: { label: string; text: string | null }) {
       <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground/90">
         {text?.trim() ? text : "—"}
       </p>
+    </div>
+  );
+}
+
+function ActivitiesSection({
+  label,
+  done,
+  inactive,
+  fallback,
+}: {
+  label: string;
+  done: DevDailyActivity[];
+  inactive: DevDailyActivity[];
+  fallback: string | null;
+}) {
+  const hasAny = done.length + inactive.length > 0;
+  if (!hasAny) {
+    return <Section label={label} text={fallback} />;
+  }
+  return (
+    <div>
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">{label}</p>
+      <div className="space-y-1">
+        {done.map((a) => (
+          <div key={a.id} className="flex items-start gap-2 text-sm">
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 mt-0.5 flex-shrink-0" />
+            <span className="whitespace-pre-wrap leading-relaxed">{a.description}</span>
+          </div>
+        ))}
+        {inactive.map((a) => (
+          <div key={a.id} className="flex items-start gap-2 text-sm">
+            <XCircle className="h-3.5 w-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
+            <span className="whitespace-pre-wrap leading-relaxed text-muted-foreground line-through">
+              {a.description}
+            </span>
+            <Badge variant="outline" className="text-[10px]">Inativada</Badge>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PlannedSection({
+  label,
+  planned,
+  fallback,
+}: {
+  label: string;
+  planned: DevDailyActivity[];
+  fallback: string | null;
+}) {
+  if (planned.length === 0) {
+    return <Section label={label} text={fallback} />;
+  }
+  return (
+    <div>
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">{label}</p>
+      <div className="space-y-1">
+        {planned.map((a) => (
+          <div key={a.id} className="flex items-start gap-2 text-sm">
+            <Circle className="h-3.5 w-3.5 text-primary mt-0.5 flex-shrink-0" />
+            <span className="whitespace-pre-wrap leading-relaxed">{a.description}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
