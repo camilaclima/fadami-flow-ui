@@ -975,7 +975,8 @@ export default function PainelGPPage() {
                       );
                     })}
                   </div>
-                )}
+                );
+                })()}
               </div>
             </div>
           )}
