@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   ClipboardEdit, AlertTriangle, CheckCircle2, Calendar, Plus, Users,
   CalendarClock, TrendingUp, AlertOctagon, Trash2, CircleCheck, CircleDot,
-  Pencil, Eye, Loader2, Lock, Ban, ListChecks, MessageSquarePlus,
+  Pencil, Eye, Loader2, Lock, Ban, ListChecks, MessageSquarePlus, Clock,
 } from "lucide-react";
 import { DevActivityCard } from "@/components/dailys/DevActivityCard";
 import { useDevDailyEntriesByUser, useUpsertDevDailyEntry } from "@/hooks/useDevDailyEntries";
@@ -147,6 +147,8 @@ export default function RegistroPage() {
   const [priorRes, setPriorRes] = useState<Record<string, PriorResolution>>({});
   const [viewImp, setViewImp] = useState<DevDailyImpediment | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showImpsModal, setShowImpsModal] = useState(false);
+  const [showStagnantModal, setShowStagnantModal] = useState(false);
 
   // Decisão para cada atividade pendente carregada na Seção 1
   const [pastDecisions, setPastDecisions] = useState<Record<string, PastDecision>>({});
@@ -341,10 +343,6 @@ export default function RegistroPage() {
   /* ---------- KPIs ---------- */
   const kpis = useMemo(() => {
     const today = new Date();
-    const tomorrow = nextWorkday(today);
-    const tomorrowISO = toISO(tomorrow);
-    const tomorrowRegistered = entries.some((e) => e.entry_date === tomorrowISO);
-
     // Assiduidade: semana atual (segunda → sexta)
     const monday = startOfWeek(today, { weekStartsOn: 1 });
     const friday = addDays(monday, 4);
@@ -356,26 +354,45 @@ export default function RegistroPage() {
       ? Math.round((registeredWeekDays / weekWorkdays.length) * 100)
       : 0;
 
-    // Impedimentos na semana atual (segunda → hoje)
-    const weekUntilToday = workdaysInRange(monday, today);
-    const weekEntryIds = new Set(
-      entries
-        .filter((e) => {
-          const ed = parseISO(e.entry_date);
-          return weekUntilToday.some((wd) => isSameDay(ed, wd));
-        })
-        .map((e) => e.id)
-    );
-    const impedimentsCount = allImpediments.filter(
-      (imp) => !imp.resolved && weekEntryIds.has(imp.entry_id)
-    ).length;
+    const impedimentsCount = allImpediments.filter((imp) => !imp.resolved).length;
 
     return {
-      tomorrowRegistered,
       attendanceRate,
       impedimentsCount,
     };
   }, [entries, allImpediments]);
+
+  /* Lista de impedimentos ativos para o modal */
+  const activeImpedimentsList = useMemo(() => {
+    return allImpediments
+      .filter((i) => !i.resolved)
+      .map((imp) => ({
+        imp,
+        entryDate: entries.find((e) => e.id === imp.entry_id)?.entry_date ?? null,
+      }))
+      .sort((a, b) => (b.imp.created_at ?? "").localeCompare(a.imp.created_at ?? ""));
+  }, [allImpediments, entries]);
+
+  /* Tarefas estagnadas: pendentes ou concluídas com duração > 2 dias (não inativas) */
+  const stagnantData = useMemo(() => {
+    const now = Date.now();
+    const pending: Array<{ a: DevDailyActivity; days: number }> = [];
+    const resolved: Array<{ a: DevDailyActivity; days: number }> = [];
+    allActivities.forEach((a) => {
+      if (a.status === "inativa") return;
+      const created = new Date(a.created_at).getTime();
+      if (a.status === "pendente") {
+        const days = Math.floor((now - created) / 86400000);
+        if (days > 2) pending.push({ a, days });
+      } else if (a.status === "concluida" && a.completed_at) {
+        const days = Math.floor((new Date(a.completed_at).getTime() - created) / 86400000);
+        if (days > 2) resolved.push({ a, days });
+      }
+    });
+    pending.sort((x, y) => y.days - x.days);
+    resolved.sort((x, y) => y.days - x.days);
+    return { pending, resolved, total: pending.length + resolved.length };
+  }, [allActivities]);
 
   const submit = async () => {
     setTouched(true);
@@ -589,17 +606,23 @@ export default function RegistroPage() {
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
-        {/* Status de Amanhã */}
-        <Card className="rounded-2xl">
+        {/* Tarefas Estagnadas */}
+        <Card
+          role="button"
+          tabIndex={0}
+          onClick={() => setShowStagnantModal(true)}
+          onKeyDown={(ev) => { if (ev.key === "Enter") setShowStagnantModal(true); }}
+          className="rounded-2xl cursor-pointer hover:border-primary/40 hover:shadow-md transition-all"
+        >
           <CardContent className="p-4 flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${kpis.tomorrowRegistered ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"}`}>
-              <CalendarClock className="w-5 h-5" />
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${stagnantData.total > 0 ? "bg-amber-500/10 text-amber-600" : "bg-muted text-muted-foreground"}`}>
+              <Clock className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs text-muted-foreground mb-0.5">Status de Amanhã</p>
-              <Badge variant={kpis.tomorrowRegistered ? "default" : "destructive"} className="text-xs">
-                {kpis.tomorrowRegistered ? "Concluído" : "Pendente"}
-              </Badge>
+              <p className="text-xs text-muted-foreground mb-0.5">Tarefas Estagnadas</p>
+              <p className="text-lg font-semibold leading-tight">
+                {stagnantData.total} tarefa{stagnantData.total !== 1 ? "s" : ""}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -618,7 +641,13 @@ export default function RegistroPage() {
         </Card>
 
         {/* Impedimentos */}
-        <Card className="rounded-2xl">
+        <Card
+          role="button"
+          tabIndex={0}
+          onClick={() => setShowImpsModal(true)}
+          onKeyDown={(ev) => { if (ev.key === "Enter") setShowImpsModal(true); }}
+          className="rounded-2xl cursor-pointer hover:border-primary/40 hover:shadow-md transition-all"
+        >
           <CardContent className="p-4 flex items-center gap-3">
             <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${kpis.impedimentsCount > 0 ? "bg-orange-500/10 text-orange-500" : "bg-muted text-muted-foreground"}`}>
               <AlertOctagon className="w-5 h-5" />
@@ -658,15 +687,6 @@ export default function RegistroPage() {
           });
           const resolvedCount = imps.filter((i) => i.resolved).length;
           const openCount = imps.length - resolvedCount;
-          const byUrg = {
-            high: imps.filter((i) => i.urgency === "high").length,
-            medium: imps.filter((i) => i.urgency === "medium").length,
-            low: imps.filter((i) => i.urgency === "low").length,
-          };
-          const resolvedToday = imps.filter((i) => {
-            if (!i.resolved || !i.resolved_at) return false;
-            return i.resolved_at.slice(0, 10) === D;
-          }).length;
           return (
             <Card
               key={e.id}
@@ -716,9 +736,9 @@ export default function RegistroPage() {
                         {imps.length} impediment{imps.length === 1 ? "o" : "os"}
                       </span>
                       <div className="flex items-center gap-1">
-                        {resolvedToday > 0 && (
+                        {resolvedCount > 0 && (
                           <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 gap-1">
-                            <CircleCheck className="w-2.5 h-2.5" /> {resolvedToday} sanado{resolvedToday !== 1 ? "s" : ""}
+                            <CircleCheck className="w-2.5 h-2.5" /> {resolvedCount} sanado{resolvedCount !== 1 ? "s" : ""}
                           </Badge>
                         )}
                         {openCount > 0 && (
@@ -726,29 +746,7 @@ export default function RegistroPage() {
                             {openCount} em aberto
                           </Badge>
                         )}
-                        {openCount === 0 && resolvedToday === 0 && (
-                          <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
-                            Sanados
-                          </Badge>
-                        )}
                       </div>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {byUrg.high > 0 && (
-                        <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES.high}`}>
-                          Alta · {byUrg.high}
-                        </Badge>
-                      )}
-                      {byUrg.medium > 0 && (
-                        <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES.medium}`}>
-                          Média · {byUrg.medium}
-                        </Badge>
-                      )}
-                      {byUrg.low > 0 && (
-                        <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES.low}`}>
-                          Baixa · {byUrg.low}
-                        </Badge>
-                      )}
                     </div>
                   </div>
                 )}
@@ -1183,6 +1181,116 @@ export default function RegistroPage() {
           )}
           <DialogFooter>
             <Button onClick={() => setViewImp(null)} className="rounded-xl">Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Impedimentos ativos */}
+      <Dialog open={showImpsModal} onOpenChange={setShowImpsModal}>
+        <DialogContent className="max-w-3xl w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertOctagon className="w-5 h-5 text-orange-500" /> Impedimentos ativos
+              <Badge variant="outline" className="ml-1">{activeImpedimentsList.length}</Badge>
+            </DialogTitle>
+          </DialogHeader>
+          {activeImpedimentsList.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">Nenhum impedimento em aberto.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {activeImpedimentsList.map(({ imp, entryDate }) => (
+                <div
+                  key={imp.id}
+                  className="flex items-start gap-2.5 p-3 rounded-xl border bg-orange-500/5 border-orange-500/20"
+                >
+                  <AlertTriangle className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground break-words whitespace-pre-wrap">
+                      {imp.description}
+                    </p>
+                    <div className="mt-1 flex items-center gap-1.5 flex-wrap text-xs text-muted-foreground">
+                      {entryDate && (
+                        <>
+                          <span>Criado em {format(parseISO(entryDate), "dd/MM", { locale: ptBR })}</span>
+                          <span>•</span>
+                        </>
+                      )}
+                      <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES[imp.urgency]}`}>
+                        {URGENCY_LABELS[imp.urgency]}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setShowImpsModal(false)} className="rounded-xl">Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Tarefas estagnadas */}
+      <Dialog open={showStagnantModal} onOpenChange={setShowStagnantModal}>
+        <DialogContent className="max-w-3xl w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-amber-600" /> Tarefas estagnadas
+              <span className="text-xs font-normal text-muted-foreground">(mais de 2 dias)</span>
+            </DialogTitle>
+          </DialogHeader>
+          {stagnantData.total === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">Nenhuma tarefa estagnada.</p>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs uppercase tracking-wide font-semibold text-orange-600 mb-2 flex items-center gap-1.5">
+                  <CircleDot className="w-3.5 h-3.5" /> Ainda pendentes ({stagnantData.pending.length})
+                </p>
+                {stagnantData.pending.length === 0 ? (
+                  <p className="text-sm text-muted-foreground italic">Nenhuma.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {stagnantData.pending.map(({ a, days }) => (
+                      <div key={a.id} className="rounded-lg border bg-orange-500/5 border-orange-500/20 p-2.5 flex items-start gap-2">
+                        <Clock className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm break-words whitespace-pre-wrap">{a.description}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            Pendente há {days} dia{days !== 1 ? "s" : ""} · criada em {format(parseISO(a.created_at), "dd/MM", { locale: ptBR })}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide font-semibold text-emerald-600 mb-2 flex items-center gap-1.5">
+                  <CircleCheck className="w-3.5 h-3.5" /> Sanadas ({stagnantData.resolved.length})
+                </p>
+                {stagnantData.resolved.length === 0 ? (
+                  <p className="text-sm text-muted-foreground italic">Nenhuma.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {stagnantData.resolved.map(({ a, days }) => (
+                      <div key={a.id} className="rounded-lg border bg-emerald-500/5 border-emerald-500/20 p-2.5 flex items-start gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm break-words whitespace-pre-wrap">{a.description}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            Levou {days} dia{days !== 1 ? "s" : ""} · concluída em {a.completed_at ? format(parseISO(a.completed_at), "dd/MM", { locale: ptBR }) : "—"}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setShowStagnantModal(false)} className="rounded-xl">Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
