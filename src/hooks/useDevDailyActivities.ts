@@ -53,6 +53,21 @@ export function useDevDailyActivitiesByEntries(entryIds: string[]) {
   });
 }
 
+/** Atividades por lista de user_ids — usado para carry-over em painéis. */
+export function useDevDailyActivitiesByUsers(userIds: string[]) {
+  return useQuery({
+    queryKey: ["dev_daily_activities", "by-users", [...userIds].sort().join(",")],
+    enabled: userIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("dev_daily_activities") as any)
+        .select("*")
+        .in("user_id", userIds);
+      if (error) throw error;
+      return (data ?? []) as DevDailyActivity[];
+    },
+  });
+}
+
 export function useDevDailyActivityMutations() {
   const qc = useQueryClient();
   const { user } = useAuth();
