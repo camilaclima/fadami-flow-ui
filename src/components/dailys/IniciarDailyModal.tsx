@@ -11,7 +11,7 @@ import { FileText, X, Play, AlertTriangle, MessageSquarePlus, UserX, Paperclip, 
 import { uploadAttachment } from "@/lib/uploadAttachment";
 import { useCreateDailyMeeting } from "@/hooks/useDailyMeetings";
 import { useImpedimentMutations, URGENCY_LABELS, URGENCY_STYLES, type DevDailyImpediment } from "@/hooks/useDevDailyImpediments";
-import { useDevDailyActivitiesByEntries, useDevDailyActivitiesByUsers } from "@/hooks/useDevDailyActivities";
+import { useDevDailyActivitiesByUsers } from "@/hooks/useDevDailyActivities";
 import { useDevDailyEntriesByUsers } from "@/hooks/useDevDailyEntries";
 import { DevHistoryModal } from "@/components/dailys/DevHistoryModal";
 import { DevActivityCard } from "@/components/dailys/DevActivityCard";
@@ -77,11 +77,6 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [historyFor, setHistoryFor] = useState<{ userId: string | null; name: string } | null>(null);
 
-  const entryIds = useMemo(
-    () => members.map((m) => m.entry?.id).filter((v): v is string => !!v),
-    [members],
-  );
-  const { data: activities = [] } = useDevDailyActivitiesByEntries(open ? entryIds : []);
   const memberUserIds = useMemo(
     () => Array.from(new Set(members.map((m) => m.entry?.user_id).filter((v): v is string => !!v))),
     [members],
