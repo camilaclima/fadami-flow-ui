@@ -606,17 +606,23 @@ export default function RegistroPage() {
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
-        {/* Status de Amanhã */}
-        <Card className="rounded-2xl">
+        {/* Tarefas Estagnadas */}
+        <Card
+          role="button"
+          tabIndex={0}
+          onClick={() => setShowStagnantModal(true)}
+          onKeyDown={(ev) => { if (ev.key === "Enter") setShowStagnantModal(true); }}
+          className="rounded-2xl cursor-pointer hover:border-primary/40 hover:shadow-md transition-all"
+        >
           <CardContent className="p-4 flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${kpis.tomorrowRegistered ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"}`}>
-              <CalendarClock className="w-5 h-5" />
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${stagnantData.total > 0 ? "bg-amber-500/10 text-amber-600" : "bg-muted text-muted-foreground"}`}>
+              <Clock className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs text-muted-foreground mb-0.5">Status de Amanhã</p>
-              <Badge variant={kpis.tomorrowRegistered ? "default" : "destructive"} className="text-xs">
-                {kpis.tomorrowRegistered ? "Concluído" : "Pendente"}
-              </Badge>
+              <p className="text-xs text-muted-foreground mb-0.5">Tarefas Estagnadas</p>
+              <p className="text-lg font-semibold leading-tight">
+                {stagnantData.total} tarefa{stagnantData.total !== 1 ? "s" : ""}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -635,7 +641,13 @@ export default function RegistroPage() {
         </Card>
 
         {/* Impedimentos */}
-        <Card className="rounded-2xl">
+        <Card
+          role="button"
+          tabIndex={0}
+          onClick={() => setShowImpsModal(true)}
+          onKeyDown={(ev) => { if (ev.key === "Enter") setShowImpsModal(true); }}
+          className="rounded-2xl cursor-pointer hover:border-primary/40 hover:shadow-md transition-all"
+        >
           <CardContent className="p-4 flex items-center gap-3">
             <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${kpis.impedimentsCount > 0 ? "bg-orange-500/10 text-orange-500" : "bg-muted text-muted-foreground"}`}>
               <AlertOctagon className="w-5 h-5" />
