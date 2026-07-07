@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { useSquads } from "@/hooks/useSquads";
 import { useDevDailyEntriesByDate } from "@/hooks/useDevDailyEntries";
 import { useDevDailyImpedimentsByEntries, URGENCY_LABELS, URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
-import { useDevDailyActivitiesByEntries } from "@/hooks/useDevDailyActivities";
+import { useDevDailyActivitiesByEntries, useDevDailyActivitiesByUsers } from "@/hooks/useDevDailyActivities";
 import { DevActivityCard } from "@/components/dailys/DevActivityCard";
 import { MessageSquarePlus } from "lucide-react";
 import { useGenerateDailyInsights, useAnalyzeScopeStuck, type DailyInsight, type ScopeAlert } from "@/hooks/useDailyInsights";
@@ -339,6 +339,8 @@ export default function PainelGPPage() {
 
   const detailRow = useMemo(() => rows.find((r) => r.id === detailEntryId) ?? null, [rows, detailEntryId]);
   const detailActivities = useDevDailyActivitiesByEntries(detailRow ? [detailRow.id] : []);
+  // Também precisa das atividades do usuário para detectar carry-over pendente.
+  const detailUserActivities = useDevDailyActivitiesByUsers(detailRow ? [detailRow.user_id] : []);
 
   const handleGenerate = async () => {
     const result = await gen.mutateAsync(rows.map(r => ({
