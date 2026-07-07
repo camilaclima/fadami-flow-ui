@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   ClipboardEdit, AlertTriangle, CheckCircle2, Calendar, Plus, Users,
   CalendarClock, TrendingUp, AlertOctagon, Trash2, CircleCheck, CircleDot,
-  Pencil, Eye, Loader2, Lock, Ban, ListChecks, MessageSquarePlus,
+  Pencil, Eye, Loader2, Lock, Ban, ListChecks, MessageSquarePlus, Clock,
 } from "lucide-react";
 import { DevActivityCard } from "@/components/dailys/DevActivityCard";
 import { useDevDailyEntriesByUser, useUpsertDevDailyEntry } from "@/hooks/useDevDailyEntries";
@@ -147,6 +147,8 @@ export default function RegistroPage() {
   const [priorRes, setPriorRes] = useState<Record<string, PriorResolution>>({});
   const [viewImp, setViewImp] = useState<DevDailyImpediment | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showImpsModal, setShowImpsModal] = useState(false);
+  const [showStagnantModal, setShowStagnantModal] = useState(false);
 
   // Decisão para cada atividade pendente carregada na Seção 1
   const [pastDecisions, setPastDecisions] = useState<Record<string, PastDecision>>({});
@@ -341,10 +343,6 @@ export default function RegistroPage() {
   /* ---------- KPIs ---------- */
   const kpis = useMemo(() => {
     const today = new Date();
-    const tomorrow = nextWorkday(today);
-    const tomorrowISO = toISO(tomorrow);
-    const tomorrowRegistered = entries.some((e) => e.entry_date === tomorrowISO);
-
     // Assiduidade: semana atual (segunda → sexta)
     const monday = startOfWeek(today, { weekStartsOn: 1 });
     const friday = addDays(monday, 4);
@@ -356,26 +354,45 @@ export default function RegistroPage() {
       ? Math.round((registeredWeekDays / weekWorkdays.length) * 100)
       : 0;
 
-    // Impedimentos na semana atual (segunda → hoje)
-    const weekUntilToday = workdaysInRange(monday, today);
-    const weekEntryIds = new Set(
-      entries
-        .filter((e) => {
-          const ed = parseISO(e.entry_date);
-          return weekUntilToday.some((wd) => isSameDay(ed, wd));
-        })
-        .map((e) => e.id)
-    );
-    const impedimentsCount = allImpediments.filter(
-      (imp) => !imp.resolved && weekEntryIds.has(imp.entry_id)
-    ).length;
+    const impedimentsCount = allImpediments.filter((imp) => !imp.resolved).length;
 
     return {
-      tomorrowRegistered,
       attendanceRate,
       impedimentsCount,
     };
   }, [entries, allImpediments]);
+
+  /* Lista de impedimentos ativos para o modal */
+  const activeImpedimentsList = useMemo(() => {
+    return allImpediments
+      .filter((i) => !i.resolved)
+      .map((imp) => ({
+        imp,
+        entryDate: entries.find((e) => e.id === imp.entry_id)?.entry_date ?? null,
+      }))
+      .sort((a, b) => (b.imp.created_at ?? "").localeCompare(a.imp.created_at ?? ""));
+  }, [allImpediments, entries]);
+
+  /* Tarefas estagnadas: pendentes ou concluídas com duração > 2 dias (não inativas) */
+  const stagnantData = useMemo(() => {
+    const now = Date.now();
+    const pending: Array<{ a: DevDailyActivity; days: number }> = [];
+    const resolved: Array<{ a: DevDailyActivity; days: number }> = [];
+    allActivities.forEach((a) => {
+      if (a.status === "inativa") return;
+      const created = new Date(a.created_at).getTime();
+      if (a.status === "pendente") {
+        const days = Math.floor((now - created) / 86400000);
+        if (days > 2) pending.push({ a, days });
+      } else if (a.status === "concluida" && a.completed_at) {
+        const days = Math.floor((new Date(a.completed_at).getTime() - created) / 86400000);
+        if (days > 2) resolved.push({ a, days });
+      }
+    });
+    pending.sort((x, y) => y.days - x.days);
+    resolved.sort((x, y) => y.days - x.days);
+    return { pending, resolved, total: pending.length + resolved.length };
+  }, [allActivities]);
 
   const submit = async () => {
     setTouched(true);
