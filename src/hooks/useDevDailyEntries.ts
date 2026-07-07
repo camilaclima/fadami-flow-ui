@@ -48,6 +48,21 @@ export function useDevDailyEntriesByUser(userId: string | null) {
   });
 }
 
+/** Filtra entradas por lista de user_ids — usado por painéis de líder. */
+export function useDevDailyEntriesByUsers(userIds: string[]) {
+  return useQuery({
+    queryKey: ["dev_daily_entries", "by-users", [...userIds].sort().join(",")],
+    enabled: userIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("dev_daily_entries") as any)
+        .select("id,user_id,entry_date")
+        .in("user_id", userIds);
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; user_id: string; entry_date: string }>;
+    },
+  });
+}
+
 export function useDevDailyEntriesByDate(date: string, squadId?: string | null) {
   return useQuery({
     queryKey: ["dev_daily_entries", "by-date", date, squadId ?? "all"],

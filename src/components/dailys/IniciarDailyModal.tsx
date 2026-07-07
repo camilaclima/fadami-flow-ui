@@ -11,7 +11,8 @@ import { FileText, X, Play, AlertTriangle, MessageSquarePlus, UserX, Paperclip, 
 import { uploadAttachment } from "@/lib/uploadAttachment";
 import { useCreateDailyMeeting } from "@/hooks/useDailyMeetings";
 import { useImpedimentMutations, URGENCY_LABELS, URGENCY_STYLES, type DevDailyImpediment } from "@/hooks/useDevDailyImpediments";
-import { useDevDailyActivitiesByEntries } from "@/hooks/useDevDailyActivities";
+import { useDevDailyActivitiesByUsers } from "@/hooks/useDevDailyActivities";
+import { useDevDailyEntriesByUsers } from "@/hooks/useDevDailyEntries";
 import { DevHistoryModal } from "@/components/dailys/DevHistoryModal";
 import { DevActivityCard } from "@/components/dailys/DevActivityCard";
 import { toast } from "sonner";
@@ -76,11 +77,12 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [historyFor, setHistoryFor] = useState<{ userId: string | null; name: string } | null>(null);
 
-  const entryIds = useMemo(
-    () => members.map((m) => m.entry?.id).filter((v): v is string => !!v),
+  const memberUserIds = useMemo(
+    () => Array.from(new Set(members.map((m) => m.entry?.user_id).filter((v): v is string => !!v))),
     [members],
   );
-  const { data: activities = [] } = useDevDailyActivitiesByEntries(open ? entryIds : []);
+  const { data: userActivities = [] } = useDevDailyActivitiesByUsers(open ? memberUserIds : []);
+  const { data: userEntriesAll = [] } = useDevDailyEntriesByUsers(open ? memberUserIds : []);
 
   // Reinicializa somente quando o modal abre
   useEffect(() => {
@@ -500,32 +502,46 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                     </Button>
                                   </div>
                                   {(() => {
-                                    const acts = activities.filter(
-                                      (a) =>
-                                        a.created_entry_id === m.entry!.id ||
-                                        a.closed_entry_id === m.entry!.id,
-                                    );
-                                    const done = acts.filter(
+                                    const D = date;
+                                    const userActs = userActivities.filter((a) => a.user_id === m.entry!.user_id);
+                                    const done = userActs.filter(
                                       (a) => a.status === "concluida" && a.closed_entry_id === m.entry!.id,
                                     );
-                                    const inactive = acts.filter(
+                                    const inactive = userActs.filter(
                                       (a) => a.status === "inativa" && a.closed_entry_id === m.entry!.id,
                                     );
-                                    const pending = acts.filter(
+                                    // Carry-over que continua pendente após esta daily.
+                                    const stillPending = userActs.filter((a) => {
+                                      if (a.closed_entry_id === m.entry!.id) return false;
+                                      const origin = a.created_entry_id
+                                        ? userEntriesAll.find((e) => e.id === a.created_entry_id)
+                                        : null;
+                                      const originDate = origin?.entry_date ?? (a.created_at ? a.created_at.slice(0, 10) : null);
+                                      if (!originDate || originDate >= D) return false;
+                                      if (a.closed_entry_id) {
+                                        const closed = userEntriesAll.find((e) => e.id === a.closed_entry_id);
+                                        if (closed && closed.entry_date <= D) return false;
+                                      }
+                                      return true;
+                                    });
+                                    // Atividades planejadas para hoje (registradas nesta entry, ainda pendentes).
+                                    const pending = userActs.filter(
                                       (a) => a.status === "pendente" && a.created_entry_id === m.entry!.id,
                                     );
-                                    const today = new Date();
                                     return (
                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                         <div className="rounded-lg bg-muted/40 px-3 py-2">
                                           <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-1">Ontem</p>
-                                          {done.length + inactive.length > 0 ? (
+                                          {done.length + inactive.length + stillPending.length > 0 ? (
                                             <div className="space-y-1.5">
                                               {done.map((a) => (
                                                 <DevActivityCard key={a.id} kind="done" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
                                               ))}
                                               {inactive.map((a) => (
                                                 <DevActivityCard key={a.id} kind="inactive" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
+                                              ))}
+                                              {stillPending.map((a) => (
+                                                <DevActivityCard key={a.id} kind="pending" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
                                               ))}
                                             </div>
                                           ) : (

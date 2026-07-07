@@ -183,10 +183,23 @@ export default function RegistroPage() {
   );
   const detailPastActivities = useMemo<DevDailyActivity[]>(() => {
     if (!detailEntry) return [];
-    return allActivities.filter(
-      (a) => a.closed_entry_id === detailEntry.id && a.status !== "pendente"
-    );
-  }, [allActivities, detailEntry]);
+    const D = detailEntry.entry_date;
+    return allActivities.filter((a) => {
+      // Concluídas/inativadas neste registro
+      if (a.closed_entry_id === detailEntry.id && a.status !== "pendente") return true;
+      // Carry-over que continuou pendente após esta daily
+      // (existia antes de D e não foi fechada em nenhum registro até D)
+      if (a.closed_entry_id === detailEntry.id) return false; // já tratado acima
+      const origin = a.created_entry_id ? entries.find((e) => e.id === a.created_entry_id) : null;
+      const originDate = origin?.entry_date ?? (a.created_at ? a.created_at.slice(0, 10) : null);
+      if (!originDate || originDate >= D) return false;
+      if (a.closed_entry_id) {
+        const closed = entries.find((e) => e.id === a.closed_entry_id);
+        if (closed && closed.entry_date <= D) return false;
+      }
+      return true;
+    });
+  }, [allActivities, entries, detailEntry]);
   const detailPlannedActivities = useMemo<DevDailyActivity[]>(() => {
     if (!detailEntry) return [];
     return allActivities.filter((a) => {
