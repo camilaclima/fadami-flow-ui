@@ -564,7 +564,14 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                               )}
 
                               {/* Impedimentos em aberto */}
-                              {openImps.length > 0 && (
+                              {(() => {
+                                // Só mostrar impedimentos SANADOS no dia da daily consultada.
+                                const dayResolvedImps = m.imps.filter(
+                                  (i) => i.resolved && (i.resolved_at ? i.resolved_at.slice(0, 10) === date : false),
+                                );
+                                return null;
+                              })()}
+                              {false && openImps.length > 0 && (
                                 <div className="space-y-1.5">
                                   <p className="text-[10px] uppercase tracking-wide font-semibold text-orange-600">Impedimentos abertos</p>
                                   {openImps.map((imp) => (
