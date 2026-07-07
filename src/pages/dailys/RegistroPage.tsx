@@ -687,15 +687,6 @@ export default function RegistroPage() {
           });
           const resolvedCount = imps.filter((i) => i.resolved).length;
           const openCount = imps.length - resolvedCount;
-          const byUrg = {
-            high: imps.filter((i) => i.urgency === "high").length,
-            medium: imps.filter((i) => i.urgency === "medium").length,
-            low: imps.filter((i) => i.urgency === "low").length,
-          };
-          const resolvedToday = imps.filter((i) => {
-            if (!i.resolved || !i.resolved_at) return false;
-            return i.resolved_at.slice(0, 10) === D;
-          }).length;
           return (
             <Card
               key={e.id}
@@ -745,9 +736,9 @@ export default function RegistroPage() {
                         {imps.length} impediment{imps.length === 1 ? "o" : "os"}
                       </span>
                       <div className="flex items-center gap-1">
-                        {resolvedToday > 0 && (
+                        {resolvedCount > 0 && (
                           <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 gap-1">
-                            <CircleCheck className="w-2.5 h-2.5" /> {resolvedToday} sanado{resolvedToday !== 1 ? "s" : ""}
+                            <CircleCheck className="w-2.5 h-2.5" /> {resolvedCount} sanado{resolvedCount !== 1 ? "s" : ""}
                           </Badge>
                         )}
                         {openCount > 0 && (
@@ -755,29 +746,7 @@ export default function RegistroPage() {
                             {openCount} em aberto
                           </Badge>
                         )}
-                        {openCount === 0 && resolvedToday === 0 && (
-                          <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
-                            Sanados
-                          </Badge>
-                        )}
                       </div>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {byUrg.high > 0 && (
-                        <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES.high}`}>
-                          Alta · {byUrg.high}
-                        </Badge>
-                      )}
-                      {byUrg.medium > 0 && (
-                        <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES.medium}`}>
-                          Média · {byUrg.medium}
-                        </Badge>
-                      )}
-                      {byUrg.low > 0 && (
-                        <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES.low}`}>
-                          Baixa · {byUrg.low}
-                        </Badge>
-                      )}
                     </div>
                   </div>
                 )}
