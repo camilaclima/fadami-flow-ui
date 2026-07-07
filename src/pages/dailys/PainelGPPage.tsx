@@ -935,11 +935,15 @@ export default function PainelGPPage() {
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-orange-600 mb-2 flex items-center gap-1">
                   <AlertOctagon className="w-3 h-3" /> Impedimentos
                 </p>
-                {detailRow.imps.length === 0 ? (
+                {(() => {
+                  const dayImps = detailRow.imps.filter(
+                    (imp) => imp.resolved && (imp.resolved_at ? imp.resolved_at.slice(0, 10) === date : false),
+                  );
+                  return dayImps.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Nenhum impedimento registrado.</p>
                 ) : (
                   <div className="space-y-1.5">
-                    {detailRow.imps.map((imp) => {
+                    {dayImps.map((imp) => {
                       const origin = userEntries.find((e) => e.id === imp.entry_id);
                       const createdBadge = origin && origin.entry_date !== date ? (
                         <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground border-border">
@@ -971,7 +975,8 @@ export default function PainelGPPage() {
                       );
                     })}
                   </div>
-                )}
+                );
+                })()}
               </div>
             </div>
           )}
