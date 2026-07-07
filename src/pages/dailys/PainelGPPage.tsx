@@ -936,9 +936,11 @@ export default function PainelGPPage() {
                   <AlertOctagon className="w-3 h-3" /> Impedimentos
                 </p>
                 {(() => {
-                  const dayImps = detailRow.imps.filter(
-                    (imp) => imp.resolved && (imp.resolved_at ? imp.resolved_at.slice(0, 10) === date : false),
-                  );
+                  // Impedimentos criados no próprio dia do registro consultado.
+                  const dayImps = detailRow.imps.filter((imp) => {
+                    const origin = userEntries.find((e) => e.id === imp.entry_id);
+                    return origin?.entry_date === date;
+                  });
                   return dayImps.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Nenhum impedimento registrado.</p>
                 ) : (
