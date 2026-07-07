@@ -563,15 +563,8 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                 </div>
                               )}
 
-                              {/* Impedimentos em aberto */}
-                              {(() => {
-                                // Só mostrar impedimentos SANADOS no dia da daily consultada.
-                                const dayResolvedImps = m.imps.filter(
-                                  (i) => i.resolved && (i.resolved_at ? i.resolved_at.slice(0, 10) === date : false),
-                                );
-                                return null;
-                              })()}
-                              {false && openImps.length > 0 && (
+                              {/* Impedimentos em aberto (mantidos aqui para permitir sanar durante a daily) */}
+                              {openImps.length > 0 && (
                                 <div className="space-y-1.5">
                                   <p className="text-[10px] uppercase tracking-wide font-semibold text-orange-600">Impedimentos abertos</p>
                                   {openImps.map((imp) => (
@@ -599,7 +592,10 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
 
                               {/* Impedimentos sanados neste registro */}
                               {(() => {
-                                const resolvedImps = m.imps.filter((i) => i.resolved);
+                                // Só mostra impedimentos SANADOS no dia da daily consultada.
+                                const resolvedImps = m.imps.filter(
+                                  (i) => i.resolved && (i.resolved_at ? i.resolved_at.slice(0, 10) === date : false),
+                                );
                                 if (resolvedImps.length === 0) return null;
                                 return (
                                   <div className="space-y-1.5">
