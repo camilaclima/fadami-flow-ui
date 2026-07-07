@@ -866,7 +866,7 @@ export default function PainelGPPage() {
       />
 
       <Dialog open={!!detailEntryId} onOpenChange={(o) => !o && setDetailEntryId(null)}>
-        <DialogContent className="max-w-2xl rounded-2xl">
+        <DialogContent className="max-w-5xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between gap-2 pr-8">
               <span className="flex items-center gap-2">
