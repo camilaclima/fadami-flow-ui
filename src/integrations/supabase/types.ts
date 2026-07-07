@@ -588,6 +588,7 @@ export type Database = {
           created_at: string
           created_entry_id: string | null
           description: string
+          dev_notes: string | null
           id: string
           inactivated_at: string | null
           squad_id: string | null
@@ -602,6 +603,7 @@ export type Database = {
           created_at?: string
           created_entry_id?: string | null
           description: string
+          dev_notes?: string | null
           id?: string
           inactivated_at?: string | null
           squad_id?: string | null
@@ -616,6 +618,7 @@ export type Database = {
           created_at?: string
           created_entry_id?: string | null
           description?: string
+          dev_notes?: string | null
           id?: string
           inactivated_at?: string | null
           squad_id?: string | null
@@ -646,6 +649,7 @@ export type Database = {
           created_at: string
           did_yesterday: string | null
           entry_date: string
+          general_notes: string | null
           id: string
           impediments: string | null
           squad_id: string | null
@@ -658,6 +662,7 @@ export type Database = {
           created_at?: string
           did_yesterday?: string | null
           entry_date?: string
+          general_notes?: string | null
           id?: string
           impediments?: string | null
           squad_id?: string | null
@@ -670,6 +675,7 @@ export type Database = {
           created_at?: string
           did_yesterday?: string | null
           entry_date?: string
+          general_notes?: string | null
           id?: string
           impediments?: string | null
           squad_id?: string | null
