@@ -1184,6 +1184,116 @@ export default function RegistroPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal: Impedimentos ativos */}
+      <Dialog open={showImpsModal} onOpenChange={setShowImpsModal}>
+        <DialogContent className="max-w-3xl w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertOctagon className="w-5 h-5 text-orange-500" /> Impedimentos ativos
+              <Badge variant="outline" className="ml-1">{activeImpedimentsList.length}</Badge>
+            </DialogTitle>
+          </DialogHeader>
+          {activeImpedimentsList.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">Nenhum impedimento em aberto.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {activeImpedimentsList.map(({ imp, entryDate }) => (
+                <div
+                  key={imp.id}
+                  className="flex items-start gap-2.5 p-3 rounded-xl border bg-orange-500/5 border-orange-500/20"
+                >
+                  <AlertTriangle className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground break-words whitespace-pre-wrap">
+                      {imp.description}
+                    </p>
+                    <div className="mt-1 flex items-center gap-1.5 flex-wrap text-xs text-muted-foreground">
+                      {entryDate && (
+                        <>
+                          <span>Criado em {format(parseISO(entryDate), "dd/MM", { locale: ptBR })}</span>
+                          <span>•</span>
+                        </>
+                      )}
+                      <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES[imp.urgency]}`}>
+                        {URGENCY_LABELS[imp.urgency]}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setShowImpsModal(false)} className="rounded-xl">Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Tarefas estagnadas */}
+      <Dialog open={showStagnantModal} onOpenChange={setShowStagnantModal}>
+        <DialogContent className="max-w-3xl w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-amber-600" /> Tarefas estagnadas
+              <span className="text-xs font-normal text-muted-foreground">(mais de 2 dias)</span>
+            </DialogTitle>
+          </DialogHeader>
+          {stagnantData.total === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">Nenhuma tarefa estagnada.</p>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs uppercase tracking-wide font-semibold text-orange-600 mb-2 flex items-center gap-1.5">
+                  <CircleDot className="w-3.5 h-3.5" /> Ainda pendentes ({stagnantData.pending.length})
+                </p>
+                {stagnantData.pending.length === 0 ? (
+                  <p className="text-sm text-muted-foreground italic">Nenhuma.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {stagnantData.pending.map(({ a, days }) => (
+                      <div key={a.id} className="rounded-lg border bg-orange-500/5 border-orange-500/20 p-2.5 flex items-start gap-2">
+                        <Clock className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm break-words whitespace-pre-wrap">{a.description}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            Pendente há {days} dia{days !== 1 ? "s" : ""} · criada em {format(parseISO(a.created_at), "dd/MM", { locale: ptBR })}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide font-semibold text-emerald-600 mb-2 flex items-center gap-1.5">
+                  <CircleCheck className="w-3.5 h-3.5" /> Sanadas ({stagnantData.resolved.length})
+                </p>
+                {stagnantData.resolved.length === 0 ? (
+                  <p className="text-sm text-muted-foreground italic">Nenhuma.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {stagnantData.resolved.map(({ a, days }) => (
+                      <div key={a.id} className="rounded-lg border bg-emerald-500/5 border-emerald-500/20 p-2.5 flex items-start gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm break-words whitespace-pre-wrap">{a.description}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            Levou {days} dia{days !== 1 ? "s" : ""} · concluída em {a.completed_at ? format(parseISO(a.completed_at), "dd/MM", { locale: ptBR }) : "—"}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setShowStagnantModal(false)} className="rounded-xl">Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
