@@ -172,10 +172,11 @@ export default function RegistroPage() {
       if (!detailEntry) return [];
       const D = detailEntry.entry_date; // YYYY-MM-DD
       return allImpediments.filter((imp) => {
-        // Mostrar apenas impedimentos SANADOS no próprio dia do registro consultado.
-        if (!imp.resolved) return false;
-        const resolvedDate = imp.resolved_at ? imp.resolved_at.slice(0, 10) : null;
-        return resolvedDate === D;
+        // Mostrar apenas impedimentos CRIADOS no próprio dia do registro consultado
+        // (independente de estarem em aberto ou já sanados posteriormente).
+        const origin = entries.find((e) => e.id === imp.entry_id);
+        if (!origin) return false;
+        return origin.entry_date === D;
       });
     },
     [allImpediments, entries, detailEntry]
