@@ -313,15 +313,51 @@ function DayDetailDialog({
   const [loadingAI, setLoadingAI] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
+  // Universo maior: para cada usuário do dia, precisamos ver impedimentos criados
+  // em qualquer entry anterior/dele até D e que ainda estejam em aberto (ou sanados em D).
+  const dayUserIds = useMemo(
+    () => Array.from(new Set((day?.entries ?? []).map((e) => e.user_id))),
+    [day],
+  );
+  const { data: userEntriesUpto = [] } = useQuery({
+    queryKey: ["historico_user_entries_upto", day?.date ?? "", dayUserIds.slice().sort().join(",")],
+    enabled: !!day && dayUserIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("dev_daily_entries") as any)
+        .select("id,user_id,entry_date")
+        .in("user_id", dayUserIds)
+        .lte("entry_date", day!.date);
+      if (error) throw error;
+      return (data ?? []) as { id: string; user_id: string; entry_date: string }[];
+    },
+  });
+  const uptoEntryIds = useMemo(() => userEntriesUpto.map((e) => e.id), [userEntriesUpto]);
+  const { data: uptoImpediments = [] } = useDevDailyImpedimentsByEntries(uptoEntryIds);
+
+  // Mapa: entry.id do dia -> impedimentos visíveis (do próprio dev, criados até D,
+  // e ainda em aberto OU sanados no próprio dia D).
   const impsByEntry = useMemo(() => {
+    const D = day?.date ?? "";
+    const entryById = new Map(userEntriesUpto.map((e) => [e.id, e]));
+    const byUser = new Map<string, typeof impediments>();
+    uptoImpediments.forEach((imp) => {
+      const origin = entryById.get(imp.entry_id);
+      if (!origin) return;
+      if (origin.entry_date > D) return;
+      if (imp.resolved) {
+        const rd = imp.resolved_at ? imp.resolved_at.slice(0, 10) : null;
+        if (rd && rd < D) return;
+      }
+      const list = byUser.get(origin.user_id) ?? [];
+      list.push(imp as any);
+      byUser.set(origin.user_id, list);
+    });
     const m = new Map<string, typeof impediments>();
-    impediments.forEach((i) => {
-      const list = m.get(i.entry_id) ?? [];
-      list.push(i);
-      m.set(i.entry_id, list);
+    (day?.entries ?? []).forEach((e) => {
+      m.set(e.id, (byUser.get(e.user_id) ?? []) as any);
     });
     return m;
-  }, [impediments]);
+  }, [uptoImpediments, userEntriesUpto, day]);
 
   const dayEntryIds = useMemo(() => (day?.entries ?? []).map((e) => e.id), [day]);
   const { data: dayActivities = [] } = useDevDailyActivitiesByEntries(dayEntryIds);
