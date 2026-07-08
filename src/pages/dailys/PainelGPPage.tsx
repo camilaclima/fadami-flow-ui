@@ -745,15 +745,15 @@ export default function PainelGPPage() {
                   {scopeMut.isPending && (
                     <p className="text-xs text-muted-foreground">Analisando dailies dos últimos 7 dias…</p>
                   )}
-                  {!scopeMut.isPending && scopeAlerts.length === 0 && scopeAnalyzed && (
+                  {!scopeMut.isPending && visibleScopeAlerts.length === 0 && scopeAnalyzed && (
                     <div className="flex items-center gap-2 text-xs text-emerald-600">
                       <CircleCheck className="w-4 h-4" />
                       Nenhum dev preso na mesma tarefa. Escopo fluindo bem.
                     </div>
                   )}
-                  {scopeAlerts.length > 0 && (
+                  {visibleScopeAlerts.length > 0 && (
                     <div className="space-y-2">
-                      {scopeAlerts.map((a, i) => (
+                      {visibleScopeAlerts.map((a, i) => (
                         <div key={i} className="flex items-start gap-2.5 p-2 rounded-xl border bg-amber-500/5 border-amber-500/30">
                           <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                           <div className="min-w-0 flex-1">
