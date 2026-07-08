@@ -310,8 +310,9 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
               )}
               {members.map((m) => {
                 const st = memberState[m.key] ?? defaultState(m.filled);
-                // Impedimentos deste registro (criados no dia da daily consultada).
-                const dayImps = m.entry ? m.imps.filter((i) => i.entry_id === m.entry!.id) : [];
+                // Impedimentos visíveis no dia da daily: criados até D e ainda em aberto,
+                // ou sanados no próprio dia. m.imps já vem filtrado por impsByUser.
+                const dayImps = m.imps;
                 const openImps = dayImps.filter((i) => !i.resolved);
                 const noteCount = st.notes.trim().length;
                 const isOpen = expanded[m.key] ?? false;
