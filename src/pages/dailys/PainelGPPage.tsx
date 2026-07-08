@@ -472,6 +472,31 @@ export default function PainelGPPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recentEntries]);
 
+  // Reseta análise de escopo ao trocar squad/data para não vazar alertas de outra squad.
+  useEffect(() => {
+    setScopeAlerts([]);
+    setScopeAnalyzed(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveSquadId, date]);
+
+  // Nomes permitidos = membros da squad selecionada (ou devs que preencheram, quando "todas").
+  const allowedDevNames = useMemo(() => {
+    const names = new Set<string>();
+    userIds.forEach((uid) => {
+      const p = profileByUser.get(uid);
+      const nameFromProfile = p ? (`${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || p.email) : null;
+      const nameFromSquad = squadProfiles.find((sp) => sp.user_id === uid)?.name ?? null;
+      const n = nameFromProfile || nameFromSquad;
+      if (n) names.add(n.trim().toLowerCase());
+    });
+    return names;
+  }, [userIds, profileByUser, squadProfiles]);
+
+  const visibleScopeAlerts = useMemo(() => {
+    if (allowedDevNames.size === 0) return scopeAlerts;
+    return scopeAlerts.filter((a) => allowedDevNames.has((a.dev_name ?? "").trim().toLowerCase()));
+  }, [scopeAlerts, allowedDevNames]);
+
   if (simLoading) {
     return (
       <div className="p-6 flex items-center justify-center">
