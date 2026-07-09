@@ -1380,7 +1380,7 @@ function ReadonlyActivitiesList({
         <DevActivityCard
           key={a.id}
           kind={a.status === "concluida" ? "done" : a.status === "inativa" ? "inactive" : "pending"}
-          description={a.description}
+          description={a.card_code ? `#${a.card_code} ${a.description}` : a.description}
           createdAt={a.created_at}
           devNotes={a.dev_notes}
         />
