@@ -1600,12 +1600,23 @@ function ActivitiesFutureSection(props: {
 }) {
   const { label, locked, plannedInEntry, plannedDrafts, setPlannedDrafts, activityNotes, setActivityNotes } = props;
   const [newDesc, setNewDesc] = useState("");
+  const [newCode, setNewCode] = useState("");
 
   const add = () => {
     const d = newDesc.trim();
+    const code = newCode.trim();
     if (!d) return;
-    setPlannedDrafts((p) => [...p, { id: crypto.randomUUID(), description: d }]);
+    if (!code) {
+      toast.error("Informe o Código do Card (apenas números).");
+      return;
+    }
+    if (!/^\d+$/.test(code)) {
+      toast.error("O Código do Card deve conter apenas números.");
+      return;
+    }
+    setPlannedDrafts((p) => [...p, { id: crypto.randomUUID(), description: d, cardCode: code }]);
     setNewDesc("");
+    setNewCode("");
   };
 
   return (
@@ -1653,6 +1664,14 @@ function ActivitiesFutureSection(props: {
 
       {!locked && (
         <div className="flex items-center gap-2 pt-1">
+          <Input
+            placeholder="Nº card"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={newCode}
+            onChange={(e) => setNewCode(e.target.value.replace(/\D/g, ""))}
+            className="w-24 shrink-0"
+          />
           <Input
             placeholder="Ex.: Finalizar tela de login"
             value={newDesc}
