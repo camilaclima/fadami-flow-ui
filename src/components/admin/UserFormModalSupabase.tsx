@@ -125,7 +125,7 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
         toast.success("Usuário atualizado!");
         onOpenChange(false);
       } else {
-        const tempPassword = Math.random().toString(36).slice(-8);
+        const tempPassword = "Fadami";
         const { data, error } = await supabase.functions.invoke("create-user", {
           body: {
             email: email.trim(),
