@@ -1411,22 +1411,30 @@ function ActivitiesPastSection(props: {
 
   const [newDesc, setNewDesc] = useState("");
   const [newCode, setNewCode] = useState("");
+  const [newNote, setNewNote] = useState("");
 
   const addExtra = () => {
     const d = newDesc.trim();
     const code = newCode.trim();
     if (!d) return;
-    if (!code) {
-      toast.error("Informe o Código do Card (apenas números).");
-      return;
-    }
-    if (!/^\d+$/.test(code)) {
+    if (code && !/^\d+$/.test(code)) {
       toast.error("O Código do Card deve conter apenas números.");
       return;
     }
-    setDoneDrafts((p) => [...p, { id: crypto.randomUUID(), description: d, cardCode: code }]);
+    setDoneDrafts((p) => [
+      ...p,
+      { id: crypto.randomUUID(), description: d, cardCode: code, notes: newNote.trim() || undefined },
+    ]);
     setNewDesc("");
     setNewCode("");
+    setNewNote("");
+  };
+
+  const editDraft = (d: DraftDone) => {
+    setNewDesc(d.description);
+    setNewCode(d.cardCode);
+    setNewNote(d.notes ?? "");
+    setDoneDrafts((p) => p.filter((x) => x.id !== d.id));
   };
 
   const setDec = (id: string, dec: PastDecision) => {
@@ -1547,7 +1555,9 @@ function ActivitiesPastSection(props: {
         <div key={d.id} className="rounded-lg border p-2.5 bg-emerald-500/5 border-emerald-500/30 flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <p className="text-sm flex-1 min-w-0 break-words">
-            <Badge variant="outline" className="mr-1.5 font-mono text-[10px]">#{d.cardCode}</Badge>
+            {d.cardCode && (
+              <Badge variant="outline" className="mr-1.5 font-mono text-[10px]">#{d.cardCode}</Badge>
+            )}
             {d.description}
           </p>
           <NoteButton
@@ -1555,6 +1565,17 @@ function ActivitiesPastSection(props: {
             onChange={(v) => setDoneDrafts((p) => p.map((x) => (x.id === d.id ? { ...x, notes: v } : x)))}
             disabled={locked}
           />
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7"
+            onClick={() => editDraft(d)}
+            disabled={locked}
+            title="Editar atividade"
+          >
+            <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+          </Button>
           <Button
             type="button"
             size="icon"
@@ -1587,6 +1608,7 @@ function ActivitiesPastSection(props: {
               if (e.key === "Enter") { e.preventDefault(); addExtra(); }
             }}
           />
+          <NoteButton value={newNote} onChange={setNewNote} disabled={locked} />
           <Button type="button" size="sm" variant="outline" onClick={addExtra} className="gap-1 shrink-0">
             <Plus className="w-3.5 h-3.5" /> Adicionar
           </Button>
@@ -1614,22 +1636,30 @@ function ActivitiesFutureSection(props: {
   const { label, locked, plannedInEntry, plannedDrafts, setPlannedDrafts, activityNotes, setActivityNotes } = props;
   const [newDesc, setNewDesc] = useState("");
   const [newCode, setNewCode] = useState("");
+  const [newNote, setNewNote] = useState("");
 
   const add = () => {
     const d = newDesc.trim();
     const code = newCode.trim();
     if (!d) return;
-    if (!code) {
-      toast.error("Informe o Código do Card (apenas números).");
-      return;
-    }
-    if (!/^\d+$/.test(code)) {
+    if (code && !/^\d+$/.test(code)) {
       toast.error("O Código do Card deve conter apenas números.");
       return;
     }
-    setPlannedDrafts((p) => [...p, { id: crypto.randomUUID(), description: d, cardCode: code }]);
+    setPlannedDrafts((p) => [
+      ...p,
+      { id: crypto.randomUUID(), description: d, cardCode: code, notes: newNote.trim() || undefined },
+    ]);
     setNewDesc("");
     setNewCode("");
+    setNewNote("");
+  };
+
+  const editDraft = (d: DraftPlanned) => {
+    setNewDesc(d.description);
+    setNewCode(d.cardCode);
+    setNewNote(d.notes ?? "");
+    setPlannedDrafts((p) => p.filter((x) => x.id !== d.id));
   };
 
   return (
@@ -1662,7 +1692,9 @@ function ActivitiesFutureSection(props: {
         <div key={d.id} className="rounded-lg border p-2.5 bg-background flex items-center gap-2">
           <CircleDot className="w-4 h-4 text-primary shrink-0" />
           <p className="text-sm flex-1 min-w-0 break-words">
-            <Badge variant="outline" className="mr-1.5 font-mono text-[10px]">#{d.cardCode}</Badge>
+            {d.cardCode && (
+              <Badge variant="outline" className="mr-1.5 font-mono text-[10px]">#{d.cardCode}</Badge>
+            )}
             {d.description}
           </p>
           <NoteButton
@@ -1670,6 +1702,17 @@ function ActivitiesFutureSection(props: {
             onChange={(v) => setPlannedDrafts((p) => p.map((x) => (x.id === d.id ? { ...x, notes: v } : x)))}
             disabled={locked}
           />
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7"
+            onClick={() => editDraft(d)}
+            disabled={locked}
+            title="Editar atividade"
+          >
+            <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+          </Button>
           <Button
             type="button"
             size="icon"
@@ -1701,6 +1744,7 @@ function ActivitiesFutureSection(props: {
               if (e.key === "Enter") { e.preventDefault(); add(); }
             }}
           />
+          <NoteButton value={newNote} onChange={setNewNote} disabled={locked} />
           <Button type="button" size="sm" onClick={add} className="gap-1 shrink-0">
             <Plus className="w-3.5 h-3.5" /> Adicionar atividade
           </Button>
