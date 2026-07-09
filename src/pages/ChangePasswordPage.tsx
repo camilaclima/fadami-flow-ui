@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -18,7 +19,9 @@ function validatePassword(pw: string): string | null {
 }
 
 export default function ChangePasswordPage() {
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
+  const navigate = useNavigate();
+  const isFirstAccess = !!profile?.first_access;
   const [current, setCurrent] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -57,19 +60,30 @@ export default function ChangePasswordPage() {
     }
 
     const { error: updateErr } = await supabase.auth.updateUser({ password });
-    setLoading(false);
     if (updateErr) { setError(updateErr.message); return; }
+
+    // Marca first_access como concluído
+    if (profile?.id) {
+      await supabase.from("profiles").update({ first_access: false }).eq("id", profile.id);
+      await refreshProfile();
+    }
+    setLoading(false);
 
     setCurrent(""); setPassword(""); setConfirm("");
     toast.success("Senha alterada com sucesso!");
+    if (isFirstAccess) navigate("/", { replace: true });
   };
 
   return (
     <div className="fade-in space-y-6 max-w-xl">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Alterar Senha</h1>
+        <h1 className="text-2xl font-bold text-foreground">
+          {isFirstAccess ? "Primeiro acesso — defina sua senha" : "Alterar Senha"}
+        </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Atualize sua senha de acesso seguindo as diretrizes de segurança.
+          {isFirstAccess
+            ? "Sua senha atual é temporária (Fadami). Escolha uma nova senha para continuar."
+            : "Atualize sua senha de acesso seguindo as diretrizes de segurança."}
         </p>
       </div>
 
