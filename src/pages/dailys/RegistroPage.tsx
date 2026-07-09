@@ -1314,15 +1314,49 @@ function NoteButton({
   disabled?: boolean;
 }) {
   const has = value.trim().length > 0;
+  const [open, setOpen] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  const moveFocusToNext = () => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const focusable = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), details, [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((el) => {
+      if (el.offsetParent === null) return false;
+      if (el.closest('[data-radix-popper-content-wrapper]')) return false;
+      const ariaHidden = el.closest('[aria-hidden="true"]');
+      if (ariaHidden) return false;
+      return true;
+    });
+    const idx = focusable.indexOf(trigger);
+    const next = focusable[idx + 1];
+    setOpen(false);
+    if (next) {
+      setTimeout(() => next.focus(), 0);
+    } else {
+      trigger.blur();
+    }
+  };
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          ref={triggerRef}
           type="button"
           variant="outline"
           size="icon"
           disabled={disabled}
           title={has ? "Editar observação" : "Adicionar observação"}
+          onFocus={() => {
+            if (disabled) return;
+            setOpen(true);
+            setTimeout(() => textareaRef.current?.focus(), 0);
+          }}
           className={`h-7 w-7 rounded-lg relative shrink-0 ${
             has
               ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/40"
@@ -1342,10 +1376,17 @@ function NoteButton({
           <MessageSquarePlus className="w-3 h-3" /> Observação sobre esta demanda
         </Label>
         <Textarea
+          ref={textareaRef}
           rows={4}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === "Tab" && !e.shiftKey) {
+              e.preventDefault();
+              moveFocusToNext();
+            }
+          }}
           placeholder="Contexto, dificuldades, decisões..."
           className="text-sm"
           disabled={disabled}
