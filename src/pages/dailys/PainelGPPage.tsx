@@ -544,7 +544,7 @@ export default function PainelGPPage() {
               </Select>
             </div>
             <Button onClick={() => setOpenModal(true)} className="rounded-xl gap-2 bg-orange-500 hover:bg-orange-600 text-white">
-              <Play className="w-4 h-4" /> Daily em Andamento
+              <Play className="w-4 h-4" /> Iniciar Daily
             </Button>
           </div>
         </div>
