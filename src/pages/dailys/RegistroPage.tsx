@@ -1410,12 +1410,23 @@ function ActivitiesPastSection(props: {
   } = props;
 
   const [newDesc, setNewDesc] = useState("");
+  const [newCode, setNewCode] = useState("");
 
   const addExtra = () => {
     const d = newDesc.trim();
+    const code = newCode.trim();
     if (!d) return;
-    setDoneDrafts((p) => [...p, { id: crypto.randomUUID(), description: d }]);
+    if (!code) {
+      toast.error("Informe o Código do Card (apenas números).");
+      return;
+    }
+    if (!/^\d+$/.test(code)) {
+      toast.error("O Código do Card deve conter apenas números.");
+      return;
+    }
+    setDoneDrafts((p) => [...p, { id: crypto.randomUUID(), description: d, cardCode: code }]);
     setNewDesc("");
+    setNewCode("");
   };
 
   const setDec = (id: string, dec: PastDecision) => {
@@ -1547,6 +1558,14 @@ function ActivitiesPastSection(props: {
       {/* Adicionar item feito fora do planejado */}
       {!locked && (
         <div className="flex items-center gap-2 pt-1">
+          <Input
+            placeholder="Nº card"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={newCode}
+            onChange={(e) => setNewCode(e.target.value.replace(/\D/g, ""))}
+            className="w-24 shrink-0"
+          />
           <Input
             placeholder="Fiz algo fora do planejado? Descreva aqui..."
             value={newDesc}
