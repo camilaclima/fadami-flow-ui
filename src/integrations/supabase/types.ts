@@ -583,6 +583,7 @@ export type Database = {
       }
       dev_daily_activities: {
         Row: {
+          card_code: string | null
           closed_entry_id: string | null
           completed_at: string | null
           created_at: string
@@ -598,6 +599,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          card_code?: string | null
           closed_entry_id?: string | null
           completed_at?: string | null
           created_at?: string
@@ -613,6 +615,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          card_code?: string | null
           closed_entry_id?: string | null
           completed_at?: string | null
           created_at?: string
