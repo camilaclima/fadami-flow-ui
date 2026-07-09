@@ -10,6 +10,7 @@ export interface DevDailyActivity {
   user_id: string;
   squad_id: string | null;
   description: string;
+  card_code: string | null;
   status: ActivityStatus;
   created_entry_id: string | null;
   closed_entry_id: string | null;
@@ -79,6 +80,7 @@ export function useDevDailyActivityMutations() {
       user_id: string;
       squad_id: string | null;
       description: string;
+      card_code: string;
       status?: ActivityStatus;
       created_entry_id: string;
       closed_entry_id?: string | null;
@@ -89,6 +91,7 @@ export function useDevDailyActivityMutations() {
         user_id: input.user_id,
         squad_id: input.squad_id,
         description: input.description,
+        card_code: input.card_code,
         status: input.status ?? "pendente",
         created_entry_id: input.created_entry_id,
         closed_entry_id: input.closed_entry_id ?? null,
