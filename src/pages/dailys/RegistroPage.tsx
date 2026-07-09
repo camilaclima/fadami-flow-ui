@@ -42,8 +42,8 @@ type DraftImpediment = { id: string; description: string; urgency: ImpedimentUrg
 type PriorResolution = { resolved: boolean | null };
 /** Decisão do dev para uma atividade pendente carregada na Seção 1. */
 type PastDecision = "pending" | "done" | "inactive";
-type DraftPlanned = { id: string; description: string; notes?: string };
-type DraftDone = { id: string; description: string; notes?: string };
+type DraftPlanned = { id: string; description: string; cardCode: string; notes?: string };
+type DraftDone = { id: string; description: string; cardCode: string; notes?: string };
 
 function isWorkday(d: Date): boolean {
   const dow = d.getDay();
@@ -488,6 +488,7 @@ export default function RegistroPage() {
               user_id: sim.devUserId!,
               squad_id: sim.squadIds?.[0] ?? null,
               description: d.description,
+              card_code: d.cardCode,
               status: "pendente",
               created_entry_id: entryId,
               dev_notes: d.notes?.trim() ? d.notes.trim() : null,
@@ -502,6 +503,7 @@ export default function RegistroPage() {
               user_id: sim.devUserId!,
               squad_id: sim.squadIds?.[0] ?? null,
               description: d.description,
+              card_code: d.cardCode,
               status: "concluida",
               created_entry_id: entryId,
               closed_entry_id: entryId,
