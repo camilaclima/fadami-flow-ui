@@ -238,7 +238,7 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                 <Play className="w-5 h-5" />
               </div>
               <div className="min-w-0">
-                <DialogTitle className="text-lg leading-tight">Iniciar Daily</DialogTitle>
+                <DialogTitle className="text-lg leading-tight">Daily em Andamento</DialogTitle>
                 <DialogDescription className="flex items-center gap-1.5 mt-0.5 text-xs">
                   <Calendar className="w-3.5 h-3.5" />
                   <span className="capitalize">{weekday}</span>
