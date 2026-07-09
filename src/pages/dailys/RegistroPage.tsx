@@ -42,8 +42,8 @@ type DraftImpediment = { id: string; description: string; urgency: ImpedimentUrg
 type PriorResolution = { resolved: boolean | null };
 /** Decisão do dev para uma atividade pendente carregada na Seção 1. */
 type PastDecision = "pending" | "done" | "inactive";
-type DraftPlanned = { id: string; description: string; notes?: string };
-type DraftDone = { id: string; description: string; notes?: string };
+type DraftPlanned = { id: string; description: string; cardCode: string; notes?: string };
+type DraftDone = { id: string; description: string; cardCode: string; notes?: string };
 
 function isWorkday(d: Date): boolean {
   const dow = d.getDay();
@@ -488,6 +488,7 @@ export default function RegistroPage() {
               user_id: sim.devUserId!,
               squad_id: sim.squadIds?.[0] ?? null,
               description: d.description,
+              card_code: d.cardCode,
               status: "pendente",
               created_entry_id: entryId,
               dev_notes: d.notes?.trim() ? d.notes.trim() : null,
@@ -502,6 +503,7 @@ export default function RegistroPage() {
               user_id: sim.devUserId!,
               squad_id: sim.squadIds?.[0] ?? null,
               description: d.description,
+              card_code: d.cardCode,
               status: "concluida",
               created_entry_id: entryId,
               closed_entry_id: entryId,
@@ -1378,7 +1380,7 @@ function ReadonlyActivitiesList({
         <DevActivityCard
           key={a.id}
           kind={a.status === "concluida" ? "done" : a.status === "inativa" ? "inactive" : "pending"}
-          description={a.description}
+          description={a.card_code ? `#${a.card_code} ${a.description}` : a.description}
           createdAt={a.created_at}
           devNotes={a.dev_notes}
         />
@@ -1408,12 +1410,23 @@ function ActivitiesPastSection(props: {
   } = props;
 
   const [newDesc, setNewDesc] = useState("");
+  const [newCode, setNewCode] = useState("");
 
   const addExtra = () => {
     const d = newDesc.trim();
+    const code = newCode.trim();
     if (!d) return;
-    setDoneDrafts((p) => [...p, { id: crypto.randomUUID(), description: d }]);
+    if (!code) {
+      toast.error("Informe o Código do Card (apenas números).");
+      return;
+    }
+    if (!/^\d+$/.test(code)) {
+      toast.error("O Código do Card deve conter apenas números.");
+      return;
+    }
+    setDoneDrafts((p) => [...p, { id: crypto.randomUUID(), description: d, cardCode: code }]);
     setNewDesc("");
+    setNewCode("");
   };
 
   const setDec = (id: string, dec: PastDecision) => {
@@ -1450,7 +1463,12 @@ function ActivitiesPastSection(props: {
             }`}
           >
             <div className="flex-1 min-w-0">
-              <p className="text-sm break-words">{a.description}</p>
+              <p className="text-sm break-words">
+                {a.card_code && (
+                  <Badge variant="outline" className="mr-1.5 font-mono text-[10px]">#{a.card_code}</Badge>
+                )}
+                {a.description}
+              </p>
               {origin && (
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   Planejada em {format(parseISO(origin.entry_date), "dd/MM", { locale: ptBR })}
@@ -1510,7 +1528,12 @@ function ActivitiesPastSection(props: {
           <Badge variant="outline" className={`text-[10px] ${ACTIVITY_STATUS_STYLES[a.status]}`}>
             {ACTIVITY_STATUS_LABELS[a.status]}
           </Badge>
-          <p className="text-sm flex-1 min-w-0 break-words">{a.description}</p>
+          <p className="text-sm flex-1 min-w-0 break-words">
+            {a.card_code && (
+              <Badge variant="outline" className="mr-1.5 font-mono text-[10px]">#{a.card_code}</Badge>
+            )}
+            {a.description}
+          </p>
           <NoteButton
             value={activityNotes[a.id] ?? a.dev_notes ?? ""}
             onChange={(v) => setActivityNotes((p) => ({ ...p, [a.id]: v }))}
@@ -1523,7 +1546,10 @@ function ActivitiesPastSection(props: {
       {doneDrafts.map((d) => (
         <div key={d.id} className="rounded-lg border p-2.5 bg-emerald-500/5 border-emerald-500/30 flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-          <p className="text-sm flex-1 min-w-0 break-words">{d.description}</p>
+          <p className="text-sm flex-1 min-w-0 break-words">
+            <Badge variant="outline" className="mr-1.5 font-mono text-[10px]">#{d.cardCode}</Badge>
+            {d.description}
+          </p>
           <NoteButton
             value={d.notes ?? ""}
             onChange={(v) => setDoneDrafts((p) => p.map((x) => (x.id === d.id ? { ...x, notes: v } : x)))}
@@ -1545,6 +1571,14 @@ function ActivitiesPastSection(props: {
       {/* Adicionar item feito fora do planejado */}
       {!locked && (
         <div className="flex items-center gap-2 pt-1">
+          <Input
+            placeholder="Nº card"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={newCode}
+            onChange={(e) => setNewCode(e.target.value.replace(/\D/g, ""))}
+            className="w-24 shrink-0"
+          />
           <Input
             placeholder="Fiz algo fora do planejado? Descreva aqui..."
             value={newDesc}
@@ -1579,12 +1613,23 @@ function ActivitiesFutureSection(props: {
 }) {
   const { label, locked, plannedInEntry, plannedDrafts, setPlannedDrafts, activityNotes, setActivityNotes } = props;
   const [newDesc, setNewDesc] = useState("");
+  const [newCode, setNewCode] = useState("");
 
   const add = () => {
     const d = newDesc.trim();
+    const code = newCode.trim();
     if (!d) return;
-    setPlannedDrafts((p) => [...p, { id: crypto.randomUUID(), description: d }]);
+    if (!code) {
+      toast.error("Informe o Código do Card (apenas números).");
+      return;
+    }
+    if (!/^\d+$/.test(code)) {
+      toast.error("O Código do Card deve conter apenas números.");
+      return;
+    }
+    setPlannedDrafts((p) => [...p, { id: crypto.randomUUID(), description: d, cardCode: code }]);
     setNewDesc("");
+    setNewCode("");
   };
 
   return (
@@ -1598,7 +1643,12 @@ function ActivitiesFutureSection(props: {
       {plannedInEntry.map((a) => (
         <div key={a.id} className="rounded-lg border p-2.5 bg-muted/40 flex items-center gap-2">
           <CircleDot className="w-4 h-4 text-amber-500 shrink-0" />
-          <p className="text-sm flex-1 min-w-0 break-words">{a.description}</p>
+          <p className="text-sm flex-1 min-w-0 break-words">
+            {a.card_code && (
+              <Badge variant="outline" className="mr-1.5 font-mono text-[10px]">#{a.card_code}</Badge>
+            )}
+            {a.description}
+          </p>
           <Badge variant="outline" className="text-[10px]">Já salva</Badge>
           <NoteButton
             value={activityNotes[a.id] ?? a.dev_notes ?? ""}
@@ -1611,7 +1661,10 @@ function ActivitiesFutureSection(props: {
       {plannedDrafts.map((d) => (
         <div key={d.id} className="rounded-lg border p-2.5 bg-background flex items-center gap-2">
           <CircleDot className="w-4 h-4 text-primary shrink-0" />
-          <p className="text-sm flex-1 min-w-0 break-words">{d.description}</p>
+          <p className="text-sm flex-1 min-w-0 break-words">
+            <Badge variant="outline" className="mr-1.5 font-mono text-[10px]">#{d.cardCode}</Badge>
+            {d.description}
+          </p>
           <NoteButton
             value={d.notes ?? ""}
             onChange={(v) => setPlannedDrafts((p) => p.map((x) => (x.id === d.id ? { ...x, notes: v } : x)))}
@@ -1632,6 +1685,14 @@ function ActivitiesFutureSection(props: {
 
       {!locked && (
         <div className="flex items-center gap-2 pt-1">
+          <Input
+            placeholder="Nº card"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={newCode}
+            onChange={(e) => setNewCode(e.target.value.replace(/\D/g, ""))}
+            className="w-24 shrink-0"
+          />
           <Input
             placeholder="Ex.: Finalizar tela de login"
             value={newDesc}

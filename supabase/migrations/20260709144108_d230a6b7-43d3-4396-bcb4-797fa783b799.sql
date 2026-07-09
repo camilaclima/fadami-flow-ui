@@ -1,0 +1,1 @@
+ALTER TABLE public.dev_daily_activities ADD COLUMN IF NOT EXISTS card_code text;
