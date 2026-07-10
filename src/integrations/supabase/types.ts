@@ -871,6 +871,42 @@ export type Database = {
           },
         ]
       }
+      profile_squads: {
+        Row: {
+          created_at: string
+          id: string
+          profile_id: string
+          squad_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          profile_id: string
+          squad_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          profile_id?: string
+          squad_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_squads_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_squads_squad_id_fkey"
+            columns: ["squad_id"]
+            isOneToOne: false
+            referencedRelation: "squads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           active: boolean
@@ -1416,6 +1452,42 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      squad_leaders: {
+        Row: {
+          created_at: string
+          id: string
+          profile_id: string
+          squad_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          profile_id: string
+          squad_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          profile_id?: string
+          squad_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "squad_leaders_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "squad_leaders_squad_id_fkey"
+            columns: ["squad_id"]
+            isOneToOne: false
+            referencedRelation: "squads"
             referencedColumns: ["id"]
           },
         ]
