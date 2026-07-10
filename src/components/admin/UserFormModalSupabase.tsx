@@ -126,6 +126,7 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
         });
         await syncSquads.mutateAsync({ profileId: profile.id, squadIds: selectedSquadIds });
         await syncGroups.mutateAsync({ profileId: profile.id, groupIds: selectedGroupIds });
+        await maybeLinkDeveloperToSquads(email.trim(), roleId, selectedSquadIds);
         toast.success("Usuário atualizado!");
         onOpenChange(false);
       } else {
@@ -155,6 +156,7 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
           await syncSquads.mutateAsync({ profileId: newProfile.id, squadIds: selectedSquadIds });
           await syncGroups.mutateAsync({ profileId: newProfile.id, groupIds: selectedGroupIds });
         }
+        await maybeLinkDeveloperToSquads(email.trim(), roleId, selectedSquadIds);
 
         // Definimos a senha ANTES de invalidar a query para evitar conflito de render
         setGeneratedPassword(tempPassword);
@@ -165,6 +167,43 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
       toast.error(err.message || "Erro ao salvar usuário");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const maybeLinkDeveloperToSquads = async (
+    userEmail: string,
+    userRoleId: string,
+    squadIds: string[],
+  ) => {
+    try {
+      const role = roles.find((r) => r.id === userRoleId);
+      if (!role || role.title.trim().toLowerCase() !== "desenvolvedor") return;
+      if (squadIds.length === 0 || !userEmail) return;
+
+      const { data: tm } = await (supabase.from("team_members") as any)
+        .select("id")
+        .ilike("email", userEmail)
+        .eq("active", true)
+        .maybeSingle();
+      if (!tm?.id) {
+        toast.info("Cadastre o desenvolvedor em Colaboradores para vinculá-lo à squad.");
+        return;
+      }
+
+      const { data: existing } = await (supabase.from("squad_members") as any)
+        .select("squad_id")
+        .eq("team_member_id", tm.id)
+        .in("squad_id", squadIds);
+      const existingIds = new Set((existing ?? []).map((r: any) => r.squad_id));
+      const toInsert = squadIds
+        .filter((sid) => !existingIds.has(sid))
+        .map((sid) => ({ squad_id: sid, team_member_id: tm.id }));
+      if (toInsert.length > 0) {
+        await (supabase.from("squad_members") as any).insert(toInsert);
+        queryClient.invalidateQueries({ queryKey: ["squads"] });
+      }
+    } catch (e) {
+      console.error("Falha ao vincular desenvolvedor à squad", e);
     }
   };
 
