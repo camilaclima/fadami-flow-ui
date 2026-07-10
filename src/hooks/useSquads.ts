@@ -12,6 +12,7 @@ export interface Squad {
   updated_at: string;
   member_ids: string[];
   product_ids: string[];
+  leader_profile_ids: string[];
 }
 
 export interface SquadInput {
@@ -21,6 +22,7 @@ export interface SquadInput {
   active?: boolean;
   member_ids: string[];
   product_ids: string[];
+  leader_profile_ids: string[];
 }
 
 async function fetchSquads(): Promise<Squad[]> {
@@ -29,14 +31,16 @@ async function fetchSquads(): Promise<Squad[]> {
   if (error) throw error;
   const ids = (squads as any[]).map((s) => s.id);
   if (ids.length === 0) return [];
-  const [{ data: members }, { data: prods }] = await Promise.all([
+  const [{ data: members }, { data: prods }, { data: leaders }] = await Promise.all([
     (supabase.from("squad_members") as any).select("*").in("squad_id", ids),
     (supabase.from("squad_products") as any).select("*").in("squad_id", ids),
+    (supabase.from("squad_leaders") as any).select("*").in("squad_id", ids),
   ]);
   return (squads as any[]).map((s) => ({
     ...s,
     member_ids: ((members ?? []) as any[]).filter((m) => m.squad_id === s.id).map((m) => m.team_member_id),
     product_ids: ((prods ?? []) as any[]).filter((p) => p.squad_id === s.id).map((p) => p.product_id),
+    leader_profile_ids: ((leaders ?? []) as any[]).filter((l) => l.squad_id === s.id).map((l) => l.profile_id),
   })) as Squad[];
 }
 
@@ -59,7 +63,7 @@ export function useSaveSquad() {
       if (squadId) {
         const { error } = await (supabase.from("squads") as any).update({
           name: input.name,
-          leader_profile_id: input.leader_profile_id,
+          leader_profile_id: input.leader_profile_ids[0] ?? null,
           description: input.description ?? "",
           active: input.active ?? true,
         }).eq("id", squadId);
@@ -67,7 +71,7 @@ export function useSaveSquad() {
       } else {
         const { data, error } = await (supabase.from("squads") as any).insert({
           name: input.name,
-          leader_profile_id: input.leader_profile_id,
+          leader_profile_id: input.leader_profile_ids[0] ?? null,
           description: input.description ?? "",
           active: input.active ?? true,
         }).select("id").single();
@@ -77,6 +81,7 @@ export function useSaveSquad() {
       // reset members & products (simpler than diff)
       await (supabase.from("squad_members") as any).delete().eq("squad_id", squadId);
       await (supabase.from("squad_products") as any).delete().eq("squad_id", squadId);
+      await (supabase.from("squad_leaders") as any).delete().eq("squad_id", squadId);
       if (input.member_ids.length) {
         const { error } = await (supabase.from("squad_members") as any).insert(
           input.member_ids.map((tm) => ({ squad_id: squadId, team_member_id: tm })),
@@ -86,6 +91,12 @@ export function useSaveSquad() {
       if (input.product_ids.length) {
         const { error } = await (supabase.from("squad_products") as any).insert(
           input.product_ids.map((pid) => ({ squad_id: squadId, product_id: pid })),
+        );
+        if (error) throw error;
+      }
+      if (input.leader_profile_ids.length) {
+        const { error } = await (supabase.from("squad_leaders") as any).insert(
+          input.leader_profile_ids.map((pid) => ({ squad_id: squadId, profile_id: pid })),
         );
         if (error) throw error;
       }

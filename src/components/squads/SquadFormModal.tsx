@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Loader2, Users, Package, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -53,7 +52,7 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
   const { user } = useAuth();
 
   const [name, setName] = useState("");
-  const [leaderId, setLeaderId] = useState<string>("__none__");
+  const [leaderIds, setLeaderIds] = useState<string[]>([]);
   const [description, setDescription] = useState("");
   const [memberIds, setMemberIds] = useState<string[]>([]);
   const [productIds, setProductIds] = useState<string[]>([]);
@@ -63,13 +62,19 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
     if (open) {
       if (squad) {
         setName(squad.name ?? "");
-        setLeaderId(squad.leader_profile_id ?? "__none__");
+        setLeaderIds(
+          squad.leader_profile_ids && squad.leader_profile_ids.length > 0
+            ? squad.leader_profile_ids
+            : squad.leader_profile_id
+              ? [squad.leader_profile_id]
+              : [],
+        );
         setDescription(squad.description ?? "");
         setMemberIds(squad.member_ids ?? []);
         setProductIds(squad.product_ids ?? []);
       } else {
         setName("");
-        setLeaderId("__none__");
+        setLeaderIds([]);
         setDescription("");
         setMemberIds([]);
         setProductIds([]);
@@ -128,7 +133,8 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
       await save.mutateAsync({
         id: squad?.id,
         name: name.trim(),
-        leader_profile_id: leaderId === "__none__" ? null : leaderId,
+        leader_profile_id: leaderIds[0] ?? null,
+        leader_profile_ids: leaderIds,
         description: description.trim(),
         member_ids: memberIds,
         product_ids: productIds,
@@ -225,25 +231,31 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Squad Alpha" />
             </div>
             <div className="space-y-2">
-              <Label>Líder (usuário)</Label>
-              <Select value={leaderId} onValueChange={setLeaderId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um líder" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Sem líder definido</SelectItem>
-                  {leaderCandidates.length === 0 && (
-                    <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                      Nenhum usuário no grupo de líderes
-                    </div>
-                  )}
-                  {leaderCandidates.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
+              <Label>Líderes (usuários)</Label>
+              <div className="flex flex-wrap gap-2 rounded-md border border-input bg-background p-3 min-h-[44px]">
+                {leaderCandidates.length === 0 && (
+                  <span className="text-sm text-muted-foreground">Nenhum usuário no grupo de líderes</span>
+                )}
+                {leaderCandidates.map((p) => {
+                  const active = leaderIds.includes(p.id);
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => toggle(leaderIds, setLeaderIds, p.id)}
+                      className={cn(
+                        "px-3 py-1 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5",
+                        active
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background hover:bg-accent border-border",
+                      )}
+                    >
+                      {active && <CheckCircle2 className="h-3 w-3" />}
                       {p.first_name} {p.last_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
