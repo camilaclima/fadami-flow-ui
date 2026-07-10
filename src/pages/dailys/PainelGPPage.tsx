@@ -709,39 +709,8 @@ export default function PainelGPPage() {
                       </ul>
                     )}
                   </div>
-                  <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-3">
-                    <p className="text-sm font-semibold text-rose-700 dark:text-rose-400 flex items-center gap-1.5 mb-2">
-                      <Flame className="w-4 h-4" /> Recorrências
-                    </p>
-                    {(summary.recorrencias ?? []).length === 0 ? (
-                      <p className="text-xs text-muted-foreground">Sem padrões recorrentes.</p>
-                    ) : (
-                      <ul className="space-y-1.5">
-                        {(summary.recorrencias ?? []).map((r, i) => {
-                          const isObj = typeof r === "object" && r !== null;
-                          const titulo = isObj ? (r as any).titulo ?? "" : String(r);
-                          const resp = isObj ? (r as any).responsavel : undefined;
-                          const dias = isObj ? (r as any).dias : undefined;
-                          return (
-                            <li key={i} className="text-xs text-foreground/90">
-                              <div className="flex gap-1.5">
-                                <Flame className="w-3 h-3 text-rose-600 shrink-0 mt-0.5" />
-                                <span className="break-words">{titulo}</span>
-                              </div>
-                              {(resp || dias != null) && (
-                                <div className="ml-4 text-[10px] text-muted-foreground">
-                                  {resp ? `Resp: ${resp}` : ""}{resp && dias != null ? " · " : ""}{dias != null ? `${dias}d` : ""}
-                                </div>
-                              )}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </div>
-                </div>
-                {/* Indicador de Escopo */}
-                <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+                  {/* Indicador de Escopo */}
+                  <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
                   <p className="text-sm font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5 mb-2">
                     <AlertTriangle className="w-4 h-4" /> Indicador de Escopo
                   </p>
