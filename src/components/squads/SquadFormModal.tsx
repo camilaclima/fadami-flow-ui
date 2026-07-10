@@ -12,7 +12,13 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Loader2, Users, Package, Plus, X } from "lucide-react";
+import { CheckCircle2, Loader2, Users, Plus, X, ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -124,10 +130,6 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
       toast.error("Informe o nome da squad");
       return;
     }
-    if (productIds.length === 0) {
-      toast.error("Vincule ao menos um produto");
-      return;
-    }
 
     try {
       await save.mutateAsync({
@@ -232,30 +234,39 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
             </div>
             <div className="space-y-2">
               <Label>Líderes (usuários)</Label>
-              <div className="flex flex-wrap gap-2 rounded-md border border-input bg-background p-3 min-h-[44px]">
-                {leaderCandidates.length === 0 && (
-                  <span className="text-sm text-muted-foreground">Nenhum usuário no grupo de líderes</span>
-                )}
-                {leaderCandidates.map((p) => {
-                  const active = leaderIds.includes(p.id);
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => toggle(leaderIds, setLeaderIds, p.id)}
-                      className={cn(
-                        "px-3 py-1 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5",
-                        active
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background hover:bg-accent border-border",
-                      )}
-                    >
-                      {active && <CheckCircle2 className="h-3 w-3" />}
-                      {p.first_name} {p.last_name}
-                    </button>
-                  );
-                })}
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between font-normal">
+                    <span className="truncate text-left">
+                      {leaderIds.length === 0
+                        ? "Selecione os líderes"
+                        : leaderCandidates
+                            .filter((p) => leaderIds.includes(p.id))
+                            .map((p) => `${p.first_name} ${p.last_name}`)
+                            .join(", ")}
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)] max-h-64 overflow-y-auto">
+                  {leaderCandidates.length === 0 ? (
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      Nenhum usuário no grupo de líderes
+                    </div>
+                  ) : (
+                    leaderCandidates.map((p) => (
+                      <DropdownMenuCheckboxItem
+                        key={p.id}
+                        checked={leaderIds.includes(p.id)}
+                        onCheckedChange={() => toggle(leaderIds, setLeaderIds, p.id)}
+                        onSelect={(e) => e.preventDefault()}
+                      >
+                        {p.first_name} {p.last_name}
+                      </DropdownMenuCheckboxItem>
+                    ))
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
@@ -343,33 +354,6 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label className="flex items-center gap-2">
-              <Package className="h-4 w-4" /> Produtos Vinculados *
-            </Label>
-            <div className="flex flex-wrap gap-2 rounded-md border border-input bg-background p-3 min-h-[44px]">
-              {products.map((p) => {
-                const active = productIds.includes(p.id);
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => toggle(productIds, setProductIds, p.id)}
-                    className={cn(
-                      "px-3 py-1 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5",
-                      active
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background hover:bg-accent border-border",
-                    )}
-                  >
-                    <span className="h-2 w-2 rounded-full" style={{ background: p.color ?? "hsl(var(--primary))" }} />
-                    {active && <CheckCircle2 className="h-3 w-3" />}
-                    {p.name}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
         </div>
 
         <DialogFooter>
