@@ -73,6 +73,7 @@ export default function PainelGPPage() {
   const [scopeAlerts, setScopeAlerts] = useState<ScopeAlert[]>([]);
   const [scopeAnalyzed, setScopeAnalyzed] = useState(false);
   const [scopeObservations, setScopeObservations] = useState<Record<number, string>>({});
+  const [openObservationIndex, setOpenObservationIndex] = useState<number | null>(null);
   const scopeMut = useAnalyzeScopeStuck();
 
   const { data: allSquads = [] } = useSquads();
