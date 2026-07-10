@@ -709,6 +709,7 @@ export default function PainelGPPage() {
                       </ul>
                     )}
                   </div>
+                  </div>
                   {/* Indicador de Escopo */}
                   <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
                   <p className="text-sm font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5 mb-2">
