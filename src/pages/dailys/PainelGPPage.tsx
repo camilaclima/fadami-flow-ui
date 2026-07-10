@@ -740,6 +740,34 @@ export default function PainelGPPage() {
                               </Badge>
                             </div>
                           </div>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                                aria-label="Adicionar observação"
+                              >
+                                <MessageSquarePlus className="w-4 h-4" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-80 rounded-xl" align="end">
+                              <div className="space-y-3">
+                                <p className="text-sm font-medium">Observação do indicador</p>
+                                <Textarea
+                                  placeholder="Digite a observação..."
+                                  value={scopeObservations[i] ?? ""}
+                                  onChange={(e) => setScopeObservations((prev) => ({ ...prev, [i]: e.target.value }))}
+                                  className="min-h-[80px] rounded-xl text-sm"
+                                />
+                                <div className="flex justify-end">
+                                  <Button size="sm" className="rounded-xl gap-2">
+                                    Salvar
+                                  </Button>
+                                </div>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
                         </div>
                       ))}
                     </div>
