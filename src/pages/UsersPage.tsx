@@ -1,8 +1,8 @@
 import { useProfiles, type Profile } from "@/hooks/useProfiles";
-import { useProducts } from "@/hooks/useProducts";
 import { useRoles } from "@/hooks/useRoles";
 import { useAccessGroups } from "@/hooks/useAccessGroups";
-import { useProfileProducts, useProfileGroups } from "@/hooks/useProfileRelations";
+import { useProfileGroups, useProfileSquads } from "@/hooks/useProfileRelations";
+import { useSquads } from "@/hooks/useSquads";
 import { useState } from "react";
 import { UserPlus, Pencil, Copy, UserX, UserCheck, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,11 +16,11 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export default function UsersPage() {
   const { data: profiles = [] } = useProfiles();
-  const { data: products = [] } = useProducts();
   const { data: roles = [] } = useRoles();
   const { data: accessGroups = [] } = useAccessGroups();
-  const { data: profileProducts = [] } = useProfileProducts();
   const { data: profileGroups = [] } = useProfileGroups();
+  const { data: profileSquads = [] } = useProfileSquads();
+  const { data: squads = [] } = useSquads();
   const toggleActive = useToggleProfileActive();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -46,15 +46,13 @@ export default function UsersPage() {
   const handleClone = (u: Profile) => {
     setEditing(null);
 
-    // Busca os IDs vinculados ao usuário que será clonado
-    const selectedProductIds = profileProducts.filter((pp) => pp.profile_id === u.id).map((pp) => pp.product_id);
+    const selectedSquadIds = profileSquads.filter((ps) => ps.profile_id === u.id).map((ps) => ps.squad_id);
 
     const selectedGroupIds = profileGroups.filter((pg) => pg.profile_id === u.id).map((pg) => pg.group_id);
 
-    // Passa o cargo e as listas de IDs para o cloneData
     setCloneData({
       role_id: u.role_id,
-      selectedProductIds,
+      selectedSquadIds,
       selectedGroupIds,
     });
 
@@ -70,11 +68,11 @@ export default function UsersPage() {
     setPwModalOpen(true);
   };
 
-  const getProductNames = (profileId: string) => {
-    const ids = profileProducts.filter((pp) => pp.profile_id === profileId).map((pp) => pp.product_id);
+  const getSquadNames = (profileId: string) => {
+    const ids = profileSquads.filter((ps) => ps.profile_id === profileId).map((ps) => ps.squad_id);
     return (
       ids
-        .map((id) => products.find((p) => p.id === id)?.name)
+        .map((id) => squads.find((s) => s.id === id)?.name)
         .filter(Boolean)
         .join(", ") || "-"
     );
@@ -114,7 +112,7 @@ export default function UsersPage() {
             <TableRow>
               <TableHead>Nome</TableHead>
               <TableHead>E-mail</TableHead>
-              <TableHead>Produtos</TableHead>
+              <TableHead>Squads</TableHead>
               <TableHead>Cargo</TableHead>
               <TableHead>Grupos</TableHead>
               <TableHead>Status</TableHead>
@@ -128,7 +126,7 @@ export default function UsersPage() {
                   {u.first_name} {u.last_name}
                 </TableCell>
                 <TableCell className="text-muted-foreground text-sm">{u.email}</TableCell>
-                <TableCell className="text-sm max-w-[160px] truncate">{getProductNames(u.id)}</TableCell>
+                <TableCell className="text-sm max-w-[160px] truncate">{getSquadNames(u.id)}</TableCell>
                 <TableCell className="text-sm">{getRoleName(u.role_id)}</TableCell>
                 <TableCell className="text-sm max-w-[160px] truncate">{getGroupNames(u.id)}</TableCell>
                 <TableCell>
