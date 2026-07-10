@@ -64,3 +64,35 @@ export function useSyncProfileGroups() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["profile_groups"] }); },
   });
 }
+
+export interface ProfileSquad {
+  id: string;
+  profile_id: string;
+  squad_id: string;
+}
+
+export function useProfileSquads() {
+  return useQuery({
+    queryKey: ["profile_squads"],
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("profile_squads") as any).select("*");
+      if (error) throw error;
+      return data as ProfileSquad[];
+    },
+  });
+}
+
+export function useSyncProfileSquads() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ profileId, squadIds }: { profileId: string; squadIds: string[] }) => {
+      await (supabase.from("profile_squads") as any).delete().eq("profile_id", profileId);
+      if (squadIds.length > 0) {
+        const rows = squadIds.map((sid) => ({ profile_id: profileId, squad_id: sid }));
+        const { error } = await (supabase.from("profile_squads") as any).insert(rows);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["profile_squads"] }); },
+  });
+}
