@@ -72,6 +72,7 @@ export default function PainelGPPage() {
   const [insights, setInsights] = useState<DailyInsight[]>([]);
   const [scopeAlerts, setScopeAlerts] = useState<ScopeAlert[]>([]);
   const [scopeAnalyzed, setScopeAnalyzed] = useState(false);
+  const [scopeObservations, setScopeObservations] = useState<Record<number, string>>({});
   const scopeMut = useAnalyzeScopeStuck();
 
   const { data: allSquads = [] } = useSquads();
