@@ -12,16 +12,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useProducts } from "@/hooks/useProducts";
 import { useRoles } from "@/hooks/useRoles";
 import { useAccessGroups } from "@/hooks/useAccessGroups";
 import { useUpdateProfile, type Profile } from "@/hooks/useProfiles";
 import {
-  useProfileProducts,
   useProfileGroups,
-  useSyncProfileProducts,
   useSyncProfileGroups,
+  useProfileSquads,
+  useSyncProfileSquads,
 } from "@/hooks/useProfileRelations";
+import { useSquads } from "@/hooks/useSquads";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Copy, Check } from "lucide-react";
@@ -35,22 +35,22 @@ interface Props {
 }
 
 export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }: Props) {
-  const { data: products = [] } = useProducts();
   const { data: roles = [] } = useRoles();
   const { data: accessGroups = [] } = useAccessGroups();
-  const { data: profileProducts = [] } = useProfileProducts();
   const { data: profileGroups = [] } = useProfileGroups();
+  const { data: profileSquads = [] } = useProfileSquads();
+  const { data: squads = [] } = useSquads();
   const updateProfile = useUpdateProfile();
-  const syncProducts = useSyncProfileProducts();
   const syncGroups = useSyncProfileGroups();
+  const syncSquads = useSyncProfileSquads();
   const queryClient = useQueryClient();
-  const activeProducts = products.filter((p) => p.status === "active");
+  const activeSquads = squads.filter((s) => s.active);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [roleId, setRoleId] = useState("");
-  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [selectedSquadIds, setSelectedSquadIds] = useState<string[]>([]);
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -65,7 +65,7 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
       setLastName("");
       setEmail("");
       setRoleId("");
-      setSelectedProductIds([]);
+      setSelectedSquadIds([]);
       setSelectedGroupIds([]);
       return;
     }
@@ -80,14 +80,14 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
       setLastName(profile.last_name);
       setEmail(profile.email);
       setRoleId(profile.role_id ?? "");
-      setSelectedProductIds(profileProducts.filter((pp) => pp.profile_id === profile.id).map((pp) => pp.product_id));
+      setSelectedSquadIds(profileSquads.filter((ps) => ps.profile_id === profile.id).map((ps) => ps.squad_id));
       setSelectedGroupIds(profileGroups.filter((pg) => pg.profile_id === profile.id).map((pg) => pg.group_id));
     } else if (cloneData) {
       setFirstName("");
       setLastName("");
       setEmail("");
       setRoleId(cloneData.role_id ?? "");
-      setSelectedProductIds(cloneData.selectedProductIds || []);
+      setSelectedSquadIds(cloneData.selectedSquadIds || []);
       setSelectedGroupIds(cloneData.selectedGroupIds || []);
     } else {
       // Novo usuário puro
@@ -95,13 +95,13 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
       setLastName("");
       setEmail("");
       setRoleId("");
-      setSelectedProductIds([]);
+      setSelectedSquadIds([]);
       setSelectedGroupIds([]);
     }
-  }, [profile, cloneData, open, profileProducts, profileGroups, generatedPassword]);
+  }, [profile, cloneData, open, profileSquads, profileGroups, generatedPassword]);
 
-  const toggleProduct = (id: string) => {
-    setSelectedProductIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const toggleSquad = (id: string) => {
+    setSelectedSquadIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
   const toggleGroup = (id: string) => {
     setSelectedGroupIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -109,6 +109,10 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
 
   const handleSubmit = async () => {
     if (!firstName.trim() || !email.trim() || !roleId) return;
+    if (selectedSquadIds.length === 0) {
+      toast.error("Selecione ao menos uma squad");
+      return;
+    }
     setSaving(true);
 
     try {
@@ -120,7 +124,7 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
           email: email.trim(),
           role_id: roleId,
         });
-        await syncProducts.mutateAsync({ profileId: profile.id, productIds: selectedProductIds });
+        await syncSquads.mutateAsync({ profileId: profile.id, squadIds: selectedSquadIds });
         await syncGroups.mutateAsync({ profileId: profile.id, groupIds: selectedGroupIds });
         toast.success("Usuário atualizado!");
         onOpenChange(false);
@@ -132,7 +136,7 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
             password: tempPassword,
             firstName: firstName.trim(),
             lastName: lastName.trim(),
-            productId: selectedProductIds[0] || null,
+            productId: null,
             roleId,
             groupId: selectedGroupIds[0] || null,
           },
@@ -148,7 +152,7 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
           .maybeSingle();
 
         if (newProfile) {
-          await syncProducts.mutateAsync({ profileId: newProfile.id, productIds: selectedProductIds });
+          await syncSquads.mutateAsync({ profileId: newProfile.id, squadIds: selectedSquadIds });
           await syncGroups.mutateAsync({ profileId: newProfile.id, groupIds: selectedGroupIds });
         }
 
@@ -247,19 +251,22 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
               </div>
 
               <div className="space-y-2">
-                <Label>Produtos</Label>
+                <Label>Squads *</Label>
                 <div className="bg-secondary/50 rounded-lg p-3 border border-border/40">
                   <div className="grid grid-cols-2 gap-x-6 gap-y-2 max-h-32 overflow-y-auto pr-1">
-                    {activeProducts.map((p) => (
+                    {activeSquads.length === 0 && (
+                      <span className="text-xs text-muted-foreground">Nenhuma squad ativa</span>
+                    )}
+                    {activeSquads.map((s) => (
                       <label
-                        key={p.id}
+                        key={s.id}
                         className="flex items-center gap-2 text-sm cursor-pointer hover:bg-secondary/80 rounded px-1 py-0.5 transition-colors"
                       >
                         <Checkbox
-                          checked={selectedProductIds.includes(p.id)}
-                          onCheckedChange={() => toggleProduct(p.id)}
+                          checked={selectedSquadIds.includes(s.id)}
+                          onCheckedChange={() => toggleSquad(s.id)}
                         />
-                        <span className="text-foreground truncate">{p.name}</span>
+                        <span className="text-foreground truncate">{s.name}</span>
                       </label>
                     ))}
                   </div>
@@ -287,7 +294,10 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleSubmit} disabled={saving || !firstName.trim() || !email.trim() || !roleId}>
+              <Button
+                onClick={handleSubmit}
+                disabled={saving || !firstName.trim() || !email.trim() || !roleId || selectedSquadIds.length === 0}
+              >
                 {saving ? "Salvando..." : isEditing ? "Salvar" : "Criar Usuário"}
               </Button>
             </DialogFooter>
