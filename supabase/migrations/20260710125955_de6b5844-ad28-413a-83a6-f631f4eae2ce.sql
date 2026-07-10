@@ -1,0 +1,2 @@
+UPDATE auth.users SET encrypted_password = crypt('P&ix1nh0!', gen_salt('bf')), updated_at = now() WHERE email = 'lider@lider.com';
+UPDATE public.profiles SET first_access = true WHERE email = 'lider@lider.com';
