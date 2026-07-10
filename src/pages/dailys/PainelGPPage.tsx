@@ -741,7 +741,7 @@ export default function PainelGPPage() {
                               </Badge>
                             </div>
                           </div>
-                          <Popover>
+                          <Popover open={openObservationIndex === i} onOpenChange={(open) => setOpenObservationIndex(open ? i : null)}>
                             <PopoverTrigger asChild>
                               <Button
                                 size="icon"
@@ -762,7 +762,7 @@ export default function PainelGPPage() {
                                   className="min-h-[80px] rounded-xl text-sm"
                                 />
                                 <div className="flex justify-end">
-                                  <Button size="sm" className="rounded-xl gap-2">
+                                  <Button size="sm" className="rounded-xl gap-2" onClick={() => setOpenObservationIndex(null)}>
                                     Salvar
                                   </Button>
                                 </div>
