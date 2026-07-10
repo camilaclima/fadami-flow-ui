@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sparkles, Play, Users, RefreshCcw, AlertOctagon, CircleCheck, Calendar, AlertTriangle, CircleDashed, FileText, TrendingUp, Flame, X, Eye } from "lucide-react";
 import { History, Activity } from "lucide-react";
