@@ -12,7 +12,13 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Loader2, Users, Package, Plus, X } from "lucide-react";
+import { CheckCircle2, Loader2, Users, Plus, X, ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -122,10 +128,6 @@ export function SquadFormModal({ open, onOpenChange, squad }: Props) {
   const handleSave = async () => {
     if (!name.trim()) {
       toast.error("Informe o nome da squad");
-      return;
-    }
-    if (productIds.length === 0) {
-      toast.error("Vincule ao menos um produto");
       return;
     }
 
