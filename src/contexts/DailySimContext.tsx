@@ -81,11 +81,29 @@ export function DailySimProvider({ children }: { children: ReactNode }) {
 
         // 2) Resolver squads relacionadas
         if (isLeader && !isDiretor) {
-          const { data: squads } = await (supabase.from("squads") as any)
-            .select("id")
-            .eq("leader_profile_id", profile.id)
-            .eq("active", true);
-          const squadIds = (squads ?? []).map((s: any) => s.id);
+          // Busca squads onde o usuário é líder (tabela many-to-many squad_leaders)
+          // além do legado leader_profile_id em squads.
+          const [{ data: leaderRows }, { data: legacySquads }] = await Promise.all([
+            (supabase.from("squad_leaders") as any)
+              .select("squad_id")
+              .eq("profile_id", profile.id),
+            (supabase.from("squads") as any)
+              .select("id")
+              .eq("leader_profile_id", profile.id)
+              .eq("active", true),
+          ]);
+          const candidateIds = Array.from(new Set<string>([
+            ...((leaderRows ?? []) as any[]).map((r) => r.squad_id),
+            ...((legacySquads ?? []) as any[]).map((s) => s.id),
+          ]));
+          let squadIds: string[] = [];
+          if (candidateIds.length > 0) {
+            const { data: activeSquads } = await (supabase.from("squads") as any)
+              .select("id")
+              .in("id", candidateIds)
+              .eq("active", true);
+            squadIds = ((activeSquads ?? []) as any[]).map((s) => s.id);
+          }
           if (!cancelled) {
             setCurrent({
               id: `gp:${profile.id}`,
