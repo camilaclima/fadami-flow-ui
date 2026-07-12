@@ -61,7 +61,9 @@ export default function SquadsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {squads.map((s) => {
-            const leader = s.leader_profile_id ? profileMap[s.leader_profile_id] : null;
+            const leaderIds = s.leader_profile_ids?.length
+              ? s.leader_profile_ids
+              : (s.leader_profile_id ? [s.leader_profile_id] : []);
             return (
               <motion.div key={s.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
                 <Card className="h-full">
@@ -80,12 +82,24 @@ export default function SquadsPage() {
                     {s.description && <p className="text-xs text-muted-foreground line-clamp-2">{s.description}</p>}
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div className="flex items-center gap-2 text-xs">
-                      <Crown className="h-3.5 w-3.5 text-amber-500" />
-                      <span className="text-muted-foreground">Líder:</span>
-                      <span className="font-medium truncate">
-                        {leader ? `${leader.first_name} ${leader.last_name}` : "—"}
-                      </span>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Crown className="h-3.5 w-3.5 text-amber-500" />
+                        Líderes ({leaderIds.length})
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {leaderIds.length === 0 && (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                        {leaderIds.map((lid) => {
+                          const l = profileMap[lid];
+                          return l ? (
+                            <Badge key={lid} variant="secondary" className="text-[10px]">
+                              {l.first_name} {l.last_name}
+                            </Badge>
+                          ) : null;
+                        })}
+                      </div>
                     </div>
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
