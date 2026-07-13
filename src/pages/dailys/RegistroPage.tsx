@@ -106,13 +106,32 @@ function useMySquadNames(squadIds: string[] | null | undefined) {
 
 export default function RegistroPage() {
   const { current: sim, loading: simLoading } = useDailySim();
-  const { data: entries = [], isLoading } = useDevDailyEntriesByUser(sim.devUserId);
+  const { data: allEntries = [], isLoading } = useDevDailyEntriesByUser(sim.devUserId);
   const { data: squads = [] } = useMySquadNames(sim.squadIds);
   const upsert = useUpsertDevDailyEntry();
+  // Squad selecionada para registrar/visualizar a daily (dev com múltiplas squads).
+  const [selectedSquadId, setSelectedSquadId] = useState<string | null>(null);
+  useEffect(() => {
+    const ids = sim.squadIds ?? [];
+    if (ids.length === 0) {
+      setSelectedSquadId(null);
+      return;
+    }
+    setSelectedSquadId((prev) => (prev && ids.includes(prev) ? prev : ids[0]));
+  }, [sim.squadIds]);
+
+  const entries = useMemo(
+    () => (selectedSquadId ? allEntries.filter((e) => e.squad_id === selectedSquadId) : allEntries),
+    [allEntries, selectedSquadId],
+  );
   const entryIds = useMemo(() => entries.map((e) => e.id), [entries]);
   const { data: allImpediments = [] } = useDevDailyImpedimentsByEntries(entryIds);
   const { create: createImp, resolve: resolveImp, remove: removeImp } = useImpedimentMutations();
-  const { data: allActivities = [] } = useDevDailyActivitiesByUser(sim.devUserId);
+  const { data: allDevActivities = [] } = useDevDailyActivitiesByUser(sim.devUserId);
+  const allActivities = useMemo(
+    () => (selectedSquadId ? allDevActivities.filter((a) => a.squad_id === selectedSquadId) : allDevActivities),
+    [allDevActivities, selectedSquadId],
+  );
   const {
     create: createActivity,
     markCompleted: completeActivity,
@@ -122,12 +141,13 @@ export default function RegistroPage() {
 
   // Dailys já finalizadas pelo líder (bloqueiam edição do dev)
   const { data: lockedMeetings = [] } = useQuery({
-    queryKey: ["daily_meetings_lock", (sim.squadIds ?? []).join(",")],
+    queryKey: ["daily_meetings_lock", selectedSquadId ?? (sim.squadIds ?? []).join(",")],
     enabled: !!sim.squadIds && sim.squadIds.length > 0,
     queryFn: async () => {
+      const scopeIds = selectedSquadId ? [selectedSquadId] : sim.squadIds!;
       const { data, error } = await (supabase.from("daily_meetings") as any)
         .select("meeting_date, squad_id")
-        .in("squad_id", sim.squadIds!);
+        .in("squad_id", scopeIds);
       if (error) throw error;
       return (data ?? []) as { meeting_date: string; squad_id: string }[];
     },
@@ -461,7 +481,7 @@ export default function RegistroPage() {
       const result = await upsert.mutateAsync({
       id: existing?.id,
       entry_date: date,
-      squad_id: sim.squadIds?.[0] ?? null,
+      squad_id: selectedSquadId ?? sim.squadIds?.[0] ?? null,
       did_yesterday: pastSnapshot,
       will_do_today: futureSnapshot,
       impediments: "",
@@ -486,7 +506,7 @@ export default function RegistroPage() {
           plannedDrafts.map((d) =>
             createActivity.mutateAsync({
               user_id: sim.devUserId!,
-              squad_id: sim.squadIds?.[0] ?? null,
+              squad_id: selectedSquadId ?? sim.squadIds?.[0] ?? null,
               description: d.description,
               card_code: d.cardCode,
               status: "pendente",
@@ -501,7 +521,7 @@ export default function RegistroPage() {
           doneDrafts.map((d) =>
             createActivity.mutateAsync({
               user_id: sim.devUserId!,
-              squad_id: sim.squadIds?.[0] ?? null,
+              squad_id: selectedSquadId ?? sim.squadIds?.[0] ?? null,
               description: d.description,
               card_code: d.cardCode,
               status: "concluida",
@@ -597,11 +617,29 @@ export default function RegistroPage() {
             <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
               <Users className="w-3.5 h-3.5" /> Squad{squads.length > 1 ? "s" : ""}:
             </span>
-            {squads.map((s) => (
-              <Badge key={s.id} variant="secondary">
-                {s.name}
-              </Badge>
-            ))}
+            {squads.length > 1 ? (
+              <Select
+                value={selectedSquadId ?? undefined}
+                onValueChange={(v) => setSelectedSquadId(v)}
+              >
+                <SelectTrigger className="h-8 w-[240px] text-xs">
+                  <SelectValue placeholder="Selecione a squad" />
+                </SelectTrigger>
+                <SelectContent>
+                  {squads.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              squads.map((s) => (
+                <Badge key={s.id} variant="secondary">
+                  {s.name}
+                </Badge>
+              ))
+            )}
           </div>
         )}
       </div>
