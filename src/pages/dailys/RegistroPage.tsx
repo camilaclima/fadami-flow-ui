@@ -617,11 +617,29 @@ export default function RegistroPage() {
             <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
               <Users className="w-3.5 h-3.5" /> Squad{squads.length > 1 ? "s" : ""}:
             </span>
-            {squads.map((s) => (
-              <Badge key={s.id} variant="secondary">
-                {s.name}
-              </Badge>
-            ))}
+            {squads.length > 1 ? (
+              <Select
+                value={selectedSquadId ?? undefined}
+                onValueChange={(v) => setSelectedSquadId(v)}
+              >
+                <SelectTrigger className="h-8 w-[240px] text-xs">
+                  <SelectValue placeholder="Selecione a squad" />
+                </SelectTrigger>
+                <SelectContent>
+                  {squads.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              squads.map((s) => (
+                <Badge key={s.id} variant="secondary">
+                  {s.name}
+                </Badge>
+              ))
+            )}
           </div>
         )}
       </div>
