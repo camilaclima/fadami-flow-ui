@@ -141,12 +141,13 @@ export default function RegistroPage() {
 
   // Dailys já finalizadas pelo líder (bloqueiam edição do dev)
   const { data: lockedMeetings = [] } = useQuery({
-    queryKey: ["daily_meetings_lock", (sim.squadIds ?? []).join(",")],
+    queryKey: ["daily_meetings_lock", selectedSquadId ?? (sim.squadIds ?? []).join(",")],
     enabled: !!sim.squadIds && sim.squadIds.length > 0,
     queryFn: async () => {
+      const scopeIds = selectedSquadId ? [selectedSquadId] : sim.squadIds!;
       const { data, error } = await (supabase.from("daily_meetings") as any)
         .select("meeting_date, squad_id")
-        .in("squad_id", sim.squadIds!);
+        .in("squad_id", scopeIds);
       if (error) throw error;
       return (data ?? []) as { meeting_date: string; squad_id: string }[];
     },
@@ -480,7 +481,7 @@ export default function RegistroPage() {
       const result = await upsert.mutateAsync({
       id: existing?.id,
       entry_date: date,
-      squad_id: sim.squadIds?.[0] ?? null,
+      squad_id: selectedSquadId ?? sim.squadIds?.[0] ?? null,
       did_yesterday: pastSnapshot,
       will_do_today: futureSnapshot,
       impediments: "",
@@ -505,7 +506,7 @@ export default function RegistroPage() {
           plannedDrafts.map((d) =>
             createActivity.mutateAsync({
               user_id: sim.devUserId!,
-              squad_id: sim.squadIds?.[0] ?? null,
+              squad_id: selectedSquadId ?? sim.squadIds?.[0] ?? null,
               description: d.description,
               card_code: d.cardCode,
               status: "pendente",
@@ -520,7 +521,7 @@ export default function RegistroPage() {
           doneDrafts.map((d) =>
             createActivity.mutateAsync({
               user_id: sim.devUserId!,
-              squad_id: sim.squadIds?.[0] ?? null,
+              squad_id: selectedSquadId ?? sim.squadIds?.[0] ?? null,
               description: d.description,
               card_code: d.cardCode,
               status: "concluida",
