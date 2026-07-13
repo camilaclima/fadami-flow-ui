@@ -106,13 +106,32 @@ function useMySquadNames(squadIds: string[] | null | undefined) {
 
 export default function RegistroPage() {
   const { current: sim, loading: simLoading } = useDailySim();
-  const { data: entries = [], isLoading } = useDevDailyEntriesByUser(sim.devUserId);
+  const { data: allEntries = [], isLoading } = useDevDailyEntriesByUser(sim.devUserId);
   const { data: squads = [] } = useMySquadNames(sim.squadIds);
   const upsert = useUpsertDevDailyEntry();
+  // Squad selecionada para registrar/visualizar a daily (dev com múltiplas squads).
+  const [selectedSquadId, setSelectedSquadId] = useState<string | null>(null);
+  useEffect(() => {
+    const ids = sim.squadIds ?? [];
+    if (ids.length === 0) {
+      setSelectedSquadId(null);
+      return;
+    }
+    setSelectedSquadId((prev) => (prev && ids.includes(prev) ? prev : ids[0]));
+  }, [sim.squadIds]);
+
+  const entries = useMemo(
+    () => (selectedSquadId ? allEntries.filter((e) => e.squad_id === selectedSquadId) : allEntries),
+    [allEntries, selectedSquadId],
+  );
   const entryIds = useMemo(() => entries.map((e) => e.id), [entries]);
   const { data: allImpediments = [] } = useDevDailyImpedimentsByEntries(entryIds);
   const { create: createImp, resolve: resolveImp, remove: removeImp } = useImpedimentMutations();
-  const { data: allActivities = [] } = useDevDailyActivitiesByUser(sim.devUserId);
+  const { data: allDevActivities = [] } = useDevDailyActivitiesByUser(sim.devUserId);
+  const allActivities = useMemo(
+    () => (selectedSquadId ? allDevActivities.filter((a) => a.squad_id === selectedSquadId) : allDevActivities),
+    [allDevActivities, selectedSquadId],
+  );
   const {
     create: createActivity,
     markCompleted: completeActivity,
