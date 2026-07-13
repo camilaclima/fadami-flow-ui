@@ -115,20 +115,34 @@ export function DailySimProvider({ children }: { children: ReactNode }) {
             });
           }
         } else if (isDev && !isDiretor && !isLeader) {
-          // Encontra team_member pelo email OU pelo nome completo
+          // 1) Squads vinculadas ao usuário no cadastro (profile_squads)
+          const { data: pSquads } = await (supabase.from("profile_squads") as any)
+            .select("squad_id")
+            .eq("profile_id", profile.id);
+          const profileSquadIds = ((pSquads ?? []) as any[]).map((r) => r.squad_id);
+
+          // 2) Squads vinculadas via team_members → squad_members (legado)
           const fullName = `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim();
           const { data: tms } = await (supabase.from("team_members") as any)
             .select("id,email,name")
-            .or(
-              `email.ilike.${profile.email},name.ilike.${fullName}`
-            );
-          const tmIds = (tms ?? []).map((t: any) => t.id);
-          let squadIds: string[] = [];
+            .or(`email.ilike.${profile.email},name.ilike.${fullName}`);
+          const tmIds = ((tms ?? []) as any[]).map((t) => t.id);
+          let tmSquadIds: string[] = [];
           if (tmIds.length > 0) {
             const { data: sm } = await (supabase.from("squad_members") as any)
               .select("squad_id")
               .in("team_member_id", tmIds);
-            squadIds = Array.from(new Set((sm ?? []).map((r: any) => r.squad_id)));
+            tmSquadIds = ((sm ?? []) as any[]).map((r) => r.squad_id);
+          }
+
+          const candidateIds = Array.from(new Set<string>([...profileSquadIds, ...tmSquadIds]));
+          let squadIds: string[] = [];
+          if (candidateIds.length > 0) {
+            const { data: activeSquads } = await (supabase.from("squads") as any)
+              .select("id")
+              .in("id", candidateIds)
+              .eq("active", true);
+            squadIds = ((activeSquads ?? []) as any[]).map((s) => s.id);
           }
           if (!cancelled) {
             setCurrent({
