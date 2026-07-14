@@ -349,20 +349,37 @@ export function NewDailyDialog({
       : [];
   const isSquadMode = !lockedProductId && lockedProducts.length > 0;
 
+  // Função controladora de fechamento personalizada do Dialog.
+  // Ela impede que o Radix feche o modal internamente se o clique vier de fora.
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      // Se algo disparou a intenção de fechar, nós ignoramos para evitar o auto-fechamento do Radix.
+      // A única forma de fechar será através do clique explícito no botão "X" interno
+      // ou quando o formulário for salvo com sucesso (onde chamamos onOpenChange(false)).
+      return;
+    }
+    onOpenChange(nextOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      {/* 
-        Ajustes aplicados:
-        - onPointerDownOutside: Impede fechar clicando no fundo escuro fora do modal.
-        - onEscapeKeyDown: Impede fechar ao apertar o botão Esc do teclado.
-      */}
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         className="max-w-3xl max-h-[90vh] overflow-y-auto"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()} // 🛡️ Barreira extra contra qualquer clique fora ou interações externas
       >
-        <DialogHeader>
+        <DialogHeader className="relative">
           <DialogTitle>Nova Daily</DialogTitle>
+          {/* Botão de Fechar Customizado que ignora a restrição e permite fechar */}
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="absolute right-0 top-0 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground text-foreground"
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </button>
           <DialogDescription>
             Preencha o relato individual de cada membro presente. A IA calculará o nível de bloqueio automaticamente.
           </DialogDescription>
