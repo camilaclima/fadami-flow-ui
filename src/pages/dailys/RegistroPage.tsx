@@ -116,34 +116,43 @@ export default function RegistroPage() {
 
   const [selectedSquadId, setSelectedSquadId] = useState<string | null>(null);
 
+  // Verifica se existem registros legados (sem squad) no banco de dados
+  const hasLegacyEntries = useMemo(() => {
+    return allEntries.some((e) => !e.squad_id);
+  }, [allEntries]);
+
   useEffect(() => {
     const ids = sim.squadIds ?? [];
     if (ids.length === 0) {
-      setSelectedSquadId(null);
+      setSelectedSquadId(hasLegacyEntries ? "legacy" : null);
       return;
     }
-    setSelectedSquadId((prev) => (prev && ids.includes(prev) ? prev : ids[0]));
-  }, [sim.squadIds]);
+    setSelectedSquadId((prev) => {
+      if (prev === "legacy" && hasLegacyEntries) return "legacy";
+      return prev && ids.includes(prev) ? prev : ids[0];
+    });
+  }, [sim.squadIds, hasLegacyEntries]);
 
-  // AJUSTE: Filtra pela squad selecionada OU traz os históricos legados antigos nulos
-  const entries = useMemo(
-    () => (selectedSquadId ? allEntries.filter((e) => e.squad_id === selectedSquadId || !e.squad_id) : allEntries),
-    [allEntries, selectedSquadId],
-  );
+  // 1. FILTRAGEM LIMPA: Se for "legacy", mostra os nulos. Se for uma squad, filtra estritamente por ela.
+  const entries = useMemo(() => {
+    if (selectedSquadId === "legacy") {
+      return allEntries.filter((e) => !e.squad_id);
+    }
+    return selectedSquadId ? allEntries.filter((e) => e.squad_id === selectedSquadId) : allEntries;
+  }, [allEntries, selectedSquadId]);
 
   const entryIds = useMemo(() => entries.map((e) => e.id), [entries]);
   const { data: allImpediments = [] } = useDevDailyImpedimentsByEntries(entryIds);
   const { create: createImp, resolve: resolveImp, remove: removeImp } = useImpedimentMutations();
   const { data: allDevActivities = [] } = useDevDailyActivitiesByUser(sim.devUserId);
 
-  // AJUSTE: Filtra as atividades pela squad ativa OU traz os fluxos antigos sem squad associada
-  const allActivities = useMemo(
-    () =>
-      selectedSquadId
-        ? allDevActivities.filter((a) => a.squad_id === selectedSquadId || !a.squad_id)
-        : allDevActivities,
-    [allDevActivities, selectedSquadId],
-  );
+  // 2. FILTRAGEM LIMPA DE ATIVIDADES: Separa o carry-over antigo das squads ativas
+  const allActivities = useMemo(() => {
+    if (selectedSquadId === "legacy") {
+      return allDevActivities.filter((a) => !a.squad_id);
+    }
+    return selectedSquadId ? allDevActivities.filter((a) => a.squad_id === selectedSquadId) : allDevActivities;
+  }, [allDevActivities, selectedSquadId]);
 
   const {
     create: createActivity,
@@ -156,7 +165,7 @@ export default function RegistroPage() {
     queryKey: ["daily_meetings_lock", selectedSquadId ?? (sim.squadIds ?? []).join(",")],
     enabled: !!sim.squadIds && sim.squadIds.length > 0,
     queryFn: async () => {
-      const scopeIds = selectedSquadId ? [selectedSquadId] : sim.squadIds!;
+      const scopeIds = selectedSquadId && selectedSquadId !== "legacy" ? [selectedSquadId] : sim.squadIds!;
       const { data, error } = await (supabase.from("daily_meetings") as any)
         .select("meeting_date, squad_id")
         .in("squad_id", scopeIds);
@@ -458,7 +467,8 @@ export default function RegistroPage() {
 
     setSaving(true);
     try {
-      const currentSquadId = selectedSquadId || sim.squadIds?.[0] || null;
+      // Se estiver salvando no modo legacy, não associa squad_id
+      const currentSquadId = selectedSquadId === "legacy" ? null : selectedSquadId || sim.squadIds?.[0] || null;
 
       const result = await upsert.mutateAsync({
         id: existing?.id,
@@ -583,33 +593,30 @@ export default function RegistroPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Minha Daily — {sim.personName ?? ""}</h1>
         <p className="text-sm text-muted-foreground">Registre seu status diário e acompanhe o histórico.</p>
-        {squads.length > 0 && (
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Users className="w-3.5 h-3.5" /> Squad{squads.length > 1 ? "s" : ""}:
-            </span>
-            {squads.length > 1 ? (
-              <Select value={selectedSquadId ?? undefined} onValueChange={(v) => setSelectedSquadId(v)}>
-                <SelectTrigger className="h-8 w-[240px] text-xs">
-                  <SelectValue placeholder="Selecione a squad" />
-                </SelectTrigger>
-                <SelectContent>
-                  {squads.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              squads.map((s) => (
-                <Badge key={s.id} variant="secondary">
+
+        {/* DROPDOWN DE SQUADS INTELIGENTE COM AGRUPAMENTO LEGADO */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Users className="w-3.5 h-3.5" /> Squad ativa no painel:
+          </span>
+          <Select value={selectedSquadId ?? undefined} onValueChange={(v) => setSelectedSquadId(v)}>
+            <SelectTrigger className="h-8 w-[260px] text-xs bg-background">
+              <SelectValue placeholder="Selecione a squad" />
+            </SelectTrigger>
+            <SelectContent>
+              {squads.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
                   {s.name}
-                </Badge>
-              ))
-            )}
-          </div>
-        )}
+                </SelectItem>
+              ))}
+              {hasLegacyEntries && (
+                <SelectItem value="legacy" className="text-amber-600 font-medium">
+                  📁 Registros Antigos (Sem Squad)
+                </SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -685,7 +692,9 @@ export default function RegistroPage() {
         {isLoading && <p className="text-sm text-muted-foreground col-span-full">Carregando...</p>}
         {!isLoading && entries.length === 0 && (
           <Card className="rounded-2xl col-span-full">
-            <CardContent className="py-10 text-center text-muted-foreground">Nenhum registro ainda.</CardContent>
+            <CardContent className="py-10 text-center text-muted-foreground">
+              Nenhum registro encontrado nesta Squad.
+            </CardContent>
           </Card>
         )}
         {entries.map((e) => {
@@ -1389,10 +1398,6 @@ export default function RegistroPage() {
   );
 }
 
-/* =========================================================
-    Subcomponentes (Sem alterações de regras de negócio)
-   ========================================================= */
-
 function NoteButton({
   value,
   onChange,
@@ -1784,7 +1789,7 @@ function ActivitiesFutureSection(props: {
       ...p,
       { id: crypto.randomUUID(), description: d, cardCode: code, notes: newNote.trim() || undefined },
     ]);
-    setNewDesc("");
+    newDesc("");
     setNewCode("");
     setNewNote("");
   };
