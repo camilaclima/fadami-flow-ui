@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -24,8 +24,10 @@ import {
 import { useSquads } from "@/hooks/useSquads";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Copy, Check, ChevronDown, X, Search } from "lucide-react";
+import { Copy, Check, ChevronDown, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 
 interface Props {
@@ -56,22 +58,7 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  // Estados para o dropdown customizado de squads
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [searchSquad, setSearchSquad] = useState("");
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Fecha o dropdown se clicar fora dele
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   useEffect(() => {
     if (!open) {
@@ -83,8 +70,6 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
       setRoleId("");
       setSelectedSquadIds([]);
       setSelectedGroupIds([]);
-      setDropdownOpen(false);
-      setSearchSquad("");
       return;
     }
 
@@ -140,9 +125,7 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
         });
         await syncSquads.mutateAsync({ profileId: profile.id, squadIds: selectedSquadIds });
         await syncGroups.mutateAsync({ profileId: profile.id, groupIds: selectedGroupIds });
-
-        await autoSyncSquadRelations(email.trim(), selectedGroupIds, selectedSquadIds);
-
+        await maybeLinkDeveloperToSquads(email.trim(), roleId, selectedSquadIds);
         toast.success("Usuário atualizado!");
         onOpenChange(false);
       } else {
@@ -172,8 +155,7 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
           await syncSquads.mutateAsync({ profileId: newProfile.id, squadIds: selectedSquadIds });
           await syncGroups.mutateAsync({ profileId: newProfile.id, groupIds: selectedGroupIds });
         }
-
-        await autoSyncSquadRelations(email.trim(), selectedGroupIds, selectedSquadIds);
+        await maybeLinkDeveloperToSquads(email.trim(), roleId, selectedSquadIds);
 
         setGeneratedPassword(tempPassword);
         toast.success("Usuário criado com sucesso!");
@@ -186,8 +168,10 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
     }
   };
 
-  const autoSyncSquadRelations = async (userEmail: string, groupIds: string[], squadIds: string[]) => {
+  const maybeLinkDeveloperToSquads = async (userEmail: string, userRoleId: string, squadIds: string[]) => {
     try {
+      const role = roles.find((r) => r.id === userRoleId);
+      if (!role || role.title.trim().toLowerCase() !== "desenvolvedor") return;
       if (squadIds.length === 0 || !userEmail) return;
 
       const { data: tm } = await (supabase.from("team_members") as any)
@@ -195,86 +179,25 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
         .ilike("email", userEmail)
         .eq("active", true)
         .maybeSingle();
-
       if (!tm?.id) {
-        toast.info("Cadastre o usuário em Colaboradores se quiser vinculá-lo automaticamente às squads.");
+        toast.info("Cadastre o desenvolvedor em Colaboradores para vinculá-lo à squad.");
         return;
       }
 
-      const selectedGroupNames = groupIds
-        .map((gid) =>
-          accessGroups
-            .find((g) => g.id === gid)
-            ?.name?.trim()
-            .toLowerCase(),
-        )
-        .filter(Boolean);
-
-      const isDeveloperGroup = selectedGroupNames.includes("desenvolvedor");
-      const isLeaderGroup =
-        selectedGroupNames.includes("líderes") ||
-        selectedGroupNames.includes("lideres") ||
-        selectedGroupNames.includes("lider");
-
-      // Sincronização de MEMBROS DE TIME
-      if (isDeveloperGroup) {
-        const { data: currentMembers } = await (supabase.from("squad_members") as any)
-          .select("squad_id")
-          .eq("team_member_id", tm.id);
-
-        const currentMemberSquadIds = new Set((currentMembers ?? []).map((m: any) => m.squad_id));
-
-        const membersToInsert = squadIds
-          .filter((sid) => !currentMemberSquadIds.has(sid))
-          .map((sid) => ({ squad_id: sid, team_member_id: tm.id }));
-
-        const squadIdsToKeep = new Set(squadIds);
-        const membersToRemove = [...currentMemberSquadIds].filter((sid) => !squadIdsToKeep.has(sid));
-
-        if (membersToInsert.length > 0) {
-          await (supabase.from("squad_members") as any).insert(membersToInsert);
-        }
-        if (membersToRemove.length > 0) {
-          await (supabase.from("squad_members") as any)
-            .delete()
-            .eq("team_member_id", tm.id)
-            .in("squad_id", membersToRemove);
-        }
-      } else {
-        await (supabase.from("squad_members") as any).delete().eq("team_member_id", tm.id);
+      const { data: existing } = await (supabase.from("squad_members") as any)
+        .select("squad_id")
+        .eq("team_member_id", tm.id)
+        .in("squad_id", squadIds);
+      const existingIds = new Set((existing ?? []).map((r: any) => r.squad_id));
+      const toInsert = squadIds
+        .filter((sid) => !existingIds.has(sid))
+        .map((sid) => ({ squad_id: sid, team_member_id: tm.id }));
+      if (toInsert.length > 0) {
+        await (supabase.from("squad_members") as any).insert(toInsert);
+        queryClient.invalidateQueries({ queryKey: ["squads"] });
       }
-
-      // Sincronização de LÍDERES DE SQUAD
-      if (isLeaderGroup) {
-        const { data: currentLeaders } = await (supabase.from("squad_leaders") as any)
-          .select("squad_id")
-          .eq("team_member_id", tm.id);
-
-        const currentLeaderSquadIds = new Set((currentLeaders ?? []).map((l: any) => l.squad_id));
-
-        const leadersToInsert = squadIds
-          .filter((sid) => !currentLeaderSquadIds.has(sid))
-          .map((sid) => ({ squad_id: sid, team_member_id: tm.id }));
-
-        const squadIdsToKeep = new Set(squadIds);
-        const leadersToRemove = [...currentLeaderSquadIds].filter((sid) => !squadIdsToKeep.has(sid));
-
-        if (leadersToInsert.length > 0) {
-          await (supabase.from("squad_leaders") as any).insert(leadersToInsert);
-        }
-        if (leadersToRemove.length > 0) {
-          await (supabase.from("squad_leaders") as any)
-            .delete()
-            .eq("team_member_id", tm.id)
-            .in("squad_id", leadersToRemove);
-        }
-      } else {
-        await (supabase.from("squad_leaders") as any).delete().eq("team_member_id", tm.id);
-      }
-
-      queryClient.invalidateQueries({ queryKey: ["squads"] });
     } catch (e) {
-      console.error("Falha ao sincronizar as relações automáticas de Squads", e);
+      console.error("Falha ao vincular desenvolvedor à squad", e);
     }
   };
 
@@ -287,9 +210,6 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
   };
 
   const isEditing = !!profile;
-
-  // Filtra as squads pelo termo pesquisado no mini-input
-  const filteredSquadsList = activeSquads.filter((s) => s.name.toLowerCase().includes(searchSquad.toLowerCase()));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -363,82 +283,70 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
                 </Select>
               </div>
 
-              {/* DROPDOWN CUSTOMIZADO DE SQUADS (IMUNE A CONFLITOS DE COMPILÇÃO E SCROLL) */}
-              <div className="space-y-2 flex flex-col relative" ref={dropdownRef}>
+              <div className="space-y-2 flex flex-col">
                 <Label>Squads *</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className="w-full justify-between h-auto min-h-[40px] px-3 py-2 text-left font-normal bg-background border-input hover:bg-background/80"
-                >
-                  <div className="flex flex-wrap gap-1.5 max-w-[90%]">
-                    {selectedSquadIds.length === 0 ? (
-                      <span className="text-muted-foreground">Selecione as squads...</span>
-                    ) : (
-                      selectedSquadIds.map((id) => {
-                        const name = squads.find((s) => s.id === id)?.name || id;
-                        return (
-                          <Badge
-                            key={id}
-                            variant="secondary"
-                            className="bg-[#6366F1]/10 text-[#818CF8] hover:bg-[#6366F1]/20 border border-[#6366F1]/15 gap-1 py-0.5 px-2 text-xs font-medium"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleSquad(id);
-                            }}
-                          >
-                            {name}
-                            <X className="h-3 w-3 hover:text-red-400 transition-colors" />
-                          </Badge>
-                        );
-                      })
-                    )}
-                  </div>
-                  <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-
-                {/* Painel Suspenso customizado em HTML puro */}
-                {dropdownOpen && (
-                  <div className="absolute top-[100%] left-0 w-full mt-1 bg-card border border-border rounded-md shadow-lg z-[110] flex flex-col overflow-hidden">
-                    {/* Campo de pesquisa dentro do menu */}
-                    <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-                      <Search className="w-4 h-4 text-muted-foreground shrink-0" />
-                      <input
-                        type="text"
-                        placeholder="Pesquisar squad..."
-                        value={searchSquad}
-                        onChange={(e) => setSearchSquad(e.target.value)}
-                        className="w-full bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground"
-                      />
-                    </div>
-
-                    {/* Lista com Scroll Nativo Perfeito e Funcional */}
-                    <div className="max-h-[180px] overflow-y-auto p-1 space-y-0.5 custom-scrollbar">
-                      {filteredSquadsList.length === 0 ? (
-                        <p className="text-xs text-muted-foreground text-center py-4">Nenhuma squad encontrada.</p>
-                      ) : (
-                        filteredSquadsList.map((s) => {
-                          const isChecked = selectedSquadIds.includes(s.id);
-                          return (
-                            <div
-                              key={s.id}
-                              onClick={() => toggleSquad(s.id)}
-                              className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/80 rounded-md transition-colors"
-                            >
-                              <Checkbox
-                                checked={isChecked}
-                                onCheckedChange={() => toggleSquad(s.id)}
-                                onClick={(e) => e.stopPropagation()} // impede clique duplo
-                              />
-                              <span className="text-sm text-foreground select-none">{s.name}</span>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-                )}
+                <Popover open={dropdownOpen} onOpenChange={setDropdownOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-between h-auto min-h-[40px] px-3 py-2 text-left font-normal bg-background border-input hover:bg-background/80"
+                    >
+                      <div className="flex flex-wrap gap-1.5 max-w-[90%]">
+                        {selectedSquadIds.length === 0 ? (
+                          <span className="text-muted-foreground">Selecione as squads...</span>
+                        ) : (
+                          selectedSquadIds.map((id) => {
+                            const name = squads.find((s) => s.id === id)?.name || id;
+                            return (
+                              <Badge
+                                key={id}
+                                variant="secondary"
+                                className="bg-[#6366F1]/10 text-[#818CF8] hover:bg-[#6366F1]/20 border border-[#6366F1]/15 gap-1 py-0.5 px-2 text-xs font-medium"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleSquad(id);
+                                }}
+                              >
+                                {name}
+                                <X className="h-3 w-3 hover:text-red-400 transition-colors" />
+                              </Badge>
+                            );
+                          })
+                        )}
+                      </div>
+                      <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="w-[var(--radix-popover-trigger-width)] p-0 z-[100]"
+                    align="start"
+                    onWheel={(e) => e.stopPropagation()}
+                  >
+                    <Command className="bg-card border border-border w-full">
+                      <CommandInput placeholder="Pesquisar squad..." className="border-none focus:ring-0" />
+                      <CommandEmpty className="py-2 text-center text-sm text-muted-foreground">
+                        Nenhuma squad encontrada.
+                      </CommandEmpty>
+                      <CommandList className="max-h-[180px] overflow-y-auto overflow-x-hidden">
+                        <CommandGroup className="p-1">
+                          {activeSquads.map((s) => {
+                            const isChecked = selectedSquadIds.includes(s.id);
+                            return (
+                              <CommandItem
+                                key={s.id}
+                                onSelect={() => toggleSquad(s.id)}
+                                className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-accent/50 rounded-md transition-colors"
+                              >
+                                <Checkbox checked={isChecked} onCheckedChange={() => toggleSquad(s.id)} />
+                                <span className="text-sm text-foreground">{s.name}</span>
+                              </CommandItem>
+                            );
+                          })}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2">
