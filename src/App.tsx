@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate, Outlet } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext"; // Importando useAuth para ler a role do usuário
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
@@ -34,60 +34,9 @@ import DailysLayout from "./components/dailys/DailysLayout";
 
 const queryClient = new QueryClient();
 
-const ShieldAlertIcon = () => (
-  <svg className="w-14 h-14 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.25-8.25-3.286zm0 13.036h.008v.008H12v-.008z"
-    />
-  </svg>
-);
-
-interface RestrictedAccessProps {
-  allowedRoles: string[];
-}
-
-const RestrictedAccess = ({ allowedRoles }: RestrictedAccessProps) => {
-  const roleLabelsMap: Record<string, string> = {
-    admin: "Administradores",
-    gestor: "Gestores",
-    coordenador: "Coordenadores",
-    lider: "Líderes",
-    líder: "Líderes",
-    desenvolvedor: "Desenvolvedores",
-    dev: "Desenvolvedores",
-    member: "Membros do Time",
-    colaborador: "Colaboradores",
-  };
-
-  const friendlyRoles = allowedRoles
-    .map((role) => roleLabelsMap[role.toLowerCase()] || role)
-    .filter((value, index, self) => self.indexOf(value) === index)
-    .join(", ");
-
-  return (
-    <div className="flex items-center justify-center min-h-[70vh] w-full px-4">
-      <div className="max-w-3xl w-full bg-[#FFF7F2] border border-[#FFE6D5] rounded-[24px] p-12 text-center flex flex-col items-center justify-center gap-4">
-        <div className="p-2 rounded-full bg-orange-50">
-          <ShieldAlertIcon />
-        </div>
-        <h1 className="text-xl font-bold text-slate-800">Acesso restrito</h1>
-        <p className="text-sm text-slate-500 max-w-md leading-relaxed">
-          Esta área é exclusiva para perfis do tipo:{" "}
-          <span className="font-semibold text-orange-600">{friendlyRoles}</span>.
-        </p>
-      </div>
-    </div>
-  );
-};
-
-interface RoleProtectedRouteProps {
-  allowedRoles: string[];
-}
-
-const RoleProtectedRoute = ({ allowedRoles }: RoleProtectedRouteProps) => {
-  const { user, profile, loading } = useAuth() as any;
+// Componente de Proteção para rotas exclusivas de Administrador
+const AdminRoute = () => {
+  const { user, loading } = useAuth(); // Busca o usuário do contexto de autenticação
 
   if (loading) {
     return (
@@ -97,31 +46,15 @@ const RoleProtectedRoute = ({ allowedRoles }: RoleProtectedRouteProps) => {
     );
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
+  // Verifica se a role no user_metadata do Supabase é 'admin' (ignorando maiúsculas/minúsculas)
+  const isAdmin = user?.user_metadata?.role?.toLowerCase() === "admin";
+
+  if (!isAdmin) {
+    // Se não for admin, redireciona o Líder/Dev de volta para o painel de dailies
+    return <Navigate to="/dailys/painel" replace />;
   }
 
-  // Normalização extremamente resiliente das propriedades de permissão
-  const rawRole = profile?.role || user?.user_metadata?.role || user?.role || "";
-
-  const userRole = rawRole.toString().toLowerCase().trim();
-
-  // Se o login foi bem sucedido mas o profile ainda está resolvendo, aguardamos em vez de negar
-  if (user && !userRole) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  const normalizedAllowedRoles = allowedRoles.map((r) => r.toLowerCase().trim());
-  const hasAccess = normalizedAllowedRoles.includes(userRole);
-
-  if (!hasAccess) {
-    return <RestrictedAccess allowedRoles={allowedRoles} />;
-  }
-
+  // Se for admin, renderiza a página normalmente
   return <Outlet />;
 };
 
@@ -136,73 +69,42 @@ const App = () => (
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
 
+            {/* 1. Rota Protegida de Login Geral */}
             <Route element={<ProtectedRoute />}>
               <Route element={<AppLayout />}>
-                {/* Rotas de entrada básicas acessíveis por qualquer conta logada */}
                 <Route path="/" element={<HomeRedirect />} />
+                <Route path="/cockpit" element={<DashboardPage />} />
                 <Route path="/change-password" element={<ChangePasswordPage />} />
+                <Route path="/backlogs" element={<BacklogsPage />} />
+                <Route path="/team" element={<TeamMembersPage />} />
+                <Route path="/sprints" element={<SprintsPage />} />
+                <Route path="/daily-status" element={<DailyStatusPage />} />
+                <Route path="/daily-status/squad/:squadId" element={<DailyStatusProjectDetailPage />} />
+                <Route path="/daily-status/:productId" element={<DailyStatusProjectDetailPage />} />
+                <Route path="/squads" element={<SquadsPage />} />
+                <Route path="/team-project-config" element={<TeamProjectConfigPage />} />
+                <Route path="/controle-gestao" element={<ControleGestaoPage />} />
 
-                {/* 1. Estrutura de Dailies Única (Evita colisões e loops de rota) */}
+                {/* Dailies */}
                 <Route path="/dailys" element={<DailysLayout />}>
-                  {/* Registro de Dailies: Permitido para todos os cargos cadastrados */}
-                  <Route
-                    element={
-                      <RoleProtectedRoute
-                        allowedRoles={[
-                          "admin",
-                          "coordenador",
-                          "desenvolvedor",
-                          "gestor",
-                          "lider",
-                          "líder",
-                          "dev",
-                          "member",
-                          "colaborador",
-                        ]}
-                      />
-                    }
-                  >
-                    <Route path="registro" element={<DailysRegistroPage />} />
-                  </Route>
-
-                  {/* Painéis avançados de Dailies: Apenas Gestão e Admin */}
-                  <Route
-                    element={<RoleProtectedRoute allowedRoles={["admin", "coordenador", "gestor", "lider", "líder"]} />}
-                  >
-                    <Route path="painel" element={<DailysPainelGPPage />} />
-                    <Route path="historico" element={<DailysHistoricoPage />} />
-                    <Route path="saude" element={<DailysSaudePage />} />
-                  </Route>
+                  <Route path="registro" element={<DailysRegistroPage />} />
+                  <Route path="painel" element={<DailysPainelGPPage />} />
+                  <Route path="historico" element={<DailysHistoricoPage />} />
+                  <Route path="saude" element={<DailysSaudePage />} />
                 </Route>
 
-                {/* 2. Rotas do Cockpit e Configurações de Projeto: Apenas Gestão e Admin */}
-                <Route
-                  element={<RoleProtectedRoute allowedRoles={["admin", "coordenador", "gestor", "lider", "líder"]} />}
-                >
-                  <Route path="/cockpit" element={<DashboardPage />} />
-                  <Route path="/backlogs" element={<BacklogsPage />} />
-                  <Route path="/team" element={<TeamMembersPage />} />
-                  <Route path="/sprints" element={<SprintsPage />} />
-                  <Route path="/daily-status" element={<DailyStatusPage />} />
-                  <Route path="/daily-status/squad/:squadId" element={<DailyStatusProjectDetailPage />} />
-                  <Route path="/daily-status/:productId" element={<DailyStatusProjectDetailPage />} />
-                  <Route path="/squads" element={<SquadsPage />} />
-                  <Route path="/team-project-config" element={<TeamProjectConfigPage />} />
-                  <Route path="/controle-gestao" element={<ControleGestaoPage />} />
-                  <Route path="/products" element={<ProductsPage />} />
-                  <Route path="/clients" element={<ClientsPage />} />
-                  <Route path="/settings" element={<SettingsPage />} />
-                </Route>
+                <Route path="/products" element={<ProductsPage />} />
+                <Route path="/clients" element={<ClientsPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
 
-                {/* 3. Rotas Administrativas de Segurança: Apenas Administrador do Sistema */}
-                <Route element={<RoleProtectedRoute allowedRoles={["admin"]} />}>
+                {/* 2. SUB-ROTA PROTEGIDA: Apenas Administradores acessam estes caminhos */}
+                <Route element={<AdminRoute />}>
                   <Route path="/users" element={<UsersPage />} />
                   <Route path="/roles" element={<RolesPage />} />
                   <Route path="/groups" element={<AccessGroupsPage />} />
                 </Route>
               </Route>
             </Route>
-
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
