@@ -1,11 +1,10 @@
-import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate, Outlet } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
-import { supabase } from "@/integrations/supabase/client";
 import LoginPage from "./pages/LoginPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -86,28 +85,9 @@ interface RoleProtectedRouteProps {
 }
 
 const RoleProtectedRoute = ({ allowedRoles }: RoleProtectedRouteProps) => {
-  const { user, loading: authLoading } = useAuth() as any;
+  const { user, profile, loading } = useAuth() as any;
 
-  // 1. Busca a role do banco em tempo real de forma ultra-resiliente
-  const { data: userDbData, isLoading: dbLoading } = useQuery({
-    queryKey: ["user-real-role-check", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-
-      // Tenta buscar na tabela profiles
-      const { data: profileData } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-
-      if (profileData?.role) return { role: profileData.role };
-
-      // Se falhar ou estiver vazia, tenta buscar na tabela team_members
-      const { data: memberData } = await supabase.from("team_members").select("role").eq("id", user.id).maybeSingle();
-
-      return memberData || null;
-    },
-    enabled: !!user?.id,
-  });
-
-  if (authLoading || dbLoading) {
+  if (loading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -119,16 +99,12 @@ const RoleProtectedRoute = ({ allowedRoles }: RoleProtectedRouteProps) => {
     return <Navigate to="/login" replace />;
   }
 
-  // 2. SALVAGUARDA/BYPASS DE DESENVOLVEDOR (Impede que você seja bloqueada)
-  const userEmail = user?.email?.toLowerCase() || "";
-  const isDeveloperBypass =
-    userEmail.includes("camila") || userEmail.includes("admin") || userEmail.includes("felippe");
-
-  // Se for o seu e-mail, sua role é forçada para 'admin' e o acesso é concedido na hora!
-  const rawRole = isDeveloperBypass ? "admin" : userDbData?.role || user?.user_metadata?.role || user?.role || "";
+  // Lógica local sem realizar nenhuma requisição ao banco para evitar bloqueios de RLS:
+  const rawRole = profile?.role || user?.user_metadata?.role || user?.role || "";
 
   const userRole = rawRole.toString().toLowerCase().trim();
 
+  // Se a role não for encontrada localmente no token, exibe a barreira visual de segurança
   if (!userRole) {
     return <RestrictedAccess allowedRoles={allowedRoles} />;
   }
