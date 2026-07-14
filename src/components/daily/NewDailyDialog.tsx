@@ -349,30 +349,38 @@ export function NewDailyDialog({
       : [];
   const isSquadMode = !lockedProductId && lockedProducts.length > 0;
 
-  // Função controladora de fechamento personalizada do Dialog.
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen) {
-      // Ignora o sinal de fechamento automático do Radix/clique fora.
-      return;
-    }
-    onOpenChange(nextOpen);
-  };
-
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(val) => {
+        // 🔒 Impedimos o Radix de alterar o estado a menos que queiramos explicitamente fechar.
+        if (!val) return;
+        onOpenChange(val);
+      }}
+    >
       <DialogContent
         className="max-w-3xl max-h-[90vh] overflow-y-auto"
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
+        // 🔒 Interceptação agressiva no ciclo de eventos do Radix (captura e anulação)
+        onPointerDownOutside={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        onEscapeKeyDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        onInteractOutside={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
       >
         <DialogHeader className="relative">
           <DialogTitle>Nova Daily</DialogTitle>
-          {/* Botão de Fechar Customizado que permite fechar */}
+          {/* Botão de Fechar Customizado */}
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="absolute right-0 top-0 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground text-foreground"
+            className="absolute right-0 top-0 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground text-foreground p-1 hover:bg-muted/60"
           >
             <X className="h-4 w-4" />
             <span className="sr-only">Close</span>
