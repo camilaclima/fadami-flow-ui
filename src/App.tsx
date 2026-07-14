@@ -1,10 +1,11 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate, Outlet } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
+import { supabase } from "@/integrations/supabase/client";
 import LoginPage from "./pages/LoginPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -85,10 +86,25 @@ interface RoleProtectedRouteProps {
 }
 
 const RoleProtectedRoute = ({ allowedRoles }: RoleProtectedRouteProps) => {
-  // EXTRAÇÃO CORRETA: extraímos tanto 'user' quanto 'profile' diretamente do useAuth()
-  const { user, profile, loading } = useAuth() as any;
+  const { user, loading: authLoading } = useAuth() as any;
 
-  if (loading) {
+  // Busca em tempo real na tabela de perfis (profiles) do Supabase para evitar tokens desatualizados
+  const { data: dbProfile, isLoading: dbLoading } = useQuery({
+    queryKey: ["user-real-role", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+
+      if (error) {
+        console.error("Erro ao verificar permissões:", error);
+        return null;
+      }
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  if (authLoading || dbLoading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -100,12 +116,10 @@ const RoleProtectedRoute = ({ allowedRoles }: RoleProtectedRouteProps) => {
     return <Navigate to="/login" replace />;
   }
 
-  // Agora buscamos a role priorizando o profile vindo do banco e depois o user_metadata
-  const rawRole = profile?.role || user?.user_metadata?.role || user?.role || "";
-
+  // Define a role ativa priorizando o banco de dados (que é em tempo real)
+  const rawRole = dbProfile?.role || user?.user_metadata?.role || "";
   const userRole = rawRole.toString().toLowerCase().trim();
 
-  // Se a role não foi identificada, bloqueia por segurança
   if (!userRole) {
     return <RestrictedAccess allowedRoles={allowedRoles} />;
   }
