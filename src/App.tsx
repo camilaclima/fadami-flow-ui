@@ -44,7 +44,6 @@ const ShieldAlertIcon = () => (
   </svg>
 );
 
-// Renderiza o card de acesso restrito exatamente igual ao do print enviado
 const RestrictedAccess = () => {
   return (
     <div className="flex items-center justify-center min-h-[70vh] w-full px-4">
@@ -54,7 +53,7 @@ const RestrictedAccess = () => {
         </div>
         <h1 className="text-xl font-bold text-slate-800">Acesso restrito</h1>
         <p className="text-sm text-slate-500 max-w-md leading-relaxed">
-          Você não possui as permissões necessárias para acessar esta área do sistema.
+          Sua conta não possui a permissão de acesso necessária para visualizar esta tela.
         </p>
       </div>
     </div>
@@ -62,11 +61,11 @@ const RestrictedAccess = () => {
 };
 
 interface PermissionProtectedRouteProps {
-  requiredPermissions: string[];
+  requiredPermission: string;
 }
 
-// Componente sênior de proteção baseado em permissões reais do AuthContext
-const PermissionProtectedRoute = ({ requiredPermissions }: PermissionProtectedRouteProps) => {
+// Componente limpo de proteção que consome o AuthContext nativo
+const PermissionProtectedRoute = ({ requiredPermission }: PermissionProtectedRouteProps) => {
   const { user, permissions, loading } = useAuth();
 
   if (loading) {
@@ -81,10 +80,8 @@ const PermissionProtectedRoute = ({ requiredPermissions }: PermissionProtectedRo
     return <Navigate to="/login" replace />;
   }
 
-  // Verifica se o usuário tem pelo menos UMA das permissões necessárias exigidas pela rota
-  const hasAccess = requiredPermissions.some((perm) =>
-    permissions.map((p) => p.toLowerCase().trim()).includes(perm.toLowerCase().trim()),
-  );
+  // Verifica se a string exigida pela rota está contida no array de permissões do usuário
+  const hasAccess = permissions.includes(requiredPermission);
 
   if (!hasAccess) {
     return <RestrictedAccess />;
@@ -109,72 +106,78 @@ const App = () => (
                 <Route path="/" element={<HomeRedirect />} />
                 <Route path="/change-password" element={<ChangePasswordPage />} />
 
-                {/* 1. Rotas de Dailies */}
+                {/* 1. Rotas de Dailies estruturadas de forma limpa */}
                 <Route path="/dailys" element={<DailysLayout />}>
-                  {/* Registro de Dailies - Geralmente acessível a todos (ex: permissão "dailys:registro" ou similar) */}
-                  <Route
-                    element={
-                      <PermissionProtectedRoute
-                        requiredPermissions={[
-                          "dailys_registro",
-                          "dailys:registro",
-                          "member",
-                          "lider",
-                          "líder",
-                          "desenvolvedor",
-                          "admin",
-                        ]}
-                      />
-                    }
-                  >
+                  {/* Registro da Daily: Qualquer um que tenha permissão "minha_daily" (Devs, Líderes, Admins) */}
+                  <Route element={<PermissionProtectedRoute requiredPermission="minha_daily" />}>
                     <Route path="registro" element={<DailysRegistroPage />} />
                   </Route>
 
-                  {/* Painéis avançados das Dailies (GP/Gestor) */}
-                  <Route
-                    element={
-                      <PermissionProtectedRoute
-                        requiredPermissions={["dailys_gestao", "dailys:painel", "lider", "líder", "admin"]}
-                      />
-                    }
-                  >
+                  {/* Painéis avançados: Apenas quem tem a permissão "painel_gp" (Líderes e Admins) */}
+                  <Route element={<PermissionProtectedRoute requiredPermission="painel_gp" />}>
                     <Route path="painel" element={<DailysPainelGPPage />} />
                     <Route path="historico" element={<DailysHistoricoPage />} />
                     <Route path="saude" element={<DailysSaudePage />} />
                   </Route>
                 </Route>
 
-                {/* 2. Rotas do Cockpit e Configurações de Projeto (Requer permissão de Gestão/Liderança) */}
-                <Route
-                  element={
-                    <PermissionProtectedRoute
-                      requiredPermissions={["cockpit_view", "project_manage", "lider", "líder", "admin"]}
-                    />
-                  }
-                >
+                {/* 2. Rotas de Gestão (Mapeamento 1:1 baseado no array de permissions do print) */}
+                <Route element={<PermissionProtectedRoute requiredPermission="dashboard" />}>
                   <Route path="/cockpit" element={<DashboardPage />} />
+                </Route>
+
+                <Route element={<PermissionProtectedRoute requiredPermission="backlogs" />}>
                   <Route path="/backlogs" element={<BacklogsPage />} />
+                </Route>
+
+                <Route element={<PermissionProtectedRoute requiredPermission="team" />}>
                   <Route path="/team" element={<TeamMembersPage />} />
+                </Route>
+
+                <Route element={<PermissionProtectedRoute requiredPermission="sprints" />}>
                   <Route path="/sprints" element={<SprintsPage />} />
+                </Route>
+
+                <Route element={<PermissionProtectedRoute requiredPermission="daily" />}>
                   <Route path="/daily-status" element={<DailyStatusPage />} />
                   <Route path="/daily-status/squad/:squadId" element={<DailyStatusProjectDetailPage />} />
                   <Route path="/daily-status/:productId" element={<DailyStatusProjectDetailPage />} />
+                </Route>
+
+                <Route element={<PermissionProtectedRoute requiredPermission="squads" />}>
                   <Route path="/squads" element={<SquadsPage />} />
+                </Route>
+
+                <Route element={<PermissionProtectedRoute requiredPermission="team_project_config" />}>
                   <Route path="/team-project-config" element={<TeamProjectConfigPage />} />
+                </Route>
+
+                <Route element={<PermissionProtectedRoute requiredPermission="controle_gestao" />}>
                   <Route path="/controle-gestao" element={<ControleGestaoPage />} />
+                </Route>
+
+                <Route element={<PermissionProtectedRoute requiredPermission="products" />}>
                   <Route path="/products" element={<ProductsPage />} />
+                </Route>
+
+                <Route element={<PermissionProtectedRoute requiredPermission="clients" />}>
                   <Route path="/clients" element={<ClientsPage />} />
+                </Route>
+
+                <Route element={<PermissionProtectedRoute requiredPermission="settings" />}>
                   <Route path="/settings" element={<SettingsPage />} />
                 </Route>
 
-                {/* 3. Rotas de Configuração do Sistema (Apenas Admin) */}
-                <Route
-                  element={
-                    <PermissionProtectedRoute requiredPermissions={["admin_access", "system_manage", "admin"]} />
-                  }
-                >
+                {/* 3. Rotas Administrativas de Configuração de Sistema (Apenas Admin) */}
+                <Route element={<PermissionProtectedRoute requiredPermission="users" />}>
                   <Route path="/users" element={<UsersPage />} />
+                </Route>
+
+                <Route element={<PermissionProtectedRoute requiredPermission="roles" />}>
                   <Route path="/roles" element={<RolesPage />} />
+                </Route>
+
+                <Route element={<PermissionProtectedRoute requiredPermission="groups" />}>
                   <Route path="/groups" element={<AccessGroupsPage />} />
                 </Route>
               </Route>
