@@ -96,9 +96,14 @@ export function AppSidebar() {
       .map((group) => {
         // Aplica isolamento do simulador de Dailys.
         if (group.label === "Dailys") {
-          let items = group.items;
-          if (sim.role === "dev") items = items.filter((i) => i.url === "/dailys/registro");
-          else if (sim.role === "gp") items = items.filter((i) => i.url === "/dailys/painel");
+          const roles = sim.roles ?? [sim.role];
+          if (roles.includes("diretor")) return group;
+          let items = group.items.filter((i) => {
+            if (i.url === "/dailys/registro") return roles.includes("dev");
+            if (i.url === "/dailys/painel") return roles.includes("gp");
+            // demais itens (histórico, saúde) exigem gp/diretor
+            return roles.includes("gp");
+          });
           return { ...group, items };
         }
         // Cadastros e Permissões só para Diretor/Admin.
@@ -112,7 +117,7 @@ export function AppSidebar() {
         return group;
       })
       .filter((group) => group.items.length > 0);
-  }, [permissions, sim.role]);
+  }, [permissions, sim.role, sim.roles]);
 
   const toggleGroup = (label: string) => {
     setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));

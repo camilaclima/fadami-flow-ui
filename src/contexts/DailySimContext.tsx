@@ -8,6 +8,8 @@ export interface SimOption {
   id: string;
   label: string;
   role: SimRole;
+  /** Todos os papéis do usuário (pode ter dev+gp simultaneamente). */
+  roles: SimRole[];
   /** null = visão total (todas as squads). */
   squadIds: string[] | null;
   /** Apenas para role=dev — userId real usado para filtrar dev_daily_entries. */
@@ -27,6 +29,7 @@ const DEFAULT: SimOption = {
   id: "diretor",
   label: "Diretor (visão completa)",
   role: "diretor",
+  roles: ["diretor"],
   squadIds: null,
   devUserId: null,
 };
@@ -80,7 +83,22 @@ export function DailySimProvider({ children }: { children: ReactNode }) {
           `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim() || profile.email;
 
         // 2) Resolver squads relacionadas
-        if (isLeader && !isDiretor) {
+        if (isDiretor) {
+          if (!cancelled) {
+            setCurrent({
+              ...DEFAULT,
+              personName,
+              devUserId: user.id,
+            });
+          }
+          return;
+        }
+
+        // Coleta squads de líder (se aplicável) e de dev (se aplicável).
+        let leaderSquadIds: string[] = [];
+        let devSquadIds: string[] = [];
+
+        if (isLeader) {
           // Busca squads onde o usuário é líder (tabela many-to-many squad_leaders)
           // além do legado leader_profile_id em squads.
           const [{ data: leaderRows }, { data: legacySquads }] = await Promise.all([
@@ -96,25 +114,16 @@ export function DailySimProvider({ children }: { children: ReactNode }) {
             ...((leaderRows ?? []) as any[]).map((r) => r.squad_id),
             ...((legacySquads ?? []) as any[]).map((s) => s.id),
           ]));
-          let squadIds: string[] = [];
           if (candidateIds.length > 0) {
             const { data: activeSquads } = await (supabase.from("squads") as any)
               .select("id")
               .in("id", candidateIds)
               .eq("active", true);
-            squadIds = ((activeSquads ?? []) as any[]).map((s) => s.id);
+            leaderSquadIds = ((activeSquads ?? []) as any[]).map((s) => s.id);
           }
-          if (!cancelled) {
-            setCurrent({
-              id: `gp:${profile.id}`,
-              label: `GP — ${personName}`,
-              role: "gp",
-              squadIds,
-              devUserId: user.id,
-              personName,
-            });
-          }
-        } else if (isDev && !isDiretor && !isLeader) {
+        }
+
+        if (isDev) {
           // 1) Squads vinculadas ao usuário no cadastro (profile_squads)
           const { data: pSquads } = await (supabase.from("profile_squads") as any)
             .select("squad_id")
@@ -136,26 +145,35 @@ export function DailySimProvider({ children }: { children: ReactNode }) {
           }
 
           const candidateIds = Array.from(new Set<string>([...profileSquadIds, ...tmSquadIds]));
-          let squadIds: string[] = [];
           if (candidateIds.length > 0) {
             const { data: activeSquads } = await (supabase.from("squads") as any)
               .select("id")
               .in("id", candidateIds)
               .eq("active", true);
-            squadIds = ((activeSquads ?? []) as any[]).map((s) => s.id);
+            devSquadIds = ((activeSquads ?? []) as any[]).map((s) => s.id);
           }
+        }
+
+        if (isLeader || isDev) {
+          const roles: SimRole[] = [];
+          if (isLeader) roles.push("gp");
+          if (isDev) roles.push("dev");
+          const squadIds = Array.from(new Set<string>([...leaderSquadIds, ...devSquadIds]));
+          // Papel primário: GP quando aplicável (usado só para redirect/label).
+          const primary: SimRole = isLeader ? "gp" : "dev";
           if (!cancelled) {
             setCurrent({
-              id: `dev:${profile.id}`,
-              label: `Dev — ${personName}`,
-              role: "dev",
+              id: `${primary}:${profile.id}`,
+              label: `${primary === "gp" ? "GP" : "Dev"} — ${personName}`,
+              role: primary,
+              roles,
               squadIds,
               devUserId: user.id,
               personName,
             });
           }
         } else {
-          // Diretor / Admin / fallback → visão completa
+          // Sem papéis específicos → fallback visão completa
           if (!cancelled) {
             setCurrent({
               ...DEFAULT,

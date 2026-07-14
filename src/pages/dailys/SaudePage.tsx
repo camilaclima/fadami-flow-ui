@@ -94,7 +94,7 @@ export default function SaudePage() {
     );
   }
 
-  if (sim.role === "dev") {
+  if (!sim.roles?.includes("gp") && sim.role !== "diretor") {
     return <AccessDeniedCard message="Métricas de saúde são restritas a GPs e Diretores." />;
   }
 

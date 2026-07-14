@@ -605,7 +605,7 @@ export default function RegistroPage() {
     );
   }
 
-  if (sim.role !== "dev") {
+  if (!sim.roles?.includes("dev")) {
     return (
       <AccessDeniedCard message="A área 'Minha Daily' é exclusiva para Desenvolvedores." />
     );
