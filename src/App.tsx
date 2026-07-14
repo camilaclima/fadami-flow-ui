@@ -1,10 +1,11 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate, Outlet } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
+import { supabase } from "@/integrations/supabase/client"; // Importação do cliente supabase do seu projeto
 import LoginPage from "./pages/LoginPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -39,13 +40,25 @@ interface RoleProtectedRouteProps {
 }
 
 const RoleProtectedRoute = ({ allowedRoles }: RoleProtectedRouteProps) => {
-  // Destrutor tolerante caso o AuthContext tenha 'profile' como propriedade irmã
-  const auth = useAuth() as any;
-  const user = auth?.user;
-  const profile = auth?.profile;
-  const loading = auth?.loading;
+  const { user, loading: authLoading } = useAuth();
 
-  if (loading) {
+  // Buscamos a role do usuário direto do banco de dados na tabela de perfis (profiles) para evitar inconsistências de contexto
+  const { data: profile, isLoading: dbLoading } = useQuery({
+    queryKey: ["user-role-protection", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+
+      if (error) {
+        console.error("Erro ao buscar role para segurança de rotas:", error);
+        return null;
+      }
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  if (authLoading || dbLoading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -53,30 +66,19 @@ const RoleProtectedRoute = ({ allowedRoles }: RoleProtectedRouteProps) => {
     );
   }
 
-  // Se não houver usuário logado, o ProtectedRoute pai já deveria barrar, mas por segurança mandamos para o login
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  // Tenta ler a role de todas as formas possíveis (metadados, objeto de perfil irmão ou propriedades diretas)
-  const rawRole = profile?.role || user?.user_metadata?.role || user?.role || profile?.user_role || "";
-
+  // Verifica se a role existe e normaliza
+  const rawRole = profile?.role || user?.user_metadata?.role || "";
   const userRole = rawRole.toString().toLowerCase().trim();
-
-  // Se o perfil ainda está carregando no banco e a role veio vazia, mostramos um loading temporário em vez de deslogar/redirecionar imediatamente
-  if (user && !userRole) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
 
   const normalizedAllowedRoles = allowedRoles.map((r) => r.toLowerCase().trim());
   const hasAccess = normalizedAllowedRoles.includes(userRole);
 
   if (!hasAccess) {
-    // Redireciona para o registro seguro se não tiver acesso
+    // Se não tiver acesso, joga para a rota inicial segura das dailies
     return <Navigate to="/dailys/registro" replace />;
   }
 
@@ -99,7 +101,7 @@ const App = () => (
                 <Route path="/" element={<HomeRedirect />} />
                 <Route path="/change-password" element={<ChangePasswordPage />} />
 
-                {/* 1. Área Geral: Acesso para todos os níveis de usuário */}
+                {/* Permissão Geral: Todos os envolvidos */}
                 <Route
                   element={
                     <RoleProtectedRoute
@@ -112,7 +114,7 @@ const App = () => (
                   </Route>
                 </Route>
 
-                {/* 2. Área de Gestão: Apenas Líderes, Gestores e Admins */}
+                {/* Permissão de Gestão: Líderes, Gestores, Coordenadores e Admin */}
                 <Route
                   element={<RoleProtectedRoute allowedRoles={["admin", "coordenador", "gestor", "lider", "líder"]} />}
                 >
@@ -138,7 +140,7 @@ const App = () => (
                   <Route path="/settings" element={<SettingsPage />} />
                 </Route>
 
-                {/* 3. Área Crítica administrativa: Apenas Administradores */}
+                {/* Permissão Crítica: Apenas Admin */}
                 <Route element={<RoleProtectedRoute allowedRoles={["admin"]} />}>
                   <Route path="/users" element={<UsersPage />} />
                   <Route path="/roles" element={<RolesPage />} />
