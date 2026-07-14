@@ -9,9 +9,27 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  ClipboardEdit, CheckCircle2, Calendar, Plus, Users,
-  CalendarClock, TrendingUp, AlertOctagon, Trash2, CircleCheck, CircleDot,
-  Pencil, Eye, Loader2, Lock, Ban, ListChecks, MessageSquarePlus, Clock, X
+  ClipboardEdit,
+  CheckCircle2,
+  Calendar,
+  Plus,
+  Users,
+  CalendarClock,
+  TrendingUp,
+  AlertOctagon,
+  Trash2,
+  CircleCheck,
+  CircleDot,
+  Pencil,
+  Eye,
+  Loader2,
+  Lock,
+  Ban,
+  ListChecks,
+  MessageSquarePlus,
+  Clock,
+  X,
+  AlertTriangle,
 } from "lucide-react";
 import { DevActivityCard } from "@/components/dailys/DevActivityCard";
 import { useDevDailyEntriesByUser, useUpsertDevDailyEntry } from "@/hooks/useDevDailyEntries";
@@ -83,9 +101,7 @@ function useMySquadNames(squadIds: string[] | null | undefined) {
     queryKey: ["my-squad-names", (squadIds ?? []).join(",")],
     enabled: !!squadIds && squadIds.length > 0,
     queryFn: async () => {
-      const { data, error } = await (supabase.from("squads") as any)
-        .select("id,name")
-        .in("id", squadIds!);
+      const { data, error } = await (supabase.from("squads") as any).select("id,name").in("id", squadIds!);
       if (error) throw error;
       return (data ?? []) as { id: string; name: string }[];
     },
@@ -99,7 +115,7 @@ export default function RegistroPage() {
   const upsert = useUpsertDevDailyEntry();
 
   const [selectedSquadId, setSelectedSquadId] = useState<string | null>(null);
-  
+
   useEffect(() => {
     const ids = sim.squadIds ?? [];
     if (ids.length === 0) {
@@ -109,11 +125,8 @@ export default function RegistroPage() {
     setSelectedSquadId((prev) => (prev && ids.includes(prev) ? prev : ids[0]));
   }, [sim.squadIds]);
 
-  // 1. Filtro estrito de entradas pela Squad selecionada
   const entries = useMemo(
-    () => (selectedSquadId
-      ? allEntries.filter((e) => e.squad_id === selectedSquadId)
-      : allEntries),
+    () => (selectedSquadId ? allEntries.filter((e) => e.squad_id === selectedSquadId) : allEntries),
     [allEntries, selectedSquadId],
   );
 
@@ -122,11 +135,8 @@ export default function RegistroPage() {
   const { create: createImp, resolve: resolveImp, remove: removeImp } = useImpedimentMutations();
   const { data: allDevActivities = [] } = useDevDailyActivitiesByUser(sim.devUserId);
 
-  // 2. Filtro estrito de todas as atividades pertencentes à Squad ativa
   const allActivities = useMemo(
-    () => (selectedSquadId
-      ? allDevActivities.filter((a) => a.squad_id === selectedSquadId)
-      : allDevActivities),
+    () => (selectedSquadId ? allDevActivities.filter((a) => a.squad_id === selectedSquadId) : allDevActivities),
     [allDevActivities, selectedSquadId],
   );
 
@@ -150,10 +160,7 @@ export default function RegistroPage() {
     },
   });
 
-  const lockedDates = useMemo(
-    () => new Set(lockedMeetings.map((m) => m.meeting_date)),
-    [lockedMeetings]
-  );
+  const lockedDates = useMemo(() => new Set(lockedMeetings.map((m) => m.meeting_date)), [lockedMeetings]);
 
   const dateOptions = useMemo(() => allowedDates(), []);
   const [open, setOpen] = useState(false);
@@ -173,29 +180,23 @@ export default function RegistroPage() {
   const [doneDrafts, setDoneDrafts] = useState<DraftDone[]>([]);
   const [touched, setTouched] = useState(false);
   const [activityNotes, setActivityNotes] = useState<Record<string, string>>({});
-  const [generalNotes, setGeneralNotes] = useState<string>(");
+  const [generalNotes, setGeneralNotes] = useState<string>("");
 
   const skipAutoFill = useRef(false);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
 
-  const detailEntry = useMemo(
-    () => entries.find((e) => e.id === detailEntryId) ?? null,
-    [entries, detailEntryId]
-  );
+  const detailEntry = useMemo(() => entries.find((e) => e.id === detailEntryId) ?? null, [entries, detailEntryId]);
 
-  const detailImps = useMemo<DevDailyImpediment[]>(
-    () => {
-      if (!detailEntry) return [];
-      const D = detailEntry.entry_date;
-      return allImpediments.filter((imp) => {
-        const origin = entries.find((e) => e.id === imp.entry_id);
-        if (!origin) return false;
-        return origin.entry_date === D;
-      });
-    },
-    [allImpediments, entries, detailEntry]
-  );
+  const detailImps = useMemo<DevDailyImpediment[]>(() => {
+    if (!detailEntry) return [];
+    const D = detailEntry.entry_date;
+    return allImpediments.filter((imp) => {
+      const origin = entries.find((e) => e.id === imp.entry_id);
+      if (!origin) return false;
+      return origin.entry_date === D;
+    });
+  }, [allImpediments, entries, detailEntry]);
 
   const detailPastActivities = useMemo<DevDailyActivity[]>(() => {
     if (!detailEntry) return [];
@@ -227,7 +228,7 @@ export default function RegistroPage() {
 
   const existingImps = useMemo<DevDailyImpediment[]>(
     () => (existing ? allImpediments.filter((i) => i.entry_id === existing.id) : []),
-    [allImpediments, existing]
+    [allImpediments, existing],
   );
 
   const priorOpen = useMemo<DevDailyImpediment[]>(() => {
@@ -344,18 +345,13 @@ export default function RegistroPage() {
   const labelPast = isToday ? "O que fiz hoje" : "O que fiz ontem";
   const labelFuture = isToday ? "O que farei amanhã" : "O que farei hoje";
 
-  // 3. KPIs totalmente reativos à Squad ativa
   const kpis = useMemo(() => {
     const today = new Date();
     const monday = startOfWeek(today, { weekStartsOn: 1 });
     const friday = addDays(monday, 4);
     const weekWorkdays = workdaysInRange(monday, friday);
-    const registeredWeekDays = weekWorkdays.filter((wd) =>
-      entries.some((e) => e.entry_date === toISO(wd))
-    ).length;
-    const attendanceRate = weekWorkdays.length > 0
-      ? Math.round((registeredWeekDays / weekWorkdays.length) * 100)
-      : 0;
+    const registeredWeekDays = weekWorkdays.filter((wd) => entries.some((e) => e.entry_date === toISO(wd))).length;
+    const attendanceRate = weekWorkdays.length > 0 ? Math.round((registeredWeekDays / weekWorkdays.length) * 100) : 0;
 
     const impedimentsCount = allImpediments.filter((imp) => !imp.resolved).length;
 
@@ -375,7 +371,6 @@ export default function RegistroPage() {
       .sort((a, b) => (b.imp.created_at ?? "").localeCompare(a.imp.created_at ?? ""));
   }, [allImpediments, entries]);
 
-  // 4. Tarefas estagnadas filtradas por Squad em tempo real
   const stagnantData = useMemo(() => {
     const now = Date.now();
     const pending: Array<{ a: DevDailyActivity; days: number }> = [];
@@ -419,8 +414,10 @@ export default function RegistroPage() {
       toast.error("Esta daily já foi finalizada pelo líder e não pode mais ser editada.");
       return;
     }
-    
-    const pending = priorOpen.filter((p) => priorRes[p.id]?.resolved === null || priorRes[p.id]?.resolved === undefined);
+
+    const pending = priorOpen.filter(
+      (p) => priorRes[p.id]?.resolved === null || priorRes[p.id]?.resolved === undefined,
+    );
     if (pending.length > 0) {
       toast.error("Indique se cada impedimento anterior em aberto foi sanado ou não.");
       return;
@@ -445,7 +442,9 @@ export default function RegistroPage() {
         return null;
       }),
       ...doneDrafts.map((d) => `✓ ${d.description}`),
-    ].filter(Boolean).join("\n");
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     const futureSnapshot = [
       ...plannedInEntry.map((a) => `○ ${a.description}`),
@@ -454,7 +453,6 @@ export default function RegistroPage() {
 
     setSaving(true);
     try {
-      // 5. Garantia de salvamento atrelada estritamente à Squad ativa no momento
       const currentSquadId = selectedSquadId || sim.squadIds?.[0] || null;
 
       const result = await upsert.mutateAsync({
@@ -476,7 +474,7 @@ export default function RegistroPage() {
             if (dec === "done") return completeActivity.mutateAsync({ id: a.id, closed_entry_id: entryId });
             if (dec === "inactive") return inactivateActivity.mutateAsync({ id: a.id, closed_entry_id: entryId });
             return Promise.resolve();
-          })
+          }),
         );
 
         await Promise.all(
@@ -489,8 +487,8 @@ export default function RegistroPage() {
               status: "pendente",
               created_entry_id: entryId,
               dev_notes: d.notes?.trim() ? d.notes.trim() : null,
-            })
-          )
+            }),
+          ),
         );
 
         await Promise.all(
@@ -505,8 +503,8 @@ export default function RegistroPage() {
               closed_entry_id: entryId,
               completed_at: new Date().toISOString(),
               dev_notes: d.notes?.trim() ? d.notes.trim() : null,
-            })
-          )
+            }),
+          ),
         );
 
         await Promise.all(
@@ -525,7 +523,7 @@ export default function RegistroPage() {
             resolved: !!r.resolved,
             resolution_note: null,
           });
-        })
+        }),
       );
 
       if (entryId && draftImps.length > 0) {
@@ -535,12 +533,12 @@ export default function RegistroPage() {
               entry_id: entryId,
               description: d.description,
               urgency: d.urgency,
-            })
-          )
+            }),
+          ),
         );
       }
 
-      toast.success(mode === "edit" ? "Daily updated!" : "Daily registered!");
+      toast.success(mode === "edit" ? "Daily atualizada!" : "Daily registrada!");
       setOpen(false);
     } finally {
       setSaving(false);
@@ -550,17 +548,14 @@ export default function RegistroPage() {
   const addDraftImpediment = () => {
     const desc = newDesc.trim();
     if (!desc) {
-      toast.error("Describe the impediment.");
+      toast.error("Descreva o impedimento.");
       return;
     }
     if (!newUrg) {
-      toast.error("Select priority level.");
+      toast.error("Selecione a urgência.");
       return;
     }
-    setDraftImps((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), description: desc, urgency: newUrg },
-    ]);
+    setDraftImps((prev) => [...prev, { id: crypto.randomUUID(), description: desc, urgency: newUrg }]);
     setNewDesc("");
     setNewUrg(null);
     setShowNewImp(false);
@@ -575,9 +570,7 @@ export default function RegistroPage() {
   }
 
   if (!sim.roles?.includes("dev")) {
-    return (
-      <AccessDeniedCard message="A área 'Minha Daily' é exclusiva para Desenvolvedores." />
-    );
+    return <AccessDeniedCard message="A área 'Minha Daily' é exclusiva para Desenvolvedores." />;
   }
 
   return (
@@ -591,10 +584,7 @@ export default function RegistroPage() {
               <Users className="w-3.5 h-3.5" /> Squad{squads.length > 1 ? "s" : ""}:
             </span>
             {squads.length > 1 ? (
-              <Select
-                value={selectedSquadId ?? undefined}
-                onValueChange={(v) => setSelectedSquadId(v)}
-              >
+              <Select value={selectedSquadId ?? undefined} onValueChange={(v) => setSelectedSquadId(v)}>
                 <SelectTrigger className="h-8 w-[240px] text-xs">
                   <SelectValue placeholder="Selecione a squad" />
                 </SelectTrigger>
@@ -623,11 +613,15 @@ export default function RegistroPage() {
           role="button"
           tabIndex={0}
           onClick={() => setShowStagnantModal(true)}
-          onKeyDown={(ev) => { if (ev.key === "Enter") setShowStagnantModal(true); }}
+          onKeyDown={(ev) => {
+            if (ev.key === "Enter") setShowStagnantModal(true);
+          }}
           className="rounded-2xl cursor-pointer hover:border-primary/40 hover:shadow-md transition-all"
         >
           <CardContent className="p-4 flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${stagnantData.total > 0 ? "bg-amber-500/10 text-amber-600" : "bg-muted text-muted-foreground"}`}>
+            <div
+              className={`w-9 h-9 rounded-lg flex items-center justify-center ${stagnantData.total > 0 ? "bg-amber-500/10 text-amber-600" : "bg-muted text-muted-foreground"}`}
+            >
               <Clock className="w-5 h-5" />
             </div>
             <div className="min-w-0">
@@ -655,16 +649,22 @@ export default function RegistroPage() {
           role="button"
           tabIndex={0}
           onClick={() => setShowImpsModal(true)}
-          onKeyDown={(ev) => { if (ev.key === "Enter") setShowImpsModal(true); }}
+          onKeyDown={(ev) => {
+            if (ev.key === "Enter") setShowImpsModal(true);
+          }}
           className="rounded-2xl cursor-pointer hover:border-primary/40 hover:shadow-md transition-all"
         >
           <CardContent className="p-4 flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${kpis.impedimentsCount > 0 ? "bg-orange-500/10 text-orange-500" : "bg-muted text-muted-foreground"}`}>
+            <div
+              className={`w-9 h-9 rounded-lg flex items-center justify-center ${kpis.impedimentsCount > 0 ? "bg-orange-500/10 text-orange-500" : "bg-muted text-muted-foreground"}`}
+            >
               <AlertOctagon className="w-5 h-5" />
             </div>
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground mb-0.5">Impedimentos Ativos</p>
-              <p className="text-lg font-semibold leading-tight">{kpis.impedimentsCount} Impedimento{kpis.impedimentsCount !== 1 ? "s" : ""}</p>
+              <p className="text-lg font-semibold leading-tight">
+                {kpis.impedimentsCount} Impedimento{kpis.impedimentsCount !== 1 ? "s" : ""}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -703,7 +703,9 @@ export default function RegistroPage() {
               role="button"
               tabIndex={0}
               onClick={() => setDetailEntryId(e.id)}
-              onKeyDown={(ev) => { if (ev.key === "Enter") setDetailEntryId(e.id); }}
+              onKeyDown={(ev) => {
+                if (ev.key === "Enter") setDetailEntryId(e.id);
+              }}
               className="rounded-2xl cursor-pointer hover:border-primary/40 hover:shadow-md transition-all group"
             >
               <CardContent className="p-4 space-y-3">
@@ -718,17 +720,22 @@ export default function RegistroPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    {dayLocked && (
-                      <Lock className="w-3.5 h-3.5 text-amber-500" aria-label="Daily finalizada" />
-                    )}
+                    {dayLocked && <Lock className="w-3.5 h-3.5 text-amber-500" aria-label="Daily finalizada" />}
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(ev) => { ev.stopPropagation(); handleOpenEdit(e); }}
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        handleOpenEdit(e);
+                      }}
                       title={dayLocked ? "Daily finalizada (somente leitura)" : "Editar daily"}
                     >
-                      {dayLocked ? <Eye className="w-3.5 h-3.5 text-muted-foreground" /> : <Pencil className="w-3.5 h-3.5 text-muted-foreground" />}
+                      {dayLocked ? (
+                        <Eye className="w-3.5 h-3.5 text-muted-foreground" />
+                      ) : (
+                        <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                      )}
                     </Button>
                     <Eye className="w-3.5 h-3.5 text-muted-foreground opacity-60" />
                   </div>
@@ -747,12 +754,19 @@ export default function RegistroPage() {
                       </span>
                       <div className="flex items-center gap-1">
                         {resolvedCount > 0 && (
-                          <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 gap-1">
-                            <CircleCheck className="w-2.5 h-2.5" /> {resolvedCount} sanado{resolvedCount !== 1 ? "s" : ""}
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 gap-1"
+                          >
+                            <CircleCheck className="w-2.5 h-2.5" /> {resolvedCount} sanado
+                            {resolvedCount !== 1 ? "s" : ""}
                           </Badge>
                         )}
                         {openCount > 0 && (
-                          <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30">
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30"
+                          >
                             {openCount} em aberto
                           </Badge>
                         )}
@@ -783,7 +797,9 @@ export default function RegistroPage() {
             <div className="space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                 <div className="rounded-xl border bg-muted/30 p-3">
-                  <p className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5">Ontem</p>
+                  <p className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5">
+                    Ontem
+                  </p>
                   <ReadonlyActivitiesList
                     activities={detailPastActivities}
                     fallback={detailEntry.did_yesterday}
@@ -819,20 +835,31 @@ export default function RegistroPage() {
                             if (!origin || !detailEntry) return null;
                             if (origin.entry_date === detailEntry.entry_date) return null;
                             return (
-                              <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground border-border">
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] bg-muted text-muted-foreground border-border"
+                              >
                                 Criado em {format(parseISO(origin.entry_date), "dd/MM", { locale: ptBR })}
                               </Badge>
                             );
                           })()}
                           {imp.resolved ? (
-                            <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 gap-1">
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 gap-1"
+                            >
                               <CircleCheck className="w-2.5 h-2.5" /> Sanado
                               {imp.resolved_at && (
-                                <span className="font-normal">em {format(parseISO(imp.resolved_at), "dd/MM", { locale: ptBR })}</span>
+                                <span className="font-normal">
+                                  em {format(parseISO(imp.resolved_at), "dd/MM", { locale: ptBR })}
+                                </span>
                               )}
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30">
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30"
+                            >
                               Em aberto
                             </Badge>
                           )}
@@ -850,7 +877,7 @@ export default function RegistroPage() {
                 {detailEntry.general_notes?.trim() ? (
                   <p className="text-sm whitespace-pre-wrap break-words">{detailEntry.general_notes}</p>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">Nenhuma observação geral registrada.</p>
+                  <p className="text-sm text-muted-foreground italic">Nenhuma observation geral registrada.</p>
                 )}
               </div>
               <div className="text-[10px] text-muted-foreground text-right">
@@ -863,19 +890,31 @@ export default function RegistroPage() {
               <Button
                 variant="outline"
                 className="rounded-xl gap-1.5"
-                onClick={() => { const e = detailEntry; setDetailEntryId(null); handleOpenEdit(e); }}
+                onClick={() => {
+                  const e = detailEntry;
+                  setDetailEntryId(null);
+                  handleOpenEdit(e);
+                }}
               >
                 <Pencil className="w-3.5 h-3.5" /> Editar
               </Button>
             )}
-            <Button onClick={() => setDetailEntryId(null)} className="rounded-xl">Fechar</Button>
+            <Button onClick={() => setDetailEntryId(null)} className="rounded-xl">
+              Fechar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Modal de Registro de Daily protegido contra cliques acidentais */}
-      <Dialog open={open} onOpenChange={(val) => { if (!val) return; setOpen(val); }}>
-        <DialogContent 
+      <Dialog
+        open={open}
+        onOpenChange={(val) => {
+          if (!val) return;
+          setOpen(val);
+        }}
+      >
+        <DialogContent
           className="max-w-5xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl"
           onPointerDownOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
@@ -885,7 +924,11 @@ export default function RegistroPage() {
             <DialogTitle className="flex items-center gap-2">
               <ClipboardEdit className="w-5 h-5 text-primary" />
               Registrar daily
-              {mode === "edit" && <Badge variant="outline" className="ml-2">Editando</Badge>}
+              {mode === "edit" && (
+                <Badge variant="outline" className="ml-2">
+                  Editando
+                </Badge>
+              )}
               {isLocked && (
                 <Badge variant="outline" className="ml-2 gap-1 bg-muted text-muted-foreground border-border">
                   <Lock className="w-3 h-3" /> Finalizada
@@ -915,12 +958,18 @@ export default function RegistroPage() {
               </div>
             )}
             <div>
-              <Label className="mb-1.5 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Data de referência</Label>
+              <Label className="mb-1.5 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5" /> Data de referência
+              </Label>
               <Select value={date} onValueChange={setDate} disabled={isLocked}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {dateOptions.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -956,9 +1005,7 @@ export default function RegistroPage() {
                 <Label className="flex items-center gap-1.5 text-sm">
                   <AlertOctagon className="w-4 h-4 text-orange-500" />
                   Impedimentos anteriores em aberto
-                  <span className="text-xs text-muted-foreground font-normal">
-                    (sinalize cada um antes de salvar)
-                  </span>
+                  <span className="text-xs text-muted-foreground font-normal">(sinalize cada um antes de salvar)</span>
                 </Label>
                 {priorOpen.map((p) => {
                   const r = priorRes[p.id] ?? { resolved: null };
@@ -1034,7 +1081,10 @@ export default function RegistroPage() {
                       </Badge>
                       <p className="text-sm flex-1 whitespace-pre-wrap break-words">{imp.description}</p>
                       {imp.resolved ? (
-                        <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                        >
                           Sanado
                         </Badge>
                       ) : (
@@ -1107,17 +1157,17 @@ export default function RegistroPage() {
                         <SelectItem value="high">Urgência: Alta</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Button
-                      type="button"
-                      onClick={addDraftImpediment}
-                      className="rounded-xl gap-1.5"
-                    >
+                    <Button type="button" onClick={addDraftImpediment} className="rounded-xl gap-1.5">
                       <Plus className="w-4 h-4" /> Adicionar
                     </Button>
                     <Button
                       type="button"
                       variant="ghost"
-                      onClick={() => { setShowNewImp(false); setNewDesc(""); setNewUrg(null); }}
+                      onClick={() => {
+                        setShowNewImp(false);
+                        setNewDesc("");
+                        setNewUrg(null);
+                      }}
                       className="rounded-xl"
                     >
                       Cancelar
@@ -1143,7 +1193,9 @@ export default function RegistroPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving} className="rounded-xl">Cancelar</Button>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving} className="rounded-xl">
+              Cancelar
+            </Button>
             <Button onClick={submit} disabled={saving || upsert.isPending || isLocked} className="rounded-xl gap-2">
               {saving ? (
                 <>
@@ -1166,7 +1218,12 @@ export default function RegistroPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!viewImp} onOpenChange={(o) => { if (!o) setViewImp(null); }}>
+      <Dialog
+        open={!!viewImp}
+        onOpenChange={(o) => {
+          if (!o) setViewImp(null);
+        }}
+      >
         <DialogContent className="max-w-lg w-[calc(100vw-2rem)] rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -1195,7 +1252,9 @@ export default function RegistroPage() {
             </div>
           )}
           <DialogFooter>
-            <Button onClick={() => setViewImp(null)} className="rounded-xl">Fechar</Button>
+            <Button onClick={() => setViewImp(null)} className="rounded-xl">
+              Fechar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1205,7 +1264,9 @@ export default function RegistroPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertOctagon className="w-5 h-5 text-orange-500" /> Impedimentos ativos
-              <Badge variant="outline" className="ml-1">{activeImpedimentsList.length}</Badge>
+              <Badge variant="outline" className="ml-1">
+                {activeImpedimentsList.length}
+              </Badge>
             </DialogTitle>
           </DialogHeader>
           {activeImpedimentsList.length === 0 ? (
@@ -1239,7 +1300,9 @@ export default function RegistroPage() {
             </div>
           )}
           <DialogFooter>
-            <Button onClick={() => setShowImpsModal(false)} className="rounded-xl">Fechar</Button>
+            <Button onClick={() => setShowImpsModal(false)} className="rounded-xl">
+              Fechar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1265,12 +1328,16 @@ export default function RegistroPage() {
                 ) : (
                   <div className="space-y-1.5">
                     {stagnantData.pending.map(({ a, days }) => (
-                      <div key={a.id} className="rounded-lg border bg-orange-500/5 border-orange-500/20 p-2.5 flex items-start gap-2">
+                      <div
+                        key={a.id}
+                        className="rounded-lg border bg-orange-500/5 border-orange-500/20 p-2.5 flex items-start gap-2"
+                      >
                         <Clock className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm break-words whitespace-pre-wrap">{a.description}</p>
                           <p className="text-[11px] text-muted-foreground mt-0.5">
-                            Pendente há {days} dia{days !== 1 ? "s" : ""} · criada em {format(parseISO(a.created_at), "dd/MM", { locale: ptBR })}
+                            Pendente há {days} dia{days !== 1 ? "s" : ""} · criada em{" "}
+                            {format(parseISO(a.created_at), "dd/MM", { locale: ptBR })}
                           </p>
                         </div>
                       </div>
@@ -1287,12 +1354,16 @@ export default function RegistroPage() {
                 ) : (
                   <div className="space-y-1.5">
                     {stagnantData.resolved.map(({ a, days }) => (
-                      <div key={a.id} className="rounded-lg border bg-emerald-500/5 border-emerald-500/20 p-2.5 flex items-start gap-2">
+                      <div
+                        key={a.id}
+                        className="rounded-lg border bg-emerald-500/5 border-emerald-500/20 p-2.5 flex items-start gap-2"
+                      >
                         <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm break-words whitespace-pre-wrap">{a.description}</p>
                           <p className="text-[11px] text-muted-foreground mt-0.5">
-                            Levou {days} dia{days !== 1 ? "s" : ""} · concluída em {a.completed_at ? format(parseISO(a.completed_at), "dd/MM", { locale: ptBR }) : "—"}
+                            Levou {days} dia{days !== 1 ? "s" : ""} · concluída em{" "}
+                            {a.completed_at ? format(parseISO(a.completed_at), "dd/MM", { locale: ptBR }) : "—"}
                           </p>
                         </div>
                       </div>
@@ -1303,17 +1374,15 @@ export default function RegistroPage() {
             </div>
           )}
           <DialogFooter>
-            <Button onClick={() => setShowStagnantModal(false)} className="rounded-xl">Fechar</Button>
+            <Button onClick={() => setShowStagnantModal(false)} className="rounded-xl">
+              Fechar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
 }
-
-/* =========================================================
-    Subcomponentes (Sem alterações de regras de negócio)
-   ========================================================= */
 
 function NoteButton({
   value,
@@ -1334,11 +1403,11 @@ function NoteButton({
     if (!trigger) return;
     const focusable = Array.from(
       document.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), details, [tabindex]:not([tabindex="-1"])'
-      )
+        'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), details, [tabindex]:not([tabindex="-1"])',
+      ),
     ).filter((el) => {
       if (el.offsetParent === null) return false;
-      if (el.closest('[data-radix-popper-content-wrapper]')) return false;
+      if (el.closest("[data-radix-popper-content-wrapper]")) return false;
       const ariaHidden = el.closest('[aria-hidden="true"]');
       if (ariaHidden) return false;
       return true;
@@ -1369,20 +1438,14 @@ function NoteButton({
             setTimeout(() => textareaRef.current?.focus(), 0);
           }}
           className={`h-7 w-7 rounded-lg relative shrink-0 ${
-            has
-              ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/40"
-              : "text-muted-foreground"
+            has ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/40" : "text-muted-foreground"
           }`}
         >
           <MessageSquarePlus className="w-3.5 h-3.5" />
           {has && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-500" />}
         </Button>
       </PopoverTrigger>
-      <PopoverContent
-        align="end"
-        className="w-80"
-        onKeyDown={(e) => e.stopPropagation()}
-      >
+      <PopoverContent align="end" className="w-80" onKeyDown={(e) => e.stopPropagation()}>
         <Label className="text-[11px] font-semibold text-muted-foreground mb-1 block flex items-center gap-1">
           <MessageSquarePlus className="w-3 h-3" /> Observação sobre esta demanda
         </Label>
@@ -1456,9 +1519,18 @@ function ActivitiesPastSection(props: {
   setActivityNotes: React.Dispatch<React.SetStateAction<Record<string, string>>>;
 }) {
   const {
-    label, locked, carryOver, closedInEntry, decisions, setDecisions,
-    doneDrafts, setDoneDrafts, entries, touched,
-    activityNotes, setActivityNotes,
+    label,
+    locked,
+    carryOver,
+    closedInEntry,
+    decisions,
+    setDecisions,
+    doneDrafts,
+    setDoneDrafts,
+    entries,
+    touched,
+    activityNotes,
+    setActivityNotes,
   } = props;
 
   const [newDesc, setNewDesc] = useState("");
@@ -1519,7 +1591,9 @@ function ActivitiesPastSection(props: {
             <div className="flex-1 min-w-0">
               <p className="text-sm break-words">
                 {a.card_code && (
-                  <Badge variant="outline" className="mr-1.5 font-mono text-[10px]">#{a.card_code}</Badge>
+                  <Badge variant="outline" className="mr-1.5 font-mono text-[10px]">
+                    #{a.card_code}
+                  </Badge>
                 )}
                 {a.description}
               </p>
@@ -1581,7 +1655,9 @@ function ActivitiesPastSection(props: {
           </Badge>
           <p className="text-sm flex-1 min-w-0 break-words">
             {a.card_code && (
-              <Badge variant="outline" className="mr-1.5 font-mono text-[10px]">#{a.card_code}</Badge>
+              <Badge variant="outline" className="mr-1.5 font-mono text-[10px]">
+                #{a.card_code}
+              </Badge>
             )}
             {a.description}
           </p>
@@ -1594,11 +1670,16 @@ function ActivitiesPastSection(props: {
       ))}
 
       {doneDrafts.map((d) => (
-        <div key={d.id} className="rounded-lg border p-2.5 bg-emerald-500/5 border-emerald-500/30 flex items-center gap-2">
+        <div
+          key={d.id}
+          className="rounded-lg border p-2.5 bg-emerald-500/5 border-emerald-500/30 flex items-center gap-2"
+        >
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <p className="text-sm flex-1 min-w-0 break-words">
             {d.cardCode && (
-              <Badge variant="outline" className="mr-1.5 font-mono text-[10px]">#{d.cardCode}</Badge>
+              <Badge variant="outline" className="mr-1.5 font-mono text-[10px]">
+                #{d.cardCode}
+              </Badge>
             )}
             {d.description}
           </p>
@@ -1645,7 +1726,12 @@ function ActivitiesPastSection(props: {
             placeholder="Fiz algo fora do planejado? Descreva aqui..."
             value={newDesc}
             onChange={(e) => setNewDesc(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addExtra(); } }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addExtra();
+              }
+            }}
           />
           <NoteButton value={newNote} onChange={setNewNote} disabled={locked} />
           <Button type="button" size="sm" variant="outline" onClick={addExtra} className="gap-1 shrink-0">
@@ -1714,11 +1800,15 @@ function ActivitiesFutureSection(props: {
           <CircleDot className="w-4 h-4 text-amber-500 shrink-0" />
           <p className="text-sm flex-1 min-w-0 break-words">
             {a.card_code && (
-              <Badge variant="outline" className="mr-1.5 font-mono text-[10px]">#{a.card_code}</Badge>
+              <Badge variant="outline" className="mr-1.5 font-mono text-[10px]">
+                #{a.card_code}
+              </Badge>
             )}
             {a.description}
           </p>
-          <Badge variant="outline" className="text-[10px]">Já salva</Badge>
+          <Badge variant="outline" className="text-[10px]">
+            Já salva
+          </Badge>
           <NoteButton
             value={activityNotes[a.id] ?? a.dev_notes ?? ""}
             onChange={(v) => setActivityNotes((p) => ({ ...p, [a.id]: v }))}
@@ -1732,7 +1822,9 @@ function ActivitiesFutureSection(props: {
           <CircleDot className="w-4 h-4 text-primary shrink-0" />
           <p className="text-sm flex-1 min-w-0 break-words">
             {d.cardCode && (
-              <Badge variant="outline" className="mr-1.5 font-mono text-[10px]">#{d.cardCode}</Badge>
+              <Badge variant="outline" className="mr-1.5 font-mono text-[10px]">
+                #{d.cardCode}
+              </Badge>
             )}
             {d.description}
           </p>
@@ -1779,7 +1871,12 @@ function ActivitiesFutureSection(props: {
             placeholder="Ex.: Finalizar tela de login"
             value={newDesc}
             onChange={(e) => setNewDesc(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                add();
+              }
+            }}
           />
           <NoteButton value={newNote} onChange={setNewNote} disabled={locked} />
           <Button type="button" size="sm" onClick={add} className="gap-1 shrink-0">
