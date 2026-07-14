@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, Sparkles, Loader2, CheckCircle2, MessageSquare, Users, AlertTriangle } from "lucide-react";
+import { CalendarIcon, Sparkles, Loader2, CheckCircle2, MessageSquare, Users, AlertTriangle, X } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -350,12 +350,9 @@ export function NewDailyDialog({
   const isSquadMode = !lockedProductId && lockedProducts.length > 0;
 
   // Função controladora de fechamento personalizada do Dialog.
-  // Ela impede que o Radix feche o modal internamente se o clique vier de fora.
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
-      // Se algo disparou a intenção de fechar, nós ignoramos para evitar o auto-fechamento do Radix.
-      // A única forma de fechar será através do clique explícito no botão "X" interno
-      // ou quando o formulário for salvo com sucesso (onde chamamos onOpenChange(false)).
+      // Ignora o sinal de fechamento automático do Radix/clique fora.
       return;
     }
     onOpenChange(nextOpen);
@@ -367,11 +364,11 @@ export function NewDailyDialog({
         className="max-w-3xl max-h-[90vh] overflow-y-auto"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()} // 🛡️ Barreira extra contra qualquer clique fora ou interações externas
+        onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader className="relative">
           <DialogTitle>Nova Daily</DialogTitle>
-          {/* Botão de Fechar Customizado que ignora a restrição e permite fechar */}
+          {/* Botão de Fechar Customizado que permite fechar */}
           <button
             type="button"
             onClick={() => onOpenChange(false)}
