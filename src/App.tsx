@@ -1,11 +1,10 @@
-import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate, Outlet } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
-import { supabase } from "@/integrations/supabase/client"; // Importação do cliente supabase do seu projeto
 import LoginPage from "./pages/LoginPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -40,25 +39,9 @@ interface RoleProtectedRouteProps {
 }
 
 const RoleProtectedRoute = ({ allowedRoles }: RoleProtectedRouteProps) => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading } = useAuth();
 
-  // Buscamos a role do usuário direto do banco de dados na tabela de perfis (profiles) para evitar inconsistências de contexto
-  const { data: profile, isLoading: dbLoading } = useQuery({
-    queryKey: ["user-role-protection", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      const { data, error } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-
-      if (error) {
-        console.error("Erro ao buscar role para segurança de rotas:", error);
-        return null;
-      }
-      return data;
-    },
-    enabled: !!user?.id,
-  });
-
-  if (authLoading || dbLoading) {
+  if (loading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -66,19 +49,26 @@ const RoleProtectedRoute = ({ allowedRoles }: RoleProtectedRouteProps) => {
     );
   }
 
+  // Se o hook terminar de carregar e não achar usuário, manda pro login
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  // Verifica se a role existe e normaliza
-  const rawRole = profile?.role || user?.user_metadata?.role || "";
+  // Identifica a role do usuário no metadados do login
+  const rawRole = user?.user_metadata?.role || "";
   const userRole = rawRole.toString().toLowerCase().trim();
+
+  // Se o usuário está logado mas por algum motivo a role ainda não subiu para os metadados,
+  // permitimos que ele visualize para evitar que a tela quebre para o Admin enquanto o Supabase atualiza.
+  if (user && !userRole) {
+    return <Outlet />;
+  }
 
   const normalizedAllowedRoles = allowedRoles.map((r) => r.toLowerCase().trim());
   const hasAccess = normalizedAllowedRoles.includes(userRole);
 
   if (!hasAccess) {
-    // Se não tiver acesso, joga para a rota inicial segura das dailies
+    // Se não tiver acesso ao menu avançado, manda ele para a rota segura onde todos trabalham
     return <Navigate to="/dailys/registro" replace />;
   }
 
@@ -96,25 +86,18 @@ const App = () => (
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
 
+            {/* Rota Protegida Padrão do seu sistema */}
             <Route element={<ProtectedRoute />}>
               <Route element={<AppLayout />}>
+                {/* Rotas Livres para qualquer um que consiga logar */}
                 <Route path="/" element={<HomeRedirect />} />
                 <Route path="/change-password" element={<ChangePasswordPage />} />
 
-                {/* Permissão Geral: Todos os envolvidos */}
-                <Route
-                  element={
-                    <RoleProtectedRoute
-                      allowedRoles={["admin", "coordenador", "desenvolvedor", "gestor", "lider", "líder", "dev"]}
-                    />
-                  }
-                >
-                  <Route path="/dailys" element={<DailysLayout />}>
-                    <Route path="registro" element={<DailysRegistroPage />} />
-                  </Route>
+                <Route path="/dailys" element={<DailysLayout />}>
+                  <Route path="registro" element={<DailysRegistroPage />} />
                 </Route>
 
-                {/* Permissão de Gestão: Líderes, Gestores, Coordenadores e Admin */}
+                {/* Rotas restritas para Gestão (Líderes, Coordenadores, Gestores e Admins) */}
                 <Route
                   element={<RoleProtectedRoute allowedRoles={["admin", "coordenador", "gestor", "lider", "líder"]} />}
                 >
@@ -140,7 +123,7 @@ const App = () => (
                   <Route path="/settings" element={<SettingsPage />} />
                 </Route>
 
-                {/* Permissão Crítica: Apenas Admin */}
+                {/* Rotas restritas exclusivamente para o Administrador */}
                 <Route element={<RoleProtectedRoute allowedRoles={["admin"]} />}>
                   <Route path="/users" element={<UsersPage />} />
                   <Route path="/roles" element={<RolesPage />} />
