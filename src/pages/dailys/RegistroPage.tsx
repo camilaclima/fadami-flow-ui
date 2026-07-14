@@ -78,22 +78,26 @@ function workdaysInRange(start: Date, end: Date): Date[] {
   return days;
 }
 
-function toISO(d: Date): string {
-  return format(d, "yyyy-MM-dd");
-}
+// 1. Filtro de entradas: traz a squad selecionada OU os registros legados nulos/vazios
+  const entries = useMemo(
+    () => (selectedSquadId
+      ? allEntries.filter((e) => e.squad_id === selectedSquadId || !e.squad_id)
+      : allEntries),
+    [allEntries, selectedSquadId],
+  );
 
-function allowedDates(): { value: string; label: string }[] {
-  const now = new Date();
-  const dow = now.getDay();
-  const prev = dow === 1 ? subDays(now, 3) : dow === 0 ? subDays(now, 2) : subDays(now, 1);
-  const opts: { value: string; label: string }[] = [];
+  const entryIds = useMemo(() => entries.map((e) => e.id), [entries]);
+  const { data: allImpediments = [] } = useDevDailyImpedimentsByEntries(entryIds);
+  const { create: createImp, resolve: resolveImp, remove: removeImp } = useImpedimentMutations();
+  const { data: allDevActivities = [] } = useDevDailyActivitiesByUser(sim.devUserId);
 
-  if (dow !== 0 && dow !== 6 && now.getHours() >= 17) {
-    opts.push({ value: toISO(now), label: `Hoje — ${format(now, "EEEE, dd/MM", { locale: ptBR })}` });
-  }
-  opts.push({ value: toISO(prev), label: `Ontem útil — ${format(prev, "EEEE, dd/MM", { locale: ptBR })}` });
-
-  return opts;
+  // 2. Filtro de atividades: traz a squad selecionada OU as demandas legadas nulas/vazias
+  const allActivities = useMemo(
+    () => (selectedSquadId
+      ? allDevActivities.filter((a) => a.squad_id === selectedSquadId || !a.squad_id)
+      : allDevActivities),
+    [allDevActivities, selectedSquadId],
+  );
 }
 
 function useMySquadNames(squadIds: string[] | null | undefined) {
