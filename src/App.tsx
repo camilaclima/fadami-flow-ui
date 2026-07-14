@@ -34,7 +34,6 @@ import DailysLayout from "./components/dailys/DailysLayout";
 
 const queryClient = new QueryClient();
 
-// Ícone de Escudo de Alerta idêntico ao do print
 const ShieldAlertIcon = () => (
   <svg className="w-14 h-14 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
     <path
@@ -49,9 +48,7 @@ interface RestrictedAccessProps {
   allowedRoles: string[];
 }
 
-// Componente visual que renderiza o card de bloqueio do print
 const RestrictedAccess = ({ allowedRoles }: RestrictedAccessProps) => {
-  // Mapeia as roles técnicas para nomes mais amigáveis e profissionais na tela
   const roleLabelsMap: Record<string, string> = {
     admin: "Administradores",
     gestor: "Gestores",
@@ -64,7 +61,7 @@ const RestrictedAccess = ({ allowedRoles }: RestrictedAccessProps) => {
 
   const friendlyRoles = allowedRoles
     .map((role) => roleLabelsMap[role.toLowerCase()] || role)
-    .filter((value, index, self) => self.indexOf(value) === index) // Remove duplicados
+    .filter((value, index, self) => self.indexOf(value) === index)
     .join(", ");
 
   return (
@@ -88,7 +85,8 @@ interface RoleProtectedRouteProps {
 }
 
 const RoleProtectedRoute = ({ allowedRoles }: RoleProtectedRouteProps) => {
-  const { user, loading } = useAuth() as any;
+  // EXTRAÇÃO CORRETA: extraímos tanto 'user' quanto 'profile' diretamente do useAuth()
+  const { user, profile, loading } = useAuth() as any;
 
   if (loading) {
     return (
@@ -102,11 +100,12 @@ const RoleProtectedRoute = ({ allowedRoles }: RoleProtectedRouteProps) => {
     return <Navigate to="/login" replace />;
   }
 
-  const rawRole = user?.user_metadata?.role || user?.role || user?.profile?.role || "";
+  // Agora buscamos a role priorizando o profile vindo do banco e depois o user_metadata
+  const rawRole = profile?.role || user?.user_metadata?.role || user?.role || "";
 
   const userRole = rawRole.toString().toLowerCase().trim();
 
-  // Se o usuário não tem a role carregada ainda, bloqueamos preventivamente por segurança
+  // Se a role não foi identificada, bloqueia por segurança
   if (!userRole) {
     return <RestrictedAccess allowedRoles={allowedRoles} />;
   }
@@ -114,7 +113,6 @@ const RoleProtectedRoute = ({ allowedRoles }: RoleProtectedRouteProps) => {
   const normalizedAllowedRoles = allowedRoles.map((r) => r.toLowerCase().trim());
   const hasAccess = normalizedAllowedRoles.includes(userRole);
 
-  // EM VEZ DE REDIRECIONAR, RENDERIZA O CARD DE BLOQUEIO DENTRO DO LAYOUT
   if (!hasAccess) {
     return <RestrictedAccess allowedRoles={allowedRoles} />;
   }
@@ -138,7 +136,7 @@ const App = () => (
                 <Route path="/" element={<HomeRedirect />} />
                 <Route path="/change-password" element={<ChangePasswordPage />} />
 
-                {/* 1. Área Geral: Acesso para todos os usuários logados */}
+                {/* 1. Área Geral: Todos os envolvidos */}
                 <Route
                   element={
                     <RoleProtectedRoute
@@ -151,7 +149,7 @@ const App = () => (
                   </Route>
                 </Route>
 
-                {/* 2. Área de Gestão: Apenas Líderes, Gestores, Coordenadores e Admins */}
+                {/* 2. Área de Gestão: Líderes e Admins */}
                 <Route
                   element={<RoleProtectedRoute allowedRoles={["admin", "coordenador", "gestor", "lider", "líder"]} />}
                 >
@@ -177,7 +175,7 @@ const App = () => (
                   <Route path="/settings" element={<SettingsPage />} />
                 </Route>
 
-                {/* 3. Área Administrativa: Apenas Administradores */}
+                {/* 3. Área Administrativa: Apenas Admin */}
                 <Route element={<RoleProtectedRoute allowedRoles={["admin"]} />}>
                   <Route path="/users" element={<UsersPage />} />
                   <Route path="/roles" element={<RolesPage />} />
