@@ -125,7 +125,10 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
         });
         await syncSquads.mutateAsync({ profileId: profile.id, squadIds: selectedSquadIds });
         await syncGroups.mutateAsync({ profileId: profile.id, groupIds: selectedGroupIds });
-        await maybeLinkDeveloperToSquads(email.trim(), roleId, selectedSquadIds);
+
+        // Sincronização automática de Squads e Funções baseada no Grupo de Acesso
+        await autoSyncSquadRelations(email.trim(), selectedGroupIds, selectedSquadIds);
+
         toast.success("Usuário atualizado!");
         onOpenChange(false);
       } else {
@@ -155,7 +158,9 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
           await syncSquads.mutateAsync({ profileId: newProfile.id, squadIds: selectedSquadIds });
           await syncGroups.mutateAsync({ profileId: newProfile.id, groupIds: selectedGroupIds });
         }
-        await maybeLinkDeveloperToSquads(email.trim(), roleId, selectedSquadIds);
+
+        // Sincronização automática de Squads e Funções baseada no Grupo de Acesso
+        await autoSyncSquadRelations(email.trim(), selectedGroupIds, selectedSquadIds);
 
         setGeneratedPassword(tempPassword);
         toast.success("Usuário criado com sucesso!");
@@ -168,36 +173,106 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
     }
   };
 
-  const maybeLinkDeveloperToSquads = async (userEmail: string, userRoleId: string, squadIds: string[]) => {
+  // NOVA LÓGICA AUTOMÁTICA DE VÍNCULO DE SQUADS E GRUPOS (LÍDER / DEV)
+  const autoSyncSquadRelations = async (userEmail: string, groupIds: string[], squadIds: string[]) => {
     try {
-      const role = roles.find((r) => r.id === userRoleId);
-      if (!role || role.title.trim().toLowerCase() !== "desenvolvedor") return;
       if (squadIds.length === 0 || !userEmail) return;
 
+      // 1. Busca o ID do colaborador correspondente na tabela team_members
       const { data: tm } = await (supabase.from("team_members") as any)
         .select("id")
         .ilike("email", userEmail)
         .eq("active", true)
         .maybeSingle();
+
       if (!tm?.id) {
-        toast.info("Cadastre o desenvolvedor em Colaboradores para vinculá-lo à squad.");
+        toast.info("Cadastre o usuário em Colaboradores se quiser vinculá-lo automaticamente às squads.");
         return;
       }
 
-      const { data: existing } = await (supabase.from("squad_members") as any)
-        .select("squad_id")
-        .eq("team_member_id", tm.id)
-        .in("squad_id", squadIds);
-      const existingIds = new Set((existing ?? []).map((r: any) => r.squad_id));
-      const toInsert = squadIds
-        .filter((sid) => !existingIds.has(sid))
-        .map((sid) => ({ squad_id: sid, team_member_id: tm.id }));
-      if (toInsert.length > 0) {
-        await (supabase.from("squad_members") as any).insert(toInsert);
-        queryClient.invalidateQueries({ queryKey: ["squads"] });
+      // 2. Mapeia os nomes dos Grupos de Acesso selecionados
+      const selectedGroupNames = groupIds
+        .map((gid) =>
+          accessGroups
+            .find((g) => g.id === gid)
+            ?.name?.trim()
+            .toLowerCase(),
+        )
+        .filter(Boolean);
+
+      const isDeveloperGroup = selectedGroupNames.includes("desenvolvedor");
+      const isLeaderGroup =
+        selectedGroupNames.includes("líderes") ||
+        selectedGroupNames.includes("lideres") ||
+        selectedGroupNames.includes("lider");
+
+      // --- Sincronização de MEMBROS DE TIME (squad_members) ---
+      if (isDeveloperGroup) {
+        // Busca os vínculos atuais na tabela squad_members para este colaborador
+        const { data: currentMembers } = await (supabase.from("squad_members") as any)
+          .select("squad_id")
+          .eq("team_member_id", tm.id);
+
+        const currentMemberSquadIds = new Set((currentMembers ?? []).map((m: any) => m.squad_id));
+
+        // Filtra as squads que precisam ser inseridas
+        const membersToInsert = squadIds
+          .filter((sid) => !currentMemberSquadIds.has(sid))
+          .map((sid) => ({ squad_id: sid, team_member_id: tm.id }));
+
+        // Filtra as squads que foram desmarcadas e precisam ser removidas
+        const squadIdsToKeep = new Set(squadIds);
+        const membersToRemove = [...currentMemberSquadIds].filter((sid) => !squadIdsToKeep.has(sid));
+
+        if (membersToInsert.length > 0) {
+          await (supabase.from("squad_members") as any).insert(membersToInsert);
+        }
+        if (membersToRemove.length > 0) {
+          await (supabase.from("squad_members") as any)
+            .delete()
+            .eq("team_member_id", tm.id)
+            .in("squad_id", membersToRemove);
+        }
+      } else {
+        // Se não for do grupo desenvolvedor, remove todos os vínculos de membro de time destas squads
+        await (supabase.from("squad_members") as any).delete().eq("team_member_id", tm.id);
       }
+
+      // --- Sincronização de LÍDERES DE SQUAD (squad_leaders) ---
+      if (isLeaderGroup) {
+        // Busca os vínculos atuais na tabela squad_leaders para este colaborador
+        const { data: currentLeaders } = await (supabase.from("squad_leaders") as any)
+          .select("squad_id")
+          .eq("team_member_id", tm.id);
+
+        const currentLeaderSquadIds = new Set((currentLeaders ?? []).map((l: any) => l.squad_id));
+
+        // Filtra os líderes que precisam ser inseridos
+        const leadersToInsert = squadIds
+          .filter((sid) => !currentLeaderSquadIds.has(sid))
+          .map((sid) => ({ squad_id: sid, team_member_id: tm.id }));
+
+        // Filtra os líderes que foram removidos
+        const squadIdsToKeep = new Set(squadIds);
+        const leadersToRemove = [...currentLeaderSquadIds].filter((sid) => !squadIdsToKeep.has(sid));
+
+        if (leadersToInsert.length > 0) {
+          await (supabase.from("squad_leaders") as any).insert(leadersToInsert);
+        }
+        if (leadersToRemove.length > 0) {
+          await (supabase.from("squad_leaders") as any)
+            .delete()
+            .eq("team_member_id", tm.id)
+            .in("squad_id", leadersToRemove);
+        }
+      } else {
+        // Se não for do grupo líder, remove todos os vínculos de liderança deste usuário
+        await (supabase.from("squad_leaders") as any).delete().eq("team_member_id", tm.id);
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["squads"] });
     } catch (e) {
-      console.error("Falha ao vincular desenvolvedor à squad", e);
+      console.error("Falha ao sincronizar as relações automáticas de Squads", e);
     }
   };
 
