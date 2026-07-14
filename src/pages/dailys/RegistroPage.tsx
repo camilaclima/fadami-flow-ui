@@ -50,7 +50,7 @@ import {
 } from "@/hooks/useDevDailyActivities";
 import { useDailySim } from "@/contexts/DailySimContext";
 import { AccessDeniedCard } from "@/components/dailys/AccessDeniedCard";
-import { format, parseISO, addDays, subDays, startOfWeek, isWeekend } from "date-fns";
+import { format, parseISO, addDays, subDays, startOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -78,26 +78,22 @@ function workdaysInRange(start: Date, end: Date): Date[] {
   return days;
 }
 
-// 1. Filtro de entradas: traz a squad selecionada OU os registros legados nulos/vazios
-  const entries = useMemo(
-    () => (selectedSquadId
-      ? allEntries.filter((e) => e.squad_id === selectedSquadId || !e.squad_id)
-      : allEntries),
-    [allEntries, selectedSquadId],
-  );
+function toISO(d: Date): string {
+  return format(d, "yyyy-MM-dd");
+}
 
-  const entryIds = useMemo(() => entries.map((e) => e.id), [entries]);
-  const { data: allImpediments = [] } = useDevDailyImpedimentsByEntries(entryIds);
-  const { create: createImp, resolve: resolveImp, remove: removeImp } = useImpedimentMutations();
-  const { data: allDevActivities = [] } = useDevDailyActivitiesByUser(sim.devUserId);
+function allowedDates(): { value: string; label: string }[] {
+  const now = new Date();
+  const dow = now.getDay();
+  const prev = dow === 1 ? subDays(now, 3) : dow === 0 ? subDays(now, 2) : subDays(now, 1);
+  const opts: { value: string; label: string }[] = [];
 
-  // 2. Filtro de atividades: traz a squad selecionada OU as demandas legadas nulas/vazias
-  const allActivities = useMemo(
-    () => (selectedSquadId
-      ? allDevActivities.filter((a) => a.squad_id === selectedSquadId || !a.squad_id)
-      : allDevActivities),
-    [allDevActivities, selectedSquadId],
-  );
+  if (dow !== 0 && dow !== 6 && now.getHours() >= 17) {
+    opts.push({ value: toISO(now), label: `Hoje — ${format(now, "EEEE, dd/MM", { locale: ptBR })}` });
+  }
+  opts.push({ value: toISO(prev), label: `Ontem útil — ${format(prev, "EEEE, dd/MM", { locale: ptBR })}` });
+
+  return opts;
 }
 
 function useMySquadNames(squadIds: string[] | null | undefined) {
@@ -129,8 +125,9 @@ export default function RegistroPage() {
     setSelectedSquadId((prev) => (prev && ids.includes(prev) ? prev : ids[0]));
   }, [sim.squadIds]);
 
+  // AJUSTE: Filtra pela squad selecionada OU traz os históricos legados antigos nulos
   const entries = useMemo(
-    () => (selectedSquadId ? allEntries.filter((e) => e.squad_id === selectedSquadId) : allEntries),
+    () => (selectedSquadId ? allEntries.filter((e) => e.squad_id === selectedSquadId || !e.squad_id) : allEntries),
     [allEntries, selectedSquadId],
   );
 
@@ -139,8 +136,12 @@ export default function RegistroPage() {
   const { create: createImp, resolve: resolveImp, remove: removeImp } = useImpedimentMutations();
   const { data: allDevActivities = [] } = useDevDailyActivitiesByUser(sim.devUserId);
 
+  // AJUSTE: Filtra as atividades pela squad ativa OU traz os fluxos antigos sem squad associada
   const allActivities = useMemo(
-    () => (selectedSquadId ? allDevActivities.filter((a) => a.squad_id === selectedSquadId) : allDevActivities),
+    () =>
+      selectedSquadId
+        ? allDevActivities.filter((a) => a.squad_id === selectedSquadId || !a.squad_id)
+        : allDevActivities,
     [allDevActivities, selectedSquadId],
   );
 
@@ -881,7 +882,7 @@ export default function RegistroPage() {
                 {detailEntry.general_notes?.trim() ? (
                   <p className="text-sm whitespace-pre-wrap break-words">{detailEntry.general_notes}</p>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">Nenhuma observation geral registrada.</p>
+                  <p className="text-sm text-muted-foreground italic">Nenhuma observação geral registrada.</p>
                 )}
               </div>
               <div className="text-[10px] text-muted-foreground text-right">
@@ -1387,6 +1388,10 @@ export default function RegistroPage() {
     </div>
   );
 }
+
+/* =========================================================
+    Subcomponentes (Sem alterações de regras de negócio)
+   ========================================================= */
 
 function NoteButton({
   value,
