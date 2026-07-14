@@ -83,6 +83,7 @@ const App = () => (
                 <Route path="/" element={<HomeRedirect />} />
                 <Route path="/change-password" element={<ChangePasswordPage />} />
 
+                {/* Rota para todos os usuários logados */}
                 <Route
                   element={
                     <RoleProtectedRoute
@@ -95,6 +96,7 @@ const App = () => (
                   </Route>
                 </Route>
 
+                {/* Rotas restritas para Gestão (Líderes e Admins) */}
                 <Route
                   element={<RoleProtectedRoute allowedRoles={["admin", "coordenador", "gestor", "lider", "líder"]} />}
                 >
@@ -120,6 +122,7 @@ const App = () => (
                   <Route path="/settings" element={<SettingsPage />} />
                 </Route>
 
+                {/* Rotas restritas apenas para Administradores */}
                 <Route element={<RoleProtectedRoute allowedRoles={["admin"]} />}>
                   <Route path="/users" element={<UsersPage />} />
                   <Route path="/roles" element={<RolesPage />} />
