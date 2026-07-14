@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, Sparkles, Loader2, CheckCircle2, MessageSquare, Users, AlertTriangle, X } from "lucide-react";
+import { CalendarIcon, Sparkles, Loader2, CheckCircle2, MessageSquare, Users, AlertTriangle } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -30,21 +30,13 @@ interface Props {
   onSaved?: () => void;
 }
 
-export function NewDailyDialog({
-  open,
-  onOpenChange,
-  lockedProductId,
-  allowedProductIds,
-  allowedMemberIds,
-  onSaved,
-}: Props) {
+export function NewDailyDialog({ open, onOpenChange, lockedProductId, allowedProductIds, allowedMemberIds, onSaved }: Props) {
   const qc = useQueryClient();
   const { data: allProducts = [] } = useActiveProducts();
   const products = useMemo(
-    () =>
-      allowedProductIds && allowedProductIds.length > 0
-        ? allProducts.filter((p) => allowedProductIds.includes(p.id))
-        : allProducts,
+    () => (allowedProductIds && allowedProductIds.length > 0
+      ? allProducts.filter((p) => allowedProductIds.includes(p.id))
+      : allProducts),
     [allProducts, allowedProductIds],
   );
   const { data: allTeamMembers = [] } = useTeamMembers();
@@ -76,27 +68,23 @@ export function NewDailyDialog({
       const ids = new Set<string>();
       // Via squads vinculados ao(s) produto(s)
       const { data: sp, error: spErr } = await (supabase.from("squad_products") as any)
-        .select("squad_id")
-        .in("product_id", memberProductScope);
+        .select("squad_id").in("product_id", memberProductScope);
       if (spErr) throw spErr;
       const squadIds = Array.from(new Set((sp ?? []).map((r: any) => r.squad_id))) as string[];
       if (squadIds.length > 0) {
         const { data: sm, error: smErr } = await (supabase.from("squad_members") as any)
-          .select("team_member_id")
-          .in("squad_id", squadIds);
+          .select("team_member_id").in("squad_id", squadIds);
         if (smErr) throw smErr;
         (sm ?? []).forEach((r: any) => r.team_member_id && ids.add(r.team_member_id));
       }
       // Via vínculo direto colaborador ↔ projeto (team_member_products)
       const { data: tmp, error: tmpErr } = await (supabase.from("team_member_products" as any) as any)
-        .select("team_member_id")
-        .in("product_id", memberProductScope);
+        .select("team_member_id").in("product_id", memberProductScope);
       if (tmpErr) throw tmpErr;
       (tmp ?? []).forEach((r: any) => r.team_member_id && ids.add(r.team_member_id));
       // Fallback: team_members.product_id legado
       const { data: tm, error: tmErr } = await (supabase.from("team_members") as any)
-        .select("id")
-        .in("product_id", memberProductScope);
+        .select("id").in("product_id", memberProductScope);
       if (tmErr) throw tmErr;
       (tm ?? []).forEach((r: any) => r.id && ids.add(r.id));
       return Array.from(ids);
@@ -111,7 +99,7 @@ export function NewDailyDialog({
       list = list.filter((m) => allowed.has(m.id));
     }
     // Deduplica por nome (case-insensitive), preferindo membros ativos
-    const seen = new Map<string, (typeof list)[number]>();
+    const seen = new Map<string, typeof list[number]>();
     for (const m of list) {
       const key = (m.name ?? "").trim().toLowerCase();
       const prev = seen.get(key);
@@ -161,10 +149,7 @@ export function NewDailyDialog({
     enabled: historyProductIds.length > 0 && open,
     queryFn: async () => {
       const { data, error } = await (supabase.from("daily_status") as any)
-        .select("*")
-        .in("product_id", historyProductIds)
-        .order("status_date", { ascending: false })
-        .limit(30);
+        .select("*").in("product_id", historyProductIds).order("status_date", { ascending: false }).limit(30);
       if (error) throw error;
       return data;
     },
@@ -175,9 +160,7 @@ export function NewDailyDialog({
     enabled: !!productId && open,
     queryFn: async () => {
       const { data, error } = await (supabase.from("project_contexts") as any)
-        .select("*")
-        .eq("product_id", productId)
-        .maybeSingle();
+        .select("*").eq("product_id", productId).maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -188,10 +171,7 @@ export function NewDailyDialog({
     enabled: !!productId && open,
     queryFn: async () => {
       const { data, error } = await (supabase.from("project_backlog_items") as any)
-        .select("*")
-        .eq("product_id", productId)
-        .eq("approved", true)
-        .order("sort_order", { ascending: true });
+        .select("*").eq("product_id", productId).eq("approved", true).order("sort_order", { ascending: true });
       if (error) throw error;
       return data as any[];
     },
@@ -217,10 +197,7 @@ export function NewDailyDialog({
     });
     (Array.isArray(ins.dependencias_externas) ? ins.dependencias_externas : []).forEach((d: any, i: number) => {
       const resp = d?.responsavel ? ` — 👤 ${d.responsavel}` : "";
-      items.push({
-        key: `dep-${i}`,
-        label: `🔗 ${truncate(`${d?.item ?? ""} — aguardando ${d?.bloqueador ?? ""}`)}${resp}`,
-      });
+      items.push({ key: `dep-${i}`, label: `🔗 ${truncate(`${d?.item ?? ""} — aguardando ${d?.bloqueador ?? ""}`)}${resp}` });
     });
     (Array.isArray(ins.proximos_passos) ? ins.proximos_passos : []).forEach((p: string, i: number) => {
       items.push({ key: `pp-${i}`, label: `✅ ${truncate(String(p))}` });
@@ -233,9 +210,7 @@ export function NewDailyDialog({
   const todayStr = format(date, "yyyy-MM-dd");
   const projectSprints = useMemo(() => {
     if (!effectiveProductId) return [] as typeof allSprints;
-    const linked = new Set(
-      sprintProductLinks.filter((sp) => sp.product_id === effectiveProductId).map((sp) => sp.sprint_id),
-    );
+    const linked = new Set(sprintProductLinks.filter((sp) => sp.product_id === effectiveProductId).map((sp) => sp.sprint_id));
     return allSprints.filter((s) => linked.has(s.id) || s.product_id === effectiveProductId);
   }, [allSprints, sprintProductLinks, effectiveProductId]);
   const isCurrentSprint = (s: { start_date: string; end_date: string }) =>
@@ -315,9 +290,7 @@ export function NewDailyDialog({
       const { error: insertErr } = await (supabase.from("daily_status") as any).insert({
         product_id: effectiveProductId,
         sprint_id: sprintId === "__none__" ? null : sprintId,
-        sprint_label:
-          sprintLabel.trim() ||
-          (sprintId !== "__none__" ? (allSprints.find((s) => s.id === sprintId)?.name ?? "") : ""),
+        sprint_label: sprintLabel.trim() || (sprintId !== "__none__" ? allSprints.find((s) => s.id === sprintId)?.name ?? "" : ""),
         status_date: format(date, "yyyy-MM-dd"),
         present_member_ids: selectedMembers,
         summary: compositeSummary,
@@ -343,48 +316,16 @@ export function NewDailyDialog({
   };
 
   const lockedProduct = products.find((p) => p.id === lockedProductId);
-  const lockedProducts =
-    allowedProductIds && allowedProductIds.length > 0
-      ? allProducts.filter((p) => allowedProductIds.includes(p.id))
-      : [];
+  const lockedProducts = allowedProductIds && allowedProductIds.length > 0
+    ? allProducts.filter((p) => allowedProductIds.includes(p.id))
+    : [];
   const isSquadMode = !lockedProductId && lockedProducts.length > 0;
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(val) => {
-        // 🔒 Impedimos o Radix de alterar o estado a menos que queiramos explicitamente fechar.
-        if (!val) return;
-        onOpenChange(val);
-      }}
-    >
-      <DialogContent
-        className="max-w-3xl max-h-[90vh] overflow-y-auto"
-        // 🔒 Interceptação agressiva no ciclo de eventos do Radix (captura e anulação)
-        onPointerDownOutside={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-        }}
-        onEscapeKeyDown={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-        }}
-        onInteractOutside={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-        }}
-      >
-        <DialogHeader className="relative">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
           <DialogTitle>Nova Daily</DialogTitle>
-          {/* Botão de Fechar Customizado */}
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="absolute right-0 top-0 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground text-foreground p-1 hover:bg-muted/60"
-          >
-            <X className="h-4 w-4" />
-            <span className="sr-only">Close</span>
-          </button>
           <DialogDescription>
             Preencha o relato individual de cada membro presente. A IA calculará o nível de bloqueio automaticamente.
           </DialogDescription>
@@ -412,15 +353,9 @@ export function NewDailyDialog({
                 </div>
               ) : (
                 <Select value={productId} onValueChange={(v) => setProductId(v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
-                    {products.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
+                    {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               )}
@@ -435,13 +370,7 @@ export function NewDailyDialog({
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={(d) => d && setDate(d)}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
+                  <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus className={cn("p-3 pointer-events-auto")} />
                 </PopoverContent>
               </Popover>
             </div>
@@ -458,10 +387,7 @@ export function NewDailyDialog({
                       <span className="flex items-center gap-2">
                         {s.name}
                         {isCurrentSprint(s) && (
-                          <Badge
-                            className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[9px] px-1.5 py-0 h-4"
-                            variant="outline"
-                          >
+                          <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[9px] px-1.5 py-0 h-4" variant="outline">
                             Atual
                           </Badge>
                         )}
@@ -469,9 +395,7 @@ export function NewDailyDialog({
                     </SelectItem>
                   ))}
                   {projectSprints.length === 0 && effectiveProductId && (
-                    <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                      Nenhuma sprint cadastrada para este projeto.
-                    </div>
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">Nenhuma sprint cadastrada para este projeto.</div>
                   )}
                 </SelectContent>
               </Select>
@@ -482,8 +406,7 @@ export function NewDailyDialog({
             <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-2">
               <div className="flex items-center gap-2 text-sm font-semibold text-amber-600 dark:text-amber-400">
                 <AlertTriangle className="h-4 w-4" />
-                Pontos pendentes da última daily (
-                {format(new Date(previousAttentionPoints.date + "T00:00:00"), "dd/MM/yyyy")})
+                Pontos pendentes da última daily ({format(new Date(previousAttentionPoints.date + "T00:00:00"), "dd/MM/yyyy")})
               </div>
               <p className="text-xs text-muted-foreground">
                 Marque os que já foram resolvidos ou abordados nesta daily.
@@ -497,7 +420,9 @@ export function NewDailyDialog({
                         <input
                           type="checkbox"
                           checked={done}
-                          onChange={(e) => setCheckedPending((prev) => ({ ...prev, [it.key]: e.target.checked }))}
+                          onChange={(e) =>
+                            setCheckedPending((prev) => ({ ...prev, [it.key]: e.target.checked }))
+                          }
                           className="mt-0.5 h-3.5 w-3.5 rounded border-amber-500/50 accent-amber-500 cursor-pointer"
                         />
                         <span className={cn("leading-snug", done && "line-through text-muted-foreground")}>
@@ -512,9 +437,7 @@ export function NewDailyDialog({
           )}
 
           <div className="space-y-2">
-            <Label className="flex items-center gap-2">
-              <Users className="h-4 w-4" /> Membros presentes
-            </Label>
+            <Label className="flex items-center gap-2"><Users className="h-4 w-4" /> Membros presentes</Label>
             <div className="flex flex-wrap gap-2 rounded-md border border-input bg-background p-3 min-h-[44px]">
               {teamMembers.length === 0 && (
                 <span className="text-sm text-muted-foreground">
@@ -526,17 +449,9 @@ export function NewDailyDialog({
               {teamMembers.map((m) => {
                 const active = selectedMembers.includes(m.id);
                 return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => toggleMember(m.id)}
-                    className={cn(
-                      "px-3 py-1 rounded-full text-xs font-medium border transition-all",
-                      active
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background hover:bg-accent border-border",
-                    )}
-                  >
+                  <button key={m.id} type="button" onClick={() => toggleMember(m.id)}
+                    className={cn("px-3 py-1 rounded-full text-xs font-medium border transition-all",
+                      active ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-accent border-border")}>
                     {active && <CheckCircle2 className="inline h-3 w-3 mr-1" />}
                     {m.name}
                   </button>
@@ -553,12 +468,7 @@ export function NewDailyDialog({
               <div className="space-y-3">
                 {selectedMembers.map((id) => {
                   const name = memberNameMap[id] ?? id;
-                  const initials = name
-                    .split(" ")
-                    .map((p) => p[0])
-                    .slice(0, 2)
-                    .join("")
-                    .toUpperCase();
+                  const initials = name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
                   return (
                     <div key={id} className="rounded-lg border border-border bg-card/50 p-3 space-y-2">
                       <div className="flex items-center gap-2">
@@ -599,17 +509,7 @@ export function NewDailyDialog({
                 : "Sem histórico — primeira daily deste projeto."}
             </p>
             <Button onClick={handleSave} disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Analisando...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Salvar e analisar
-                </>
-              )}
+              {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Analisando...</> : <><Sparkles className="h-4 w-4 mr-2" />Salvar e analisar</>}
             </Button>
           </div>
         </div>
