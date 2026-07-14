@@ -116,7 +116,6 @@ export default function RegistroPage() {
 
   const [selectedSquadId, setSelectedSquadId] = useState<string | null>(null);
 
-  // Verifica se existem registros legados (sem squad) no banco de dados
   const hasLegacyEntries = useMemo(() => {
     return allEntries.some((e) => !e.squad_id);
   }, [allEntries]);
@@ -133,7 +132,6 @@ export default function RegistroPage() {
     });
   }, [sim.squadIds, hasLegacyEntries]);
 
-  // 1. FILTRAGEM LIMPA: Se for "legacy", mostra os nulos. Se for uma squad, filtra estritamente por ela.
   const entries = useMemo(() => {
     if (selectedSquadId === "legacy") {
       return allEntries.filter((e) => !e.squad_id);
@@ -146,7 +144,6 @@ export default function RegistroPage() {
   const { create: createImp, resolve: resolveImp, remove: removeImp } = useImpedimentMutations();
   const { data: allDevActivities = [] } = useDevDailyActivitiesByUser(sim.devUserId);
 
-  // 2. FILTRAGEM LIMPA DE ATIVIDADES: Separa o carry-over antigo das squads ativas
   const allActivities = useMemo(() => {
     if (selectedSquadId === "legacy") {
       return allDevActivities.filter((a) => !a.squad_id);
@@ -467,7 +464,6 @@ export default function RegistroPage() {
 
     setSaving(true);
     try {
-      // Se estiver salvando no modo legacy, não associa squad_id
       const currentSquadId = selectedSquadId === "legacy" ? null : selectedSquadId || sim.squadIds?.[0] || null;
 
       const result = await upsert.mutateAsync({
@@ -594,7 +590,6 @@ export default function RegistroPage() {
         <h1 className="text-2xl font-bold">Minha Daily — {sim.personName ?? ""}</h1>
         <p className="text-sm text-muted-foreground">Registre seu status diário e acompanhe o histórico.</p>
 
-        {/* DROPDOWN DE SQUADS INTELIGENTE COM AGRUPAMENTO LEGADO */}
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
             <Users className="w-3.5 h-3.5" /> Squad ativa no painel:
@@ -935,8 +930,8 @@ export default function RegistroPage() {
           onInteractOutside={(e) => e.preventDefault()}
         >
           <DialogHeader className="relative">
-            <DialogTitle className="flex items-center gap-2">
-              <ClipboardEdit className="w-5 h-5 text-primary" />
+            <ClipboardEdit className="w-5 h-5 text-primary" />
+            <DialogTitle>
               Registrar daily
               {mode === "edit" && (
                 <Badge variant="outline" className="ml-2">
@@ -1789,7 +1784,7 @@ function ActivitiesFutureSection(props: {
       ...p,
       { id: crypto.randomUUID(), description: d, cardCode: code, notes: newNote.trim() || undefined },
     ]);
-    newDesc("");
+    setNewDesc("");
     setNewCode("");
     setNewNote("");
   };
