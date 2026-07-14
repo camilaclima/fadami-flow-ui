@@ -1799,7 +1799,7 @@ function ActivitiesFutureSection(props: {
       { id: crypto.randomUUID(), description: d, cardCode: code, notes: newNote.trim() || undefined },
     ]);
 
-    setNewDesc(""); // <--- AQUI DEVE SER "setNewDesc", não apenas "newDesc"
+    setNewDesc("");
     setNewCode("");
     setNewNote("");
   };
