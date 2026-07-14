@@ -170,11 +170,7 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
     }
   };
 
-  const maybeLinkDeveloperToSquads = async (
-    userEmail: string,
-    userRoleId: string,
-    squadIds: string[],
-  ) => {
+  const maybeLinkDeveloperToSquads = async (userEmail: string, userRoleId: string, squadIds: string[]) => {
     try {
       const role = roles.find((r) => r.id === userRoleId);
       if (!role || role.title.trim().toLowerCase() !== "desenvolvedor") return;
@@ -301,10 +297,7 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
                         key={s.id}
                         className="flex items-center gap-2 text-sm cursor-pointer hover:bg-secondary/80 rounded px-1 py-0.5 transition-colors"
                       >
-                        <Checkbox
-                          checked={selectedSquadIds.includes(s.id)}
-                          onCheckedChange={() => toggleSquad(s.id)}
-                        />
+                        <Checkbox checked={selectedSquadIds.includes(s.id)} onCheckedChange={() => toggleSquad(s.id)} />
                         <span className="text-foreground truncate">{s.name}</span>
                       </label>
                     ))}
