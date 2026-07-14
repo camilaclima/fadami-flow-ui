@@ -283,7 +283,6 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
                 </Select>
               </div>
 
-              {/* CAMPO DE SQUADS REESTRUTURADO PARA DROPDOWN MULTISELECT */}
               <div className="space-y-2 flex flex-col">
                 <Label>Squads *</Label>
                 <Popover open={dropdownOpen} onOpenChange={setDropdownOpen}>
@@ -318,15 +317,17 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
                       <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                  <PopoverContent
+                    className="w-[var(--radix-popover-trigger-width)] p-0 z-[100]"
+                    align="start"
+                    onWheel={(e) => e.stopPropagation()}
+                  >
                     <Command className="bg-card border border-border w-full">
                       <CommandInput placeholder="Pesquisar squad..." className="border-none focus:ring-0" />
                       <CommandEmpty className="py-2 text-center text-sm text-muted-foreground">
                         Nenhuma squad encontrada.
                       </CommandEmpty>
-
-                      {/* Forçamos uma altura máxima e scrollbar visível diretamente no CommandList */}
-                      <CommandList className="max-h-[200px] overflow-y-auto overflow-x-hidden custom-scrollbar">
+                      <CommandList className="max-h-[180px] overflow-y-auto overflow-x-hidden">
                         <CommandGroup className="p-1">
                           {activeSquads.map((s) => {
                             const isChecked = selectedSquadIds.includes(s.id);
