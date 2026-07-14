@@ -116,9 +116,17 @@ export default function RegistroPage() {
 
   const [selectedSquadId, setSelectedSquadId] = useState<string | null>(null);
 
-  const hasLegacyEntries = useMemo(() => {
-    return allEntries.some((e) => !e.squad_id);
-  }, [allEntries]);
+  const hasLegacyEntries = useMemo(() => allEntries.some((e) => !e.product_id), [allEntries]);
+
+  // Busca produtos da squad ativa
+  const { data: squadProductIds = [] } = useQuery({
+    queryKey: ["squad-products", selectedSquadId],
+    enabled: !!selectedSquadId && selectedSquadId !== "legacy",
+    queryFn: async () => {
+      const { data } = await supabase.from("squad_products").select("product_id").eq("squad_id", selectedSquadId);
+      return (data ?? []).map((p) => p.product_id);
+    },
+  });
 
   useEffect(() => {
     const ids = sim.squadIds ?? [];
@@ -132,12 +140,13 @@ export default function RegistroPage() {
     });
   }, [sim.squadIds, hasLegacyEntries]);
 
+  // FILTRO CORRIGIDO: Usa o product_id para validar se a daily pertence à squad
   const entries = useMemo(() => {
-    if (selectedSquadId === "legacy") {
-      return allEntries.filter((e) => !e.squad_id);
-    }
-    return selectedSquadId ? allEntries.filter((e) => e.squad_id === selectedSquadId) : allEntries;
-  }, [allEntries, selectedSquadId]);
+    if (selectedSquadId === "legacy") return allEntries.filter((e) => !e.product_id);
+    return selectedSquadId && squadProductIds.length > 0
+      ? allEntries.filter((e) => squadProductIds.includes(e.product_id))
+      : allEntries;
+  }, [allEntries, selectedSquadId, squadProductIds]);
 
   const entryIds = useMemo(() => entries.map((e) => e.id), [entries]);
   const { data: allImpediments = [] } = useDevDailyImpedimentsByEntries(entryIds);
@@ -145,11 +154,11 @@ export default function RegistroPage() {
   const { data: allDevActivities = [] } = useDevDailyActivitiesByUser(sim.devUserId);
 
   const allActivities = useMemo(() => {
-    if (selectedSquadId === "legacy") {
-      return allDevActivities.filter((a) => !a.squad_id);
-    }
-    return selectedSquadId ? allDevActivities.filter((a) => a.squad_id === selectedSquadId) : allDevActivities;
-  }, [allDevActivities, selectedSquadId]);
+    if (selectedSquadId === "legacy") return allDevActivities.filter((a) => !a.product_id);
+    return selectedSquadId && squadProductIds.length > 0
+      ? allDevActivities.filter((a) => squadProductIds.includes(a.product_id))
+      : allDevActivities;
+  }, [allDevActivities, selectedSquadId, squadProductIds]);
 
   const {
     create: createActivity,
