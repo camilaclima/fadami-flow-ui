@@ -99,6 +99,22 @@ export default function PainelGPPage() {
   const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
   const [historyDev, setHistoryDev] = useState<{ userId: string; name: string } | null>(null);
 
+  // Encontro (daily_meetings) já encerrado para esta squad+data → trava o botão "Iniciar Daily".
+  const { data: existingMeeting = null } = useQuery({
+    queryKey: ["daily_meetings", "lock", date, effectiveSquadId ?? "all"],
+    enabled: !!effectiveSquadId,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("daily_meetings") as any)
+        .select("id, created_at, conducted_by")
+        .eq("meeting_date", date)
+        .eq("squad_id", effectiveSquadId)
+        .maybeSingle();
+      if (error) throw error;
+      return data as { id: string; created_at: string; conducted_by: string | null } | null;
+    },
+  });
+  const dailyClosed = !!existingMeeting;
+
   // Membros da squad selecionada (para mostrar quem ainda não preencheu).
   const { data: squadProfiles = [] } = useQuery({
     queryKey: ["squad_profiles", effectiveSquadId ?? "none"],
@@ -547,8 +563,16 @@ export default function PainelGPPage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={() => setOpenModal(true)} className="rounded-xl gap-2 bg-orange-500 hover:bg-orange-600 text-white">
-              <Play className="w-4 h-4" /> Iniciar Daily
+            <Button
+              onClick={() => setOpenModal(true)}
+              disabled={dailyClosed}
+              className="rounded-xl gap-2 bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60"
+              title={dailyClosed && existingMeeting?.created_at
+                ? `Daily encerrada em ${format(parseISO(existingMeeting.created_at), "dd/MM 'às' HH:mm")}`
+                : undefined}
+            >
+              <Play className="w-4 h-4" />
+              {dailyClosed ? "Daily encerrada" : "Iniciar Daily"}
             </Button>
           </div>
         </div>
