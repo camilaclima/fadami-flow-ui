@@ -39,7 +39,11 @@ interface RoleProtectedRouteProps {
 }
 
 const RoleProtectedRoute = ({ allowedRoles }: RoleProtectedRouteProps) => {
-  const { user, loading } = useAuth();
+  // Destrutor tolerante caso o AuthContext tenha 'profile' como propriedade irmã
+  const auth = useAuth() as any;
+  const user = auth?.user;
+  const profile = auth?.profile;
+  const loading = auth?.loading;
 
   if (loading) {
     return (
@@ -49,19 +53,31 @@ const RoleProtectedRoute = ({ allowedRoles }: RoleProtectedRouteProps) => {
     );
   }
 
-  const rawRole =
-    user?.user_metadata?.role ||
-    (user as any)?.role ||
-    (user as any)?.profile?.role ||
-    (user as any)?.user_metadata?.user_role ||
-    "";
+  // Se não houver usuário logado, o ProtectedRoute pai já deveria barrar, mas por segurança mandamos para o login
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Tenta ler a role de todas as formas possíveis (metadados, objeto de perfil irmão ou propriedades diretas)
+  const rawRole = profile?.role || user?.user_metadata?.role || user?.role || profile?.user_role || "";
 
   const userRole = rawRole.toString().toLowerCase().trim();
+
+  // Se o perfil ainda está carregando no banco e a role veio vazia, mostramos um loading temporário em vez de deslogar/redirecionar imediatamente
+  if (user && !userRole) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   const normalizedAllowedRoles = allowedRoles.map((r) => r.toLowerCase().trim());
   const hasAccess = normalizedAllowedRoles.includes(userRole);
 
   if (!hasAccess) {
-    return <Navigate replace to="/dailys/registro" />;
+    // Redireciona para o registro seguro se não tiver acesso
+    return <Navigate to="/dailys/registro" replace />;
   }
 
   return <Outlet />;
@@ -83,7 +99,7 @@ const App = () => (
                 <Route path="/" element={<HomeRedirect />} />
                 <Route path="/change-password" element={<ChangePasswordPage />} />
 
-                {/* Rota para todos os usuários logados */}
+                {/* 1. Área Geral: Acesso para todos os níveis de usuário */}
                 <Route
                   element={
                     <RoleProtectedRoute
@@ -96,7 +112,7 @@ const App = () => (
                   </Route>
                 </Route>
 
-                {/* Rotas restritas para Gestão (Líderes e Admins) */}
+                {/* 2. Área de Gestão: Apenas Líderes, Gestores e Admins */}
                 <Route
                   element={<RoleProtectedRoute allowedRoles={["admin", "coordenador", "gestor", "lider", "líder"]} />}
                 >
@@ -122,7 +138,7 @@ const App = () => (
                   <Route path="/settings" element={<SettingsPage />} />
                 </Route>
 
-                {/* Rotas restritas apenas para Administradores */}
+                {/* 3. Área Crítica administrativa: Apenas Administradores */}
                 <Route element={<RoleProtectedRoute allowedRoles={["admin"]} />}>
                   <Route path="/users" element={<UsersPage />} />
                   <Route path="/roles" element={<RolesPage />} />
