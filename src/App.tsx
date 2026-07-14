@@ -57,6 +57,8 @@ const RestrictedAccess = ({ allowedRoles }: RestrictedAccessProps) => {
     líder: "Líderes",
     desenvolvedor: "Desenvolvedores",
     dev: "Desenvolvedores",
+    member: "Membros do Time",
+    colaborador: "Colaboradores",
   };
 
   const friendlyRoles = allowedRoles
@@ -99,14 +101,18 @@ const RoleProtectedRoute = ({ allowedRoles }: RoleProtectedRouteProps) => {
     return <Navigate to="/login" replace />;
   }
 
-  // Lógica local sem realizar nenhuma requisição ao banco para evitar bloqueios de RLS:
+  // Normalização extremamente resiliente das propriedades de permissão
   const rawRole = profile?.role || user?.user_metadata?.role || user?.role || "";
 
   const userRole = rawRole.toString().toLowerCase().trim();
 
-  // Se a role não for encontrada localmente no token, exibe a barreira visual de segurança
-  if (!userRole) {
-    return <RestrictedAccess allowedRoles={allowedRoles} />;
+  // Se o login foi bem sucedido mas o profile ainda está resolvendo, aguardamos em vez de negar
+  if (user && !userRole) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
   const normalizedAllowedRoles = allowedRoles.map((r) => r.toLowerCase().trim());
@@ -132,23 +138,44 @@ const App = () => (
 
             <Route element={<ProtectedRoute />}>
               <Route element={<AppLayout />}>
+                {/* Rotas de entrada básicas acessíveis por qualquer conta logada */}
                 <Route path="/" element={<HomeRedirect />} />
                 <Route path="/change-password" element={<ChangePasswordPage />} />
 
-                {/* 1. Área Geral */}
-                <Route
-                  element={
-                    <RoleProtectedRoute
-                      allowedRoles={["admin", "coordenador", "desenvolvedor", "gestor", "lider", "líder", "dev"]}
-                    />
-                  }
-                >
-                  <Route path="/dailys" element={<DailysLayout />}>
+                {/* 1. Estrutura de Dailies Única (Evita colisões e loops de rota) */}
+                <Route path="/dailys" element={<DailysLayout />}>
+                  {/* Registro de Dailies: Permitido para todos os cargos cadastrados */}
+                  <Route
+                    element={
+                      <RoleProtectedRoute
+                        allowedRoles={[
+                          "admin",
+                          "coordenador",
+                          "desenvolvedor",
+                          "gestor",
+                          "lider",
+                          "líder",
+                          "dev",
+                          "member",
+                          "colaborador",
+                        ]}
+                      />
+                    }
+                  >
                     <Route path="registro" element={<DailysRegistroPage />} />
+                  </Route>
+
+                  {/* Painéis avançados de Dailies: Apenas Gestão e Admin */}
+                  <Route
+                    element={<RoleProtectedRoute allowedRoles={["admin", "coordenador", "gestor", "lider", "líder"]} />}
+                  >
+                    <Route path="painel" element={<DailysPainelGPPage />} />
+                    <Route path="historico" element={<DailysHistoricoPage />} />
+                    <Route path="saude" element={<DailysSaudePage />} />
                   </Route>
                 </Route>
 
-                {/* 2. Área de Gestão */}
+                {/* 2. Rotas do Cockpit e Configurações de Projeto: Apenas Gestão e Admin */}
                 <Route
                   element={<RoleProtectedRoute allowedRoles={["admin", "coordenador", "gestor", "lider", "líder"]} />}
                 >
@@ -162,19 +189,12 @@ const App = () => (
                   <Route path="/squads" element={<SquadsPage />} />
                   <Route path="/team-project-config" element={<TeamProjectConfigPage />} />
                   <Route path="/controle-gestao" element={<ControleGestaoPage />} />
-
-                  <Route path="/dailys" element={<DailysLayout />}>
-                    <Route path="painel" element={<DailysPainelGPPage />} />
-                    <Route path="historico" element={<DailysHistoricoPage />} />
-                    <Route path="saude" element={<DailysSaudePage />} />
-                  </Route>
-
                   <Route path="/products" element={<ProductsPage />} />
                   <Route path="/clients" element={<ClientsPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
                 </Route>
 
-                {/* 3. Área Administrativa */}
+                {/* 3. Rotas Administrativas de Segurança: Apenas Administrador do Sistema */}
                 <Route element={<RoleProtectedRoute allowedRoles={["admin"]} />}>
                   <Route path="/users" element={<UsersPage />} />
                   <Route path="/roles" element={<RolesPage />} />
