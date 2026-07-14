@@ -123,7 +123,12 @@ export default function RegistroPage() {
     queryKey: ["squad-products", selectedSquadId],
     enabled: !!selectedSquadId && selectedSquadId !== "legacy",
     queryFn: async () => {
-      const { data } = await supabase.from("squad_products").select("product_id").eq("squad_id", selectedSquadId);
+      const { data, error } = await supabase
+        .from("squad_products")
+        .select("product_id")
+        .eq("squad_id", selectedSquadId!);
+
+      if (error) throw error;
       return (data ?? []).map((p) => p.product_id);
     },
   });
@@ -1793,7 +1798,8 @@ function ActivitiesFutureSection(props: {
       ...p,
       { id: crypto.randomUUID(), description: d, cardCode: code, notes: newNote.trim() || undefined },
     ]);
-    setNewDesc("");
+
+    setNewDesc(""); // <--- AQUI DEVE SER "setNewDesc", não apenas "newDesc"
     setNewCode("");
     setNewNote("");
   };
