@@ -525,7 +525,7 @@ export default function PainelGPPage() {
     );
   }
 
-  if (sim.role === "dev") {
+  if (!sim.roles?.includes("gp") && sim.role !== "diretor") {
     return (
       <AccessDeniedCard message="Desenvolvedores não têm acesso ao Painel do GP. Selecione um perfil de GP ou Diretor no seletor acima." />
     );
