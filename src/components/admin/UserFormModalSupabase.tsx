@@ -319,11 +319,15 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                    <Command className="bg-card border border-border">
-                      <CommandInput placeholder="Pesquisar squad..." />
-                      <CommandList className="max-h-48 overflow-y-auto">
-                        <CommandEmpty>Nenhuma squad encontrada.</CommandEmpty>
-                        <CommandGroup>
+                    <Command className="bg-card border border-border w-full">
+                      <CommandInput placeholder="Pesquisar squad..." className="border-none focus:ring-0" />
+                      <CommandEmpty className="py-2 text-center text-sm text-muted-foreground">
+                        Nenhuma squad encontrada.
+                      </CommandEmpty>
+
+                      {/* Forçamos uma altura máxima e scrollbar visível diretamente no CommandList */}
+                      <CommandList className="max-h-[200px] overflow-y-auto overflow-x-hidden custom-scrollbar">
+                        <CommandGroup className="p-1">
                           {activeSquads.map((s) => {
                             const isChecked = selectedSquadIds.includes(s.id);
                             return (
