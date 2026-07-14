@@ -121,7 +121,9 @@ export default function RegistroPage() {
   }, [sim.squadIds]);
 
   const entries = useMemo(
-    () => (selectedSquadId ? allEntries.filter((e) => e.squad_id === selectedSquadId) : allEntries),
+    () => (selectedSquadId
+      ? allEntries.filter((e) => e.squad_id === selectedSquadId || e.squad_id == null)
+      : allEntries),
     [allEntries, selectedSquadId],
   );
   const entryIds = useMemo(() => entries.map((e) => e.id), [entries]);
@@ -129,7 +131,9 @@ export default function RegistroPage() {
   const { create: createImp, resolve: resolveImp, remove: removeImp } = useImpedimentMutations();
   const { data: allDevActivities = [] } = useDevDailyActivitiesByUser(sim.devUserId);
   const allActivities = useMemo(
-    () => (selectedSquadId ? allDevActivities.filter((a) => a.squad_id === selectedSquadId) : allDevActivities),
+    () => (selectedSquadId
+      ? allDevActivities.filter((a) => a.squad_id === selectedSquadId || a.squad_id == null)
+      : allDevActivities),
     [allDevActivities, selectedSquadId],
   );
   const {

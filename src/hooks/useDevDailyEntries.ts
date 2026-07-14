@@ -76,7 +76,8 @@ export function useDevDailyEntriesByDate(date: string, squadId?: string | null) 
         return (data ?? []) as DevDailyEntry[];
       }
 
-      // Resolve os user_ids dos membros da squad (por email OU nome).
+      // Estrito por squad: entries com squad_id preenchido só aparecem na sua squad.
+      // Fallback para registros legados (squad_id IS NULL) — associa aos membros da squad.
       const { data: sm } = await (supabase.from("squad_members") as any)
         .select("team_member_id")
         .eq("squad_id", squadId);
@@ -105,18 +106,31 @@ export function useDevDailyEntriesByDate(date: string, squadId?: string | null) 
           .filter(Boolean);
       }
 
-      // Busca entradas com squad_id correspondente OU user_id de algum membro da squad.
-      const orParts = [`squad_id.eq.${squadId}`];
-      if (userIds.length > 0) {
-        orParts.push(`user_id.in.(${userIds.join(",")})`);
-      }
-      const { data, error } = await (supabase.from("dev_daily_entries") as any)
+      // 1) Entradas explicitamente vinculadas a esta squad.
+      const { data: bySquad, error: e1 } = await (supabase.from("dev_daily_entries") as any)
         .select("*")
         .eq("entry_date", date)
-        .or(orParts.join(","))
+        .eq("squad_id", squadId)
         .order("created_at", { ascending: true });
-      if (error) throw error;
-      return (data ?? []) as DevDailyEntry[];
+      if (e1) throw e1;
+
+      // 2) Fallback legado: entradas SEM squad_id, de membros conhecidos da squad.
+      let legacy: DevDailyEntry[] = [];
+      if (userIds.length > 0) {
+        const { data, error } = await (supabase.from("dev_daily_entries") as any)
+          .select("*")
+          .eq("entry_date", date)
+          .is("squad_id", null)
+          .in("user_id", userIds)
+          .order("created_at", { ascending: true });
+        if (error) throw error;
+        legacy = (data ?? []) as DevDailyEntry[];
+      }
+
+      // Dedup por id (por segurança).
+      const map = new Map<string, DevDailyEntry>();
+      [...(bySquad ?? []), ...legacy].forEach((r: DevDailyEntry) => map.set(r.id, r));
+      return Array.from(map.values());
     },
   });
 }
