@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate, Outlet } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, Outlet, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -44,29 +44,27 @@ const ShieldAlertIcon = () => (
   </svg>
 );
 
-const RestrictedAccess = () => {
-  return (
-    <div className="flex items-center justify-center min-h-[70vh] w-full px-4">
-      <div className="max-w-3xl w-full bg-[#FFF7F2] border border-[#FFE6D5] rounded-[24px] p-12 text-center flex flex-col items-center justify-center gap-4">
-        <div className="p-2 rounded-full bg-orange-50">
-          <ShieldAlertIcon />
-        </div>
-        <h1 className="text-xl font-bold text-slate-800">Acesso restrito</h1>
-        <p className="text-sm text-slate-500 max-w-md leading-relaxed">
-          Sua conta não possui a permissão de acesso necessária para visualizar esta tela.
-        </p>
+const RestrictedAccess = () => (
+  <div className="flex items-center justify-center min-h-[70vh] w-full px-4">
+    <div className="max-w-3xl w-full bg-[#FFF7F2] border border-[#FFE6D5] rounded-[24px] p-12 text-center flex flex-col items-center justify-center gap-4">
+      <div className="p-2 rounded-full bg-orange-50">
+        <ShieldAlertIcon />
       </div>
+      <h1 className="text-xl font-bold text-slate-800">Acesso restrito</h1>
+      <p className="text-sm text-slate-500 max-w-md leading-relaxed">
+        Sua conta não possui a permissão de acesso necessária para visualizar esta tela.
+      </p>
     </div>
-  );
-};
+  </div>
+);
 
-interface PermissionProtectedRouteProps {
-  requiredPermission: string;
-}
-
-// Componente limpo de proteção que consome o AuthContext nativo
-const PermissionProtectedRoute = ({ requiredPermission }: PermissionProtectedRouteProps) => {
+/**
+ * Protetor de Rotas Inteligente e Dinâmico
+ * Extrai a permissão necessária a partir da própria URL que o usuário tenta acessar.
+ */
+const AutoPermissionRoute = () => {
   const { user, permissions, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -80,7 +78,31 @@ const PermissionProtectedRoute = ({ requiredPermission }: PermissionProtectedRou
     return <Navigate to="/login" replace />;
   }
 
-  // Verifica se a string exigida pela rota está contida no array de permissões do usuário
+  // 1. Mapeia a URL atual para o nome correspondente da permissão no banco
+  // Remove barras iniciais/finais e substitui hifens por underlines para bater com o banco de dados (ex: /controle-gestao vira controle_gestao)
+  const rawPath = location.pathname.toLowerCase().replace(/^\/+|\/+$/g, "");
+  const currentPathSegment = rawPath.replace(/-/g, "_");
+
+  // Se o usuário estiver acessando a raiz (/), deixa passar direto pelo HomeRedirect
+  if (!currentPathSegment) {
+    return <Outlet />;
+  }
+
+  // 2. Trata caminhos aninhados e exceções de permissões específicas
+  let requiredPermission = currentPathSegment;
+
+  if (currentPathSegment.startsWith("dailys/registro")) {
+    requiredPermission = "minha_daily";
+  } else if (currentPathSegment.startsWith("dailys/")) {
+    // /dailys/painel, /dailys/historico, etc.
+    requiredPermission = "painel_gp";
+  } else if (currentPathSegment.startsWith("daily_status")) {
+    requiredPermission = "daily";
+  } else if (currentPathSegment === "cockpit") {
+    requiredPermission = "dashboard";
+  }
+
+  // 3. Validação final contra o array retornado do banco
   const hasAccess = permissions.includes(requiredPermission);
 
   if (!hasAccess) {
@@ -103,82 +125,41 @@ const App = () => (
 
             <Route element={<ProtectedRoute />}>
               <Route element={<AppLayout />}>
+                {/* Rotas Públicas internas (Qualquer logado acessa) */}
                 <Route path="/" element={<HomeRedirect />} />
                 <Route path="/change-password" element={<ChangePasswordPage />} />
 
-                {/* 1. Rotas de Dailies estruturadas de forma limpa */}
-                <Route path="/dailys" element={<DailysLayout />}>
-                  {/* Registro da Daily: Qualquer um que tenha permissão "minha_daily" (Devs, Líderes, Admins) */}
-                  <Route element={<PermissionProtectedRoute requiredPermission="minha_daily" />}>
-                    <Route path="registro" element={<DailysRegistroPage />} />
-                  </Route>
+                {/* 
+                  TODAS as rotas abaixo agora passam pelo protetor dinâmico.
+                  Se você criar uma nova rota, basta colocá-la dentro deste bloco,
+                  garantindo que o nome da rota (substituindo hifens por underlines) 
+                  bata com o nome da permissão cadastrada na tabela "access_groups"!
+                */}
+                <Route element={<AutoPermissionRoute />}>
+                  <Route path="/cockpit" element={<DashboardPage />} />
+                  <Route path="/backlogs" element={<BacklogsPage />} />
+                  <Route path="/team" element={<TeamMembersPage />} />
+                  <Route path="/sprints" element={<SprintsPage />} />
+                  <Route path="/daily-status" element={<DailyStatusPage />} />
+                  <Route path="/daily-status/squad/:squadId" element={<DailyStatusProjectDetailPage />} />
+                  <Route path="/daily-status/:productId" element={<DailyStatusProjectDetailPage />} />
+                  <Route path="/squads" element={<SquadsPage />} />
+                  <Route path="/team-project-config" element={<TeamProjectConfigPage />} />
+                  <Route path="/controle-gestao" element={<ControleGestaoPage />} />
 
-                  {/* Painéis avançados: Apenas quem tem a permissão "painel_gp" (Líderes e Admins) */}
-                  <Route element={<PermissionProtectedRoute requiredPermission="painel_gp" />}>
+                  <Route path="/dailys" element={<DailysLayout />}>
+                    <Route path="registro" element={<DailysRegistroPage />} />
                     <Route path="painel" element={<DailysPainelGPPage />} />
                     <Route path="historico" element={<DailysHistoricoPage />} />
                     <Route path="saude" element={<DailysSaudePage />} />
                   </Route>
-                </Route>
 
-                {/* 2. Rotas de Gestão (Mapeamento 1:1 baseado no array de permissions do print) */}
-                <Route element={<PermissionProtectedRoute requiredPermission="dashboard" />}>
-                  <Route path="/cockpit" element={<DashboardPage />} />
-                </Route>
-
-                <Route element={<PermissionProtectedRoute requiredPermission="backlogs" />}>
-                  <Route path="/backlogs" element={<BacklogsPage />} />
-                </Route>
-
-                <Route element={<PermissionProtectedRoute requiredPermission="team" />}>
-                  <Route path="/team" element={<TeamMembersPage />} />
-                </Route>
-
-                <Route element={<PermissionProtectedRoute requiredPermission="sprints" />}>
-                  <Route path="/sprints" element={<SprintsPage />} />
-                </Route>
-
-                <Route element={<PermissionProtectedRoute requiredPermission="daily" />}>
-                  <Route path="/daily-status" element={<DailyStatusPage />} />
-                  <Route path="/daily-status/squad/:squadId" element={<DailyStatusProjectDetailPage />} />
-                  <Route path="/daily-status/:productId" element={<DailyStatusProjectDetailPage />} />
-                </Route>
-
-                <Route element={<PermissionProtectedRoute requiredPermission="squads" />}>
-                  <Route path="/squads" element={<SquadsPage />} />
-                </Route>
-
-                <Route element={<PermissionProtectedRoute requiredPermission="team_project_config" />}>
-                  <Route path="/team-project-config" element={<TeamProjectConfigPage />} />
-                </Route>
-
-                <Route element={<PermissionProtectedRoute requiredPermission="controle_gestao" />}>
-                  <Route path="/controle-gestao" element={<ControleGestaoPage />} />
-                </Route>
-
-                <Route element={<PermissionProtectedRoute requiredPermission="products" />}>
                   <Route path="/products" element={<ProductsPage />} />
-                </Route>
-
-                <Route element={<PermissionProtectedRoute requiredPermission="clients" />}>
                   <Route path="/clients" element={<ClientsPage />} />
-                </Route>
-
-                <Route element={<PermissionProtectedRoute requiredPermission="settings" />}>
-                  <Route path="/settings" element={<SettingsPage />} />
-                </Route>
-
-                {/* 3. Rotas Administrativas de Configuração de Sistema (Apenas Admin) */}
-                <Route element={<PermissionProtectedRoute requiredPermission="users" />}>
                   <Route path="/users" element={<UsersPage />} />
-                </Route>
-
-                <Route element={<PermissionProtectedRoute requiredPermission="roles" />}>
                   <Route path="/roles" element={<RolesPage />} />
-                </Route>
-
-                <Route element={<PermissionProtectedRoute requiredPermission="groups" />}>
                   <Route path="/groups" element={<AccessGroupsPage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
                 </Route>
               </Route>
             </Route>
