@@ -24,8 +24,11 @@ import {
 import { useSquads } from "@/hooks/useSquads";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, ChevronDown, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Badge } from "@/components/ui/badge";
 
 interface Props {
   open: boolean;
@@ -55,9 +58,9 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   useEffect(() => {
-    // 1. Se o modal fechou, limpamos tudo e encerramos.
     if (!open) {
       setGeneratedPassword(null);
       setCopied(false);
@@ -70,11 +73,8 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
       return;
     }
 
-    // 2. CRITICAL: Se já temos uma senha gerada na tela, NÃO permitimos que o useEffect
-    // sobrescreva os estados. Isso impede o "pisca-pisca" após salvar/clonar.
     if (generatedPassword) return;
 
-    // 3. Lógica de preenchimento (Edição ou Clone)
     if (profile) {
       setFirstName(profile.first_name);
       setLastName(profile.last_name);
@@ -90,7 +90,6 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
       setSelectedSquadIds(cloneData.selectedSquadIds || []);
       setSelectedGroupIds(cloneData.selectedGroupIds || []);
     } else {
-      // Novo usuário puro
       setFirstName("");
       setLastName("");
       setEmail("");
@@ -158,7 +157,6 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
         }
         await maybeLinkDeveloperToSquads(email.trim(), roleId, selectedSquadIds);
 
-        // Definimos a senha ANTES de invalidar a query para evitar conflito de render
         setGeneratedPassword(tempPassword);
         toast.success("Usuário criado com sucesso!");
         queryClient.invalidateQueries({ queryKey: ["profiles"] });
@@ -285,24 +283,65 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
                 </Select>
               </div>
 
-              <div className="space-y-2">
+              {/* CAMPO DE SQUADS REESTRUTURADO PARA DROPDOWN MULTISELECT */}
+              <div className="space-y-2 flex flex-col">
                 <Label>Squads *</Label>
-                <div className="bg-secondary/50 rounded-lg p-3 border border-border/40">
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 max-h-32 overflow-y-auto pr-1">
-                    {activeSquads.length === 0 && (
-                      <span className="text-xs text-muted-foreground">Nenhuma squad ativa</span>
-                    )}
-                    {activeSquads.map((s) => (
-                      <label
-                        key={s.id}
-                        className="flex items-center gap-2 text-sm cursor-pointer hover:bg-secondary/80 rounded px-1 py-0.5 transition-colors"
-                      >
-                        <Checkbox checked={selectedSquadIds.includes(s.id)} onCheckedChange={() => toggleSquad(s.id)} />
-                        <span className="text-foreground truncate">{s.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
+                <Popover open={dropdownOpen} onOpenChange={setDropdownOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-between h-auto min-h-[40px] px-3 py-2 text-left font-normal bg-background border-input hover:bg-background/80"
+                    >
+                      <div className="flex flex-wrap gap-1.5 max-w-[90%]">
+                        {selectedSquadIds.length === 0 ? (
+                          <span className="text-muted-foreground">Selecione as squads...</span>
+                        ) : (
+                          selectedSquadIds.map((id) => {
+                            const name = squads.find((s) => s.id === id)?.name || id;
+                            return (
+                              <Badge
+                                key={id}
+                                variant="secondary"
+                                className="bg-[#6366F1]/10 text-[#818CF8] hover:bg-[#6366F1]/20 border border-[#6366F1]/15 gap-1 py-0.5 px-2 text-xs font-medium"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleSquad(id);
+                                }}
+                              >
+                                {name}
+                                <X className="h-3 w-3 hover:text-red-400 transition-colors" />
+                              </Badge>
+                            );
+                          })
+                        )}
+                      </div>
+                      <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                    <Command className="bg-card border border-border">
+                      <CommandInput placeholder="Pesquisar squad..." />
+                      <CommandList className="max-h-48 overflow-y-auto">
+                        <CommandEmpty>Nenhuma squad encontrada.</CommandEmpty>
+                        <CommandGroup>
+                          {activeSquads.map((s) => {
+                            const isChecked = selectedSquadIds.includes(s.id);
+                            return (
+                              <CommandItem
+                                key={s.id}
+                                onSelect={() => toggleSquad(s.id)}
+                                className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-accent/50 rounded-md transition-colors"
+                              >
+                                <Checkbox checked={isChecked} onCheckedChange={() => toggleSquad(s.id)} />
+                                <span className="text-sm text-foreground">{s.name}</span>
+                              </CommandItem>
+                            );
+                          })}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2">
