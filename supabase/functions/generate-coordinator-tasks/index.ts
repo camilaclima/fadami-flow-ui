@@ -17,6 +17,17 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const supabaseAuth = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!);
+    const { data: userData, error: userErr } = await supabaseAuth.auth.getUser(authHeader.replace("Bearer ", ""));
+    if (userErr || !userData.user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const caller = userData.user;
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -25,6 +36,24 @@ serve(async (req) => {
     const { productIds } = await req.json().catch(() => ({ productIds: null }));
 
     const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Permission check: caller must have sprints or painel_gp permission
+    const { data: callerProfile } = await db
+      .from("profiles").select("id").eq("user_id", caller.id).maybeSingle();
+    if (!callerProfile) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const { data: pGroups } = await db
+      .from("profile_groups").select("group_id").eq("profile_id", callerProfile.id);
+    const groupIds = (pGroups ?? []).map((g: any) => g.group_id);
+    let perms: string[] = [];
+    if (groupIds.length) {
+      const { data: groups } = await db.from("access_groups").select("permissions").in("id", groupIds);
+      perms = (groups ?? []).flatMap((g: any) => (g.permissions as string[]) ?? []);
+    }
+    if (!perms.includes("sprints") && !perms.includes("painel_gp")) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     // Last 7 days dailys
     const sevenDaysAgo = new Date();
