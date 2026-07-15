@@ -973,9 +973,11 @@ export default function RegistroPage() {
                 </Badge>
               )}
             </DialogTitle>
-            <DialogClose className="absolute right-0 top-0 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none p-1 hover:bg-muted/60">
-              <X className="h-4 w-4" />
-              <span className="sr-only">Fechar</span>
+            <DialogClose asChild>
+              <button className="absolute right-0 top-0 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none p-1 hover:bg-muted/60">
+                <X className="h-4 w-4" />
+                <span className="sr-only">Fechar</span>
+              </button>
             </DialogClose>
           </DialogHeader>
 
