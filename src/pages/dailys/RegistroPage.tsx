@@ -148,11 +148,11 @@ export default function RegistroPage() {
 
   // FILTRO CORRIGIDO: Usa o product_id para validar se a daily pertence à squad
   const entries = useMemo(() => {
-    if (selectedSquadId === "legacy") return allEntries.filter((e) => !e.product_id);
-    return selectedSquadId && squadProductIds.length > 0
-      ? allEntries.filter((e) => squadProductIds.includes(e.product_id))
-      : allEntries;
-  }, [allEntries, selectedSquadId, squadProductIds]);
+    if (selectedSquadId === "legacy") return allEntries.filter((e) => !e.squad_id);
+
+    // Agora filtramos diretamente pelo squad_id da entrada
+    return selectedSquadId ? allEntries.filter((e) => e.squad_id === selectedSquadId) : allEntries;
+  }, [allEntries, selectedSquadId]);
 
   const entryIds = useMemo(() => entries.map((e) => e.id), [entries]);
   const { data: allImpediments = [] } = useDevDailyImpedimentsByEntries(entryIds);
@@ -160,11 +160,10 @@ export default function RegistroPage() {
   const { data: allDevActivities = [] } = useDevDailyActivitiesByUser(sim.devUserId);
 
   const allActivities = useMemo(() => {
-    if (selectedSquadId === "legacy") return allDevActivities.filter((a) => !a.product_id);
-    return selectedSquadId && squadProductIds.length > 0
-      ? allDevActivities.filter((a) => squadProductIds.includes(a.product_id))
-      : allDevActivities;
-  }, [allDevActivities, selectedSquadId, squadProductIds]);
+    if (selectedSquadId === "legacy") return allDevActivities.filter((a) => !a.squad_id);
+
+    return selectedSquadId ? allDevActivities.filter((a) => a.squad_id === selectedSquadId) : allDevActivities;
+  }, [allDevActivities, selectedSquadId]);
 
   const {
     create: createActivity,
@@ -364,7 +363,11 @@ export default function RegistroPage() {
 
   // Semeia priorRes conforme priorOpen chega/atualiza, sem apagar rascunhos.
   const priorOpenKey = useMemo(
-    () => priorOpen.map((p) => p.id).sort().join(","),
+    () =>
+      priorOpen
+        .map((p) => p.id)
+        .sort()
+        .join(","),
     [priorOpen],
   );
   useEffect(() => {
@@ -495,10 +498,7 @@ export default function RegistroPage() {
       // A opção "legacy" existe apenas para visualizar registros antigos;
       // novos saves devem sempre carimbar a squad atual (ou a primeira do dev).
       const fallbackSquadId = sim.squadIds?.[0] ?? null;
-      const currentSquadId =
-        selectedSquadId && selectedSquadId !== "legacy"
-          ? selectedSquadId
-          : fallbackSquadId;
+      const currentSquadId = selectedSquadId && selectedSquadId !== "legacy" ? selectedSquadId : fallbackSquadId;
 
       const result = await upsert.mutateAsync({
         id: existing?.id,
