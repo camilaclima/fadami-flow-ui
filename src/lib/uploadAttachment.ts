@@ -1,8 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 
 /**
- * Uploads a file to the 'attachments' bucket and returns the public URL.
- * Path: backlogs/{backlogId}/{timestamp}_{filename}
+ * Uploads a file to the private 'attachments' bucket and returns a long-lived
+ * signed URL. The bucket is private; callers must be authenticated to read.
  */
 export async function uploadAttachment(
   file: File,
@@ -18,9 +18,11 @@ export async function uploadAttachment(
 
   if (error) throw error;
 
-  const { data } = supabase.storage
+  // Signed URL valid for ~1 year (private bucket)
+  const { data, error: signErr } = await supabase.storage
     .from("attachments")
-    .getPublicUrl(path);
+    .createSignedUrl(path, 60 * 60 * 24 * 365);
 
-  return data.publicUrl;
+  if (signErr || !data?.signedUrl) throw (signErr ?? new Error("Falha ao gerar URL do anexo."));
+  return data.signedUrl;
 }
