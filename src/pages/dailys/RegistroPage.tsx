@@ -358,14 +358,26 @@ export default function RegistroPage() {
       setNewUrg(null);
       setActivityNotes({});
       setGeneralNotes((existing?.general_notes as string | null) ?? "");
-      const init: Record<string, PriorResolution> = {};
-      priorOpen.forEach((p) => {
-        init[p.id] = { resolved: null };
-      });
-      setPriorRes(init);
     }
     skipAutoFill.current = false;
-  }, [open, existing?.id, date, priorOpen]);
+  }, [open, existing?.id, date]);
+
+  // Semeia priorRes conforme priorOpen chega/atualiza, sem apagar rascunhos.
+  const priorOpenKey = useMemo(
+    () => priorOpen.map((p) => p.id).sort().join(","),
+    [priorOpen],
+  );
+  useEffect(() => {
+    if (!open) return;
+    setPriorRes((prev) => {
+      const next: Record<string, PriorResolution> = {};
+      priorOpen.forEach((p) => {
+        next[p.id] = prev[p.id] ?? { resolved: null };
+      });
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, priorOpenKey]);
 
   const isToday = date === toISO(new Date());
   const labelPast = isToday ? "O que fiz hoje" : "O que fiz ontem";
