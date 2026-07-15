@@ -479,7 +479,14 @@ export default function RegistroPage() {
 
     setSaving(true);
     try {
-      const currentSquadId = selectedSquadId === "legacy" ? null : selectedSquadId || sim.squadIds?.[0] || null;
+      // Nunca gravar squad_id null quando o dev possui ao menos uma squad.
+      // A opção "legacy" existe apenas para visualizar registros antigos;
+      // novos saves devem sempre carimbar a squad atual (ou a primeira do dev).
+      const fallbackSquadId = sim.squadIds?.[0] ?? null;
+      const currentSquadId =
+        selectedSquadId && selectedSquadId !== "legacy"
+          ? selectedSquadId
+          : fallbackSquadId;
 
       const result = await upsert.mutateAsync({
         id: existing?.id,
