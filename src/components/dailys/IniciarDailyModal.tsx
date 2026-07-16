@@ -209,6 +209,53 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
       return;
     }
 
+    const missingAbsType = members.find((m) => {
+      const s = memberState[m.key];
+      return s?.status === "absent_work" && !s.absence_type;
+    });
+    if (missingAbsType) {
+      toast.error(`Selecione o tipo de ausência para ${missingAbsType.name}.`);
+      setExpanded((prev) => ({ ...prev, [missingAbsType.key]: true }));
+      return;
+    }
+    const invalidRange = members.find((m) => {
+      const s = memberState[m.key];
+      if (s?.status !== "absent_work" || !s.absence_type) return false;
+      if (!DEV_ABSENCE_RANGED.includes(s.absence_type)) return false;
+      if (!s.absence_start || !s.absence_end) return true;
+      return s.absence_end < s.absence_start;
+    });
+    if (invalidRange) {
+      toast.error(`Informe o período correto de ausência para ${invalidRange.name}.`);
+      setExpanded((prev) => ({ ...prev, [invalidRange.key]: true }));
+      return;
+    }
+
+    const absenceCreated: Record<string, { id: string; type: DevAbsenceType } | null> = {};
+    for (const m of members) {
+      const s = memberState[m.key];
+      if (s?.status !== "absent_work" || !s.absence_type) continue;
+      if (s.absence_id) { absenceCreated[m.key] = { id: s.absence_id, type: s.absence_type }; continue; }
+      const uid = m.entry?.user_id;
+      if (!uid) { absenceCreated[m.key] = null; continue; }
+      const ranged = DEV_ABSENCE_RANGED.includes(s.absence_type);
+      const start = ranged ? s.absence_start : date;
+      const end = ranged ? s.absence_end : date;
+      try {
+        const created = await createAbsence.mutateAsync({
+          user_id: uid,
+          squad_id: squadId,
+          absence_type: s.absence_type,
+          start_date: start,
+          end_date: end,
+          notes: s.notes.trim() || null,
+        });
+        absenceCreated[m.key] = { id: created.id, type: s.absence_type };
+      } catch (e) {
+        return;
+      }
+    }
+
     await create.mutateAsync({
       meeting_date: date,
       squad_id: squadId,
@@ -218,6 +265,7 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
         const s = memberState[m.key] ?? defaultState(m.filled);
         const absent = s.status === "absent_work";
         const noPart = s.status === "no_participate";
+        const abs = absent ? absenceCreated[m.key] : null;
         return {
           member_name: m.name,
           member_user_id: m.entry?.user_id ?? null,
@@ -229,7 +277,9 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
           absent_from_work: absent,
           did_not_participate: noPart,
           non_participation_reason: noPart ? s.absence_reason.trim() : null,
-        };
+          absence_type: abs?.type ?? null,
+          absence_id: abs?.id ?? null,
+        } as any;
       }),
     });
     onOpenChange(false);
