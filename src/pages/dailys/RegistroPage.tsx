@@ -712,9 +712,25 @@ export default function RegistroPage() {
       </div>
 
       <div className="mb-5 flex justify-end">
-        <Button onClick={handleOpenCreate} className="rounded-xl gap-2">
-          <Plus className="w-4 h-4" /> Registrar daily
-        </Button>
+        {(() => {
+          const hasAvailableDate = dateOptions.some(
+            (o) => !entries.some((e) => e.entry_date === o.value),
+          );
+          return (
+            <Button
+              onClick={handleOpenCreate}
+              className="rounded-xl gap-2"
+              disabled={!hasAvailableDate}
+              title={
+                hasAvailableDate
+                  ? undefined
+                  : "Todas as dailys disponíveis já foram registradas. Novo registro liberará às 17h."
+              }
+            >
+              <Plus className="w-4 h-4" /> Registrar daily
+            </Button>
+          );
+        })()}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
