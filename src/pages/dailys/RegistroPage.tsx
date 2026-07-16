@@ -980,13 +980,15 @@ export default function RegistroPage() {
       {/* Modal de Registro de Daily protegido contra cliques acidentais */}
       <Dialog
         open={open}
-        onOpenChange={(val) => {
-          if (!val) return;
-          setOpen(val);
-        }}
+        onOpenChange={setOpen}
       >
-        <DialogContent className="max-w-5xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl">
-          <DialogHeader className="relative">
+        <DialogContent
+          className="max-w-5xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
             <ClipboardEdit className="w-5 h-5 text-primary" />
             <DialogTitle>
               Registrar daily
@@ -1001,12 +1003,6 @@ export default function RegistroPage() {
                 </Badge>
               )}
             </DialogTitle>
-            <DialogClose asChild>
-              <button className="absolute right-0 top-0 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none p-1 hover:bg-muted/60">
-                <X className="h-4 w-4" />
-                <span className="sr-only">Fechar</span>
-              </button>
-            </DialogClose>
           </DialogHeader>
 
           <div className="space-y-5 min-w-0">
