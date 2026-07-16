@@ -1,76 +1,58 @@
-## Objetivo
+## Correções na página de Registro de Daily e no Painel do Líder
 
-Três correções em Dailies:
-
-1. Separar corretamente registros por squad no painel do líder (bug de vazamento entre squads).
-2. Garantir que o registro salvo pelo dev sempre apareça no card dele em "Minha Daily".
-3. Após "Encerrar Daily" no painel do líder, salvar os dados e deixar o botão "Iniciar Daily" desabilitado até o próximo dia útil.
+Três ajustes independentes no fluxo de dailys.
 
 ---
 
-## 1. Registros por squad — vazamento no painel do líder
+### 1. Modal "Registrar daily" — dois X e fechamento acidental
 
-### Onde
-`src/hooks/useDevDailyEntries.ts` → `useDevDailyEntriesByDate`
+**Arquivo:** `src/pages/dailys/RegistroPage.tsx` (modal em ~L953-982)
 
-### Problema
-Quando o líder abre o painel filtrando por uma squad, o hook busca entradas usando `.or("squad_id.eq.<squad>, user_id.in.(<membros>)")`. Isso faz com que um dev que pertence a mais de uma squad (ex.: Luiz no TOR e TOR+) tenha as entries registradas em uma squad aparecendo também no painel da outra squad, porque a condição por `user_id` casa em ambas.
+- O `DialogContent` do shadcn já renderiza um botão X automático no canto. O código adiciona manualmente um segundo `DialogClose` com ícone X, causando os dois botões visíveis.
+- Remover o `DialogClose` manual do `DialogHeader` e o ícone `X` associado. Manter apenas o X nativo do `DialogContent`.
+- O `onOpenChange` atual (`if (!val) return`) bloqueia qualquer fechamento — inclusive o X. Substituir por lógica que:
+  - permite fechar via X e via `DialogClose` interno (chamar `setOpen(false)`);
+  - bloqueia clique fora e tecla ESC usando `onPointerDownOutside={(e) => e.preventDefault()}`, `onInteractOutside={(e) => e.preventDefault()}` e `onEscapeKeyDown={(e) => e.preventDefault()}` no `DialogContent`.
 
-### Correção
-Reescrever a query para separar registros por squad de forma estrita, mantendo apenas fallback para entradas legadas sem `squad_id`:
-
-- Se a entrada tem `squad_id` preenchido, só aparece no painel daquela squad.
-- Se `squad_id` é nulo (registros antigos), continua aparecendo para os membros da squad (compat).
-
-Efeito prático: o que o dev escreveu para a Squad A não aparece mais na Squad B.
+Resultado: um único X, fechamento apenas por ele; clique fora e ESC ignorados.
 
 ---
 
-## 2. "Meus registros" sumindo em Minha Daily
+### 2. Impedir duplicação de registros por dia
 
-### Onde
-- `src/pages/dailys/RegistroPage.tsx` (filtro `entries.filter(e => e.squad_id === selectedSquadId)`)
-- Migration Supabase para backfill
+**Arquivo:** `src/pages/dailys/RegistroPage.tsx`
 
-### Problema
-- Devs com entradas antigas (`squad_id = null`) deixam de vê‑las quando escolhem uma squad no seletor, mas o líder consegue enxergar via `user_id` (comportamento inconsistente do print).
-- Entradas novas gravadas com `selectedSquadId` funcionam, mas registros legados desaparecem.
+Hoje o botão "Registrar daily" sempre abre em modo `create`, e `useUpsertDevDailyEntry` faz INSERT quando não há `id`, gerando várias linhas para a mesma data + squad.
 
-### Correção
-- Frontend: no `RegistroPage`, incluir também as entradas com `squad_id = null` além das da squad selecionada. Ao editar/salvar uma entrada antiga, o `upsert` já grava com `selectedSquadId`, então ela migra automaticamente.
-- Backend (migration): backfill único preenchendo `dev_daily_entries.squad_id` para devs que hoje pertencem a exatamente uma squad e têm registros com `squad_id = null`. Assim os históricos ficam ligados à squad correta.
+Correções:
 
-Efeito prático: nenhum registro fica "invisível" para o dev que o criou; o histórico volta a aparecer normalmente.
+- **Botão "Registrar daily"** (L714-718): calcular `hasAvailableDate = dateOptions.some(o => !entries.some(e => e.entry_date === o.value))` e desabilitar o botão quando `false`. Tooltip: "Todas as dailys disponíveis já foram registradas. Novo registro liberará às 17h."
+- **`handleOpenCreate`** (L292-322): se o `targetDate` calculado já possui uma entry existente para a squad selecionada, abortar (o botão nem deveria ter aberto, mas guarda extra) — ou redirecionar para modo `edit` daquela entry. Seguir a opção de guarda: retornar cedo com toast informativo.
+- **`submit`** (fluxo de salvamento): antes de chamar `upsert.mutateAsync` em modo `create`, checar se `entries.find(e => e.entry_date === date)` existe; se sim, forçar o payload a incluir `id: existing.id` (converte insert em update). Isso protege contra corridas.
+
+A regra de "liberar às 17h" já é implementada por `allowedDates()` (L86-98), que só inclui "Hoje" quando `now.getHours() >= 17`. Nada a mudar ali.
 
 ---
 
-## 3. Encerrar Daily do líder — salvar e travar botão até o próximo dia
+### 3. Impedimentos misturando entre squads no Painel do Líder
 
-### Onde
-- `src/pages/dailys/PainelGPPage.tsx`
-- Renomear ação para deixar claro o fluxo (`Iniciar Daily` → mantém o mesmo botão, mas com estado "Daily encerrada" após salvar).
+**Arquivo:** `src/pages/dailys/PainelGPPage.tsx`
 
-### Problema
-Hoje o botão "Iniciar Daily" abre o modal e permite salvar; após salvar, o botão continua ativo (permite reabrir e resalvar). O usuário pede: ao encerrar, os dados são persistidos (já são via `useCreateDailyMeeting`) e o botão fica inativo até o próximo dia útil.
+Causa: `userEntries` (L163-174) e `allUserEntries` (L204-214) buscam todas as entries dos `userIds` da squad, sem filtrar por `squad_id`. Como um mesmo dev pode ter entries em outra squad, os `entry_ids` das outras squads entram em `allImpediments`/`squadAllImpediments` e vazam para o painel/histórico atual.
 
-### Correção
-- Consultar `daily_meetings` da squad efetiva na data selecionada (`meeting_date = date` e `squad_id = effectiveSquadId`).
-- Se existe um encontro salvo:
-  - Botão principal fica desabilitado com o rótulo "Daily encerrada".
-  - Mostrar hora/data em que foi encerrada e nome de quem conduziu.
-- Após salvar no `IniciarDailyModal` (submit), invalidar a query `daily_meetings` para o botão travar imediatamente.
-- Ao virar o dia (troca de `date` para o próximo dia útil), o botão volta a ficar ativo automaticamente.
+Correção (mesma lógica já aplicada em `useDevDailyEntriesByDate` para entries de "ontem/hoje"):
 
-Nenhuma mudança em RLS. Sem novas tabelas.
+- Nas duas queries, filtrar por squad:
+  - entries explicitamente da squad: `.eq("squad_id", effectiveSquadId)`
+  - **união** com entries legadas (`squad_id IS NULL`) dos mesmos `userIds`, para compatibilidade com registros antigos.
+- Executar como duas chamadas e mesclar por `id` no cliente (padrão já existente no projeto), ou uma única chamada com `.or("squad_id.eq.<id>,squad_id.is.null")` combinada com `.in("user_id", userIds)`.
+
+Com isso `allEntryIds`/`allUserEntryIds` passam a conter só entries da squad selecionada → impedimentos exibidos no card do dev e na seção "Impedimentos da Squad" ficam escopados corretamente. O `DevHistoryModal` recebe apenas `entryIds` da squad ativa (mesma lógica), então herda o fix.
 
 ---
 
-## Arquivos afetados
+### Verificação após implementar
 
-- `src/hooks/useDevDailyEntries.ts` (query por squad estrita + fallback null)
-- `src/pages/dailys/RegistroPage.tsx` (filtro inclui `squad_id = null` legado)
-- `src/pages/dailys/PainelGPPage.tsx` (estado do botão + query de `daily_meetings` do dia)
-- `src/components/dailys/IniciarDailyModal.tsx` (invalidação de `daily_meetings` após salvar — se ainda não estiver acontecendo)
-- `supabase/migrations/<timestamp>_backfill_dev_daily_entries_squad.sql` (backfill único para devs com uma única squad)
-
-Sem novas tabelas, sem alterações em RLS, sem novas dependências.
+- Abrir "Registrar daily": um X apenas; clicar fora / ESC não fecha; X fecha.
+- Registrar daily para hoje → botão "Registrar daily" fica desabilitado; se abrir mesmo assim (data alternativa), salvar não cria linha duplicada.
+- No painel do líder, alternar entre Squad B e Squad Inovação para o mesmo dev → cada uma mostra apenas seus impedimentos.

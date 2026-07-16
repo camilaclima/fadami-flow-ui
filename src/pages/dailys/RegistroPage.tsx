@@ -291,7 +291,11 @@ export default function RegistroPage() {
 
   const handleOpenCreate = () => {
     const available = dateOptions.find((o) => !entries.some((e) => e.entry_date === o.value));
-    const targetDate = available?.value ?? dateOptions[0]?.value ?? toISO(new Date());
+    if (!available) {
+      toast.info("Todas as dailys disponíveis já foram registradas nesta squad.");
+      return;
+    }
+    const targetDate = available.value;
     setMode("create");
     setDate(targetDate);
     setPastDecisions({});
@@ -500,8 +504,16 @@ export default function RegistroPage() {
       const fallbackSquadId = sim.squadIds?.[0] ?? null;
       const currentSquadId = selectedSquadId && selectedSquadId !== "legacy" ? selectedSquadId : fallbackSquadId;
 
+      // Guarda anti-duplicação: garante que não existe outra entry para a mesma
+      // data + squad antes de inserir.
+      const dupExisting =
+        existing ??
+        allEntries.find(
+          (e) => e.entry_date === date && (e.squad_id ?? null) === (currentSquadId ?? null),
+        );
+
       const result = await upsert.mutateAsync({
-        id: existing?.id,
+        id: dupExisting?.id,
         entry_date: date,
         squad_id: currentSquadId,
         did_yesterday: pastSnapshot,
@@ -712,9 +724,25 @@ export default function RegistroPage() {
       </div>
 
       <div className="mb-5 flex justify-end">
-        <Button onClick={handleOpenCreate} className="rounded-xl gap-2">
-          <Plus className="w-4 h-4" /> Registrar daily
-        </Button>
+        {(() => {
+          const hasAvailableDate = dateOptions.some(
+            (o) => !entries.some((e) => e.entry_date === o.value),
+          );
+          return (
+            <Button
+              onClick={handleOpenCreate}
+              className="rounded-xl gap-2"
+              disabled={!hasAvailableDate}
+              title={
+                hasAvailableDate
+                  ? undefined
+                  : "Todas as dailys disponíveis já foram registradas. Novo registro liberará às 17h."
+              }
+            >
+              <Plus className="w-4 h-4" /> Registrar daily
+            </Button>
+          );
+        })()}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
@@ -952,13 +980,15 @@ export default function RegistroPage() {
       {/* Modal de Registro de Daily protegido contra cliques acidentais */}
       <Dialog
         open={open}
-        onOpenChange={(val) => {
-          if (!val) return;
-          setOpen(val);
-        }}
+        onOpenChange={setOpen}
       >
-        <DialogContent className="max-w-5xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl">
-          <DialogHeader className="relative">
+        <DialogContent
+          className="max-w-5xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
             <ClipboardEdit className="w-5 h-5 text-primary" />
             <DialogTitle>
               Registrar daily
@@ -973,12 +1003,6 @@ export default function RegistroPage() {
                 </Badge>
               )}
             </DialogTitle>
-            <DialogClose asChild>
-              <button className="absolute right-0 top-0 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none p-1 hover:bg-muted/60">
-                <X className="h-4 w-4" />
-                <span className="sr-only">Fechar</span>
-              </button>
-            </DialogClose>
           </DialogHeader>
 
           <div className="space-y-5 min-w-0">

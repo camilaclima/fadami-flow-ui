@@ -161,15 +161,32 @@ export default function PainelGPPage() {
     return Array.from(ids);
   }, [entries, squadProfiles]);
   const { data: userEntries = [] } = useQuery({
-    queryKey: ["dev_daily_entries", "by-users-upto", date, userIds.sort().join(",")],
-    enabled: userIds.length > 0,
+    queryKey: [
+      "dev_daily_entries",
+      "by-users-upto",
+      date,
+      effectiveSquadId ?? "all",
+      userIds.sort().join(","),
+    ],
+    enabled: userIds.length > 0 && !!effectiveSquadId,
     queryFn: async () => {
-      const { data, error } = await (supabase.from("dev_daily_entries") as any)
+      // Entries desta squad (novas)
+      const { data: bySquad, error: e1 } = await (supabase.from("dev_daily_entries") as any)
         .select("id,user_id,entry_date")
         .in("user_id", userIds)
+        .eq("squad_id", effectiveSquadId)
         .lte("entry_date", date);
-      if (error) throw error;
-      return (data ?? []) as { id: string; user_id: string; entry_date: string }[];
+      if (e1) throw e1;
+      // Fallback legado: entries sem squad_id atribuído
+      const { data: legacy, error: e2 } = await (supabase.from("dev_daily_entries") as any)
+        .select("id,user_id,entry_date")
+        .in("user_id", userIds)
+        .is("squad_id", null)
+        .lte("entry_date", date);
+      if (e2) throw e2;
+      const map = new Map<string, { id: string; user_id: string; entry_date: string }>();
+      [...(bySquad ?? []), ...(legacy ?? [])].forEach((r: any) => map.set(r.id, r));
+      return Array.from(map.values());
     },
   });
   const allEntryIds = useMemo(() => userEntries.map((e) => e.id), [userEntries]);
@@ -202,14 +219,27 @@ export default function PainelGPPage() {
 
   // Universo de impedimentos da squad SEM filtro de data (para a área "Todos os impedimentos").
   const { data: allUserEntries = [] } = useQuery({
-    queryKey: ["dev_daily_entries", "by-users-all", userIds.sort().join(",")],
-    enabled: userIds.length > 0,
+    queryKey: [
+      "dev_daily_entries",
+      "by-users-all",
+      effectiveSquadId ?? "all",
+      userIds.sort().join(","),
+    ],
+    enabled: userIds.length > 0 && !!effectiveSquadId,
     queryFn: async () => {
-      const { data, error } = await (supabase.from("dev_daily_entries") as any)
+      const { data: bySquad, error: e1 } = await (supabase.from("dev_daily_entries") as any)
         .select("id,user_id,entry_date")
-        .in("user_id", userIds);
-      if (error) throw error;
-      return (data ?? []) as { id: string; user_id: string; entry_date: string }[];
+        .in("user_id", userIds)
+        .eq("squad_id", effectiveSquadId);
+      if (e1) throw e1;
+      const { data: legacy, error: e2 } = await (supabase.from("dev_daily_entries") as any)
+        .select("id,user_id,entry_date")
+        .in("user_id", userIds)
+        .is("squad_id", null);
+      if (e2) throw e2;
+      const map = new Map<string, { id: string; user_id: string; entry_date: string }>();
+      [...(bySquad ?? []), ...(legacy ?? [])].forEach((r: any) => map.set(r.id, r));
+      return Array.from(map.values());
     },
   });
   const allUserEntryIds = useMemo(() => allUserEntries.map((e) => e.id), [allUserEntries]);
