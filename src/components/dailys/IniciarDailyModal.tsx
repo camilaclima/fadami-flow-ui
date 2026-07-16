@@ -484,14 +484,6 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                               <UserCheck className="w-3.5 h-3.5" />
                             </ToggleGroupItem>
                             <ToggleGroupItem
-                              value="absent_work"
-                              size="sm"
-                              title="Ausente do trabalho"
-                              className="h-7 px-2 gap-1 text-xs data-[state=on]:bg-red-500/10 data-[state=on]:text-red-600"
-                            >
-                              <CalendarX className="w-3.5 h-3.5" />
-                            </ToggleGroupItem>
-                            <ToggleGroupItem
                               value="no_participate"
                               size="sm"
                               title="Não participou da daily"
@@ -500,6 +492,63 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                               <UserMinus className="w-3.5 h-3.5" />
                             </ToggleGroupItem>
                           </ToggleGroup>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                title="Ausente do trabalho"
+                                className={`h-7 px-2 gap-1 text-xs rounded-lg ${isAbsent ? "bg-red-500/10 text-red-600 border-red-500/40" : "text-muted-foreground"}`}
+                              >
+                                <CalendarX className="w-3.5 h-3.5" />
+                                {isAbsent && st.absence_type && (
+                                  <span className="text-[10px] font-medium">{DEV_ABSENCE_LABELS[st.absence_type]}</span>
+                                )}
+                                <ChevronDown className="w-3 h-3 opacity-70" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52">
+                              <DropdownMenuLabel className="text-[11px]">Motivo da ausência</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              {(Object.keys(DEV_ABSENCE_LABELS) as DevAbsenceType[]).map((t) => {
+                                const Icon = ABSENCE_ICONS[t];
+                                const ranged = DEV_ABSENCE_RANGED.includes(t);
+                                return (
+                                  <DropdownMenuItem
+                                    key={t}
+                                    onClick={() => {
+                                      updateMember(m.key, {
+                                        status: "absent_work",
+                                        camera_on: false,
+                                        absence_type: t,
+                                        absence_id: null,
+                                        absence_start: ranged ? (st.absence_start || date) : date,
+                                        absence_end: ranged ? (st.absence_end || date) : date,
+                                      });
+                                      if (ranged) setExpanded((prev) => ({ ...prev, [m.key]: true }));
+                                    }}
+                                    className="gap-2 text-xs"
+                                  >
+                                    <Icon className="w-3.5 h-3.5 text-red-500" />
+                                    <span className="flex-1">{DEV_ABSENCE_LABELS[t]}</span>
+                                    {ranged && <span className="text-[10px] text-muted-foreground">período</span>}
+                                  </DropdownMenuItem>
+                                );
+                              })}
+                              {isAbsent && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => updateMember(m.key, { status: "present", absence_type: null, absence_id: null, absence_start: "", absence_end: "" })}
+                                    className="gap-2 text-xs text-muted-foreground"
+                                  >
+                                    <X className="w-3.5 h-3.5" /> Remover ausência
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                           {isPresent && (
                             <>
                               <Button
