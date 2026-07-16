@@ -291,7 +291,11 @@ export default function RegistroPage() {
 
   const handleOpenCreate = () => {
     const available = dateOptions.find((o) => !entries.some((e) => e.entry_date === o.value));
-    const targetDate = available?.value ?? dateOptions[0]?.value ?? toISO(new Date());
+    if (!available) {
+      toast.info("Todas as dailys disponíveis já foram registradas nesta squad.");
+      return;
+    }
+    const targetDate = available.value;
     setMode("create");
     setDate(targetDate);
     setPastDecisions({});
