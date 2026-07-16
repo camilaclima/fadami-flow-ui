@@ -439,6 +439,8 @@ export type Database = {
       }
       daily_meeting_attendance: {
         Row: {
+          absence_id: string | null
+          absence_type: Database["public"]["Enums"]["dev_absence_type"] | null
           absent_from_work: boolean
           camera_on: boolean
           created_at: string
@@ -454,6 +456,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          absence_id?: string | null
+          absence_type?: Database["public"]["Enums"]["dev_absence_type"] | null
           absent_from_work?: boolean
           camera_on?: boolean
           created_at?: string
@@ -469,6 +473,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          absence_id?: string | null
+          absence_type?: Database["public"]["Enums"]["dev_absence_type"] | null
           absent_from_work?: boolean
           camera_on?: boolean
           created_at?: string
@@ -578,6 +584,51 @@ export type Database = {
           status_date?: string
           summary?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      dev_absences: {
+        Row: {
+          absence_type: Database["public"]["Enums"]["dev_absence_type"]
+          active: boolean
+          created_at: string
+          created_by: string | null
+          end_date: string
+          id: string
+          notes: string | null
+          squad_id: string | null
+          start_date: string
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+        }
+        Insert: {
+          absence_type: Database["public"]["Enums"]["dev_absence_type"]
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          end_date: string
+          id?: string
+          notes?: string | null
+          squad_id?: string | null
+          start_date: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+        }
+        Update: {
+          absence_type?: Database["public"]["Enums"]["dev_absence_type"]
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          end_date?: string
+          id?: string
+          notes?: string | null
+          squad_id?: string | null
+          start_date?: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -1674,6 +1725,12 @@ export type Database = {
       }
     }
     Enums: {
+      dev_absence_type:
+        | "atestado"
+        | "ferias"
+        | "banco_horas"
+        | "interjornada"
+        | "day_off"
       impediment_urgency: "low" | "medium" | "high"
     }
     CompositeTypes: {
@@ -1802,6 +1859,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      dev_absence_type: [
+        "atestado",
+        "ferias",
+        "banco_horas",
+        "interjornada",
+        "day_off",
+      ],
       impediment_urgency: ["low", "medium", "high"],
     },
   },
