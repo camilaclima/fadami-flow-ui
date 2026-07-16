@@ -504,8 +504,16 @@ export default function RegistroPage() {
       const fallbackSquadId = sim.squadIds?.[0] ?? null;
       const currentSquadId = selectedSquadId && selectedSquadId !== "legacy" ? selectedSquadId : fallbackSquadId;
 
+      // Guarda anti-duplicação: garante que não existe outra entry para a mesma
+      // data + squad antes de inserir.
+      const dupExisting =
+        existing ??
+        allEntries.find(
+          (e) => e.entry_date === date && (e.squad_id ?? null) === (currentSquadId ?? null),
+        );
+
       const result = await upsert.mutateAsync({
-        id: existing?.id,
+        id: dupExisting?.id,
         entry_date: date,
         squad_id: currentSquadId,
         did_yesterday: pastSnapshot,
