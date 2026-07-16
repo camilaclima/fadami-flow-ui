@@ -103,6 +103,13 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
   );
   const { data: userActivities = [] } = useDevDailyActivitiesByUsers(open ? memberUserIds : []);
   const { data: userEntriesAll = [] } = useDevDailyEntriesByUsers(open ? memberUserIds : []);
+  const { data: activeAbsences = [] } = useActiveDevAbsences(open ? memberUserIds : [], date);
+
+  const absenceByUser = useMemo(() => {
+    const map = new Map<string, DevAbsence>();
+    activeAbsences.forEach((a) => { if (!map.has(a.user_id)) map.set(a.user_id, a); });
+    return map;
+  }, [activeAbsences]);
 
   // Reinicializa somente quando o modal abre
   useEffect(() => {
@@ -113,7 +120,12 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
       const init: Record<string, MemberUIState> = {};
       const exp: Record<string, boolean> = {};
       members.forEach((m) => {
-        init[m.key] = defaultState(m.filled);
+        const base = defaultState(m.filled);
+        const uid = m.entry?.user_id;
+        const abs = uid ? absenceByUser.get(uid) : null;
+        init[m.key] = abs
+          ? { ...base, status: "absent_work", absence_type: abs.absence_type, absence_start: abs.start_date, absence_end: abs.end_date, absence_id: abs.id, camera_on: false }
+          : base;
         // Sempre iniciar retraído — líder expande sob demanda
         exp[m.key] = false;
       });
@@ -122,7 +134,7 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
       setLastRefresh(new Date());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, absenceByUser]);
 
   // Merge quando a lista de membros muda (por refresh) preservando o já digitado
   useEffect(() => {
