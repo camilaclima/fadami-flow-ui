@@ -600,6 +600,50 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
 
                       {isOpen && (
                         <div className="px-3 pb-3 pt-1 space-y-3 border-t bg-background/40">
+                          {isAbsent && st.absence_type && (
+                            <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-3 space-y-2">
+                              <div className="flex items-center gap-2 text-xs font-semibold text-red-600">
+                                <CalendarX className="w-3.5 h-3.5" />
+                                Ausência: {DEV_ABSENCE_LABELS[st.absence_type]}
+                                {st.absence_id && (
+                                  <Badge variant="outline" className="text-[10px] border-red-500/40 text-red-700">
+                                    já registrada
+                                  </Badge>
+                                )}
+                              </div>
+                              {DEV_ABSENCE_RANGED.includes(st.absence_type) ? (
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <Label className="text-[10px] uppercase text-muted-foreground">Início</Label>
+                                    <Input
+                                      type="date"
+                                      value={st.absence_start}
+                                      disabled={!!st.absence_id}
+                                      onChange={(e) => updateMember(m.key, { absence_start: e.target.value })}
+                                      className="h-8 text-xs"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-[10px] uppercase text-muted-foreground">Fim</Label>
+                                    <Input
+                                      type="date"
+                                      value={st.absence_end}
+                                      disabled={!!st.absence_id}
+                                      onChange={(e) => updateMember(m.key, { absence_end: e.target.value })}
+                                      className="h-8 text-xs"
+                                    />
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="text-[11px] text-muted-foreground">Aplica-se apenas a {format(dateObj, "dd/MM/yyyy")}.</p>
+                              )}
+                              {st.absence_id && (
+                                <p className="text-[10px] text-muted-foreground">
+                                  Este dev já está com ausência vigente até {format(parseISO(st.absence_end), "dd/MM/yyyy")}. O status será mantido automaticamente até essa data.
+                                </p>
+                              )}
+                            </div>
+                          )}
                           {isNoPart && (
                             <div>
                               <Label className="text-[11px] font-semibold text-amber-700 mb-1 block">
