@@ -54,6 +54,10 @@ interface MemberUIState {
   stayed_silent: boolean;
   notes: string;
   absence_reason: string;
+  absence_type: DevAbsenceType | null;
+  absence_start: string;
+  absence_end: string;
+  absence_id: string | null;
 }
 
 const defaultState = (filled: boolean): MemberUIState => ({
@@ -62,10 +66,23 @@ const defaultState = (filled: boolean): MemberUIState => ({
   stayed_silent: false,
   notes: "",
   absence_reason: "",
+  absence_type: null,
+  absence_start: "",
+  absence_end: "",
+  absence_id: null,
 });
+
+const ABSENCE_ICONS: Record<DevAbsenceType, any> = {
+  atestado: Stethoscope,
+  ferias: Palmtree,
+  banco_horas: Hourglass,
+  interjornada: Moon,
+  day_off: Coffee,
+};
 
 export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }: Props) {
   const create = useCreateDailyMeeting();
+  const createAbsence = useCreateDevAbsence();
   const { resolve } = useImpedimentMutations();
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
