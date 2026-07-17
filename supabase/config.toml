@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.generate-coordinator-tasks]
 verify_jwt = false
+
+[functions.admin-change-password]
+verify_jwt = false
