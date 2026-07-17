@@ -666,6 +666,22 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                         </div>
                       </div>
 
+                      {isNoPart && (
+                        <div className="px-3 pb-3 pt-0 border-t bg-amber-500/5">
+                          <Label className="text-[11px] font-semibold text-amber-700 mt-2 mb-1 block">
+                            Motivo da não participação <span className="text-orange-500">*</span>
+                          </Label>
+                          <Textarea
+                            rows={2}
+                            autoFocus
+                            value={st.absence_reason}
+                            onChange={(e) => updateMember(m.key, { absence_reason: e.target.value })}
+                            placeholder="Ex.: reunião com cliente, treinamento, atendimento urgente..."
+                            className="text-sm"
+                          />
+                        </div>
+                      )}
+
                       {isOpen && (
                         <div className="px-3 pb-3 pt-1 space-y-3 border-t bg-background/40">
                           {isAbsent && st.absence_type && (
@@ -710,20 +726,6 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                   Este dev já está com ausência vigente até {format(parseISO(st.absence_end), "dd/MM/yyyy")}. O status será mantido automaticamente até essa data.
                                 </p>
                               )}
-                            </div>
-                          )}
-                          {isNoPart && (
-                            <div>
-                              <Label className="text-[11px] font-semibold text-amber-700 mb-1 block">
-                                Motivo da não participação <span className="text-orange-500">*</span>
-                              </Label>
-                              <Textarea
-                                rows={2}
-                                value={st.absence_reason}
-                                onChange={(e) => updateMember(m.key, { absence_reason: e.target.value })}
-                                placeholder="Ex.: reunião com cliente, treinamento, atendimento urgente..."
-                                className="text-sm"
-                              />
                             </div>
                           )}
 
