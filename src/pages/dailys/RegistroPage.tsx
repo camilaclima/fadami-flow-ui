@@ -534,6 +534,16 @@ export default function RegistroPage() {
         will_do_today: futureSnapshot,
         impediments: "",
         general_notes: generalNotes.trim() ? generalNotes.trim() : null,
+        ...(fillStartedAt && !(dupExisting as any)?.fill_completed_at
+          ? {
+              fill_started_at: fillStartedAt.toISOString(),
+              fill_completed_at: new Date().toISOString(),
+              fill_duration_seconds: Math.max(
+                1,
+                Math.floor((Date.now() - fillStartedAt.getTime()) / 1000),
+              ),
+            }
+          : {}),
       });
 
       const entryId = result?.id;
