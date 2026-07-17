@@ -22,6 +22,7 @@ interface EntryLike {
   will_do_today: string | null;
   general_notes?: string | null;
   created_at?: string;
+  fill_duration_seconds?: number | null;
 }
 interface AttendanceLike {
   id: string;
@@ -166,6 +167,11 @@ export function DailyReadOnlyView({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-semibold text-sm leading-tight">{name}</span>
+                      {e.fill_duration_seconds != null && (
+                        <Badge variant="outline" className="text-[10px] gap-1 border-primary/30 text-primary bg-primary/5">
+                          <Clock className="w-2.5 h-2.5" /> {(() => { const s = e.fill_duration_seconds!; const m = Math.floor(s/60); const r = s%60; return m>0 ? `${m}m ${String(r).padStart(2,"0")}s` : `${s}s`; })()}
+                        </Badge>
+                      )}
                       {isPresent && (
                         <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 gap-1">
                           <UserCheck className="w-2.5 h-2.5" /> Presente
