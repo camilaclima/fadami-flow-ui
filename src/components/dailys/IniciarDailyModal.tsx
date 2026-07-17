@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { format, parseISO, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQueryClient } from "@tanstack/react-query";
+import { formatDuration } from "@/lib/formatDuration";
 
 interface MemberRow {
   key: string;
@@ -96,6 +97,17 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [historyFor, setHistoryFor] = useState<{ userId: string | null; name: string } | null>(null);
+  // Cronômetro da daily (líder)
+  const [startedAt, setStartedAt] = useState<Date | null>(null);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!open || !startedAt) return;
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [open, startedAt]);
+  const liveDurationSeconds = startedAt
+    ? Math.floor((Date.now() - startedAt.getTime()) / 1000)
+    : 0;
 
   const memberUserIds = useMemo(
     () => Array.from(new Set(members.map((m) => m.entry?.user_id).filter((v): v is string => !!v))),
@@ -117,6 +129,7 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
       setObservations("");
       setTranscriptUrl(null);
       setTranscriptName(null);
+      setStartedAt(new Date());
       const init: Record<string, MemberUIState> = {};
       const exp: Record<string, boolean> = {};
       members.forEach((m) => {
@@ -261,6 +274,11 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
       squad_id: squadId,
       observations,
       transcript_url: transcriptUrl,
+      started_at: startedAt ? startedAt.toISOString() : null,
+      finished_at: new Date().toISOString(),
+      duration_seconds: startedAt
+        ? Math.max(1, Math.floor((Date.now() - startedAt.getTime()) / 1000))
+        : null,
       attendance: members.map((m) => {
         const s = memberState[m.key] ?? defaultState(m.filled);
         const absent = s.status === "absent_work";
@@ -330,6 +348,14 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                     <>
                       <span>•</span>
                       <span className="text-muted-foreground">Atualizado {format(lastRefresh, "HH:mm:ss")}</span>
+                    </>
+                  )}
+                  {startedAt && (
+                    <>
+                      <span>•</span>
+                      <span className="inline-flex items-center gap-1 text-primary font-medium">
+                        <Clock className="w-3 h-3" /> {formatDuration(liveDurationSeconds) ?? "0s"}
+                      </span>
                     </>
                   )}
                 </DialogDescription>
@@ -442,6 +468,18 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-semibold text-sm leading-tight">{m.name}</span>
+                            {(() => {
+                              const uid = m.entry?.user_id;
+                              const dur = uid
+                                ? (userEntriesAll.find((e: any) => e.user_id === uid && e.entry_date === date) as any)?.fill_duration_seconds
+                                : null;
+                              const label = formatDuration(dur);
+                              return label ? (
+                                <Badge variant="outline" className="text-[10px] gap-1 border-primary/30 text-primary bg-primary/5" title="Tempo que o dev levou para registrar">
+                                  <Clock className="w-2.5 h-2.5" /> {label}
+                                </Badge>
+                              ) : null;
+                            })()}
                             {m.filled ? (
                               <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
                                 Preencheu
@@ -458,11 +496,14 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                               </Badge>
                             )}
                           </div>
-                          {isNoPart && st.absence_reason.trim() && !isOpen && (
-                            <p className="text-[11px] text-amber-700/90 mt-1 truncate">
-                              Motivo: {st.absence_reason}
-                            </p>
-                          )}
+                           {isAbsent && st.absence_type && (
+                             <p className="text-[11px] text-red-700/90 mt-1 truncate">
+                               {DEV_ABSENCE_LABELS[st.absence_type]}
+                               {DEV_ABSENCE_RANGED.includes(st.absence_type) && st.absence_start && st.absence_end && (
+                                 <> · {format(parseISO(st.absence_start), "dd/MM")} → {format(parseISO(st.absence_end), "dd/MM")}</>
+                               )}
+                             </p>
+                           )}
                         </div>
                         {/* Ações à direita, na mesma linha do nome */}
                         <div
@@ -492,8 +533,8 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                               <UserMinus className="w-3.5 h-3.5" />
                             </ToggleGroupItem>
                           </ToggleGroup>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
+                          <Popover>
+                            <PopoverTrigger asChild>
                               <Button
                                 type="button"
                                 variant="outline"
@@ -507,48 +548,75 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                 )}
                                 <ChevronDown className="w-3 h-3 opacity-70" />
                               </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-52">
-                              <DropdownMenuLabel className="text-[11px]">Motivo da ausência</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              {(Object.keys(DEV_ABSENCE_LABELS) as DevAbsenceType[]).map((t) => {
-                                const Icon = ABSENCE_ICONS[t];
-                                const ranged = DEV_ABSENCE_RANGED.includes(t);
-                                return (
-                                  <DropdownMenuItem
-                                    key={t}
-                                    onClick={() => {
-                                      updateMember(m.key, {
-                                        status: "absent_work",
-                                        camera_on: false,
-                                        absence_type: t,
-                                        absence_id: null,
-                                        absence_start: ranged ? (st.absence_start || date) : date,
-                                        absence_end: ranged ? (st.absence_end || date) : date,
-                                      });
-                                      if (ranged) setExpanded((prev) => ({ ...prev, [m.key]: true }));
-                                    }}
-                                    className="gap-2 text-xs"
-                                  >
-                                    <Icon className="w-3.5 h-3.5 text-red-500" />
-                                    <span className="flex-1">{DEV_ABSENCE_LABELS[t]}</span>
-                                    {ranged && <span className="text-[10px] text-muted-foreground">período</span>}
-                                  </DropdownMenuItem>
-                                );
-                              })}
-                              {isAbsent && (
-                                <>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={() => updateMember(m.key, { status: "present", absence_type: null, absence_id: null, absence_start: "", absence_end: "" })}
-                                    className="gap-2 text-xs text-muted-foreground"
-                                  >
-                                    <X className="w-3.5 h-3.5" /> Remover ausência
-                                  </DropdownMenuItem>
-                                </>
+                            </PopoverTrigger>
+                            <PopoverContent align="end" className="w-72 p-3 space-y-2" onKeyDown={(e) => e.stopPropagation()}>
+                              <Label className="text-[11px] font-semibold text-muted-foreground">Motivo da ausência</Label>
+                              <div className="grid grid-cols-2 gap-1.5">
+                                {(Object.keys(DEV_ABSENCE_LABELS) as DevAbsenceType[]).map((t) => {
+                                  const Icon = ABSENCE_ICONS[t];
+                                  const active = st.absence_type === t && isAbsent;
+                                  const ranged = DEV_ABSENCE_RANGED.includes(t);
+                                  return (
+                                    <Button
+                                      key={t}
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        updateMember(m.key, {
+                                          status: "absent_work",
+                                          camera_on: false,
+                                          absence_type: t,
+                                          absence_id: null,
+                                          absence_start: ranged ? (st.absence_start || date) : date,
+                                          absence_end: ranged ? (st.absence_end || date) : date,
+                                        });
+                                      }}
+                                      className={`h-8 justify-start gap-1.5 text-xs ${active ? "border-red-500/50 bg-red-500/10 text-red-700" : ""}`}
+                                    >
+                                      <Icon className="w-3.5 h-3.5" />
+                                      <span className="truncate">{DEV_ABSENCE_LABELS[t]}</span>
+                                    </Button>
+                                  );
+                                })}
+                              </div>
+                              {isAbsent && st.absence_type && DEV_ABSENCE_RANGED.includes(st.absence_type) && (
+                                <div className="grid grid-cols-2 gap-2 pt-1">
+                                  <div>
+                                    <Label className="text-[10px] uppercase text-muted-foreground">Início</Label>
+                                    <Input
+                                      type="date"
+                                      value={st.absence_start}
+                                      disabled={!!st.absence_id}
+                                      onChange={(e) => updateMember(m.key, { absence_start: e.target.value })}
+                                      className="h-8 text-xs"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-[10px] uppercase text-muted-foreground">Fim</Label>
+                                    <Input
+                                      type="date"
+                                      value={st.absence_end}
+                                      disabled={!!st.absence_id}
+                                      onChange={(e) => updateMember(m.key, { absence_end: e.target.value })}
+                                      className="h-8 text-xs"
+                                    />
+                                  </div>
+                                </div>
                               )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                              {isAbsent && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => updateMember(m.key, { status: "present", absence_type: null, absence_id: null, absence_start: "", absence_end: "" })}
+                                  className="w-full h-7 text-xs text-muted-foreground gap-1 mt-1"
+                                >
+                                  <X className="w-3 h-3" /> Remover ausência
+                                </Button>
+                              )}
+                            </PopoverContent>
+                          </Popover>
                           {isPresent && (
                             <>
                               <Button
@@ -598,6 +666,22 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                         </div>
                       </div>
 
+                      {isNoPart && (
+                        <div className="px-3 pb-3 pt-0 border-t bg-amber-500/5">
+                          <Label className="text-[11px] font-semibold text-amber-700 mt-2 mb-1 block">
+                            Motivo da não participação <span className="text-orange-500">*</span>
+                          </Label>
+                          <Textarea
+                            rows={2}
+                            autoFocus
+                            value={st.absence_reason}
+                            onChange={(e) => updateMember(m.key, { absence_reason: e.target.value })}
+                            placeholder="Ex.: reunião com cliente, treinamento, atendimento urgente..."
+                            className="text-sm"
+                          />
+                        </div>
+                      )}
+
                       {isOpen && (
                         <div className="px-3 pb-3 pt-1 space-y-3 border-t bg-background/40">
                           {isAbsent && st.absence_type && (
@@ -644,22 +728,8 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                               )}
                             </div>
                           )}
-                          {isNoPart && (
-                            <div>
-                              <Label className="text-[11px] font-semibold text-amber-700 mb-1 block">
-                                Motivo da não participação <span className="text-orange-500">*</span>
-                              </Label>
-                              <Textarea
-                                rows={2}
-                                value={st.absence_reason}
-                                onChange={(e) => updateMember(m.key, { absence_reason: e.target.value })}
-                                placeholder="Ex.: reunião com cliente, treinamento, atendimento urgente..."
-                                className="text-sm"
-                              />
-                            </div>
-                          )}
 
-                          {isPresent && (
+                          {(isPresent || isNoPart) && (
                             <>
                               {/* Ontem/Hoje */}
                               {m.filled && m.entry ? (

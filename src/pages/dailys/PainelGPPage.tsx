@@ -28,6 +28,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Clock } from "lucide-react";
+import { formatDuration } from "@/lib/formatDuration";
 
 function daysAgoLabel(iso: string): string {
   const created = new Date(iso);
@@ -651,6 +653,11 @@ export default function PainelGPPage() {
                     <div className="min-w-0">
                       <span className={`text-sm font-medium block break-words ${m.filled ? "" : "text-muted-foreground"}`}>
                         {m.entry?.dev_name ?? m.name}
+                        {formatDuration((m.entry as any)?.fill_duration_seconds) && (
+                          <span className="inline-flex items-center gap-1 ml-2 text-[10px] text-primary" title="Tempo de preenchimento do dev">
+                            <Clock className="w-2.5 h-2.5" /> {formatDuration((m.entry as any).fill_duration_seconds)}
+                          </span>
+                        )}
                       </span>
                       {impCount > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">

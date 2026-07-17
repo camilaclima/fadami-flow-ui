@@ -12,6 +12,9 @@ export interface DevDailyEntry {
   will_do_today: string | null;
   impediments: string | null;
   general_notes: string | null;
+  fill_started_at?: string | null;
+  fill_completed_at?: string | null;
+  fill_duration_seconds?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -55,10 +58,10 @@ export function useDevDailyEntriesByUsers(userIds: string[]) {
     enabled: userIds.length > 0,
     queryFn: async () => {
       const { data, error } = await (supabase.from("dev_daily_entries") as any)
-        .select("id,user_id,entry_date")
+        .select("id,user_id,entry_date,fill_duration_seconds")
         .in("user_id", userIds);
       if (error) throw error;
-      return (data ?? []) as Array<{ id: string; user_id: string; entry_date: string }>;
+      return (data ?? []) as Array<{ id: string; user_id: string; entry_date: string; fill_duration_seconds?: number | null }>;
     },
   });
 }
@@ -147,6 +150,9 @@ export function useUpsertDevDailyEntry() {
       will_do_today: string;
       impediments: string;
       general_notes?: string | null;
+      fill_started_at?: string | null;
+      fill_completed_at?: string | null;
+      fill_duration_seconds?: number | null;
     }) => {
       if (!user?.id) throw new Error("Não autenticado");
       const payload: any = {
@@ -159,6 +165,9 @@ export function useUpsertDevDailyEntry() {
         general_notes: input.general_notes ?? null,
         updated_by: user.id,
       };
+      if (input.fill_started_at !== undefined) payload.fill_started_at = input.fill_started_at;
+      if (input.fill_completed_at !== undefined) payload.fill_completed_at = input.fill_completed_at;
+      if (input.fill_duration_seconds !== undefined) payload.fill_duration_seconds = input.fill_duration_seconds;
       if (input.id) {
         const { error } = await (supabase.from("dev_daily_entries") as any)
           .update(payload)

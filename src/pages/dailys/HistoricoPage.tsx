@@ -25,6 +25,8 @@ import { useSquads } from "@/hooks/useSquads";
 import { useDevDailyActivitiesByEntries, type DevDailyActivity } from "@/hooks/useDevDailyActivities";
 import { Circle, XCircle } from "lucide-react";
 import { DailyReadOnlyView } from "@/components/dailys/DailyReadOnlyView";
+import { Clock } from "lucide-react";
+import { formatDuration } from "@/lib/formatDuration";
 
 interface MeetingRow {
   id: string;
@@ -67,6 +69,7 @@ interface DevEntryRow {
   did_yesterday: string | null;
   will_do_today: string | null;
   impediments: string | null;
+  fill_duration_seconds?: number | null;
   created_at: string;
 }
 

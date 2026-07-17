@@ -1,58 +1,76 @@
-## Correções na página de Registro de Daily e no Painel do Líder
+# Plano de correções e melhorias na Daily
 
-Três ajustes independentes no fluxo de dailys.
+## 1) Corrigir alteração de senha do usuário (erro 401)
 
----
+**Causa:** a Edge Function `admin-change-password` está sem `verify_jwt = false` em `supabase/config.toml`. Com o novo sistema de chaves de assinatura da plataforma, isso faz o gateway rejeitar a requisição com 401 antes mesmo do código rodar. A função já valida o JWT internamente via `auth.getUser()` e cheque de permissão `users`, então é seguro desligar o verify_jwt do gateway.
 
-### 1. Modal "Registrar daily" — dois X e fechamento acidental
+**Ação:**
+- Adicionar bloco `[functions.admin-change-password]` com `verify_jwt = false` em `supabase/config.toml`.
+- Manter a validação de sessão e de permissão que já existe dentro da função.
 
-**Arquivo:** `src/pages/dailys/RegistroPage.tsx` (modal em ~L953-982)
+## 2) Cronômetro do registro da daily (Dev)
 
-- O `DialogContent` do shadcn já renderiza um botão X automático no canto. O código adiciona manualmente um segundo `DialogClose` com ícone X, causando os dois botões visíveis.
-- Remover o `DialogClose` manual do `DialogHeader` e o ícone `X` associado. Manter apenas o X nativo do `DialogContent`.
-- O `onOpenChange` atual (`if (!val) return`) bloqueia qualquer fechamento — inclusive o X. Substituir por lógica que:
-  - permite fechar via X e via `DialogClose` interno (chamar `setOpen(false)`);
-  - bloqueia clique fora e tecla ESC usando `onPointerDownOutside={(e) => e.preventDefault()}`, `onInteractOutside={(e) => e.preventDefault()}` e `onEscapeKeyDown={(e) => e.preventDefault()}` no `DialogContent`.
+Registrar quanto tempo o dev levou para preencher a daily.
 
-Resultado: um único X, fechamento apenas por ele; clique fora e ESC ignorados.
+**Banco (`dev_daily_entries`):**
+- Novas colunas: `fill_started_at TIMESTAMPTZ`, `fill_completed_at TIMESTAMPTZ`, `fill_duration_seconds INT`.
 
----
+**Frontend (`RegistroPage.tsx`):**
+- Ao abrir o modal de registro (Criar ou Editar sem `fill_completed_at`), marcar `fill_started_at = now()` em memória.
+- Exibir badge de cronômetro em tempo real no header do modal ("Tempo: mm:ss").
+- No submit, calcular a duração e persistir `fill_started_at`, `fill_completed_at`, `fill_duration_seconds`. Em edições posteriores, preservar a duração original (não sobrescrever).
+- No card de resumo em "Minha Daily", ao lado do "Registrada", mostrar `⏱ 4m 12s` quando `fill_duration_seconds` existir.
 
-### 2. Impedir duplicação de registros por dia
+**Painel do Líder:**
+- `HistoricoPage.tsx`, `PainelGPPage.tsx` (aba Status de Preenchimento), e `IniciarDailyModal.tsx`: ao lado do nome do usuário, exibir chip discreto `⏱ 4m 12s` quando houver duração registrada na entrada do dia.
 
-**Arquivo:** `src/pages/dailys/RegistroPage.tsx`
+## 3) Cronômetro da daily do líder
 
-Hoje o botão "Registrar daily" sempre abre em modo `create`, e `useUpsertDevDailyEntry` faz INSERT quando não há `id`, gerando várias linhas para a mesma data + squad.
+Registrar quanto tempo o líder levou desde "Iniciar Daily" até "Salvar Daily".
 
-Correções:
+**Banco (`daily_meetings`):**
+- Novas colunas: `started_at TIMESTAMPTZ`, `finished_at TIMESTAMPTZ`, `duration_seconds INT`.
 
-- **Botão "Registrar daily"** (L714-718): calcular `hasAvailableDate = dateOptions.some(o => !entries.some(e => e.entry_date === o.value))` e desabilitar o botão quando `false`. Tooltip: "Todas as dailys disponíveis já foram registradas. Novo registro liberará às 17h."
-- **`handleOpenCreate`** (L292-322): se o `targetDate` calculado já possui uma entry existente para a squad selecionada, abortar (o botão nem deveria ter aberto, mas guarda extra) — ou redirecionar para modo `edit` daquela entry. Seguir a opção de guarda: retornar cedo com toast informativo.
-- **`submit`** (fluxo de salvamento): antes de chamar `upsert.mutateAsync` em modo `create`, checar se `entries.find(e => e.entry_date === date)` existe; se sim, forçar o payload a incluir `id: existing.id` (converte insert em update). Isso protege contra corridas.
+**Frontend (`IniciarDailyModal.tsx`):**
+- Ao abrir o modal, marcar `startedAt = new Date()` em estado.
+- Exibir cronômetro no header (mm:ss) atualizando a cada 1s.
+- No `submit`, enviar `started_at`, `finished_at = now()`, `duration_seconds` para o `useCreateDailyMeeting`.
+- Exibir a duração final no histórico da daily (aba Histórico do líder) ao lado da data.
 
-A regra de "liberar às 17h" já é implementada por `allowedDates()` (L86-98), que só inclui "Hoje" quando `now.getHours() >= 17`. Nada a mudar ali.
+## 4) "Não participou da daily" — persistir registro do usuário e manter caixa de motivo visível
 
----
+Hoje, ao marcar "não participou", o motivo só aparece se o card estiver expandido. E o registro feito pelo dev fica visualmente descartado.
 
-### 3. Impedimentos misturando entre squads no Painel do Líder
+**Ação (`IniciarDailyModal.tsx`):**
+- Manter as informações da entrada do dev renderizadas mesmo em `no_participate` (somente leitura, com aviso "Não participou — resposta preservada").
+- Renderizar o campo "Motivo da não participação" na **linha compacta do cabeçalho** do card (fora do bloco expansível), logo abaixo do toggle de status, para estar sempre acessível independentemente do estado retraído/expandido.
+- Auto-focar o textarea quando o status muda para `no_participate`.
 
-**Arquivo:** `src/pages/dailys/PainelGPPage.tsx`
+## 5) UX de ausência (tipo + período) e motivo próximos ao botão
 
-Causa: `userEntries` (L163-174) e `allUserEntries` (L204-214) buscam todas as entries dos `userIds` da squad, sem filtrar por `squad_id`. Como um mesmo dev pode ter entries em outra squad, os `entry_ids` das outras squads entram em `allImpediments`/`squadAllImpediments` e vazam para o painel/histórico atual.
+Hoje o líder muda o status no cabeçalho, mas os campos aparecem só na área expandida — obrigando expandir para completar.
 
-Correção (mesma lógica já aplicada em `useDevDailyEntriesByDate` para entries de "ontem/hoje"):
+**Ação (`IniciarDailyModal.tsx`):**
+- Ao selecionar "Ausente do trabalho" via dropdown, abrir um **Popover ancorado no próprio botão** com:
+  - Select do tipo de ausência (Atestado, Férias, Banco de horas, Interjornada, Day Off).
+  - Se o tipo exigir período (`atestado`, `ferias`, `banco_horas`): dois inputs de data (início / fim) já no mesmo popover.
+  - Botão "Confirmar" que fecha o popover e mantém os valores no state do membro.
+- Um chip resumo aparece no cabeçalho (`Atestado · 20/07 → 25/07`) com botão "editar" que reabre o mesmo popover.
+- Mesma abordagem para "Não participou": popover com textarea de motivo ancorado no toggle, além do campo persistente sugerido no item 4 (o popover é atalho, o campo permanece visível).
+- Validações existentes (tipo obrigatório, período obrigatório para ranged) continuam iguais e destacam o card ao falhar.
 
-- Nas duas queries, filtrar por squad:
-  - entries explicitamente da squad: `.eq("squad_id", effectiveSquadId)`
-  - **união** com entries legadas (`squad_id IS NULL`) dos mesmos `userIds`, para compatibilidade com registros antigos.
-- Executar como duas chamadas e mesclar por `id` no cliente (padrão já existente no projeto), ou uma única chamada com `.or("squad_id.eq.<id>,squad_id.is.null")` combinada com `.in("user_id", userIds)`.
+## Detalhes técnicos
 
-Com isso `allEntryIds`/`allUserEntryIds` passam a conter só entries da squad selecionada → impedimentos exibidos no card do dev e na seção "Impedimentos da Squad" ficam escopados corretamente. O `DevHistoryModal` recebe apenas `entryIds` da squad ativa (mesma lógica), então herda o fix.
+**Arquivos a alterar:**
+- `supabase/config.toml` — adicionar `[functions.admin-change-password] verify_jwt = false`.
+- Migração SQL — colunas de tempo em `dev_daily_entries` e `daily_meetings`.
+- `src/integrations/supabase/types.ts` — regenerado após migração.
+- `src/hooks/useDevDailyEntries.ts` — persistir campos de tempo no upsert.
+- `src/hooks/useDailyMeetings.ts` — persistir `started_at/finished_at/duration_seconds` no create.
+- `src/pages/dailys/RegistroPage.tsx` — cronômetro do dev, exibição no card resumo.
+- `src/components/dailys/IniciarDailyModal.tsx` — cronômetro do líder, motivo sempre visível, popovers de ausência/motivo.
+- `src/pages/dailys/HistoricoPage.tsx` e `src/pages/dailys/PainelGPPage.tsx` — mostrar duração ao lado do nome do dev.
 
----
+**Formatação de tempo:** util compartilhado `formatDuration(seconds)` → `4m 12s` / `1h 02m`.
 
-### Verificação após implementar
-
-- Abrir "Registrar daily": um X apenas; clicar fora / ESC não fecha; X fecha.
-- Registrar daily para hoje → botão "Registrar daily" fica desabilitado; se abrir mesmo assim (data alternativa), salvar não cria linha duplicada.
-- No painel do líder, alternar entre Squad B e Squad Inovação para o mesmo dev → cada uma mostra apenas seus impedimentos.
+**Compatibilidade:** todos os novos campos são opcionais; registros antigos simplesmente não exibem o chip de tempo.
