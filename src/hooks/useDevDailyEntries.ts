@@ -58,10 +58,10 @@ export function useDevDailyEntriesByUsers(userIds: string[]) {
     enabled: userIds.length > 0,
     queryFn: async () => {
       const { data, error } = await (supabase.from("dev_daily_entries") as any)
-        .select("id,user_id,entry_date")
+        .select("id,user_id,entry_date,fill_duration_seconds")
         .in("user_id", userIds);
       if (error) throw error;
-      return (data ?? []) as Array<{ id: string; user_id: string; entry_date: string }>;
+      return (data ?? []) as Array<{ id: string; user_id: string; entry_date: string; fill_duration_seconds?: number | null }>;
     },
   });
 }
