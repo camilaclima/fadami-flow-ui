@@ -496,11 +496,14 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                               </Badge>
                             )}
                           </div>
-                          {isNoPart && st.absence_reason.trim() && !isOpen && (
-                            <p className="text-[11px] text-amber-700/90 mt-1 truncate">
-                              Motivo: {st.absence_reason}
-                            </p>
-                          )}
+                           {isAbsent && st.absence_type && (
+                             <p className="text-[11px] text-red-700/90 mt-1 truncate">
+                               {DEV_ABSENCE_LABELS[st.absence_type]}
+                               {DEV_ABSENCE_RANGED.includes(st.absence_type) && st.absence_start && st.absence_end && (
+                                 <> · {format(parseISO(st.absence_start), "dd/MM")} → {format(parseISO(st.absence_end), "dd/MM")}</>
+                               )}
+                             </p>
+                           )}
                         </div>
                         {/* Ações à direita, na mesma linha do nome */}
                         <div
