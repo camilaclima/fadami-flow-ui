@@ -729,7 +729,7 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                             </div>
                           )}
 
-                          {isPresent && (
+                          {(isPresent || isNoPart) && (
                             <>
                               {/* Ontem/Hoje */}
                               {m.filled && m.entry ? (
