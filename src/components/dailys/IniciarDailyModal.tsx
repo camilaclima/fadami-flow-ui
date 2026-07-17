@@ -533,8 +533,8 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                               <UserMinus className="w-3.5 h-3.5" />
                             </ToggleGroupItem>
                           </ToggleGroup>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
+                          <Popover>
+                            <PopoverTrigger asChild>
                               <Button
                                 type="button"
                                 variant="outline"
@@ -548,48 +548,75 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                 )}
                                 <ChevronDown className="w-3 h-3 opacity-70" />
                               </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-52">
-                              <DropdownMenuLabel className="text-[11px]">Motivo da ausência</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              {(Object.keys(DEV_ABSENCE_LABELS) as DevAbsenceType[]).map((t) => {
-                                const Icon = ABSENCE_ICONS[t];
-                                const ranged = DEV_ABSENCE_RANGED.includes(t);
-                                return (
-                                  <DropdownMenuItem
-                                    key={t}
-                                    onClick={() => {
-                                      updateMember(m.key, {
-                                        status: "absent_work",
-                                        camera_on: false,
-                                        absence_type: t,
-                                        absence_id: null,
-                                        absence_start: ranged ? (st.absence_start || date) : date,
-                                        absence_end: ranged ? (st.absence_end || date) : date,
-                                      });
-                                      if (ranged) setExpanded((prev) => ({ ...prev, [m.key]: true }));
-                                    }}
-                                    className="gap-2 text-xs"
-                                  >
-                                    <Icon className="w-3.5 h-3.5 text-red-500" />
-                                    <span className="flex-1">{DEV_ABSENCE_LABELS[t]}</span>
-                                    {ranged && <span className="text-[10px] text-muted-foreground">período</span>}
-                                  </DropdownMenuItem>
-                                );
-                              })}
-                              {isAbsent && (
-                                <>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={() => updateMember(m.key, { status: "present", absence_type: null, absence_id: null, absence_start: "", absence_end: "" })}
-                                    className="gap-2 text-xs text-muted-foreground"
-                                  >
-                                    <X className="w-3.5 h-3.5" /> Remover ausência
-                                  </DropdownMenuItem>
-                                </>
+                            </PopoverTrigger>
+                            <PopoverContent align="end" className="w-72 p-3 space-y-2" onKeyDown={(e) => e.stopPropagation()}>
+                              <Label className="text-[11px] font-semibold text-muted-foreground">Motivo da ausência</Label>
+                              <div className="grid grid-cols-2 gap-1.5">
+                                {(Object.keys(DEV_ABSENCE_LABELS) as DevAbsenceType[]).map((t) => {
+                                  const Icon = ABSENCE_ICONS[t];
+                                  const active = st.absence_type === t && isAbsent;
+                                  const ranged = DEV_ABSENCE_RANGED.includes(t);
+                                  return (
+                                    <Button
+                                      key={t}
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        updateMember(m.key, {
+                                          status: "absent_work",
+                                          camera_on: false,
+                                          absence_type: t,
+                                          absence_id: null,
+                                          absence_start: ranged ? (st.absence_start || date) : date,
+                                          absence_end: ranged ? (st.absence_end || date) : date,
+                                        });
+                                      }}
+                                      className={`h-8 justify-start gap-1.5 text-xs ${active ? "border-red-500/50 bg-red-500/10 text-red-700" : ""}`}
+                                    >
+                                      <Icon className="w-3.5 h-3.5" />
+                                      <span className="truncate">{DEV_ABSENCE_LABELS[t]}</span>
+                                    </Button>
+                                  );
+                                })}
+                              </div>
+                              {isAbsent && st.absence_type && DEV_ABSENCE_RANGED.includes(st.absence_type) && (
+                                <div className="grid grid-cols-2 gap-2 pt-1">
+                                  <div>
+                                    <Label className="text-[10px] uppercase text-muted-foreground">Início</Label>
+                                    <Input
+                                      type="date"
+                                      value={st.absence_start}
+                                      disabled={!!st.absence_id}
+                                      onChange={(e) => updateMember(m.key, { absence_start: e.target.value })}
+                                      className="h-8 text-xs"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-[10px] uppercase text-muted-foreground">Fim</Label>
+                                    <Input
+                                      type="date"
+                                      value={st.absence_end}
+                                      disabled={!!st.absence_id}
+                                      onChange={(e) => updateMember(m.key, { absence_end: e.target.value })}
+                                      className="h-8 text-xs"
+                                    />
+                                  </div>
+                                </div>
                               )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                              {isAbsent && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => updateMember(m.key, { status: "present", absence_type: null, absence_id: null, absence_start: "", absence_end: "" })}
+                                  className="w-full h-7 text-xs text-muted-foreground gap-1 mt-1"
+                                >
+                                  <X className="w-3 h-3" /> Remover ausência
+                                </Button>
+                              )}
+                            </PopoverContent>
+                          </Popover>
                           {isPresent && (
                             <>
                               <Button
