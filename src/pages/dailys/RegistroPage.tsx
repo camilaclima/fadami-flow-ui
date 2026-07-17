@@ -1026,6 +1026,11 @@ export default function RegistroPage() {
                   <Lock className="w-3 h-3" /> Finalizada
                 </Badge>
               )}
+              {fillStartedAt && !isLocked && (
+                <Badge variant="outline" className="ml-2 gap-1 bg-primary/5 text-primary border-primary/30" title="Tempo de preenchimento">
+                  <Clock className="w-3 h-3" /> {formatDuration(liveDurationSeconds) ?? "0s"}
+                </Badge>
+              )}
             </DialogTitle>
           </DialogHeader>
 
