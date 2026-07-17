@@ -468,6 +468,18 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-semibold text-sm leading-tight">{m.name}</span>
+                            {(() => {
+                              const uid = m.entry?.user_id;
+                              const dur = uid
+                                ? (userEntriesAll.find((e: any) => e.user_id === uid && e.entry_date === date) as any)?.fill_duration_seconds
+                                : null;
+                              const label = formatDuration(dur);
+                              return label ? (
+                                <Badge variant="outline" className="text-[10px] gap-1 border-primary/30 text-primary bg-primary/5" title="Tempo que o dev levou para registrar">
+                                  <Clock className="w-2.5 h-2.5" /> {label}
+                                </Badge>
+                              ) : null;
+                            })()}
                             {m.filled ? (
                               <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
                                 Preencheu
