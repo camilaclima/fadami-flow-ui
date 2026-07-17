@@ -56,6 +56,7 @@ import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { formatDuration } from "@/lib/formatDuration";
 
 type DraftImpediment = { id: string; description: string; urgency: ImpedimentUrgency };
 type PriorResolution = { resolved: boolean | null };
@@ -210,6 +211,17 @@ export default function RegistroPage() {
   const skipAutoFill = useRef(false);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
+  // Cronômetro de preenchimento
+  const [fillStartedAt, setFillStartedAt] = useState<Date | null>(null);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!open || !fillStartedAt) return;
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [open, fillStartedAt]);
+  const liveDurationSeconds = fillStartedAt
+    ? Math.floor((Date.now() - fillStartedAt.getTime()) / 1000)
+    : 0;
 
   const detailEntry = useMemo(() => entries.find((e) => e.id === detailEntryId) ?? null, [entries, detailEntryId]);
 
