@@ -334,6 +334,7 @@ export default function RegistroPage() {
     });
     setPriorRes(init);
     skipAutoFill.current = true;
+    setFillStartedAt(new Date());
     setOpen(true);
   };
 
@@ -358,6 +359,7 @@ export default function RegistroPage() {
       init[p.id] = { resolved: null };
     });
     setPriorRes(init);
+    setFillStartedAt(entry?.fill_completed_at ? null : new Date());
     setOpen(true);
   };
 
