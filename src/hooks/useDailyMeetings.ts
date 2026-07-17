@@ -10,6 +10,9 @@ export interface DailyMeeting {
   conducted_by: string | null;
   observations: string | null;
   transcript_url: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  duration_seconds?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -67,6 +70,9 @@ export function useCreateDailyMeeting() {
       squad_id: string | null;
       observations: string;
       transcript_url: string | null;
+      started_at?: string | null;
+      finished_at?: string | null;
+      duration_seconds?: number | null;
       attendance: {
         member_name: string;
         member_user_id?: string | null;
@@ -85,6 +91,9 @@ export function useCreateDailyMeeting() {
         conducted_by: user?.id ?? null,
         observations: input.observations,
         transcript_url: input.transcript_url,
+        started_at: input.started_at ?? null,
+        finished_at: input.finished_at ?? null,
+        duration_seconds: input.duration_seconds ?? null,
         updated_by: user?.id ?? null,
       }).select("*").single();
       if (error) throw error;
