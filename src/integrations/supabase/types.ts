@@ -510,10 +510,13 @@ export type Database = {
         Row: {
           conducted_by: string | null
           created_at: string
+          duration_seconds: number | null
+          finished_at: string | null
           id: string
           meeting_date: string
           observations: string | null
           squad_id: string | null
+          started_at: string | null
           transcript_url: string | null
           updated_at: string
           updated_by: string | null
@@ -521,10 +524,13 @@ export type Database = {
         Insert: {
           conducted_by?: string | null
           created_at?: string
+          duration_seconds?: number | null
+          finished_at?: string | null
           id?: string
           meeting_date?: string
           observations?: string | null
           squad_id?: string | null
+          started_at?: string | null
           transcript_url?: string | null
           updated_at?: string
           updated_by?: string | null
@@ -532,10 +538,13 @@ export type Database = {
         Update: {
           conducted_by?: string | null
           created_at?: string
+          duration_seconds?: number | null
+          finished_at?: string | null
           id?: string
           meeting_date?: string
           observations?: string | null
           squad_id?: string | null
+          started_at?: string | null
           transcript_url?: string | null
           updated_at?: string
           updated_by?: string | null
@@ -703,6 +712,9 @@ export type Database = {
           created_at: string
           did_yesterday: string | null
           entry_date: string
+          fill_completed_at: string | null
+          fill_duration_seconds: number | null
+          fill_started_at: string | null
           general_notes: string | null
           id: string
           impediments: string | null
@@ -716,6 +728,9 @@ export type Database = {
           created_at?: string
           did_yesterday?: string | null
           entry_date?: string
+          fill_completed_at?: string | null
+          fill_duration_seconds?: number | null
+          fill_started_at?: string | null
           general_notes?: string | null
           id?: string
           impediments?: string | null
@@ -729,6 +744,9 @@ export type Database = {
           created_at?: string
           did_yesterday?: string | null
           entry_date?: string
+          fill_completed_at?: string | null
+          fill_duration_seconds?: number | null
+          fill_started_at?: string | null
           general_notes?: string | null
           id?: string
           impediments?: string | null
