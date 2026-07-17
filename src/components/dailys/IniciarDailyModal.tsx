@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { format, parseISO, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQueryClient } from "@tanstack/react-query";
+import { formatDuration } from "@/lib/formatDuration";
 
 interface MemberRow {
   key: string;
@@ -96,6 +97,17 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [historyFor, setHistoryFor] = useState<{ userId: string | null; name: string } | null>(null);
+  // Cronômetro da daily (líder)
+  const [startedAt, setStartedAt] = useState<Date | null>(null);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!open || !startedAt) return;
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [open, startedAt]);
+  const liveDurationSeconds = startedAt
+    ? Math.floor((Date.now() - startedAt.getTime()) / 1000)
+    : 0;
 
   const memberUserIds = useMemo(
     () => Array.from(new Set(members.map((m) => m.entry?.user_id).filter((v): v is string => !!v))),
