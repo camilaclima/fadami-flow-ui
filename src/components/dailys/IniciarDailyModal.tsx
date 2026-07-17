@@ -129,6 +129,7 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
       setObservations("");
       setTranscriptUrl(null);
       setTranscriptName(null);
+      setStartedAt(new Date());
       const init: Record<string, MemberUIState> = {};
       const exp: Record<string, boolean> = {};
       members.forEach((m) => {
@@ -273,6 +274,11 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
       squad_id: squadId,
       observations,
       transcript_url: transcriptUrl,
+      started_at: startedAt ? startedAt.toISOString() : null,
+      finished_at: new Date().toISOString(),
+      duration_seconds: startedAt
+        ? Math.max(1, Math.floor((Date.now() - startedAt.getTime()) / 1000))
+        : null,
       attendance: members.map((m) => {
         const s = memberState[m.key] ?? defaultState(m.filled);
         const absent = s.status === "absent_work";
