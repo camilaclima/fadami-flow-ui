@@ -870,8 +870,13 @@ export default function RegistroPage() {
                   </div>
                 )}
 
-                <div className="text-[10px] text-muted-foreground pt-2 border-t border-border/50">
-                  Registrado {format(parseISO(e.created_at), "dd/MM HH:mm")}
+                <div className="text-[10px] text-muted-foreground pt-2 border-t border-border/50 flex items-center gap-2 flex-wrap">
+                  <span>Registrado {format(parseISO(e.created_at), "dd/MM HH:mm")}</span>
+                  {formatDuration((e as any).fill_duration_seconds) && (
+                    <span className="inline-flex items-center gap-1 text-primary">
+                      <Clock className="w-3 h-3" /> {formatDuration((e as any).fill_duration_seconds)}
+                    </span>
+                  )}
                 </div>
               </CardContent>
             </Card>
