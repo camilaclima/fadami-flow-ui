@@ -350,6 +350,14 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                       <span className="text-muted-foreground">Atualizado {format(lastRefresh, "HH:mm:ss")}</span>
                     </>
                   )}
+                  {startedAt && (
+                    <>
+                      <span>•</span>
+                      <span className="inline-flex items-center gap-1 text-primary font-medium">
+                        <Clock className="w-3 h-3" /> {formatDuration(liveDurationSeconds) ?? "0s"}
+                      </span>
+                    </>
+                  )}
                 </DialogDescription>
               </div>
             </div>
