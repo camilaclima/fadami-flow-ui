@@ -451,6 +451,34 @@ function DayDetailDialog({
     return m;
   }, [attendance]);
 
+  // Entradas sintéticas: devs marcados na daily pelo líder (ausentes, não
+  // participou, etc.) que não preencheram registro próprio no dia. Sem elas,
+  // o histórico oculta ausências decididas pelo líder.
+  const augmentedEntries = useMemo(() => {
+    if (!day) return [] as DevEntryRow[];
+    const existingUserIds = new Set(day.entries.map((e) => e.user_id));
+    const seen = new Set<string>();
+    const extras: DevEntryRow[] = [];
+    attendance.forEach((a) => {
+      const uid = a.member_user_id;
+      if (!uid) return;
+      if (existingUserIds.has(uid) || seen.has(uid)) return;
+      seen.add(uid);
+      extras.push({
+        id: `virtual:${uid}`,
+        user_id: uid,
+        squad_id: null,
+        entry_date: day.date,
+        did_yesterday: null,
+        will_do_today: null,
+        impediments: null,
+        fill_duration_seconds: null,
+        created_at: "",
+      });
+    });
+    return [...day.entries, ...extras];
+  }, [day, attendance]);
+
   // Reset insights ao trocar de dia.
   useEffect(() => {
     setInsights(null);
