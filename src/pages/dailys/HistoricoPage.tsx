@@ -538,7 +538,7 @@ function DayDetailDialog({
                 <ScrollArea className="h-[60vh] pr-3">
                   <DailyReadOnlyView
                     date={day.date}
-                    entries={day.entries as any}
+                    entries={augmentedEntries as any}
                     meetings={meetings as any}
                     attByEntry={attByEntry as any}
                     attByUser={attByUser as any}
