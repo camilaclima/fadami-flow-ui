@@ -22,7 +22,7 @@ import { useDailySim } from "@/contexts/DailySimContext";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useDevDailyImpedimentsByEntries, URGENCY_LABELS, URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
 import { useSquads } from "@/hooks/useSquads";
-import { useDevDailyActivitiesByEntries, type DevDailyActivity } from "@/hooks/useDevDailyActivities";
+import { useDevDailyActivitiesByEntries, useDevDailyActivitiesByUsers, type DevDailyActivity } from "@/hooks/useDevDailyActivities";
 import { Circle, XCircle } from "lucide-react";
 import { DailyReadOnlyView } from "@/components/dailys/DailyReadOnlyView";
 import { Clock } from "lucide-react";
@@ -362,13 +362,16 @@ function DayDetailDialog({
     return m;
   }, [uptoImpediments, userEntriesUpto, day]);
 
-  const dayEntryIds = useMemo(() => (day?.entries ?? []).map((e) => e.id), [day]);
-  const { data: dayActivities = [] } = useDevDailyActivitiesByEntries(dayEntryIds);
+  // Busca por usuário — assim vemos carry-overs pendentes cuja origem é um entry
+  // de dia anterior (não pertence a dayEntryIds).
+  const { data: dayActivities = [] } = useDevDailyActivitiesByUsers(dayUserIds);
 
   const activitiesByEntry = useMemo(() => {
     const done = new Map<string, DevDailyActivity[]>();
     const inactive = new Map<string, DevDailyActivity[]>();
     const planned = new Map<string, DevDailyActivity[]>();
+    const entryById = new Map(userEntriesUpto.map((e) => [e.id, e]));
+
     dayActivities.forEach((a) => {
       if (a.closed_entry_id && (a.status === "concluida" || a.status === "inativa")) {
         const map = a.status === "concluida" ? done : inactive;
@@ -376,14 +379,29 @@ function DayDetailDialog({
         list.push(a);
         map.set(a.closed_entry_id, list);
       }
-      if (a.created_entry_id && !(a.closed_entry_id === a.created_entry_id && a.status !== "pendente")) {
-        const list = planned.get(a.created_entry_id) ?? [];
-        list.push(a);
-        planned.set(a.created_entry_id, list);
-      }
     });
+
+    // "Hoje" (planned) de cada entry inclui todas as atividades pendentes do dev
+    // cuja data de origem seja <= o entry_date e que não estejam fechadas até lá.
+    (day?.entries ?? []).forEach((e) => {
+      const D = e.entry_date;
+      const arr = dayActivities.filter((a) => {
+        if (a.user_id !== e.user_id) return false;
+        if (a.status !== "pendente") return false;
+        const origin = a.created_entry_id ? entryById.get(a.created_entry_id) : null;
+        const originDate = origin?.entry_date ?? (a.created_at ? a.created_at.slice(0, 10) : null);
+        if (!originDate || originDate > D) return false;
+        if (a.closed_entry_id) {
+          const closed = entryById.get(a.closed_entry_id);
+          if (closed && closed.entry_date <= D) return false;
+        }
+        return true;
+      });
+      if (arr.length > 0) planned.set(e.id, arr);
+    });
+
     return { done, inactive, planned };
-  }, [dayActivities]);
+  }, [dayActivities, day, userEntriesUpto]);
 
   // Busca daily meetings (observações do líder) do dia selecionado.
   const { data: meetings = [] } = useQuery<MeetingRow[]>({
@@ -432,6 +450,34 @@ function DayDetailDialog({
     });
     return m;
   }, [attendance]);
+
+  // Entradas sintéticas: devs marcados na daily pelo líder (ausentes, não
+  // participou, etc.) que não preencheram registro próprio no dia. Sem elas,
+  // o histórico oculta ausências decididas pelo líder.
+  const augmentedEntries = useMemo(() => {
+    if (!day) return [] as DevEntryRow[];
+    const existingUserIds = new Set(day.entries.map((e) => e.user_id));
+    const seen = new Set<string>();
+    const extras: DevEntryRow[] = [];
+    attendance.forEach((a) => {
+      const uid = a.member_user_id;
+      if (!uid) return;
+      if (existingUserIds.has(uid) || seen.has(uid)) return;
+      seen.add(uid);
+      extras.push({
+        id: `virtual:${uid}`,
+        user_id: uid,
+        squad_id: null,
+        entry_date: day.date,
+        did_yesterday: null,
+        will_do_today: null,
+        impediments: null,
+        fill_duration_seconds: null,
+        created_at: "",
+      });
+    });
+    return [...day.entries, ...extras];
+  }, [day, attendance]);
 
   // Reset insights ao trocar de dia.
   useEffect(() => {
@@ -492,7 +538,7 @@ function DayDetailDialog({
                 <ScrollArea className="h-[60vh] pr-3">
                   <DailyReadOnlyView
                     date={day.date}
-                    entries={day.entries as any}
+                    entries={augmentedEntries as any}
                     meetings={meetings as any}
                     attByEntry={attByEntry as any}
                     attByUser={attByUser as any}
