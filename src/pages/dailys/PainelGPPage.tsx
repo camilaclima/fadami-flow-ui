@@ -1011,7 +1011,22 @@ export default function PainelGPPage() {
                 <div className="rounded-xl border bg-primary/5 p-3">
                   <p className="text-[11px] uppercase tracking-wide font-semibold text-primary/80 mb-1.5">Hoje</p>
                   {(() => {
-                    const acts = (detailActivities.data ?? []).filter((a) => a.created_entry_id === detailRow.id && a.status === "pendente");
+                    // "Hoje" = tudo o que o dev ainda tem em aberto neste dia:
+                    //  - atividades criadas neste entry e ainda pendentes; e
+                    //  - carry-overs pendentes de dias anteriores que continuam abertos.
+                    const D = detailRow.entry_date;
+                    const userActs = detailUserActivities.data ?? [];
+                    const acts = userActs.filter((a) => {
+                      if (a.status !== "pendente") return false;
+                      const origin = a.created_entry_id ? userEntries.find((e) => e.id === a.created_entry_id) : null;
+                      const originDate = origin?.entry_date ?? (a.created_at ? a.created_at.slice(0, 10) : null);
+                      if (!originDate || originDate > D) return false;
+                      if (a.closed_entry_id) {
+                        const closed = userEntries.find((e) => e.id === a.closed_entry_id);
+                        if (closed && closed.entry_date <= D) return false;
+                      }
+                      return true;
+                    });
                     if (acts.length === 0) return (
                       <p className="text-sm whitespace-pre-wrap break-words">{detailRow.will_do_today || <span className="text-muted-foreground">—</span>}</p>
                     );
