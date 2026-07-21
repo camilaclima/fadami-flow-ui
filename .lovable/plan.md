@@ -1,51 +1,68 @@
-## Objetivo
+## O que vamos melhorar
 
-1. Fazer a aba **Histórico** do Painel da Daily respeitar o filtro de Squad selecionado no topo (hoje ignora a squad e mostra todos os devs de todas as squads do líder).
-2. Tornar obrigatório o preenchimento de **"O que farei hoje"** ao registrar a daily — mínimo 1 atividade planejada — evitando entries com `will_do_today` vazio que causam o "—" no painel do líder.
-3. Backfill retroativo do snapshot textual para registros antigos que já foram salvos vazios.
+Na aba **Histórico** do Painel da Daily, hoje só aparecem os desenvolvedores que preencheram alguma coisa naquele dia — quem esqueceu ou não participou simplesmente some. E não temos como saber quanto tempo cada dev demorou nem quanto a reunião durou. Também, no histórico individual do dev, quando ele participa de mais de uma squad, aparecem cards duplicados sem indicar de qual squad é cada registro.
 
-## Diagnóstico
+Vamos resolver tudo isso.
 
-**Item 1** — `src/pages/dailys/HistoricoPage.tsx` usa `sim.squadIds` (todas as squads do líder) e nunca aplica o `effectiveSquadId` selecionado no topo. Um líder de TOR e TOR+ vê no Histórico devs das duas squads mesmo com "TOR" selecionado.
+---
 
-**Item 2** — Em `src/pages/dailys/RegistroPage.tsx` a validação atual (`totalPast === 0 && totalFuture === 0`) aceita a daily se houver **apenas** atividades concluídas, permitindo salvar sem nenhum plano para hoje. Isso gera entries com `will_do_today` vazio, que no painel do líder aparecem como "—".
+## 1) Mostrar a squad inteira ao abrir um dia
 
-## Alterações
+Hoje, ao clicar num dia do histórico, aparecem apenas os devs que registraram algo (mais os marcados pelo líder na reunião). O restante da squad fica invisível.
 
-### 1) `src/pages/dailys/HistoricoPage.tsx` — respeitar filtro de squad
+**Vamos mudar para:** listar **todos os membros da squad selecionada**, mesmo os que não preencheram nada. Quem não preencheu aparece com o card em **cinza**, com um selo "Sem registro" — igual ao comportamento do modal "Iniciar Daily".
 
-- Ler `effectiveSquadId` do mesmo estado usado por `PainelGPPage` (mesmo store/contexto/URL param).
-- Quando houver squad selecionada:
-  - Restringir `allowedUserIds` aos membros daquela squad apenas.
-  - Filtrar `dev_daily_entries` por `squad_id = effectiveSquadId`, com fallback `is('squad_id', null)` para membros conhecidos daquela squad (padrão já usado em `useDevDailyEntriesByDate`).
-  - Filtrar `activitiesByEntry` também por `squad_id` (com mesmo fallback `null`) antes de compor `done` / `inactive` / `planned`.
-  - Passar `scopedSquadIds = [effectiveSquadId]` para `DayDetailDialog` para que `daily_meetings` também respeite a squad.
-- Em "Todas as squads", manter comportamento atual.
+Como funciona por baixo dos panos: já temos a lista de membros da squad (via `squad_members` → `team_members` → `profiles`). Vamos usar essa mesma lista para preencher o modal do dia, cruzando com os registros existentes: se o dev tem registro, mostra o registro; se não tem, mostra o card cinza vazio.
 
-### 2) `src/pages/dailys/RegistroPage.tsx` — tornar "O que farei hoje" obrigatório
+---
 
-- Ajustar a validação em `handleSave`:
-  - Exigir `totalFuture >= 1` (soma de `plannedDrafts.length + plannedInEntry.length + carry-overs mantidos como "pending"`).
-  - Se `totalFuture === 0`, bloquear o save com toast: `"Informe ao menos uma atividade em 'O que farei hoje'."`.
-  - Manter também a regra existente de exigir ao menos uma concluída ou planejada? Não — a nova regra é mais estrita: **sempre** precisa de plano para hoje.
-- Reforço visual: marcar o cabeçalho "O que farei hoje" com asterisco/`*` e desabilitar o botão "Salvar" enquanto `totalFuture === 0`, com tooltip explicando a exigência.
-- Ajustar o fluxo de "carry-over" para que marcar todos os pendentes como `done` não seja suficiente — o dev precisa adicionar pelo menos 1 nova atividade planejada **ou** manter pelo menos 1 pendente como `pending`.
+## 2) Contadores no cabeçalho do dia
 
-### 3) Backfill retroativo (migration)
+Vamos adicionar dois números no topo do modal do dia:
 
-Para entries antigas com `will_do_today`/`did_yesterday` NULL ou vazio, mas com atividades estruturadas em `dev_daily_activities`:
+- **Presença:** "X de Y presentes" — Y é o total de membros da squad; X é quem foi marcado como presente pelo líder (nem ausente do trabalho, nem "não participou").
+- **Preenchimento:** "X de Y preencheram" — Y é o total de membros da squad; X é quem tem registro salvo em `dev_daily_entries` (com `fill_completed_at` preenchido) até o momento em que o líder salvou a daily.
 
-- `did_yesterday`: `✓ <description>` para atividades com `closed_entry_id = entry.id` e `status = 'concluida'`; `⊘ <description> (Inativada)` para `status = 'inativa'`.
-- `will_do_today`: `○ <description>` para atividades com `created_entry_id = entry.id` que não estejam fechadas na própria entry.
-- Só atualiza campos NULL/vazios; nunca sobrescreve dados válidos.
+Se não houve reunião do líder registrada naquele dia, mostramos só a contagem de preenchimento.
+
+---
+
+## 3) Tempos da daily
+
+Já guardamos no banco o tempo que cada dev levou para preencher (`fill_duration_seconds` em `dev_daily_entries`) e o tempo da reunião do líder (`duration_seconds` em `daily_meetings`). Só precisamos exibir.
+
+Vamos mostrar:
+
+- **Ao lado do nome de cada dev** no modal do dia: um badge tipo `⏱ 4m 12s` com o tempo que ele levou para preencher. Se não preencheu, não mostra badge.
+- **Um bloco de resumo no topo do modal** com quatro números:
+  - Tempo da reunião do líder (do "Iniciar Daily" ao "Salvar").
+  - Soma dos tempos de preenchimento dos devs.
+  - **Tempo total** = reunião + soma dos devs.
+  - **Tempo médio por dev** = soma dos devs ÷ quantidade de devs que preencheram.
+
+Formato humano ("4m 12s", "1h 05m") já existe em `src/lib/formatDuration.ts`.
+
+---
+
+## 4) Tag de squad no histórico individual do dev
+
+Ao clicar no histórico de um dev específico (modal `DevHistoryModal`), hoje aparecem cards de todas as squads misturados, o que dá a impressão de "duplicados" para devs multi-squad (ex.: Luiz Barbosa em TOR e TOR+).
+
+**Vamos adicionar:** em cada card de registro, uma **tag colorida com o nome da squad** (ex.: "TOR", "TOR+"), lida do campo `squad_id` do registro. Para registros antigos sem `squad_id`, mostramos uma tag neutra "Sem squad".
+
+Isso resolve visualmente a "duplicação": o usuário passa a entender que são dois registros legítimos, um para cada squad.
+
+---
+
+## Onde vamos mexer
+
+- `src/pages/dailys/HistoricoPage.tsx` — buscar membros da squad, gerar cards vazios (cinza), calcular contadores de presença/preenchimento, calcular e mostrar tempos (dev, líder, total, médio).
+- `src/components/dailys/DevHistoryModal.tsx` — mostrar tag da squad em cada card, usando o mapa `squadNameById` já existente em `useSquads`.
+
+Nada de mudança de schema — todos os dados necessários já existem no banco.
 
 ## Fora de escopo
 
-- Nenhuma mudança em `PainelGPPage` (já respeita `effectiveSquadId`).
-- Nenhuma mudança no formato do modal do dev além da validação e do indicador de obrigatoriedade.
-
-## Detalhes técnicos
-
-- Fonte de verdade permanece `dev_daily_activities`; os snapshots textuais (`will_do_today` / `did_yesterday`) continuam sendo usados como fallback de renderização.
-- Fallback `squad_id IS NULL` é mantido enquanto existirem entries legadas.
-- A validação nova é frontend; se quiser, em passo futuro, pode-se adicionar um CHECK/trigger no banco — não incluído aqui para não bloquear escrita via edge functions administrativas.
+- Alterações no fluxo de registro do dev ou no modal de "Iniciar Daily" do líder.
+- Novos campos no banco.
+- Mudanças no Painel GP (aba principal) ou na aba Saúde.
