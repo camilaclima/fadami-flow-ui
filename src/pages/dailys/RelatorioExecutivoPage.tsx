@@ -1321,9 +1321,18 @@ function SavedReportsPanel() {
             <div className="px-6 py-4 space-y-4">
               {viewing && (
                 <ReportSectionsView
-                  sections={hydrated.filter((s) => s.items.length > 0)}
+                  sections={(() => {
+                    const nonEmpty = hydrated.filter((s) => s.items.length > 0);
+                    return [...nonEmpty].sort((a, b) => {
+                      if (a.id === "melhor_squad") return -1;
+                      if (b.id === "melhor_squad") return 1;
+                      return 0;
+                    });
+                  })()}
                   interactive={false}
                   forceOpen={false}
+                  collapsibleSections={true}
+                  stacked={true}
                 />
               )}
             </div>
