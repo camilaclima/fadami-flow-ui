@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Play, Users, RefreshCcw, AlertOctagon, CircleCheck, Calendar, AlertTriangle, CircleDashed, FileText, TrendingUp, Flame, X, Eye } from "lucide-react";
+import { Sparkles, Play, Users, RefreshCcw, AlertOctagon, CircleCheck, Calendar, AlertTriangle, CircleDashed, FileText, TrendingUp, Flame, X, Eye, ClipboardList } from "lucide-react";
 import { History, Activity } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -22,6 +22,7 @@ import { IniciarDailyModal } from "@/components/dailys/IniciarDailyModal";
 import { DevHistoryModal } from "@/components/dailys/DevHistoryModal";
 import HistoricoPage from "./HistoricoPage";
 import SaudePage from "./SaudePage";
+import RelatorioExecutivoPage from "./RelatorioExecutivoPage";
 import { useDailySim } from "@/contexts/DailySimContext";
 import { AccessDeniedCard } from "@/components/dailys/AccessDeniedCard";
 import { supabase } from "@/integrations/supabase/client";
@@ -580,6 +581,11 @@ export default function PainelGPPage() {
             <TabsTrigger value="painel" className="gap-2"><Sparkles className="w-4 h-4" /> Painel</TabsTrigger>
             <TabsTrigger value="historico" className="gap-2"><History className="w-4 h-4" /> Histórico</TabsTrigger>
             <TabsTrigger value="saude" className="gap-2"><Activity className="w-4 h-4" /> Saúde & Engajamento</TabsTrigger>
+            {sim.role === "diretor" && (
+              <TabsTrigger value="relatorio" className="gap-2">
+                <ClipboardList className="w-4 h-4" /> Relatório Executivo
+              </TabsTrigger>
+            )}
           </TabsList>
           <div className="flex items-end gap-3 flex-wrap">
             <div>
@@ -930,6 +936,12 @@ export default function PainelGPPage() {
         <TabsContent value="saude" className="mt-0">
           <SaudePage />
         </TabsContent>
+
+        {sim.role === "diretor" && (
+          <TabsContent value="relatorio" className="mt-0">
+            <RelatorioExecutivoPage />
+          </TabsContent>
+        )}
       </Tabs>
 
       <IniciarDailyModal

@@ -13,6 +13,8 @@ import { DevActivityCard } from "@/components/dailys/DevActivityCard";
 import { useSquads } from "@/hooks/useSquads";
 import { Users } from "lucide-react";
 import { formatOpenFor } from "@/lib/formatDuration";
+import { useDailySim } from "@/contexts/DailySimContext";
+import { DailyEntryTagsSelector } from "@/components/dailys/DailyEntryTagsSelector";
 
 interface Props {
   open: boolean;
@@ -22,6 +24,8 @@ interface Props {
 }
 
 export function DevHistoryModal({ open, onOpenChange, userId, name }: Props) {
+  const { current: sim } = useDailySim();
+  const isAdmin = sim.role === "diretor";
   const { data: entries = [], isLoading } = useDevDailyEntriesByUser(open ? userId : null);
   const { data: activities = [] } = useDevDailyActivitiesByUser(open ? userId : null);
   const entryIds = useMemo(() => entries.map((e) => e.id), [entries]);
@@ -116,6 +120,14 @@ export function DevHistoryModal({ open, onOpenChange, userId, name }: Props) {
                   </button>
                   {isOpen && (
                     <div className="px-3 pb-3 pt-1 border-t bg-background/40 space-y-3">
+                      {isAdmin && (
+                        <div className="rounded-lg border border-dashed bg-primary/5 px-3 py-2">
+                          <p className="text-[10px] uppercase tracking-wide font-semibold text-primary/80 mb-1.5">
+                            Marcações do Admin
+                          </p>
+                          <DailyEntryTagsSelector entryId={e.id} compact />
+                        </div>
+                      )}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                         <div className="rounded-lg bg-muted/40 px-3 py-2">
                           <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-1">Ontem</p>
