@@ -37,15 +37,14 @@ import {
   UserCheck,
   CheckCircle2,
 } from "lucide-react";
-import { format, parseISO, subDays } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useSquads } from "@/hooks/useSquads";
 import { useProfiles } from "@/hooks/useProfiles";
-import { useDevDailyImpedimentsByEntries, URGENCY_LABELS } from "@/hooks/useDevDailyImpediments";
-import { URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
+import { URGENCY_LABELS, URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
 import {
   Select,
   SelectContent,
