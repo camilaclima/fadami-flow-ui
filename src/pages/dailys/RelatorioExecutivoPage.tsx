@@ -1172,6 +1172,29 @@ function SavedReportsPanel() {
   const del = useDeleteExecutiveReport();
   const [viewing, setViewing] = useState<ExecutiveReport | null>(null);
   const hydrated = useHydratedSections(viewing);
+  const [pdfTarget, setPdfTarget] = useState<ExecutiveReport | null>(null);
+  const hydratedForPdf = useHydratedSections(pdfTarget);
+  const pdfFiringRef = useRef(false);
+
+  useEffect(() => {
+    if (!pdfTarget) {
+      pdfFiringRef.current = false;
+      return;
+    }
+    if (pdfFiringRef.current) return;
+    if (hydratedForPdf.length === 0) return;
+    pdfFiringRef.current = true;
+    const period2 =
+      pdfTarget.period_start === pdfTarget.period_end
+        ? fmtLong(pdfTarget.period_start)
+        : `${fmtLong(pdfTarget.period_start)} a ${fmtLong(pdfTarget.period_end)}`;
+    exportSectionsAsVisualPdf({
+      periodLabel: period2,
+      sections: hydratedForPdf,
+    }).finally(() => {
+      setPdfTarget(null);
+    });
+  }, [pdfTarget, hydratedForPdf]);
 
   return (
     <div>
@@ -1232,20 +1255,8 @@ function SavedReportsPanel() {
                     size="sm"
                     variant="outline"
                     className="rounded-lg gap-1.5"
-                    onClick={() => {
-                      const period2 =
-                        r.period_start === r.period_end
-                          ? fmtLong(r.period_start)
-                          : `${fmtLong(r.period_start)} a ${fmtLong(r.period_end)}`;
-                      exportSectionsAsVisualPdf({
-                        periodLabel: period2,
-                        sections: r.sections.map((s) => ({
-                          id: s.id,
-                          title: s.title,
-                          items: s.items.filter((i) => i.included),
-                        })),
-                      });
-                    }}
+                    disabled={pdfTarget?.id === r.id}
+                    onClick={() => setPdfTarget(r)}
                   >
                     <Printer className="w-3.5 h-3.5" /> PDF
                   </Button>
