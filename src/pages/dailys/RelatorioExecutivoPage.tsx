@@ -943,3 +943,223 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
+
+// ============================================================
+// Card colapsável de item do relatório — visual do histórico
+// ============================================================
+const initialsOf = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase() ?? "")
+    .join("") || "?";
+
+function ExecReportItemCard({
+  item,
+  included,
+  onIncludeChange,
+}: {
+  item: ReportItem;
+  included: boolean;
+  onIncludeChange: (v: boolean) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const entry = item.entry;
+  const imps = item.impediments ?? [];
+  const openImps = imps.filter((i) => !i.resolved);
+  const resolvedImps = imps.filter((i) => i.resolved);
+
+  const originBadge = (() => {
+    if (item.origin === "manual")
+      return { label: "Manual", className: "bg-primary/10 text-primary border-primary/30" };
+    if (item.origin === "both")
+      return { label: "Auto + Manual", className: "bg-violet-500/10 text-violet-600 border-violet-500/30" };
+    return { label: "Automático", className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" };
+  })();
+
+  const dateStr = item.date ? fmtShort(item.date) : null;
+
+  return (
+    <Card
+      className={`rounded-xl overflow-hidden transition-all ${
+        included ? "border-border/70" : "border-border/50 bg-muted/30 opacity-70"
+      } ${openImps.length > 0 ? "border-l-4 border-l-orange-500" : ""}`}
+    >
+      <CardContent className="p-0">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setOpen((v) => !v)}
+          onKeyDown={(ev) => {
+            if (ev.key === "Enter" || ev.key === " ") {
+              ev.preventDefault();
+              setOpen((v) => !v);
+            }
+          }}
+          className="w-full flex items-center gap-3 p-3 text-left hover:bg-muted/30 transition-colors cursor-pointer"
+        >
+          <div className="text-muted-foreground shrink-0">
+            {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </div>
+          <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 bg-primary/10 text-primary">
+            {initialsOf(item.subject)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-semibold text-sm leading-tight">{item.subject}</span>
+              {item.squadName && (
+                <Badge variant="outline" className="text-[10px] bg-muted/40">
+                  {item.squadName}
+                </Badge>
+              )}
+              <Badge variant="outline" className={`text-[10px] gap-1 ${originBadge.className}`}>
+                <Sparkles className="w-2.5 h-2.5" />
+                {originBadge.label}
+              </Badge>
+              {dateStr && (
+                <Badge variant="outline" className="text-[10px] gap-1">
+                  <Clock className="w-2.5 h-2.5" /> {dateStr}
+                </Badge>
+              )}
+              {openImps.length > 0 && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30 gap-1"
+                >
+                  <AlertTriangle className="w-2.5 h-2.5" />
+                  {openImps.length} {openImps.length > 1 ? "impedimentos" : "impedimento"}
+                </Badge>
+              )}
+            </div>
+          </div>
+          <div
+            className="flex items-center gap-2 shrink-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground hidden md:inline">
+              Incluir
+            </span>
+            <Switch checked={included} onCheckedChange={onIncludeChange} />
+          </div>
+        </div>
+
+        {open && (
+          <div className="px-3 pb-3 pt-1 space-y-3 border-t bg-background/40">
+            {entry && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="rounded-lg bg-muted/40 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-1">
+                    Ontem
+                  </p>
+                  <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">
+                    {entry.did_yesterday || "—"}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-primary/5 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-wide font-semibold text-primary/80 mb-1">
+                    Hoje
+                  </p>
+                  <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">
+                    {entry.will_do_today || "—"}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {entry?.general_notes?.trim() && (
+              <div className="rounded-lg border bg-muted/20 px-3 py-2">
+                <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-1">
+                  Observações gerais do dev
+                </p>
+                <p className="text-xs whitespace-pre-wrap break-words text-foreground/90">
+                  {entry.general_notes}
+                </p>
+              </div>
+            )}
+
+            {openImps.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[10px] uppercase tracking-wide font-semibold text-orange-600">
+                  Impedimentos abertos
+                </p>
+                {openImps.map((imp) => (
+                  <div
+                    key={imp.id}
+                    className="flex items-start gap-2 p-2.5 rounded-lg bg-orange-500/5 border border-orange-500/20"
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5 text-orange-600 mt-0.5 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs whitespace-pre-wrap break-words text-foreground/90">
+                        {imp.description}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] ${URGENCY_STYLES[imp.urgency as keyof typeof URGENCY_STYLES]}`}
+                        >
+                          {URGENCY_LABELS[imp.urgency as keyof typeof URGENCY_LABELS]}
+                        </Badge>
+                        {imp.created_at && (
+                          <span className="text-[10px] text-orange-700/80 dark:text-orange-400/80 inline-flex items-center gap-1">
+                            <Clock className="w-2.5 h-2.5" /> Aberto há {formatOpenFor(imp.created_at)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {resolvedImps.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[10px] uppercase tracking-wide font-semibold text-emerald-600">
+                  Impedimentos sanados
+                </p>
+                {resolvedImps.map((imp) => (
+                  <div
+                    key={imp.id}
+                    className="flex items-start gap-2 p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/20"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs whitespace-pre-wrap break-words text-foreground/90">
+                        {imp.description}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] ${URGENCY_STYLES[imp.urgency as keyof typeof URGENCY_STYLES]}`}
+                        >
+                          {URGENCY_LABELS[imp.urgency as keyof typeof URGENCY_LABELS]}
+                        </Badge>
+                        {imp.created_at && imp.resolved_at && (
+                          <span className="text-[10px] text-emerald-700/80 dark:text-emerald-400/80 inline-flex items-center gap-1">
+                            <Clock className="w-2.5 h-2.5" /> Aberto por {formatOpenFor(imp.created_at, imp.resolved_at)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {item.extraDetails && (
+              <div className="rounded-lg border bg-muted/20 px-3 py-2">
+                <p className="text-xs whitespace-pre-wrap break-words text-foreground/90">
+                  {item.extraDetails}
+                </p>
+              </div>
+            )}
+
+            {!entry && !item.extraDetails && (
+              <p className="text-xs text-muted-foreground italic">{item.text}</p>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
