@@ -1144,9 +1144,9 @@ function useHydratedSections(report: ExecutiveReport | null): RenderSection[] {
       );
       const data = {
         ...(raw.data ?? {}),
-        subject: raw.data?.subject ?? dev,
-        squadName: raw.data?.squadName ?? sqName,
-        date: raw.data?.date ?? entry.entry_date,
+        subject: dev,
+        squadName: sqName ?? raw.data?.squadName,
+        date: entry.entry_date ?? raw.data?.date,
         origin: raw.data?.origin ?? (m[1] === "be" ? "manual" : "auto"),
         entry,
         impediments: raw.data?.impediments ?? (impsByEntry.get(entry.id) ?? []),
@@ -1167,9 +1167,9 @@ function useHydratedSections(report: ExecutiveReport | null): RenderSection[] {
       const sqName = entry?.squad_id ? squadById.get(entry.squad_id)?.name : undefined;
       const data = {
         ...(raw.data ?? {}),
-        subject: raw.data?.subject ?? dev,
-        squadName: raw.data?.squadName ?? sqName,
-        date: raw.data?.date ?? entry?.entry_date ?? imp.created_at?.slice(0, 10),
+        subject: dev,
+        squadName: sqName ?? raw.data?.squadName,
+        date: entry?.entry_date ?? raw.data?.date ?? imp.created_at?.slice(0, 10),
         origin: raw.data?.origin ?? "auto",
         entry: raw.data?.entry ?? entry,
         impediments: raw.data?.impediments?.length ? raw.data.impediments : [imp],
