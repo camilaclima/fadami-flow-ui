@@ -1205,12 +1205,17 @@ function ExecReportItemCard({
   item,
   included,
   onIncludeChange,
+  interactive = true,
+  forceOpen = false,
 }: {
   item: ReportItem;
   included: boolean;
-  onIncludeChange: (v: boolean) => void;
+  onIncludeChange?: (v: boolean) => void;
+  interactive?: boolean;
+  forceOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [openState, setOpen] = useState(false);
+  const open = forceOpen || openState;
   const entry = item.entry;
   const imps = item.impediments ?? [];
   const openImps = imps.filter((i) => !i.resolved);
@@ -1279,15 +1284,17 @@ function ExecReportItemCard({
               )}
             </div>
           </div>
-          <div
-            className="flex items-center gap-2 shrink-0"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <span className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground hidden md:inline">
-              Incluir
-            </span>
-            <Switch checked={included} onCheckedChange={onIncludeChange} />
-          </div>
+          {interactive && onIncludeChange && (
+            <div
+              className="flex items-center gap-2 shrink-0"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground hidden md:inline">
+                Incluir
+              </span>
+              <Switch checked={included} onCheckedChange={onIncludeChange} />
+            </div>
+          )}
         </div>
 
         {open && (
