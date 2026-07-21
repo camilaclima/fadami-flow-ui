@@ -285,16 +285,18 @@ export default function RelatorioExecutivoPage() {
   const entryIds = useMemo(() => todayEntries.map((e: any) => e.id), [todayEntries]);
   const { data: manualTags = [] } = useDailyEntryTagsByEntries(entryIds);
 
-  // Impedimentos: abertos, em aberto, ou sanados dentro do intervalo.
+  // Impedimentos: TODOS ainda em aberto (independente da data de criação)
+  // + os sanados dentro do intervalo selecionado.
   const { data: rangeImpediments = [] } = useQuery({
     queryKey: ["exec-report", "impediments-range", effectiveFrom, effectiveTo],
     queryFn: async () => {
       const fromISO = `${effectiveFrom}T00:00:00`;
-      const toISO = `${effectiveTo}T23:59:59`;
+      const toISO = `${effectiveTo}T23:59:59.999`;
       const { data, error } = await (supabase.from("dev_daily_impediments") as any)
         .select("*")
-        .lte("created_at", toISO)
-        .or(`resolved.eq.false,resolved_at.gte.${fromISO}`);
+        .or(
+          `resolved.eq.false,and(resolved.eq.true,resolved_at.gte.${fromISO},resolved_at.lte.${toISO})`,
+        );
       if (error) throw error;
       return data ?? [];
     },
