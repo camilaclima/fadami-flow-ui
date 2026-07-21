@@ -50,6 +50,11 @@ import { formatOpenFor } from "@/lib/formatDuration";
 import { useDailyEntryTagsByEntries } from "@/hooks/useDailyEntryTags";
 import { DEV_ABSENCE_LABELS, type DevAbsenceType } from "@/hooks/useDevAbsences";
 import {
+  useDevDailyActivitiesByUsers,
+  type DevDailyActivity,
+} from "@/hooks/useDevDailyActivities";
+import { DevActivityCard } from "@/components/dailys/DevActivityCard";
+import {
   isAwaitingTask,
   isRepeatedFromPrev,
   isShortText,
@@ -83,6 +88,9 @@ interface ReportItem {
   squadName?: string;
   entry?: any;
   impediments?: any[];
+  done?: DevDailyActivity[];
+  inactive?: DevDailyActivity[];
+  planned?: DevDailyActivity[];
   extraDetails?: string;
 }
 
@@ -257,6 +265,54 @@ export default function RelatorioExecutivoPage() {
   const entryIds = useMemo(() => todayEntries.map((e: any) => e.id), [todayEntries]);
   const { data: impediments = [] } = useDevDailyImpedimentsByEntries(entryIds);
   const { data: manualTags = [] } = useDailyEntryTagsByEntries(entryIds);
+
+  const userIdsForActivities = useMemo(
+    () => Array.from(new Set((todayEntries as any[]).map((e) => e.user_id).filter(Boolean))),
+    [todayEntries],
+  );
+  const { data: allActivities = [] } = useDevDailyActivitiesByUsers(userIdsForActivities);
+
+  const activitiesByEntry = useMemo(() => {
+    const done = new Map<string, DevDailyActivity[]>();
+    const inactive = new Map<string, DevDailyActivity[]>();
+    const planned = new Map<string, DevDailyActivity[]>();
+    const entryById = new Map<string, any>();
+    (todayEntries as any[]).forEach((e) => entryById.set(e.id, e));
+
+    allActivities.forEach((a) => {
+      if (a.closed_entry_id && (a.status === "concluida" || a.status === "inativa")) {
+        const map = a.status === "concluida" ? done : inactive;
+        const list = map.get(a.closed_entry_id) ?? [];
+        list.push(a);
+        map.set(a.closed_entry_id, list);
+      }
+    });
+
+    (todayEntries as any[]).forEach((e) => {
+      const D = e.entry_date;
+      const arr = allActivities.filter((a) => {
+        if (a.user_id !== e.user_id) return false;
+        if (a.status !== "pendente") return false;
+        const origin = a.created_entry_id ? entryById.get(a.created_entry_id) : null;
+        const originDate = origin?.entry_date ?? (a.created_at ? a.created_at.slice(0, 10) : null);
+        if (!originDate || originDate > D) return false;
+        if (a.closed_entry_id) {
+          const closed = entryById.get(a.closed_entry_id);
+          if (closed && closed.entry_date <= D) return false;
+        }
+        return true;
+      });
+      if (arr.length > 0) planned.set(e.id, arr);
+    });
+
+    return { done, inactive, planned };
+  }, [allActivities, todayEntries]);
+
+  const actsFor = (entryId: string) => ({
+    done: activitiesByEntry.done.get(entryId) ?? [],
+    inactive: activitiesByEntry.inactive.get(entryId) ?? [],
+    planned: activitiesByEntry.planned.get(entryId) ?? [],
+  });
 
   const tagsByEntry = useMemo(() => {
     const m = new Map<string, ManualTag[]>();
@@ -514,7 +570,7 @@ export default function RelatorioExecutivoPage() {
       };
     });
 
-    return [
+    const built: ReportSection[] = [
       { id: "bom_exemplo", title: "Bom exemplo por squad", icon: Award, origin: "Marcações manuais", items: bomExemplo },
       { id: "melhor_squad", title: "Melhor squad", icon: Trophy, origin: "Marcações manuais", items: melhorSquad },
       { id: "preenchimento_incorreto", title: "Preenchimentos incorretos ou vagos", icon: AlertTriangle, origin: "Regra automática + marcações manuais", items: preenchIncorreto },
@@ -524,7 +580,18 @@ export default function RelatorioExecutivoPage() {
       { id: "repetidas", title: "Tarefas repetidas ou estagnadas", icon: Repeat, origin: "Regra automática + marcações manuais", items: repetidas },
       { id: "impedimentos", title: "Impedimentos e bloqueios", icon: AlertOctagon, origin: "Dados automáticos", items: impItems },
     ];
-  }, [todayEntries, prevEntries, tagsByEntry, absences, meetings, squadMembers, impediments, impsByEntry, squadById, nameByUser]);
+    built.forEach((sec) => {
+      sec.items.forEach((it) => {
+        if (it.entry?.id) {
+          const a = actsFor(it.entry.id);
+          it.done = a.done;
+          it.inactive = a.inactive;
+          it.planned = a.planned;
+        }
+      });
+    });
+    return built;
+  }, [todayEntries, prevEntries, tagsByEntry, absences, meetings, squadMembers, impediments, impsByEntry, squadById, nameByUser, activitiesByEntry]);
 
   // Estado editável por item
   const [state, setState] = useState<Record<string, ItemState>>({});
@@ -1052,17 +1119,36 @@ function ExecReportItemCard({
                   <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-1">
                     Ontem
                   </p>
-                  <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">
-                    {entry.did_yesterday || "—"}
-                  </p>
+                  {(item.done?.length ?? 0) + (item.inactive?.length ?? 0) > 0 ? (
+                    <div className="space-y-1.5">
+                      {item.done?.map((a) => (
+                        <DevActivityCard key={a.id} kind="done" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
+                      ))}
+                      {item.inactive?.map((a) => (
+                        <DevActivityCard key={a.id} kind="inactive" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">
+                      {entry.did_yesterday || "—"}
+                    </p>
+                  )}
                 </div>
                 <div className="rounded-lg bg-primary/5 px-3 py-2">
                   <p className="text-[10px] uppercase tracking-wide font-semibold text-primary/80 mb-1">
                     Hoje
                   </p>
-                  <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">
-                    {entry.will_do_today || "—"}
-                  </p>
+                  {(item.planned?.length ?? 0) > 0 ? (
+                    <div className="space-y-1.5">
+                      {item.planned?.map((a) => (
+                        <DevActivityCard key={a.id} kind="pending" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">
+                      {entry.will_do_today || "—"}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
