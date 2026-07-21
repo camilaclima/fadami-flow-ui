@@ -1070,11 +1070,14 @@ function SavedReportsPanel() {
                         r.period_start === r.period_end
                           ? fmtLong(r.period_start)
                           : `${fmtLong(r.period_start)} a ${fmtLong(r.period_end)}`;
-                      const secs = r.sections.map((s) => ({
-                        title: s.title,
-                        items: s.items.filter((i) => i.included).map((i) => i.text),
-                      }));
-                      printReport(period2, secs);
+                      exportSectionsAsVisualPdf({
+                        periodLabel: period2,
+                        sections: r.sections.map((s) => ({
+                          id: s.id,
+                          title: s.title,
+                          items: s.items.filter((i) => i.included),
+                        })),
+                      });
                     }}
                   >
                     <Printer className="w-3.5 h-3.5" /> PDF
@@ -1097,7 +1100,7 @@ function SavedReportsPanel() {
       </div>
 
       <Dialog open={!!viewing} onOpenChange={(v) => !v && setViewing(null)}>
-        <DialogContent className="max-w-3xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-hidden p-0">
+        <DialogContent className="max-w-5xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-hidden p-0">
           <DialogHeader className="px-6 pt-6 pb-3 border-b">
             <DialogTitle className="text-lg flex items-center gap-2">
               <FileText className="w-5 h-5 text-primary" /> Relatório salvo
@@ -1112,24 +1115,19 @@ function SavedReportsPanel() {
           </DialogHeader>
           <ScrollArea className="max-h-[65vh]">
             <div className="px-6 py-4 space-y-4">
-              {viewing?.sections
-                ?.filter((s) => s.items.some((i) => i.included))
-                .map((s) => (
-                  <div key={s.id}>
-                    <p className="text-xs uppercase tracking-wide font-semibold text-primary mb-1.5">
-                      {s.title}
-                    </p>
-                    <ul className="list-disc pl-5 space-y-1">
-                      {s.items
-                        .filter((i) => i.included)
-                        .map((i) => (
-                          <li key={i.id} className="text-sm whitespace-pre-wrap">
-                            {i.text}
-                          </li>
-                        ))}
-                    </ul>
-                  </div>
-                ))}
+              {viewing && (
+                <ReportSectionsView
+                  sections={viewing.sections
+                    .filter((s) => s.items.some((i) => i.included))
+                    .map((s) => ({
+                      id: s.id,
+                      title: s.title,
+                      items: s.items.filter((i) => i.included),
+                    }))}
+                  interactive={false}
+                  forceOpen={false}
+                />
+              )}
             </div>
           </ScrollArea>
           <DialogFooter className="px-6 py-3 border-t">
