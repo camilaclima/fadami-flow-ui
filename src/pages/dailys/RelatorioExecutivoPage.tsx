@@ -690,7 +690,7 @@ export default function RelatorioExecutivoPage() {
 
       <Tabs defaultValue="atual" className="w-full">
         <TabsList className="rounded-xl">
-          <TabsTrigger value="atual" className="rounded-lg">Relatório atual</TabsTrigger>
+          <TabsTrigger value="atual" className="rounded-lg">Gerar relatório</TabsTrigger>
           <TabsTrigger value="salvos" className="rounded-lg">Relatórios salvos</TabsTrigger>
         </TabsList>
 
