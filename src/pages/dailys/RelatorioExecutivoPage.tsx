@@ -1427,3 +1427,107 @@ function ExecReportItemCard({
     </Card>
   );
 }
+
+// ============================================================
+// Card compacto de impedimento — visual estilo "task warning"
+// ============================================================
+function ImpedimentReportCard({
+  item,
+  included,
+  onIncludeChange,
+}: {
+  item: ReportItem;
+  included: boolean;
+  onIncludeChange: (v: boolean) => void;
+}) {
+  const imp = item.impediments?.[0];
+  if (!imp) return null;
+
+  const dev = item.subject;
+  const squad = item.squadName;
+  const urgency = imp.urgency as keyof typeof URGENCY_LABELS;
+  const createdFmt = imp.created_at
+    ? format(parseISO(imp.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })
+    : null;
+  const resolvedFmt = imp.resolved_at
+    ? format(parseISO(imp.resolved_at), "dd/MM/yyyy HH:mm", { locale: ptBR })
+    : null;
+  const openFor = imp.resolved
+    ? (imp.created_at && imp.resolved_at
+        ? formatOpenFor(imp.created_at, imp.resolved_at)
+        : null)
+    : (imp.created_at ? formatOpenFor(imp.created_at) : null);
+
+  return (
+    <div
+      className={`rounded-xl border p-3 transition-all ${
+        included
+          ? imp.resolved
+            ? "bg-emerald-500/5 border-emerald-500/30"
+            : "bg-orange-500/5 border-orange-500/30"
+          : "bg-muted/30 border-border/50 opacity-70"
+      }`}
+    >
+      <div className="flex items-start gap-2.5">
+        {imp.resolved ? (
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+        ) : (
+          <AlertTriangle className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm leading-snug whitespace-pre-wrap break-words text-foreground">
+            {imp.description}
+          </p>
+          <div className="flex items-center gap-1.5 mt-2 flex-wrap text-[11px] text-muted-foreground">
+            <span className="font-medium text-foreground/90">{dev}</span>
+            {squad && (
+              <>
+                <span aria-hidden>•</span>
+                <Badge variant="outline" className="text-[10px] bg-muted/40">
+                  {squad}
+                </Badge>
+              </>
+            )}
+            <Badge
+              variant="outline"
+              className={`text-[10px] ${URGENCY_STYLES[urgency]}`}
+            >
+              {URGENCY_LABELS[urgency]}
+            </Badge>
+            {createdFmt && (
+              <span className="inline-flex items-center gap-1">
+                <Clock className="w-3 h-3" /> Aberto em {createdFmt}
+              </span>
+            )}
+            {resolvedFmt && (
+              <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 className="w-3 h-3" /> Sanado em {resolvedFmt}
+              </span>
+            )}
+            {openFor && (
+              <Badge
+                variant="outline"
+                className={`text-[10px] ${
+                  imp.resolved
+                    ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-400"
+                    : "bg-orange-500/10 text-orange-700 border-orange-500/30 dark:text-orange-400"
+                }`}
+              >
+                {imp.resolved ? `Ficou aberto por ${openFor}` : `Aberto há ${openFor}`}
+              </Badge>
+            )}
+          </div>
+        </div>
+        <div
+          className="flex items-center gap-2 shrink-0"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground hidden md:inline">
+            Incluir
+          </span>
+          <Switch checked={included} onCheckedChange={onIncludeChange} />
+        </div>
+      </div>
+    </div>
+  );
+}
