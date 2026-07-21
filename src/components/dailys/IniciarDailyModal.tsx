@@ -126,10 +126,10 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
   // Reinicializa somente quando o modal abre
   useEffect(() => {
     if (open) {
-      setObservations("");
-      setTranscriptUrl(null);
-      setTranscriptName(null);
-      setStartedAt(new Date());
+      // Só reinicia estes campos na primeira abertura — evita zerar
+      // o cronômetro quando o efeito reexecuta por refetch (ex.: Atualizar).
+      setStartedAt((prev) => prev ?? new Date());
+      setObservations((prev) => prev);
       const init: Record<string, MemberUIState> = {};
       const exp: Record<string, boolean> = {};
       members.forEach((m) => {
@@ -142,9 +142,29 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
         // Sempre iniciar retraído — líder expande sob demanda
         exp[m.key] = false;
       });
-      setMemberState(init);
-      setExpanded(exp);
+      // Preserva o que o líder já digitou; apenas adiciona membros novos
+      // ou atualiza ausências recém-detectadas.
+      setMemberState((prev) => {
+        const next: Record<string, MemberUIState> = {};
+        members.forEach((m) => {
+          next[m.key] = prev[m.key] ?? init[m.key];
+        });
+        return next;
+      });
+      setExpanded((prev) => {
+        const next: Record<string, boolean> = {};
+        members.forEach((m) => {
+          next[m.key] = prev[m.key] ?? exp[m.key];
+        });
+        return next;
+      });
       setLastRefresh(new Date());
+    } else {
+      // Ao fechar, reseta cronômetro e campos para a próxima abertura.
+      setStartedAt(null);
+      setObservations("");
+      setTranscriptUrl(null);
+      setTranscriptName(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, absenceByUser]);
