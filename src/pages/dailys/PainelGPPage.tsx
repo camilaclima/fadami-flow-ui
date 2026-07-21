@@ -61,6 +61,8 @@ function previousBusinessDayISO(): string {
 
 export default function PainelGPPage() {
   const { current: sim, loading: simLoading } = useDailySim();
+  const { user } = useAuth();
+  const isFabio = (user?.email ?? "").toLowerCase() === "fabio@fadami.com.br";
   const [date, setDate] = useState<string>(previousBusinessDayISO());
   // Mantém a data sempre apontando para o último dia útil anterior
   // (atualiza automaticamente após a virada do dia, sem reload).
