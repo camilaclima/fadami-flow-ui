@@ -924,7 +924,7 @@ export default function PainelGPPage() {
         </TabsContent>
 
         <TabsContent value="historico" className="mt-0">
-          <HistoricoPage />
+          <HistoricoPage filterSquadId={effectiveSquadId} />
         </TabsContent>
 
         <TabsContent value="saude" className="mt-0">
