@@ -185,14 +185,26 @@ export default function HistoricoPage({ filterSquadId }: { filterSquadId?: strin
   // Impedimentos globais (para contagem no card de cada dia).
   const allEntryIds = useMemo(() => entries.map((e) => e.id), [entries]);
   const { data: allImps = [] } = useDevDailyImpedimentsByEntries(allEntryIds);
-  const impCountByEntry = useMemo(() => {
+  // Contagem por dia: impedimentos "vivos" no fim daquele dia (criados <= D
+  // e ainda não sanados até o fim de D). Escopo de squad já vem aplicado
+  // pelas entries carregadas.
+  const impCountByDate = useMemo(() => {
     const m = new Map<string, number>();
-    allImps.forEach((i) => {
-      if (i.resolved) return;
-      m.set(i.entry_id, (m.get(i.entry_id) ?? 0) + 1);
+    const uniqueDates = Array.from(new Set(entries.map((e) => e.entry_date)));
+    uniqueDates.forEach((D) => {
+      const count = allImps.reduce((acc, i) => {
+        const createdDate = (i.created_at ?? "").slice(0, 10);
+        if (!createdDate || createdDate > D) return acc;
+        if (i.resolved) {
+          if (!i.resolved_at) return acc;
+          if (i.resolved_at.slice(0, 10) <= D) return acc;
+        }
+        return acc + 1;
+      }, 0);
+      m.set(D, count);
     });
     return m;
-  }, [allImps]);
+  }, [allImps, entries]);
 
   return (
     <div className="p-4 md:p-6 w-full max-w-[1400px] mx-auto">
@@ -210,7 +222,7 @@ export default function HistoricoPage({ filterSquadId }: { filterSquadId?: strin
           <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">Nenhuma daily registrada.</CardContent></Card>
         )}
         {days.map((day) => {
-          const totalImps = day.entries.reduce((acc, e) => acc + (impCountByEntry.get(e.id) ?? 0), 0);
+          const totalImps = impCountByDate.get(day.date) ?? 0;
           const names = day.entries.map((e) => nameFor(e.user_id)).slice(0, 3).join(", ");
           const extras = day.entries.length - 3;
           return (
