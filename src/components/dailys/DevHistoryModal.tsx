@@ -193,7 +193,7 @@ export function DevHistoryModal({ open, onOpenChange, userId, name }: Props) {
                                   <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES[imp.urgency]}`}>{URGENCY_LABELS[imp.urgency]}</Badge>
                                   {imp.created_at && imp.resolved_at && (
                                     <span className="text-[10px] text-emerald-700/80 dark:text-emerald-400/80 inline-flex items-center gap-1">
-                                      <Clock className="w-2.5 h-2.5" /> Ficou aberto por {formatOpenFor(imp.created_at, imp.resolved_at)}
+                                      <Clock className="w-2.5 h-2.5" /> Aberto por {formatOpenFor(imp.created_at, imp.resolved_at)}
                                     </span>
                                   )}
                                   {imp.resolved_at && (
