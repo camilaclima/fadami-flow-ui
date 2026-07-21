@@ -430,8 +430,6 @@ export default function RelatorioExecutivoPage() {
       prevByUserDate.set(`${p.user_id}|${p.entry_date}`, p),
     );
 
-    const squadMelhorTagged = new Map<string, Set<string>>(); // squad_id -> dates
-
     (todayEntries as any[]).forEach((e) => {
       const tags = tagsByEntry.get(e.id) ?? [];
       const label = entryLabel(e);
@@ -450,10 +448,6 @@ export default function RelatorioExecutivoPage() {
           entry: e,
           impediments: entryImps,
         });
-      }
-      if (tags.includes("melhor_squad") && e.squad_id) {
-        if (!squadMelhorTagged.has(e.squad_id)) squadMelhorTagged.set(e.squad_id, new Set());
-        squadMelhorTagged.get(e.squad_id)!.add(e.entry_date);
       }
 
       // Preenchimento incorreto (dedup: auto + manual = 1 item)
@@ -531,23 +525,25 @@ export default function RelatorioExecutivoPage() {
       }
     });
 
-    squadMelhorTagged.forEach((dates, sid) => {
-      const sq = squadById.get(sid);
-      const dateList = Array.from(dates).sort().map(fmtShort).join(", ");
-      const sortedDates = Array.from(dates).sort();
+    // Melhor Squad — seleção manual do Admin (squad + motivo)
+    melhorSquadPicks.forEach((p) => {
+      const sq = squadById.get(p.squadId);
+      const name = sq?.name ?? "Squad";
+      const motivo = p.reason ? ` — ${p.reason}` : "";
       melhorSquad.push({
-        id: `ms-${sid}`,
-        text: `${sq?.name ?? "Squad"} — destaque como melhor squad (${dateList}).`,
+        id: p.id,
+        text: `${name} — destaque como melhor squad${motivo}.`,
         origin: "manual",
-        date: sortedDates[sortedDates.length - 1],
-        subject: sq?.name ?? "Squad",
-        squadName: sq?.name,
-        extraDetails: `Dias marcados: ${dateList}`,
+        date: effectiveTo,
+        subject: name,
+        squadName: name,
+        extraDetails: p.reason ? `Motivo: ${p.reason}` : undefined,
       });
     });
 
-    // Faltas (últimos 7 dias)
-    const faltasItems: ReportItem[] = (absences as any[]).map((a) => {
+    // Faltas — dentro do intervalo, considerando ausências cadastradas e não presenças.
+    const faltasItems: ReportItem[] = [];
+    (absences as any[]).forEach((a) => {
       const nm = nameByUser.get(a.user_id) ?? "Dev";
       const tipo = DEV_ABSENCE_LABELS[a.absence_type as DevAbsenceType] ?? a.absence_type;
       const periodo =
@@ -555,14 +551,41 @@ export default function RelatorioExecutivoPage() {
           ? format(parseISO(a.start_date), "dd/MM", { locale: ptBR })
           : `${format(parseISO(a.start_date), "dd/MM", { locale: ptBR })} a ${format(parseISO(a.end_date), "dd/MM", { locale: ptBR })}`;
       const motivo = a.notes ? ` — motivo: ${a.notes}` : "";
-      return {
+      faltasItems.push({
         id: `ab-${a.id}`,
         text: `${nm} — ${tipo} (${periodo})${motivo}.`,
         origin: "auto",
         date: a.start_date,
         subject: nm,
         extraDetails: `${tipo} — ${periodo}${a.notes ? `\nMotivo: ${a.notes}` : ""}`,
-      };
+      });
+    });
+    // Faltas por não presença em reunião (attendance com absent_from_work ou did_not_participate).
+    const meetingById = new Map<string, any>();
+    (meetings as any[]).forEach((m) => meetingById.set(m.id, m));
+    (attendance as any[]).forEach((a) => {
+      const meeting = meetingById.get(a.meeting_id);
+      if (!meeting) return;
+      const absent = a.absent_from_work === true;
+      const didNot = a.did_not_participate === true;
+      if (!absent && !didNot) return;
+      const nm =
+        a.member_name ||
+        (a.member_user_id ? nameByUser.get(a.member_user_id) : null) ||
+        "Dev";
+      const sqName = meeting.squad_id ? squadById.get(meeting.squad_id)?.name ?? "Squad" : "—";
+      const tipoLabel = absent ? "Ausente do trabalho" : "Não participou da daily";
+      const reason = (a.non_participation_reason || a.notes || "").trim();
+      const motivo = reason ? ` — motivo: ${reason}` : " — sem motivo informado";
+      faltasItems.push({
+        id: `att-${a.id}`,
+        text: `${fmtShort(meeting.meeting_date)} — ${nm} · ${sqName} — ${tipoLabel}${motivo}.`,
+        origin: "auto",
+        date: meeting.meeting_date,
+        subject: nm,
+        squadName: sqName,
+        extraDetails: `${tipoLabel}${reason ? `\nMotivo: ${reason}` : "\nSem motivo informado."}`,
+      });
     });
 
     // Sem pré-daily no prazo
@@ -626,22 +649,31 @@ export default function RelatorioExecutivoPage() {
         });
     });
 
-    // Impedimentos abertos/fechados no intervalo
+    // Impedimentos: abertos no intervalo, ainda em aberto, ou sanados no intervalo.
     const entryById = new Map<string, any>();
     (todayEntries as any[]).forEach((e) => entryById.set(e.id, e));
-    const impItems: ReportItem[] = impediments.map((imp) => {
+    (impEntries as any[]).forEach((e) => {
+      if (!entryById.has(e.id)) entryById.set(e.id, e);
+    });
+    const impItems: ReportItem[] = (rangeImpediments as any[]).map((imp) => {
       const e = entryById.get(imp.entry_id);
-      const label = e ? entryLabel(e) : "—";
-      const status = imp.resolved
-        ? `sanado${imp.resolved_at ? ` em ${format(parseISO(imp.resolved_at), "dd/MM HH:mm", { locale: ptBR })}` : ""}`
-        : "em aberto";
+      const openedAt = imp.created_at
+        ? format(parseISO(imp.created_at), "dd/MM HH:mm", { locale: ptBR })
+        : "";
       const dev = e ? (nameByUser.get(e.user_id) ?? "Dev") : "—";
       const sqName = e?.squad_id ? squadById.get(e.squad_id)?.name ?? "Squad" : undefined;
+      const label = e ? entryLabel(e) : `${openedAt} — ${dev}`;
+      let statusLabel: string;
+      if (imp.resolved) {
+        statusLabel = `sanado${imp.resolved_at ? ` em ${format(parseISO(imp.resolved_at), "dd/MM HH:mm", { locale: ptBR })}` : ""}`;
+      } else {
+        statusLabel = `em aberto há ${formatOpenFor(imp.created_at)}`;
+      }
       return {
         id: `imp-${imp.id}`,
-        text: `${label} — [${URGENCY_LABELS[imp.urgency]}] ${imp.description} (${status}).`,
+        text: `${label} — [${URGENCY_LABELS[imp.urgency]}] ${imp.description} (${statusLabel}).`,
         origin: "auto",
-        date: e?.entry_date,
+        date: e?.entry_date ?? (imp.created_at ? imp.created_at.slice(0, 10) : undefined),
         subject: dev,
         squadName: sqName,
         entry: e,
@@ -653,7 +685,7 @@ export default function RelatorioExecutivoPage() {
       { id: "bom_exemplo", title: "Bom exemplo por squad", icon: Award, origin: "Marcações manuais", items: bomExemplo },
       { id: "melhor_squad", title: "Melhor squad", icon: Trophy, origin: "Marcações manuais", items: melhorSquad },
       { id: "preenchimento_incorreto", title: "Preenchimentos incorretos ou vagos", icon: AlertTriangle, origin: "Regra automática + marcações manuais", items: preenchIncorreto },
-      { id: "faltas", title: "Faltas recentes (últimos 7 dias)", icon: CalendarX, origin: "Dados automáticos", items: faltasItems },
+      { id: "faltas", title: "Faltas no período", icon: CalendarX, origin: "Dados automáticos", items: faltasItems },
       { id: "sem_pre_daily", title: "Sem pré-daily no prazo", icon: Clock, origin: "Dados automáticos", items: semPreDaily },
       { id: "aguardando", title: "Aguardando tarefas", icon: HelpCircle, origin: "Palavras-chave + marcações manuais", items: aguardando },
       { id: "repetidas", title: "Tarefas repetidas ou estagnadas", icon: Repeat, origin: "Regra automática + marcações manuais", items: repetidas },
@@ -670,7 +702,7 @@ export default function RelatorioExecutivoPage() {
       });
     });
     return built;
-  }, [todayEntries, prevEntries, tagsByEntry, absences, meetings, squadMembers, impediments, impsByEntry, squadById, nameByUser, activitiesByEntry]);
+  }, [todayEntries, prevEntries, tagsByEntry, absences, meetings, attendance, squadMembers, impediments, rangeImpediments, impEntries, impsByEntry, squadById, nameByUser, activitiesByEntry, melhorSquadPicks, effectiveTo]);
 
   // Estado editável por item
   const [state, setState] = useState<Record<string, ItemState>>({});
