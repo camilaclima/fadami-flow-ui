@@ -596,9 +596,9 @@ function DayDetailDialog({
 
             {(timeSummary.meetingSec > 0 || timeSummary.devsSec > 0) && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 rounded-lg border bg-muted/20 p-2">
-                <TimeStat label="Reunião do líder" value={formatDuration(timeSummary.meetingSec) ?? "—"} />
-                <TimeStat label="Preenchimento devs" value={formatDuration(timeSummary.devsSec) ?? "—"} />
-                <TimeStat label="Tempo total" value={formatDuration(timeSummary.total) ?? "—"} highlight />
+                <TimeStat label="TEMPO TOTAL DA DAILY" value={formatDuration(timeSummary.meetingSec) ?? "—"} />
+                <TimeStat label="TEMPO TOTAL DOS DEVS" value={formatDuration(timeSummary.devsSec) ?? "—"} />
+                <TimeStat label="TEMPO TOTAL DO TIME" value={formatDuration(timeSummary.total) ?? "—"} highlight />
                 <TimeStat
                   label={`Média por dev${timeSummary.devsCount ? ` (${timeSummary.devsCount})` : ""}`}
                   value={timeSummary.avg != null ? (formatDuration(timeSummary.avg) ?? "—") : "—"}
