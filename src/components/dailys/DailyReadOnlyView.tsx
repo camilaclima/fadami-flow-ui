@@ -315,6 +315,9 @@ export function DailyReadOnlyView({
                         </Button>
                       )
                     )}
+                    {isAdmin && hasDevRecord && (
+                      <DailyEntryTagsSelector entryId={e.id} compact />
+                    )}
                   </div>
                 </div>
 
