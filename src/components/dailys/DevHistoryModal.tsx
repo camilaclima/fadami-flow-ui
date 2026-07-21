@@ -12,6 +12,7 @@ import { useDevDailyImpedimentsByEntries, URGENCY_LABELS, URGENCY_STYLES } from 
 import { DevActivityCard } from "@/components/dailys/DevActivityCard";
 import { useSquads } from "@/hooks/useSquads";
 import { Users } from "lucide-react";
+import { formatOpenFor } from "@/lib/formatDuration";
 
 interface Props {
   open: boolean;
@@ -51,9 +52,24 @@ export function DevHistoryModal({ open, onOpenChange, userId, name }: Props) {
               <p className="text-sm text-muted-foreground">Nenhum registro encontrado.</p>
             )}
             {entries.map((e) => {
-              const imps = impediments.filter((i) => i.entry_id === e.id);
-              const openImps = imps.filter((i) => !i.resolved);
-              const resolvedImps = imps.filter((i) => i.resolved);
+              // Impedimentos "vivos" (abertos) até o fim deste dia:
+              // criados <= entry_date e ainda não sanados, ou sanados depois do entry_date.
+              const dayEnd = `${e.entry_date}T23:59:59`;
+              const openImps = impediments.filter((i) => {
+                const createdDate = (i.created_at ?? "").slice(0, 10);
+                if (!createdDate || createdDate > e.entry_date) return false;
+                if (!i.resolved) return true;
+                return !!i.resolved_at && i.resolved_at > dayEnd;
+              });
+              // Sanados neste dia (data de resolução == entry_date).
+              const resolvedImps = impediments.filter((i) => {
+                if (!i.resolved || !i.resolved_at) return false;
+                return i.resolved_at.slice(0, 10) === e.entry_date;
+              });
+              // Detalhes exibidos ao expandir: impedimentos originados neste entry.
+              const impsThisEntry = impediments.filter((i) => i.entry_id === e.id);
+              const openImpsThisEntry = impsThisEntry.filter((i) => !i.resolved);
+              const resolvedImpsThisEntry = impsThisEntry.filter((i) => i.resolved);
               const acts = activities.filter(
                 (a) => a.created_entry_id === e.id || a.closed_entry_id === e.id,
               );
@@ -139,30 +155,42 @@ export function DevHistoryModal({ open, onOpenChange, userId, name }: Props) {
                           <p className="text-xs text-muted-foreground italic">Nenhuma observação geral registrada.</p>
                         )}
                       </div>
-                      {openImps.length > 0 && (
+                      {openImpsThisEntry.length > 0 && (
                         <div className="space-y-1.5">
                           <p className="text-[10px] uppercase tracking-wide font-semibold text-orange-600">Impedimentos abertos</p>
-                          {openImps.map((imp) => (
+                          {openImpsThisEntry.map((imp) => (
                             <div key={imp.id} className="flex items-start gap-2 p-2 rounded-lg bg-orange-500/5 border border-orange-500/20">
                               <AlertTriangle className="w-3.5 h-3.5 text-orange-600 mt-0.5 shrink-0" />
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs whitespace-pre-wrap break-words">{imp.description}</p>
-                                <Badge variant="outline" className={`text-[10px] mt-1 ${URGENCY_STYLES[imp.urgency]}`}>{URGENCY_LABELS[imp.urgency]}</Badge>
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                  <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES[imp.urgency]}`}>{URGENCY_LABELS[imp.urgency]}</Badge>
+                                  {imp.created_at && (
+                                    <span className="text-[10px] text-orange-700/80 dark:text-orange-400/80 inline-flex items-center gap-1">
+                                      <Clock className="w-2.5 h-2.5" /> Aberto há {formatOpenFor(imp.created_at)}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           ))}
                         </div>
                       )}
-                      {resolvedImps.length > 0 && (
+                      {resolvedImpsThisEntry.length > 0 && (
                         <div className="space-y-1.5">
                           <p className="text-[10px] uppercase tracking-wide font-semibold text-emerald-600">Impedimentos sanados</p>
-                          {resolvedImps.map((imp) => (
+                          {resolvedImpsThisEntry.map((imp) => (
                             <div key={imp.id} className="flex items-start gap-2 p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
                               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs whitespace-pre-wrap break-words">{imp.description}</p>
                                 <div className="flex items-center gap-2 mt-1">
                                   <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES[imp.urgency]}`}>{URGENCY_LABELS[imp.urgency]}</Badge>
+                                  {imp.created_at && imp.resolved_at && (
+                                    <span className="text-[10px] text-emerald-700/80 dark:text-emerald-400/80 inline-flex items-center gap-1">
+                                      <Clock className="w-2.5 h-2.5" /> Ficou aberto por {formatOpenFor(imp.created_at, imp.resolved_at)}
+                                    </span>
+                                  )}
                                   {imp.resolved_at && (
                                     <span className="text-[10px] text-muted-foreground">Sanado {format(new Date(imp.resolved_at), "dd/MM HH:mm")}</span>
                                   )}
