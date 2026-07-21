@@ -992,6 +992,7 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
             </div>
           </div>
         </TabsContent>
+        )}
 
         <TabsContent value="salvos" className="mt-4">
           <SavedReportsPanel />
