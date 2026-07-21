@@ -29,7 +29,7 @@ import { useQuery } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Clock } from "lucide-react";
-import { formatDuration } from "@/lib/formatDuration";
+import { formatDuration, formatOpenFor } from "@/lib/formatDuration";
 
 function daysAgoLabel(iso: string): string {
   const created = new Date(iso);
