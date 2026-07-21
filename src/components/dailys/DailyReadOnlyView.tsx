@@ -15,6 +15,8 @@ import { DevHistoryModal } from "@/components/dailys/DevHistoryModal";
 import { DevActivityCard } from "@/components/dailys/DevActivityCard";
 import { formatOpenFor } from "@/lib/formatDuration";
 import type { DevDailyActivity } from "@/hooks/useDevDailyActivities";
+import { useDailySim } from "@/contexts/DailySimContext";
+import { DailyEntryTagsSelector } from "@/components/dailys/DailyEntryTagsSelector";
 
 interface EntryLike {
   id: string;
@@ -73,6 +75,8 @@ const initialsOf = (name: string) =>
 export function DailyReadOnlyView({
   date, entries, meetings, attByEntry, attByUser, impsByEntry, activitiesByEntry, nameFor, squadNameById,
 }: Props) {
+  const { current: sim } = useDailySim();
+  const isAdmin = sim.role === "diretor";
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const toggle = (id: string) => setExpanded((p) => ({ ...p, [id]: !p[id] }));
   const [historyFor, setHistoryFor] = useState<{ userId: string; name: string } | null>(null);
