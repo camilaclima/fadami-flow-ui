@@ -59,6 +59,7 @@ export const MANUAL_TAG_OPTIONS = [
   { value: "melhor_squad", label: "Melhor Squad" },
   { value: "preenchimento_incorreto", label: "Preenchimento Incorreto ou Incompleto" },
   { value: "aguardando_tarefa", label: "Aguardando Tarefa" },
+  { value: "tarefas_repetidas", label: "Tarefas Repetidas" },
 ] as const;
 
 export type ManualTag = typeof MANUAL_TAG_OPTIONS[number]["value"];
