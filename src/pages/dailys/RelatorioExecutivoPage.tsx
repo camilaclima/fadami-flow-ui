@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +54,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, X } from "lucide-react";
 import { formatOpenFor } from "@/lib/formatDuration";
+import { downloadElementAsPdf } from "@/lib/visualPdf";
 import { useDailyEntryTagsByEntries } from "@/hooks/useDailyEntryTags";
 import { DEV_ABSENCE_LABELS, type DevAbsenceType } from "@/hooks/useDevAbsences";
 import {
