@@ -931,12 +931,15 @@ export default function RegistroPage() {
                             const origin = entries.find((e) => e.id === imp.entry_id);
                             if (!origin || !detailEntry) return null;
                             if (origin.entry_date === detailEntry.entry_date) return null;
+                            const durationSuffix = imp.resolved && imp.resolved_at
+                              ? ` — aberto por ${formatOpenFor(origin.entry_date, imp.resolved_at)}`
+                              : ` — há ${formatOpenFor(origin.entry_date)}`;
                             return (
                               <Badge
                                 variant="outline"
                                 className="text-[10px] bg-muted text-muted-foreground border-border"
                               >
-                                Criado em {format(parseISO(origin.entry_date), "dd/MM", { locale: ptBR })}
+                                Criado em {format(parseISO(origin.entry_date), "dd/MM", { locale: ptBR })}{durationSuffix}
                               </Badge>
                             );
                           })()}
