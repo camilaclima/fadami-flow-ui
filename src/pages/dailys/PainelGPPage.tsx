@@ -24,6 +24,7 @@ import HistoricoPage from "./HistoricoPage";
 import SaudePage from "./SaudePage";
 import RelatorioExecutivoPage from "./RelatorioExecutivoPage";
 import { useDailySim } from "@/contexts/DailySimContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { AccessDeniedCard } from "@/components/dailys/AccessDeniedCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -60,6 +61,8 @@ function previousBusinessDayISO(): string {
 
 export default function PainelGPPage() {
   const { current: sim, loading: simLoading } = useDailySim();
+  const { user } = useAuth();
+  const isFabio = (user?.email ?? "").toLowerCase() === "fabio@fadami.com.br";
   const [date, setDate] = useState<string>(previousBusinessDayISO());
   // Mantém a data sempre apontando para o último dia útil anterior
   // (atualiza automaticamente após a virada do dia, sem reload).
@@ -581,7 +584,7 @@ export default function PainelGPPage() {
             <TabsTrigger value="painel" className="gap-2"><Sparkles className="w-4 h-4" /> Painel</TabsTrigger>
             <TabsTrigger value="historico" className="gap-2"><History className="w-4 h-4" /> Histórico</TabsTrigger>
             <TabsTrigger value="saude" className="gap-2"><Activity className="w-4 h-4" /> Saúde & Engajamento</TabsTrigger>
-            {sim.role === "diretor" && (
+            {(sim.role === "diretor" || isFabio) && (
               <TabsTrigger value="relatorio" className="gap-2">
                 <ClipboardList className="w-4 h-4" /> Relatório Executivo
               </TabsTrigger>
@@ -937,9 +940,9 @@ export default function PainelGPPage() {
           <SaudePage />
         </TabsContent>
 
-        {sim.role === "diretor" && (
+        {(sim.role === "diretor" || isFabio) && (
           <TabsContent value="relatorio" className="mt-0">
-            <RelatorioExecutivoPage />
+            <RelatorioExecutivoPage savedOnly={isFabio && sim.role !== "diretor"} />
           </TabsContent>
         )}
       </Tabs>

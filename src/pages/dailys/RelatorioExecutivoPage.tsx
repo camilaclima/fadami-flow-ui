@@ -149,7 +149,7 @@ function fmtLong(iso: string) {
   }
 }
 
-export default function RelatorioExecutivoPage() {
+export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnly?: boolean } = {}) {
   const [dateFrom, setDateFrom] = useState<string>(todayISO());
   const [dateTo, setDateTo] = useState<string>(todayISO());
   const effectiveFrom = dateFrom <= dateTo ? dateFrom : dateTo;
@@ -816,12 +816,15 @@ export default function RelatorioExecutivoPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="atual" className="w-full">
+      <Tabs defaultValue={savedOnly ? "salvos" : "atual"} className="w-full">
         <TabsList className="rounded-xl">
-          <TabsTrigger value="atual" className="rounded-lg">Gerar relatório</TabsTrigger>
+          {!savedOnly && (
+            <TabsTrigger value="atual" className="rounded-lg">Gerar relatório</TabsTrigger>
+          )}
           <TabsTrigger value="salvos" className="rounded-lg">Relatórios salvos</TabsTrigger>
         </TabsList>
 
+        {!savedOnly && (
         <TabsContent value="atual" className="mt-4">
           <div className="flex items-end justify-between flex-wrap gap-4 mb-4">
             <div className="flex items-end gap-3 flex-wrap">
@@ -989,6 +992,7 @@ export default function RelatorioExecutivoPage() {
             </div>
           </div>
         </TabsContent>
+        )}
 
         <TabsContent value="salvos" className="mt-4">
           <SavedReportsPanel />
