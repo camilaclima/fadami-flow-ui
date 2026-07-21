@@ -31,6 +31,11 @@ import {
   Save,
   Eye,
   Trash2,
+  ChevronDown,
+  ChevronRight,
+  Sparkles,
+  UserCheck,
+  CheckCircle2,
 } from "lucide-react";
 import { format, parseISO, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -40,6 +45,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useSquads } from "@/hooks/useSquads";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useDevDailyImpedimentsByEntries, URGENCY_LABELS } from "@/hooks/useDevDailyImpediments";
+import { URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
+import { formatOpenFor } from "@/lib/formatDuration";
 import { useDailyEntryTagsByEntries } from "@/hooks/useDailyEntryTags";
 import { DEV_ABSENCE_LABELS, type DevAbsenceType } from "@/hooks/useDevAbsences";
 import {
@@ -70,6 +77,13 @@ interface ReportItem {
   id: string;
   text: string;
   meta?: string;
+  origin: "auto" | "manual" | "both";
+  date?: string;
+  subject: string;
+  squadName?: string;
+  entry?: any;
+  impediments?: any[];
+  extraDetails?: string;
 }
 
 interface ReportSection {
@@ -257,6 +271,16 @@ export default function RelatorioExecutivoPage() {
     return withDate ? `${fmtShort(e.entry_date)} — ${base}` : base;
   };
 
+  const impsByEntry = useMemo(() => {
+    const m = new Map<string, any[]>();
+    (impediments as any[]).forEach((imp) => {
+      const arr = m.get(imp.entry_id) ?? [];
+      arr.push(imp);
+      m.set(imp.entry_id, arr);
+    });
+    return m;
+  }, [impediments]);
+
   // ============ Construção das seções ============
   const sections: ReportSection[] = useMemo(() => {
     const bomExemplo: ReportItem[] = [];
@@ -276,9 +300,21 @@ export default function RelatorioExecutivoPage() {
     (todayEntries as any[]).forEach((e) => {
       const tags = tagsByEntry.get(e.id) ?? [];
       const label = entryLabel(e);
+      const dev = nameByUser.get(e.user_id) ?? "Dev";
+      const sqName = e.squad_id ? squadById.get(e.squad_id)?.name ?? "Squad" : "Sem squad";
+      const entryImps = impsByEntry.get(e.id) ?? [];
       const isManualBom = tags.includes("bom_exemplo");
       if (isManualBom) {
-        bomExemplo.push({ id: `be-${e.id}`, text: `${label} — bom exemplo de preenchimento.` });
+        bomExemplo.push({
+          id: `be-${e.id}`,
+          text: `${label} — bom exemplo de preenchimento.`,
+          origin: "manual",
+          date: e.entry_date,
+          subject: dev,
+          squadName: sqName,
+          entry: e,
+          impediments: entryImps,
+        });
       }
       if (tags.includes("melhor_squad") && e.squad_id) {
         if (!squadMelhorTagged.has(e.squad_id)) squadMelhorTagged.set(e.squad_id, new Set());
@@ -294,9 +330,17 @@ export default function RelatorioExecutivoPage() {
         const parts: string[] = [];
         if (shortReasons.length > 0) parts.push(shortReasons.join(" e "));
         if (isManualIncorrect) parts.push("marcado pelo Admin");
+        const origin: ReportItem["origin"] =
+          shortReasons.length > 0 && isManualIncorrect ? "both" : isManualIncorrect ? "manual" : "auto";
         preenchIncorreto.push({
           id: `pi-${e.id}`,
           text: `${label} — ${parts.join("; ")}.`,
+          origin,
+          date: e.entry_date,
+          subject: dev,
+          squadName: sqName,
+          entry: e,
+          impediments: entryImps,
         });
       }
 
@@ -308,9 +352,17 @@ export default function RelatorioExecutivoPage() {
         const originParts: string[] = [];
         if (isAwaiting) originParts.push("texto contém indicação de aguardo");
         if (isManualAwait) originParts.push("marcado pelo Admin");
+        const origin: ReportItem["origin"] =
+          isAwaiting && isManualAwait ? "both" : isManualAwait ? "manual" : "auto";
         aguardando.push({
           id: `aw-${e.id}`,
           text: `${label} — ${originParts.join(" · ")}${trecho ? ` ("${trecho}${trecho.length >= 120 ? "…" : ""}")` : ""}.`,
+          origin,
+          date: e.entry_date,
+          subject: dev,
+          squadName: sqName,
+          entry: e,
+          impediments: entryImps,
         });
       }
 
@@ -326,9 +378,20 @@ export default function RelatorioExecutivoPage() {
         const originParts: string[] = [];
         if (isAutoRepeat) originParts.push(`repetiu tarefa do dia anterior (${fmtShort(prev.entry_date)})`);
         if (isManualRepeat) originParts.push("marcado pelo Admin");
+        const origin: ReportItem["origin"] =
+          isAutoRepeat && isManualRepeat ? "both" : isManualRepeat ? "manual" : "auto";
         repetidas.push({
           id: `rp-${e.id}`,
           text: `${label} — ${originParts.join(" · ")}.`,
+          origin,
+          date: e.entry_date,
+          subject: dev,
+          squadName: sqName,
+          entry: e,
+          impediments: entryImps,
+          extraDetails: isAutoRepeat && prev?.will_do_today
+            ? `Dia anterior (${fmtShort(prev.entry_date)}): ${prev.will_do_today}`
+            : undefined,
         });
       }
     });
@@ -336,9 +399,15 @@ export default function RelatorioExecutivoPage() {
     squadMelhorTagged.forEach((dates, sid) => {
       const sq = squadById.get(sid);
       const dateList = Array.from(dates).sort().map(fmtShort).join(", ");
+      const sortedDates = Array.from(dates).sort();
       melhorSquad.push({
         id: `ms-${sid}`,
         text: `${sq?.name ?? "Squad"} — destaque como melhor squad (${dateList}).`,
+        origin: "manual",
+        date: sortedDates[sortedDates.length - 1],
+        subject: sq?.name ?? "Squad",
+        squadName: sq?.name,
+        extraDetails: `Dias marcados: ${dateList}`,
       });
     });
 
@@ -354,6 +423,10 @@ export default function RelatorioExecutivoPage() {
       return {
         id: `ab-${a.id}`,
         text: `${nm} — ${tipo} (${periodo})${motivo}.`,
+        origin: "auto",
+        date: a.start_date,
+        subject: nm,
+        extraDetails: `${tipo} — ${periodo}${a.notes ? `\nMotivo: ${a.notes}` : ""}`,
       };
     });
 
@@ -382,6 +455,11 @@ export default function RelatorioExecutivoPage() {
             semPreDaily.push({
               id: `sp-${m.user_id}-${m.squad_id}-${mdate}`,
               text: `${fmtShort(mdate)} — ${m.name} · ${sqName} — não enviou o registro até o encerramento da daily.`,
+              origin: "auto",
+              date: mdate,
+              subject: m.name,
+              squadName: sqName,
+              extraDetails: "Não enviou o registro até o encerramento da daily.",
             });
             return;
           }
@@ -391,11 +469,23 @@ export default function RelatorioExecutivoPage() {
             semPreDaily.push({
               id: `sp-${m.user_id}-${m.squad_id}-${mdate}`,
               text: `${fmtShort(mdate)} — ${m.name} · ${sqName} — enviou ${atrasoMin} min após o início da daily.`,
+              origin: "auto",
+              date: mdate,
+              subject: m.name,
+              squadName: sqName,
+              entry,
+              impediments: impsByEntry.get(entry.id) ?? [],
+              extraDetails: `Enviou ${atrasoMin} min após o início da daily.`,
             });
           } else if (!fill && finishedAt) {
             semPreDaily.push({
               id: `sp-${m.user_id}-${m.squad_id}-${mdate}`,
               text: `${fmtShort(mdate)} — ${m.name} · ${sqName} — não enviou até o encerramento da daily.`,
+              origin: "auto",
+              date: mdate,
+              subject: m.name,
+              squadName: sqName,
+              extraDetails: "Não enviou até o encerramento da daily.",
             });
           }
         });
@@ -410,9 +500,17 @@ export default function RelatorioExecutivoPage() {
       const status = imp.resolved
         ? `sanado${imp.resolved_at ? ` em ${format(parseISO(imp.resolved_at), "dd/MM HH:mm", { locale: ptBR })}` : ""}`
         : "em aberto";
+      const dev = e ? (nameByUser.get(e.user_id) ?? "Dev") : "—";
+      const sqName = e?.squad_id ? squadById.get(e.squad_id)?.name ?? "Squad" : undefined;
       return {
         id: `imp-${imp.id}`,
         text: `${label} — [${URGENCY_LABELS[imp.urgency]}] ${imp.description} (${status}).`,
+        origin: "auto",
+        date: e?.entry_date,
+        subject: dev,
+        squadName: sqName,
+        entry: e,
+        impediments: [imp],
       };
     });
 
@@ -426,7 +524,7 @@ export default function RelatorioExecutivoPage() {
       { id: "repetidas", title: "Tarefas repetidas ou estagnadas", icon: Repeat, origin: "Regra automática + marcações manuais", items: repetidas },
       { id: "impedimentos", title: "Impedimentos e bloqueios", icon: AlertOctagon, origin: "Dados automáticos", items: impItems },
     ];
-  }, [todayEntries, prevEntries, tagsByEntry, absences, meetings, squadMembers, impediments, squadById, nameByUser]);
+  }, [todayEntries, prevEntries, tagsByEntry, absences, meetings, squadMembers, impediments, impsByEntry, squadById, nameByUser]);
 
   // Estado editável por item
   const [state, setState] = useState<Record<string, ItemState>>({});
