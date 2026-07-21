@@ -684,7 +684,7 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
     });
 
     const built: ReportSection[] = [
-      { id: "bom_exemplo", title: "Bom exemplo por squad", icon: Award, origin: "Marcações manuais", items: bomExemplo },
+      { id: "bom_exemplo", title: "Melhor colaborador de cada squad", icon: Award, origin: "Marcações manuais", items: bomExemplo },
       { id: "melhor_squad", title: "Melhor squad", icon: Trophy, origin: "Marcações manuais", items: melhorSquad },
       { id: "preenchimento_incorreto", title: "Preenchimentos incorretos ou vagos", icon: AlertTriangle, origin: "Regra automática + marcações manuais", items: preenchIncorreto },
       { id: "faltas", title: "Faltas no período", icon: CalendarX, origin: "Dados automáticos", items: faltasItems },
