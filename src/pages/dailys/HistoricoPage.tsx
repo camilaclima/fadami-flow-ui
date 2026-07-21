@@ -586,13 +586,25 @@ function DayDetailDialog({
               </DialogTitle>
               <DialogDescription className="flex items-center gap-2 flex-wrap">
                 <Badge variant="secondary" className="gap-1">
-                  <Users className="h-3 w-3" /> {day.entries.length} {day.entries.length === 1 ? "desenvolvedor" : "desenvolvedores"}
+                  <Users className="h-3 w-3" /> {augmentedEntries.length} {augmentedEntries.length === 1 ? "desenvolvedor" : "desenvolvedores"}
                 </Badge>
                 <Badge variant="outline" className="capitalize">
                   {format(parseISO(day.date), "EEEE", { locale: ptBR })}
                 </Badge>
               </DialogDescription>
             </DialogHeader>
+
+            {(timeSummary.meetingSec > 0 || timeSummary.devsSec > 0) && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 rounded-lg border bg-muted/20 p-2">
+                <TimeStat label="Reunião do líder" value={formatDuration(timeSummary.meetingSec) ?? "—"} />
+                <TimeStat label="Preenchimento devs" value={formatDuration(timeSummary.devsSec) ?? "—"} />
+                <TimeStat label="Tempo total" value={formatDuration(timeSummary.total) ?? "—"} highlight />
+                <TimeStat
+                  label={`Média por dev${timeSummary.devsCount ? ` (${timeSummary.devsCount})` : ""}`}
+                  value={timeSummary.avg != null ? (formatDuration(timeSummary.avg) ?? "—") : "—"}
+                />
+              </div>
+            )}
 
             <Tabs defaultValue="bruto" className="flex-1 flex flex-col min-h-0">
               <TabsList className="self-start">
