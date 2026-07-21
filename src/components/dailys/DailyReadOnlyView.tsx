@@ -13,6 +13,7 @@ import { format, parseISO, differenceInCalendarDays } from "date-fns";
 import { URGENCY_LABELS, URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
 import { DevHistoryModal } from "@/components/dailys/DevHistoryModal";
 import { DevActivityCard } from "@/components/dailys/DevActivityCard";
+import { formatOpenFor } from "@/lib/formatDuration";
 import type { DevDailyActivity } from "@/hooks/useDevDailyActivities";
 
 interface EntryLike {
@@ -387,9 +388,16 @@ export function DailyReadOnlyView({
                                 <AlertTriangle className="w-3.5 h-3.5 text-orange-600 mt-0.5 shrink-0" />
                                 <div className="flex-1 min-w-0">
                                   <p className="text-xs whitespace-pre-wrap break-words text-foreground/90">{imp.description}</p>
-                                  <Badge variant="outline" className={`text-[10px] mt-1 ${URGENCY_STYLES[imp.urgency as keyof typeof URGENCY_STYLES]}`}>
-                                    {URGENCY_LABELS[imp.urgency as keyof typeof URGENCY_LABELS]}
-                                  </Badge>
+                                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                    <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES[imp.urgency as keyof typeof URGENCY_STYLES]}`}>
+                                      {URGENCY_LABELS[imp.urgency as keyof typeof URGENCY_LABELS]}
+                                    </Badge>
+                                    {imp.created_at && (
+                                      <span className="text-[10px] text-orange-700/80 dark:text-orange-400/80 inline-flex items-center gap-1">
+                                        <Clock className="w-2.5 h-2.5" /> Aberto há {formatOpenFor(imp.created_at)}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             ))}
@@ -408,6 +416,11 @@ export function DailyReadOnlyView({
                                     <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES[imp.urgency as keyof typeof URGENCY_STYLES]}`}>
                                       {URGENCY_LABELS[imp.urgency as keyof typeof URGENCY_LABELS]}
                                     </Badge>
+                                    {imp.created_at && imp.resolved_at && (
+                                      <span className="text-[10px] text-emerald-700/80 dark:text-emerald-400/80 inline-flex items-center gap-1">
+                                        <Clock className="w-2.5 h-2.5" /> Ficou aberto por {formatOpenFor(imp.created_at, imp.resolved_at)}
+                                      </span>
+                                    )}
                                     {imp.resolved_at && (
                                       <span className="text-[10px] text-muted-foreground">
                                         Sanado {format(new Date(imp.resolved_at), "dd/MM HH:mm")}
