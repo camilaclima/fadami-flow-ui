@@ -139,7 +139,9 @@ export function DailyReadOnlyView({
         {rows.map(({ entry: e, atts, att, name }) => {
           const isAbsent = !!att?.absent_from_work;
           const isNoPart = !!att?.did_not_participate;
-          const isPresent = !isAbsent && !isNoPart;
+          const isPresent = !!att && !isAbsent && !isNoPart;
+          const isVirtual = String(e.id).startsWith("virtual:");
+          const hasDevRecord = !isVirtual;
           const imps = impsByEntry.get(e.id) ?? [];
           const openImps = imps.filter((i) => !i.resolved);
           const resolvedImps = imps.filter((i) => i.resolved);
@@ -204,7 +206,7 @@ export function DailyReadOnlyView({
                           <UserX className="w-2.5 h-2.5" /> Sem registro de presença
                         </Badge>
                       )}
-                      {isPresent && openImps.length > 0 && (
+                      {hasDevRecord && !isAbsent && openImps.length > 0 && (
                         <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30 gap-1">
                           <AlertTriangle className="w-2.5 h-2.5" />
                           {openImps.length} {openImps.length > 1 ? "impedimentos" : "impedimento"}
@@ -323,7 +325,7 @@ export function DailyReadOnlyView({
                       </div>
                     )}
 
-                    {isPresent && (
+                    {!isAbsent && hasDevRecord && (
                       <>
                         <div className="flex justify-end">
                           <Button
