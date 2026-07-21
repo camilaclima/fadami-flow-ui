@@ -18,6 +18,7 @@ import { useDevDailyEntriesByUsers } from "@/hooks/useDevDailyEntries";
 import { useActiveDevAbsences, useCreateDevAbsence, DEV_ABSENCE_LABELS, DEV_ABSENCE_RANGED, type DevAbsenceType, type DevAbsence } from "@/hooks/useDevAbsences";
 import { DevHistoryModal } from "@/components/dailys/DevHistoryModal";
 import { DevActivityCard } from "@/components/dailys/DevActivityCard";
+import { formatOpenFor } from "@/lib/formatDuration";
 import { toast } from "sonner";
 import { format, parseISO, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -569,7 +570,7 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                 <ChevronDown className="w-3 h-3 opacity-70" />
                               </Button>
                             </PopoverTrigger>
-                            <PopoverContent align="end" className="w-72 p-3 space-y-2" onKeyDown={(e) => e.stopPropagation()}>
+                            <PopoverContent align="end" className="w-[26rem] max-w-[calc(100vw-2rem)] p-3 space-y-2" onKeyDown={(e) => e.stopPropagation()}>
                               <Label className="text-[11px] font-semibold text-muted-foreground">Motivo da ausência</Label>
                               <div className="grid grid-cols-2 gap-1.5">
                                 {(Object.keys(DEV_ABSENCE_LABELS) as DevAbsenceType[]).map((t) => {
@@ -592,10 +593,10 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                           absence_end: ranged ? (st.absence_end || date) : date,
                                         });
                                       }}
-                                      className={`h-8 justify-start gap-1.5 text-xs ${active ? "border-red-500/50 bg-red-500/10 text-red-700" : ""}`}
+                                      className={`h-8 justify-start gap-1.5 text-xs px-2 ${active ? "border-red-500/50 bg-red-500/10 text-red-700" : ""}`}
                                     >
-                                      <Icon className="w-3.5 h-3.5" />
-                                      <span className="truncate">{DEV_ABSENCE_LABELS[t]}</span>
+                                      <Icon className="w-3.5 h-3.5 shrink-0" />
+                                      <span className="whitespace-nowrap">{DEV_ABSENCE_LABELS[t]}</span>
                                     </Button>
                                   );
                                 })}
@@ -856,9 +857,16 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                       <AlertTriangle className="w-3.5 h-3.5 text-orange-600 mt-0.5 shrink-0" />
                                       <div className="flex-1 min-w-0">
                                         <p className="text-xs whitespace-pre-wrap break-words text-foreground/90">{imp.description}</p>
-                                        <Badge variant="outline" className={`text-[10px] mt-1 ${URGENCY_STYLES[imp.urgency]}`}>
-                                          {URGENCY_LABELS[imp.urgency]}
-                                        </Badge>
+                                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                          <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES[imp.urgency]}`}>
+                                            {URGENCY_LABELS[imp.urgency]}
+                                          </Badge>
+                                          {imp.created_at && (
+                                            <span className="text-[10px] text-orange-700/80 dark:text-orange-400/80 inline-flex items-center gap-1">
+                                              <Clock className="w-2.5 h-2.5" /> Aberto há {formatOpenFor(imp.created_at)}
+                                            </span>
+                                          )}
+                                        </div>
                                       </div>
                                       <Button
                                         size="sm"
@@ -891,6 +899,11 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                             <Badge variant="outline" className={`text-[10px] ${URGENCY_STYLES[imp.urgency]}`}>
                                               {URGENCY_LABELS[imp.urgency]}
                                             </Badge>
+                                            {imp.created_at && imp.resolved_at && (
+                                              <span className="text-[10px] text-emerald-700/80 dark:text-emerald-400/80 inline-flex items-center gap-1">
+                                                <Clock className="w-2.5 h-2.5" /> Ficou aberto por {formatOpenFor(imp.created_at, imp.resolved_at)}
+                                              </span>
+                                            )}
                                             {imp.resolved_at && (
                                               <span className="text-[10px] text-muted-foreground">
                                                 Sanado {format(new Date(imp.resolved_at), "dd/MM HH:mm")}

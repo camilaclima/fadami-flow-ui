@@ -1,68 +1,51 @@
-## O que vamos melhorar
+## O que vamos ajustar
 
-Na aba **Histórico** do Painel da Daily, hoje só aparecem os desenvolvedores que preencheram alguma coisa naquele dia — quem esqueceu ou não participou simplesmente some. E não temos como saber quanto tempo cada dev demorou nem quanto a reunião durou. Também, no histórico individual do dev, quando ele participa de mais de uma squad, aparecem cards duplicados sem indicar de qual squad é cada registro.
+### 1) Mostrar há quanto tempo cada impedimento está (ou ficou) aberto
 
-Vamos resolver tudo isso.
+Onde o impedimento aparece hoje sem essa informação:
+- Modal "Iniciar Daily" do líder (`IniciarDailyModal.tsx`) — blocos "Impedimentos abertos" e "Impedimentos sanados" dentro do card do dev.
+- Visão consolidada da daily (`DailyReadOnlyView.tsx`) — mesmos blocos.
+- Histórico individual do dev (`DevHistoryModal.tsx`) — mesmos blocos.
 
----
+Vamos adicionar, ao lado do badge de urgência (Alta/Média/Baixa):
+- **Se está aberto:** "Aberto há 3d" (ou "há 4h", "há 12d") — calculado como agora − `created_at`.
+- **Se está sanado:** "Ficou aberto por 5d" — calculado como `resolved_at` − `created_at`. Também mantemos o "Sanado dd/MM HH:mm" que já existe.
 
-## 1) Mostrar a squad inteira ao abrir um dia
+Formato humano ("2h", "3d", "1d 4h") — vamos criar um helper pequeno em `src/lib/formatDuration.ts` (`formatOpenFor(from, to)`) reutilizando o padrão do `formatDuration` que já existe.
 
-Hoje, ao clicar num dia do histórico, aparecem apenas os devs que registraram algo (mais os marcados pelo líder na reunião). O restante da squad fica invisível.
+### 2) Contador de impedimentos por dia na aba Histórico
 
-**Vamos mudar para:** listar **todos os membros da squad selecionada**, mesmo os que não preencheram nada. Quem não preencheu aparece com o card em **cinza**, com um selo "Sem registro" — igual ao comportamento do modal "Iniciar Daily".
+**Problema:** hoje o card de cada dia mostra `totalImps` = soma dos impedimentos **criados naquele entry_date**. Se ninguém abriu impedimento novo no dia 20, mas o time tem 11 em aberto herdados de dias anteriores, o card mostra "0 impedimento". Já dentro do modal do dia, os impedimentos abertos herdados aparecem corretamente (via `impsByEntry` que olha `<= D` e ainda em aberto).
 
-Como funciona por baixo dos panos: já temos a lista de membros da squad (via `squad_members` → `team_members` → `profiles`). Vamos usar essa mesma lista para preencher o modal do dia, cruzando com os registros existentes: se o dev tem registro, mostra o registro; se não tem, mostra o card cinza vazio.
+**Correção:** trocar o cálculo do card pelo mesmo critério do modal — para cada dia D, contar impedimentos:
+- criados por qualquer usuário da squad em escopo com `created_at::date <= D`, e
+- ainda em aberto em D (`resolved = false` OU `resolved_at::date >= D`).
 
----
+Como já buscamos entries dos usuários filtrados via `useDevDailyEntries`, faremos um único fetch em `HistoricoPage` de todos os impedimentos ligados a esses entries e calcularemos o contador por dia com essa regra. O badge passa a mostrar o número real de impedimentos "vivos" no fim daquele dia.
 
-## 2) Contadores no cabeçalho do dia
+Nota: se o filtro de squad estiver ativo, contamos apenas impedimentos originados em entries daquela squad (`entry.squad_id === filterSquadId` ou `null` para legado, alinhado ao resto da tela).
 
-Vamos adicionar dois números no topo do modal do dia:
+### 3) Mesma correção no histórico individual do dev (DevHistoryModal)
 
-- **Presença:** "X de Y presentes" — Y é o total de membros da squad; X é quem foi marcado como presente pelo líder (nem ausente do trabalho, nem "não participou").
-- **Preenchimento:** "X de Y preencheram" — Y é o total de membros da squad; X é quem tem registro salvo em `dev_daily_entries` (com `fill_completed_at` preenchido) até o momento em que o líder salvou a daily.
+Hoje cada linha do histórico do dev mostra "N aberto(s)" contando só impedimentos criados naquele entry. Vamos trocar por: número de impedimentos do dev que estavam abertos até o fim daquele `entry_date` (mesma regra do item 2, escopada a `user_id`). Assim, no exemplo do dia 20/07, aparecem os impedimentos herdados que ainda estão abertos, não só os criados naquele dia.
 
-Se não houve reunião do líder registrada naquele dia, mostramos só a contagem de preenchimento.
+O badge "sanado" também passa a contar impedimentos do dev **sanados naquele dia** (não só os criados+sanados naquele entry), coerente com a leitura de linha do tempo.
 
----
+### 4) Aumentar o Popover de ausência
 
-## 3) Tempos da daily
-
-Já guardamos no banco o tempo que cada dev levou para preencher (`fill_duration_seconds` em `dev_daily_entries`) e o tempo da reunião do líder (`duration_seconds` em `daily_meetings`). Só precisamos exibir.
-
-Vamos mostrar:
-
-- **Ao lado do nome de cada dev** no modal do dia: um badge tipo `⏱ 4m 12s` com o tempo que ele levou para preencher. Se não preencheu, não mostra badge.
-- **Um bloco de resumo no topo do modal** com quatro números:
-  - Tempo da reunião do líder (do "Iniciar Daily" ao "Salvar").
-  - Soma dos tempos de preenchimento dos devs.
-  - **Tempo total** = reunião + soma dos devs.
-  - **Tempo médio por dev** = soma dos devs ÷ quantidade de devs que preencheram.
-
-Formato humano ("4m 12s", "1h 05m") já existe em `src/lib/formatDuration.ts`.
-
----
-
-## 4) Tag de squad no histórico individual do dev
-
-Ao clicar no histórico de um dev específico (modal `DevHistoryModal`), hoje aparecem cards de todas as squads misturados, o que dá a impressão de "duplicados" para devs multi-squad (ex.: Luiz Barbosa em TOR e TOR+).
-
-**Vamos adicionar:** em cada card de registro, uma **tag colorida com o nome da squad** (ex.: "TOR", "TOR+"), lida do campo `squad_id` do registro. Para registros antigos sem `squad_id`, mostramos uma tag neutra "Sem squad".
-
-Isso resolve visualmente a "duplicação": o usuário passa a entender que são dois registros legítimos, um para cada squad.
-
----
+No `IniciarDailyModal.tsx`, o `PopoverContent` da linha 572 é `w-72` e corta o texto dos botões "Banco de horas" e "Interjornada" e os inputs de data. Vamos:
+- Aumentar para `w-96` (ou `min-w-[22rem]`) e permitir que os botões de tipo não trunquem — remover `truncate` dos labels de tipo e deixar em duas colunas com `whitespace-nowrap`.
+- Garantir que os inputs de Início/Fim caibam lado a lado sem overflow.
 
 ## Onde vamos mexer
 
-- `src/pages/dailys/HistoricoPage.tsx` — buscar membros da squad, gerar cards vazios (cinza), calcular contadores de presença/preenchimento, calcular e mostrar tempos (dev, líder, total, médio).
-- `src/components/dailys/DevHistoryModal.tsx` — mostrar tag da squad em cada card, usando o mapa `squadNameById` já existente em `useSquads`.
-
-Nada de mudança de schema — todos os dados necessários já existem no banco.
+- `src/lib/formatDuration.ts` — novo helper `formatOpenFor(fromISO, toISO?)` que devolve "3d", "4h", "1d 5h".
+- `src/components/dailys/IniciarDailyModal.tsx` — badges de duração nos impedimentos + Popover de ausência maior.
+- `src/components/dailys/DailyReadOnlyView.tsx` — badges de duração nos impedimentos.
+- `src/components/dailys/DevHistoryModal.tsx` — badges de duração + corrigir contador de "aberto/sanado" por dia usando regra de linha do tempo.
+- `src/pages/dailys/HistoricoPage.tsx` — corrigir `impCountByEntry` (na verdade contador por dia) para refletir impedimentos vivos no fim daquele dia, respeitando o filtro de squad.
 
 ## Fora de escopo
 
-- Alterações no fluxo de registro do dev ou no modal de "Iniciar Daily" do líder.
-- Novos campos no banco.
-- Mudanças no Painel GP (aba principal) ou na aba Saúde.
+- Mudanças no fluxo de criação/resolução de impedimento.
+- Mudanças no schema do banco.
