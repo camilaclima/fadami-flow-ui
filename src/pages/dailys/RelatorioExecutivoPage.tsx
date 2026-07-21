@@ -1005,6 +1005,7 @@ function SavedReportsPanel() {
   const { data: reports = [], isLoading } = useExecutiveReports();
   const del = useDeleteExecutiveReport();
   const [viewing, setViewing] = useState<ExecutiveReport | null>(null);
+  const hydrated = useHydratedSections(viewing);
 
   return (
     <div>
@@ -1117,13 +1118,7 @@ function SavedReportsPanel() {
             <div className="px-6 py-4 space-y-4">
               {viewing && (
                 <ReportSectionsView
-                  sections={viewing.sections
-                    .filter((s) => s.items.some((i) => i.included))
-                    .map((s) => ({
-                      id: s.id,
-                      title: s.title,
-                      items: s.items.filter((i) => i.included),
-                    }))}
+                  sections={hydrated.filter((s) => s.items.length > 0)}
                   interactive={false}
                   forceOpen={false}
                 />
