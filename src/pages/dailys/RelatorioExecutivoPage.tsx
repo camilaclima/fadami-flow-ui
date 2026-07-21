@@ -1204,6 +1204,149 @@ function escapeHtml(s: string): string {
 }
 
 // ============================================================
+// Ícones e renderização compartilhada dos cards do relatório
+// ============================================================
+const SECTION_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  bom_exemplo: Award,
+  melhor_squad: Trophy,
+  preenchimento_incorreto: AlertTriangle,
+  faltas: CalendarX,
+  sem_pre_daily: Clock,
+  aguardando: HelpCircle,
+  repetidas: Repeat,
+  impedimentos: AlertOctagon,
+};
+
+interface RenderSection {
+  id: string;
+  title: string;
+  items: Array<{ id: string; text: string; included: boolean; data?: any }>;
+}
+
+function reviveItem(raw: { id: string; text: string; data?: any }): ReportItem {
+  const d = raw.data ?? {};
+  return {
+    id: raw.id,
+    text: raw.text,
+    origin: d.origin ?? "auto",
+    subject: d.subject ?? "—",
+    date: d.date,
+    squadName: d.squadName,
+    entry: d.entry ?? undefined,
+    impediments: d.impediments ?? [],
+    done: d.done ?? [],
+    inactive: d.inactive ?? [],
+    planned: d.planned ?? [],
+    extraDetails: d.extraDetails,
+  };
+}
+
+function ReportSectionsView({
+  sections,
+  interactive,
+  forceOpen,
+}: {
+  sections: RenderSection[];
+  interactive: boolean;
+  forceOpen: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      {sections.map((s) => {
+        const Icon = SECTION_ICONS[s.id] ?? FileText;
+        return (
+          <Card key={s.id} className="rounded-2xl">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Icon className="w-4 h-4 text-primary" />
+                {s.title}
+              </CardTitle>
+              <div className="flex items-center gap-1.5 mt-1">
+                <Badge variant="outline" className="text-[10px]">
+                  {s.items.length} {s.items.length === 1 ? "item" : "itens"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {s.items.length === 0 && (
+                <p className="text-sm text-muted-foreground italic">Nenhum registro.</p>
+              )}
+              {s.items.map((raw) => {
+                const it = reviveItem(raw);
+                return s.id === "impedimentos" ? (
+                  <ImpedimentReportCard
+                    key={raw.id}
+                    item={it}
+                    included={true}
+                    interactive={interactive}
+                  />
+                ) : (
+                  <ExecReportItemCard
+                    key={raw.id}
+                    item={it}
+                    included={true}
+                    interactive={interactive}
+                    forceOpen={forceOpen}
+                  />
+                );
+              })}
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+// ============================================================
+// Exportação em PDF preservando o layout visual (expandido).
+// ============================================================
+async function exportSectionsAsVisualPdf(input: {
+  periodLabel: string;
+  sections: RenderSection[];
+}) {
+  const { periodLabel, sections } = input;
+  const container = document.createElement("div");
+  container.style.cssText =
+    "position:fixed;left:-10000px;top:0;width:1100px;background:#ffffff;padding:24px;";
+  document.body.appendChild(container);
+
+  const { createRoot } = await import("react-dom/client");
+  const root = createRoot(container);
+  await new Promise<void>((resolve) => {
+    root.render(
+      <div>
+        <div style={{ marginBottom: 16 }}>
+          <h1 style={{ margin: 0, fontSize: 22, color: "#0f172a" }}>
+            Relatório Executivo da Daily
+          </h1>
+          <p style={{ margin: "4px 0 0", color: "#475569", fontSize: 13 }}>
+            {periodLabel} · Fadami Flow
+          </p>
+          <div style={{ height: 2, background: "#F97316", marginTop: 12 }} />
+        </div>
+        <ReportSectionsView
+          sections={sections}
+          interactive={false}
+          forceOpen={true}
+        />
+      </div>,
+    );
+    setTimeout(resolve, 400);
+  });
+
+  try {
+    await downloadElementAsPdf(
+      container,
+      `relatorio-executivo-${periodLabel.replace(/\s+/g, "_")}.pdf`,
+    );
+  } finally {
+    root.unmount();
+    document.body.removeChild(container);
+  }
+}
+
+// ============================================================
 // Card colapsável de item do relatório — visual do histórico
 // ============================================================
 const initialsOf = (name: string) =>
