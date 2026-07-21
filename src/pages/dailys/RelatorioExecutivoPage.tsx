@@ -933,14 +933,25 @@ export default function RelatorioExecutivoPage() {
                     {s.items.map((it) => {
                       const st = state[it.id] ?? { included: true, text: it.text };
                       return (
-                        <ExecReportItemCard
-                          key={it.id}
-                          item={it}
-                          included={st.included}
-                          onIncludeChange={(v) =>
-                            setState((p) => ({ ...p, [it.id]: { ...st, included: v } }))
-                          }
-                        />
+                        s.id === "impedimentos" ? (
+                          <ImpedimentReportCard
+                            key={it.id}
+                            item={it}
+                            included={st.included}
+                            onIncludeChange={(v) =>
+                              setState((p) => ({ ...p, [it.id]: { ...st, included: v } }))
+                            }
+                          />
+                        ) : (
+                          <ExecReportItemCard
+                            key={it.id}
+                            item={it}
+                            included={st.included}
+                            onIncludeChange={(v) =>
+                              setState((p) => ({ ...p, [it.id]: { ...st, included: v } }))
+                            }
+                          />
+                        )
                       );
                     })}
                   </CardContent>
