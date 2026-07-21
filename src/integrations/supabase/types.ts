@@ -478,6 +478,45 @@ export type Database = {
           },
         ]
       }
+      daily_executive_reports: {
+        Row: {
+          content_text: string
+          created_at: string
+          created_by: string | null
+          id: string
+          period_end: string
+          period_start: string
+          sections: Json
+          title: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          content_text?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          period_end: string
+          period_start: string
+          sections?: Json
+          title?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          content_text?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          period_end?: string
+          period_start?: string
+          sections?: Json
+          title?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       daily_meeting_attendance: {
         Row: {
           absence_id: string | null
