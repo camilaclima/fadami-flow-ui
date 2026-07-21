@@ -699,31 +699,14 @@ export default function RelatorioExecutivoPage() {
                     {s.items.map((it) => {
                       const st = state[it.id] ?? { included: true, text: it.text };
                       return (
-                        <div
+                        <ExecReportItemCard
                           key={it.id}
-                          className={`rounded-xl border p-3 space-y-2 transition-colors ${
-                            st.included ? "bg-background" : "bg-muted/30 opacity-70"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground">
-                              Incluir no relatório final
-                            </span>
-                            <Switch
-                              checked={st.included}
-                              onCheckedChange={(v) =>
-                                setState((p) => ({ ...p, [it.id]: { ...st, included: v } }))
-                              }
-                            />
-                          </div>
-                          <Textarea
-                            value={st.text}
-                            onChange={(e) =>
-                              setState((p) => ({ ...p, [it.id]: { ...st, text: e.target.value } }))
-                            }
-                            className="rounded-lg text-sm min-h-[64px]"
-                          />
-                        </div>
+                          item={it}
+                          included={st.included}
+                          onIncludeChange={(v) =>
+                            setState((p) => ({ ...p, [it.id]: { ...st, included: v } }))
+                          }
+                        />
                       );
                     })}
                   </CardContent>
