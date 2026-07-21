@@ -570,7 +570,7 @@ export default function RelatorioExecutivoPage() {
       };
     });
 
-    return [
+    const built: ReportSection[] = [
       { id: "bom_exemplo", title: "Bom exemplo por squad", icon: Award, origin: "Marcações manuais", items: bomExemplo },
       { id: "melhor_squad", title: "Melhor squad", icon: Trophy, origin: "Marcações manuais", items: melhorSquad },
       { id: "preenchimento_incorreto", title: "Preenchimentos incorretos ou vagos", icon: AlertTriangle, origin: "Regra automática + marcações manuais", items: preenchIncorreto },
@@ -580,7 +580,18 @@ export default function RelatorioExecutivoPage() {
       { id: "repetidas", title: "Tarefas repetidas ou estagnadas", icon: Repeat, origin: "Regra automática + marcações manuais", items: repetidas },
       { id: "impedimentos", title: "Impedimentos e bloqueios", icon: AlertOctagon, origin: "Dados automáticos", items: impItems },
     ];
-  }, [todayEntries, prevEntries, tagsByEntry, absences, meetings, squadMembers, impediments, impsByEntry, squadById, nameByUser]);
+    built.forEach((sec) => {
+      sec.items.forEach((it) => {
+        if (it.entry?.id) {
+          const a = actsFor(it.entry.id);
+          it.done = a.done;
+          it.inactive = a.inactive;
+          it.planned = a.planned;
+        }
+      });
+    });
+    return built;
+  }, [todayEntries, prevEntries, tagsByEntry, absences, meetings, squadMembers, impediments, impsByEntry, squadById, nameByUser, activitiesByEntry]);
 
   // Estado editável por item
   const [state, setState] = useState<Record<string, ItemState>>({});
