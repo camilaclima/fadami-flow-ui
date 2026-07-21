@@ -35,6 +35,7 @@ interface MeetingRow {
   conducted_by: string | null;
   observations: string | null;
   transcript_url: string | null;
+  duration_seconds?: number | null;
 }
 interface AttendanceRow {
   id: string;
@@ -468,16 +469,43 @@ function DayDetailDialog({
     return m;
   }, [attendance]);
 
-  // Entradas sintéticas: devs marcados na daily pelo líder (ausentes, não
-  // participou, etc.) que não preencheram registro próprio no dia. Sem elas,
-  // o histórico oculta ausências decididas pelo líder.
+  // Membros de todas as squads em escopo (para completar cards vazios em cinza).
+  const { data: squadMemberUserIds = [] } = useQuery<string[]>({
+    queryKey: ["historico_squad_members", (scopedSquadIds ?? []).slice().sort().join(",")],
+    enabled: !!day && Array.isArray(scopedSquadIds) && scopedSquadIds.length > 0,
+    queryFn: async () => {
+      const { data: sm } = await (supabase.from("squad_members") as any)
+        .select("team_member_id")
+        .in("squad_id", scopedSquadIds!);
+      const tmIds = (sm ?? []).map((r: any) => r.team_member_id);
+      if (tmIds.length === 0) return [];
+      const { data: tms } = await (supabase.from("team_members") as any)
+        .select("id,email,name").in("id", tmIds);
+      const emails = (tms ?? []).map((t: any) => String(t.email ?? "").trim().toLowerCase()).filter(Boolean);
+      const names = (tms ?? []).map((t: any) => String(t.name ?? "").trim().toLowerCase()).filter(Boolean);
+      const { data: profs } = await (supabase.from("profiles") as any)
+        .select("user_id,email,first_name,last_name");
+      const ids = (profs ?? [])
+        .filter((p: any) => {
+          const em = String(p.email ?? "").trim().toLowerCase();
+          const full = `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim().toLowerCase();
+          return (em && emails.includes(em)) || (full && names.includes(full));
+        })
+        .map((p: any) => p.user_id)
+        .filter(Boolean);
+      return Array.from(new Set(ids)) as string[];
+    },
+  });
+
+  // Entradas sintéticas: membros da squad sem registro próprio + devs marcados
+  // pelo líder (ausentes, não participou, etc.). Sem elas, o histórico oculta
+  // quem não preencheu ou ausências decididas pelo líder.
   const augmentedEntries = useMemo(() => {
     if (!day) return [] as DevEntryRow[];
     const existingUserIds = new Set(day.entries.map((e) => e.user_id));
     const seen = new Set<string>();
     const extras: DevEntryRow[] = [];
-    attendance.forEach((a) => {
-      const uid = a.member_user_id;
+    const pushVirtual = (uid: string) => {
       if (!uid) return;
       if (existingUserIds.has(uid) || seen.has(uid)) return;
       seen.add(uid);
@@ -492,9 +520,29 @@ function DayDetailDialog({
         fill_duration_seconds: null,
         created_at: "",
       });
-    });
+    };
+    // 1) todos os membros da squad em escopo.
+    squadMemberUserIds.forEach(pushVirtual);
+    // 2) marcados pelo líder (fallback quando não temos escopo de squad).
+    attendance.forEach((a) => { if (a.member_user_id) pushVirtual(a.member_user_id); });
     return [...day.entries, ...extras];
-  }, [day, attendance]);
+  }, [day, attendance, squadMemberUserIds]);
+
+  // Resumo de tempos: reunião do líder, soma dos devs, total e média.
+  const timeSummary = useMemo(() => {
+    const meetingSec = meetings.reduce((acc, m) => acc + (m.duration_seconds ?? 0), 0);
+    let devsSec = 0;
+    let devsCount = 0;
+    (day?.entries ?? []).forEach((e) => {
+      if (e.fill_duration_seconds != null) {
+        devsSec += e.fill_duration_seconds;
+        devsCount++;
+      }
+    });
+    const total = meetingSec + devsSec;
+    const avg = devsCount > 0 ? Math.round(devsSec / devsCount) : null;
+    return { meetingSec, devsSec, total, avg, devsCount };
+  }, [meetings, day]);
 
   // Reset insights ao trocar de dia.
   useEffect(() => {
@@ -538,13 +586,25 @@ function DayDetailDialog({
               </DialogTitle>
               <DialogDescription className="flex items-center gap-2 flex-wrap">
                 <Badge variant="secondary" className="gap-1">
-                  <Users className="h-3 w-3" /> {day.entries.length} {day.entries.length === 1 ? "desenvolvedor" : "desenvolvedores"}
+                  <Users className="h-3 w-3" /> {augmentedEntries.length} {augmentedEntries.length === 1 ? "desenvolvedor" : "desenvolvedores"}
                 </Badge>
                 <Badge variant="outline" className="capitalize">
                   {format(parseISO(day.date), "EEEE", { locale: ptBR })}
                 </Badge>
               </DialogDescription>
             </DialogHeader>
+
+            {(timeSummary.meetingSec > 0 || timeSummary.devsSec > 0) && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 rounded-lg border bg-muted/20 p-2">
+                <TimeStat label="Reunião do líder" value={formatDuration(timeSummary.meetingSec) ?? "—"} />
+                <TimeStat label="Preenchimento devs" value={formatDuration(timeSummary.devsSec) ?? "—"} />
+                <TimeStat label="Tempo total" value={formatDuration(timeSummary.total) ?? "—"} highlight />
+                <TimeStat
+                  label={`Média por dev${timeSummary.devsCount ? ` (${timeSummary.devsCount})` : ""}`}
+                  value={timeSummary.avg != null ? (formatDuration(timeSummary.avg) ?? "—") : "—"}
+                />
+              </div>
+            )}
 
             <Tabs defaultValue="bruto" className="flex-1 flex flex-col min-h-0">
               <TabsList className="self-start">
@@ -775,6 +835,17 @@ function Section({ label, text }: { label: string; text: string | null }) {
       <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">{label}</p>
       <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground/90">
         {text?.trim() ? text : "—"}
+      </p>
+    </div>
+  );
+}
+
+function TimeStat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className={cn("rounded-md px-2.5 py-1.5", highlight ? "bg-primary/10" : "bg-background")}>
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={cn("text-sm font-semibold flex items-center gap-1", highlight ? "text-primary" : "text-foreground")}>
+        <Clock className="h-3 w-3" /> {value}
       </p>
     </div>
   );

@@ -84,13 +84,16 @@ export function DailyReadOnlyView({
   }), [entries, attByEntry, attByUser, nameFor]);
 
   const stats = useMemo(() => {
-    let present = 0, absent = 0, noPart = 0, cam = 0;
-    rows.forEach(({ att }) => {
+    let present = 0, absent = 0, noPart = 0, cam = 0, filled = 0, noRecord = 0;
+    rows.forEach(({ entry, att }) => {
+      const isVirtual = String(entry.id).startsWith("virtual:");
+      if (!isVirtual) filled++;
       if (att?.absent_from_work) absent++;
       else if (att?.did_not_participate) noPart++;
-      else { present++; if (att?.camera_on) cam++; }
+      else if (att) { present++; if (att.camera_on) cam++; }
+      else noRecord++;
     });
-    return { total: rows.length, present, absent, noPart, cam };
+    return { total: rows.length, present, absent, noPart, cam, filled, noRecord };
   }, [rows]);
 
   const dateObj = (() => { try { return parseISO(date); } catch { return new Date(date); } })();
@@ -104,6 +107,10 @@ export function DailyReadOnlyView({
           <span className="text-muted-foreground">Presença</span>
           <span className="font-semibold text-foreground">{stats.present}/{stats.total}</span>
         </Badge>
+        <Badge variant="outline" className="rounded-lg gap-1 font-normal">
+          <span className="text-muted-foreground">Preenchimento</span>
+          <span className="font-semibold text-foreground">{stats.filled}/{stats.total}</span>
+        </Badge>
         {stats.absent > 0 && (
           <Badge variant="outline" className="rounded-lg gap-1 font-normal border-red-500/40 text-red-600 bg-red-500/5">
             <CalendarX className="w-3 h-3" /><span className="font-semibold">{stats.absent}</span>
@@ -112,6 +119,11 @@ export function DailyReadOnlyView({
         {stats.noPart > 0 && (
           <Badge variant="outline" className="rounded-lg gap-1 font-normal border-amber-500/40 text-amber-700 bg-amber-500/5">
             <UserMinus className="w-3 h-3" /><span className="font-semibold">{stats.noPart}</span>
+          </Badge>
+        )}
+        {stats.noRecord > 0 && (
+          <Badge variant="outline" className="rounded-lg gap-1 font-normal border-border/60 text-muted-foreground">
+            <UserX className="w-3 h-3" /><span className="font-semibold">{stats.noRecord}</span> sem registro
           </Badge>
         )}
         <Badge variant="outline" className="rounded-lg gap-1 font-normal">
