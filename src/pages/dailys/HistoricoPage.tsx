@@ -851,17 +851,6 @@ function TimeStat({ label, value, highlight }: { label: string; value: string; h
   );
 }
 
-function _SectionOld({ label, text }: { label: string; text: string | null }) {
-  return (
-    <div>
-      <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">{label}</p>
-      <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground/90">
-        {text?.trim() ? text : "—"}
-      </p>
-    </div>
-  );
-}
-
 function ActivitiesSection({
   label,
   done,
