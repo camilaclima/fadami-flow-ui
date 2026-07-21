@@ -31,6 +31,11 @@ import {
   Save,
   Eye,
   Trash2,
+  ChevronDown,
+  ChevronRight,
+  Sparkles,
+  UserCheck,
+  CheckCircle2,
 } from "lucide-react";
 import { format, parseISO, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -40,6 +45,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useSquads } from "@/hooks/useSquads";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useDevDailyImpedimentsByEntries, URGENCY_LABELS } from "@/hooks/useDevDailyImpediments";
+import { URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
+import { formatOpenFor } from "@/lib/formatDuration";
 import { useDailyEntryTagsByEntries } from "@/hooks/useDailyEntryTags";
 import { DEV_ABSENCE_LABELS, type DevAbsenceType } from "@/hooks/useDevAbsences";
 import {
@@ -70,6 +77,13 @@ interface ReportItem {
   id: string;
   text: string;
   meta?: string;
+  origin: "auto" | "manual" | "both";
+  date?: string;
+  subject: string;
+  squadName?: string;
+  entry?: any;
+  impediments?: any[];
+  extraDetails?: string;
 }
 
 interface ReportSection {
@@ -257,6 +271,16 @@ export default function RelatorioExecutivoPage() {
     return withDate ? `${fmtShort(e.entry_date)} — ${base}` : base;
   };
 
+  const impsByEntry = useMemo(() => {
+    const m = new Map<string, any[]>();
+    (impediments as any[]).forEach((imp) => {
+      const arr = m.get(imp.entry_id) ?? [];
+      arr.push(imp);
+      m.set(imp.entry_id, arr);
+    });
+    return m;
+  }, [impediments]);
+
   // ============ Construção das seções ============
   const sections: ReportSection[] = useMemo(() => {
     const bomExemplo: ReportItem[] = [];
@@ -276,9 +300,21 @@ export default function RelatorioExecutivoPage() {
     (todayEntries as any[]).forEach((e) => {
       const tags = tagsByEntry.get(e.id) ?? [];
       const label = entryLabel(e);
+      const dev = nameByUser.get(e.user_id) ?? "Dev";
+      const sqName = e.squad_id ? squadById.get(e.squad_id)?.name ?? "Squad" : "Sem squad";
+      const entryImps = impsByEntry.get(e.id) ?? [];
       const isManualBom = tags.includes("bom_exemplo");
       if (isManualBom) {
-        bomExemplo.push({ id: `be-${e.id}`, text: `${label} — bom exemplo de preenchimento.` });
+        bomExemplo.push({
+          id: `be-${e.id}`,
+          text: `${label} — bom exemplo de preenchimento.`,
+          origin: "manual",
+          date: e.entry_date,
+          subject: dev,
+          squadName: sqName,
+          entry: e,
+          impediments: entryImps,
+        });
       }
       if (tags.includes("melhor_squad") && e.squad_id) {
         if (!squadMelhorTagged.has(e.squad_id)) squadMelhorTagged.set(e.squad_id, new Set());
@@ -294,9 +330,17 @@ export default function RelatorioExecutivoPage() {
         const parts: string[] = [];
         if (shortReasons.length > 0) parts.push(shortReasons.join(" e "));
         if (isManualIncorrect) parts.push("marcado pelo Admin");
+        const origin: ReportItem["origin"] =
+          shortReasons.length > 0 && isManualIncorrect ? "both" : isManualIncorrect ? "manual" : "auto";
         preenchIncorreto.push({
           id: `pi-${e.id}`,
           text: `${label} — ${parts.join("; ")}.`,
+          origin,
+          date: e.entry_date,
+          subject: dev,
+          squadName: sqName,
+          entry: e,
+          impediments: entryImps,
         });
       }
 
@@ -308,9 +352,17 @@ export default function RelatorioExecutivoPage() {
         const originParts: string[] = [];
         if (isAwaiting) originParts.push("texto contém indicação de aguardo");
         if (isManualAwait) originParts.push("marcado pelo Admin");
+        const origin: ReportItem["origin"] =
+          isAwaiting && isManualAwait ? "both" : isManualAwait ? "manual" : "auto";
         aguardando.push({
           id: `aw-${e.id}`,
           text: `${label} — ${originParts.join(" · ")}${trecho ? ` ("${trecho}${trecho.length >= 120 ? "…" : ""}")` : ""}.`,
+          origin,
+          date: e.entry_date,
+          subject: dev,
+          squadName: sqName,
+          entry: e,
+          impediments: entryImps,
         });
       }
 
@@ -326,9 +378,20 @@ export default function RelatorioExecutivoPage() {
         const originParts: string[] = [];
         if (isAutoRepeat) originParts.push(`repetiu tarefa do dia anterior (${fmtShort(prev.entry_date)})`);
         if (isManualRepeat) originParts.push("marcado pelo Admin");
+        const origin: ReportItem["origin"] =
+          isAutoRepeat && isManualRepeat ? "both" : isManualRepeat ? "manual" : "auto";
         repetidas.push({
           id: `rp-${e.id}`,
           text: `${label} — ${originParts.join(" · ")}.`,
+          origin,
+          date: e.entry_date,
+          subject: dev,
+          squadName: sqName,
+          entry: e,
+          impediments: entryImps,
+          extraDetails: isAutoRepeat && prev?.will_do_today
+            ? `Dia anterior (${fmtShort(prev.entry_date)}): ${prev.will_do_today}`
+            : undefined,
         });
       }
     });
@@ -336,9 +399,15 @@ export default function RelatorioExecutivoPage() {
     squadMelhorTagged.forEach((dates, sid) => {
       const sq = squadById.get(sid);
       const dateList = Array.from(dates).sort().map(fmtShort).join(", ");
+      const sortedDates = Array.from(dates).sort();
       melhorSquad.push({
         id: `ms-${sid}`,
         text: `${sq?.name ?? "Squad"} — destaque como melhor squad (${dateList}).`,
+        origin: "manual",
+        date: sortedDates[sortedDates.length - 1],
+        subject: sq?.name ?? "Squad",
+        squadName: sq?.name,
+        extraDetails: `Dias marcados: ${dateList}`,
       });
     });
 
@@ -354,6 +423,10 @@ export default function RelatorioExecutivoPage() {
       return {
         id: `ab-${a.id}`,
         text: `${nm} — ${tipo} (${periodo})${motivo}.`,
+        origin: "auto",
+        date: a.start_date,
+        subject: nm,
+        extraDetails: `${tipo} — ${periodo}${a.notes ? `\nMotivo: ${a.notes}` : ""}`,
       };
     });
 
@@ -382,6 +455,11 @@ export default function RelatorioExecutivoPage() {
             semPreDaily.push({
               id: `sp-${m.user_id}-${m.squad_id}-${mdate}`,
               text: `${fmtShort(mdate)} — ${m.name} · ${sqName} — não enviou o registro até o encerramento da daily.`,
+              origin: "auto",
+              date: mdate,
+              subject: m.name,
+              squadName: sqName,
+              extraDetails: "Não enviou o registro até o encerramento da daily.",
             });
             return;
           }
@@ -391,11 +469,23 @@ export default function RelatorioExecutivoPage() {
             semPreDaily.push({
               id: `sp-${m.user_id}-${m.squad_id}-${mdate}`,
               text: `${fmtShort(mdate)} — ${m.name} · ${sqName} — enviou ${atrasoMin} min após o início da daily.`,
+              origin: "auto",
+              date: mdate,
+              subject: m.name,
+              squadName: sqName,
+              entry,
+              impediments: impsByEntry.get(entry.id) ?? [],
+              extraDetails: `Enviou ${atrasoMin} min após o início da daily.`,
             });
           } else if (!fill && finishedAt) {
             semPreDaily.push({
               id: `sp-${m.user_id}-${m.squad_id}-${mdate}`,
               text: `${fmtShort(mdate)} — ${m.name} · ${sqName} — não enviou até o encerramento da daily.`,
+              origin: "auto",
+              date: mdate,
+              subject: m.name,
+              squadName: sqName,
+              extraDetails: "Não enviou até o encerramento da daily.",
             });
           }
         });
@@ -410,9 +500,17 @@ export default function RelatorioExecutivoPage() {
       const status = imp.resolved
         ? `sanado${imp.resolved_at ? ` em ${format(parseISO(imp.resolved_at), "dd/MM HH:mm", { locale: ptBR })}` : ""}`
         : "em aberto";
+      const dev = e ? (nameByUser.get(e.user_id) ?? "Dev") : "—";
+      const sqName = e?.squad_id ? squadById.get(e.squad_id)?.name ?? "Squad" : undefined;
       return {
         id: `imp-${imp.id}`,
         text: `${label} — [${URGENCY_LABELS[imp.urgency]}] ${imp.description} (${status}).`,
+        origin: "auto",
+        date: e?.entry_date,
+        subject: dev,
+        squadName: sqName,
+        entry: e,
+        impediments: [imp],
       };
     });
 
@@ -426,7 +524,7 @@ export default function RelatorioExecutivoPage() {
       { id: "repetidas", title: "Tarefas repetidas ou estagnadas", icon: Repeat, origin: "Regra automática + marcações manuais", items: repetidas },
       { id: "impedimentos", title: "Impedimentos e bloqueios", icon: AlertOctagon, origin: "Dados automáticos", items: impItems },
     ];
-  }, [todayEntries, prevEntries, tagsByEntry, absences, meetings, squadMembers, impediments, squadById, nameByUser]);
+  }, [todayEntries, prevEntries, tagsByEntry, absences, meetings, squadMembers, impediments, impsByEntry, squadById, nameByUser]);
 
   // Estado editável por item
   const [state, setState] = useState<Record<string, ItemState>>({});
@@ -601,31 +699,14 @@ export default function RelatorioExecutivoPage() {
                     {s.items.map((it) => {
                       const st = state[it.id] ?? { included: true, text: it.text };
                       return (
-                        <div
+                        <ExecReportItemCard
                           key={it.id}
-                          className={`rounded-xl border p-3 space-y-2 transition-colors ${
-                            st.included ? "bg-background" : "bg-muted/30 opacity-70"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground">
-                              Incluir no relatório final
-                            </span>
-                            <Switch
-                              checked={st.included}
-                              onCheckedChange={(v) =>
-                                setState((p) => ({ ...p, [it.id]: { ...st, included: v } }))
-                              }
-                            />
-                          </div>
-                          <Textarea
-                            value={st.text}
-                            onChange={(e) =>
-                              setState((p) => ({ ...p, [it.id]: { ...st, text: e.target.value } }))
-                            }
-                            className="rounded-lg text-sm min-h-[64px]"
-                          />
-                        </div>
+                          item={it}
+                          included={st.included}
+                          onIncludeChange={(v) =>
+                            setState((p) => ({ ...p, [it.id]: { ...st, included: v } }))
+                          }
+                        />
                       );
                     })}
                   </CardContent>
@@ -861,4 +942,224 @@ function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+// ============================================================
+// Card colapsável de item do relatório — visual do histórico
+// ============================================================
+const initialsOf = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase() ?? "")
+    .join("") || "?";
+
+function ExecReportItemCard({
+  item,
+  included,
+  onIncludeChange,
+}: {
+  item: ReportItem;
+  included: boolean;
+  onIncludeChange: (v: boolean) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const entry = item.entry;
+  const imps = item.impediments ?? [];
+  const openImps = imps.filter((i) => !i.resolved);
+  const resolvedImps = imps.filter((i) => i.resolved);
+
+  const originBadge = (() => {
+    if (item.origin === "manual")
+      return { label: "Manual", className: "bg-primary/10 text-primary border-primary/30" };
+    if (item.origin === "both")
+      return { label: "Auto + Manual", className: "bg-violet-500/10 text-violet-600 border-violet-500/30" };
+    return { label: "Automático", className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" };
+  })();
+
+  const dateStr = item.date ? fmtShort(item.date) : null;
+
+  return (
+    <Card
+      className={`rounded-xl overflow-hidden transition-all ${
+        included ? "border-border/70" : "border-border/50 bg-muted/30 opacity-70"
+      } ${openImps.length > 0 ? "border-l-4 border-l-orange-500" : ""}`}
+    >
+      <CardContent className="p-0">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setOpen((v) => !v)}
+          onKeyDown={(ev) => {
+            if (ev.key === "Enter" || ev.key === " ") {
+              ev.preventDefault();
+              setOpen((v) => !v);
+            }
+          }}
+          className="w-full flex items-center gap-3 p-3 text-left hover:bg-muted/30 transition-colors cursor-pointer"
+        >
+          <div className="text-muted-foreground shrink-0">
+            {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </div>
+          <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 bg-primary/10 text-primary">
+            {initialsOf(item.subject)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-semibold text-sm leading-tight">{item.subject}</span>
+              {item.squadName && (
+                <Badge variant="outline" className="text-[10px] bg-muted/40">
+                  {item.squadName}
+                </Badge>
+              )}
+              <Badge variant="outline" className={`text-[10px] gap-1 ${originBadge.className}`}>
+                <Sparkles className="w-2.5 h-2.5" />
+                {originBadge.label}
+              </Badge>
+              {dateStr && (
+                <Badge variant="outline" className="text-[10px] gap-1">
+                  <Clock className="w-2.5 h-2.5" /> {dateStr}
+                </Badge>
+              )}
+              {openImps.length > 0 && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30 gap-1"
+                >
+                  <AlertTriangle className="w-2.5 h-2.5" />
+                  {openImps.length} {openImps.length > 1 ? "impedimentos" : "impedimento"}
+                </Badge>
+              )}
+            </div>
+          </div>
+          <div
+            className="flex items-center gap-2 shrink-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground hidden md:inline">
+              Incluir
+            </span>
+            <Switch checked={included} onCheckedChange={onIncludeChange} />
+          </div>
+        </div>
+
+        {open && (
+          <div className="px-3 pb-3 pt-1 space-y-3 border-t bg-background/40">
+            {entry && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="rounded-lg bg-muted/40 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-1">
+                    Ontem
+                  </p>
+                  <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">
+                    {entry.did_yesterday || "—"}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-primary/5 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-wide font-semibold text-primary/80 mb-1">
+                    Hoje
+                  </p>
+                  <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">
+                    {entry.will_do_today || "—"}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {entry?.general_notes?.trim() && (
+              <div className="rounded-lg border bg-muted/20 px-3 py-2">
+                <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-1">
+                  Observações gerais do dev
+                </p>
+                <p className="text-xs whitespace-pre-wrap break-words text-foreground/90">
+                  {entry.general_notes}
+                </p>
+              </div>
+            )}
+
+            {openImps.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[10px] uppercase tracking-wide font-semibold text-orange-600">
+                  Impedimentos abertos
+                </p>
+                {openImps.map((imp) => (
+                  <div
+                    key={imp.id}
+                    className="flex items-start gap-2 p-2.5 rounded-lg bg-orange-500/5 border border-orange-500/20"
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5 text-orange-600 mt-0.5 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs whitespace-pre-wrap break-words text-foreground/90">
+                        {imp.description}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] ${URGENCY_STYLES[imp.urgency as keyof typeof URGENCY_STYLES]}`}
+                        >
+                          {URGENCY_LABELS[imp.urgency as keyof typeof URGENCY_LABELS]}
+                        </Badge>
+                        {imp.created_at && (
+                          <span className="text-[10px] text-orange-700/80 dark:text-orange-400/80 inline-flex items-center gap-1">
+                            <Clock className="w-2.5 h-2.5" /> Aberto há {formatOpenFor(imp.created_at)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {resolvedImps.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[10px] uppercase tracking-wide font-semibold text-emerald-600">
+                  Impedimentos sanados
+                </p>
+                {resolvedImps.map((imp) => (
+                  <div
+                    key={imp.id}
+                    className="flex items-start gap-2 p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/20"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs whitespace-pre-wrap break-words text-foreground/90">
+                        {imp.description}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] ${URGENCY_STYLES[imp.urgency as keyof typeof URGENCY_STYLES]}`}
+                        >
+                          {URGENCY_LABELS[imp.urgency as keyof typeof URGENCY_LABELS]}
+                        </Badge>
+                        {imp.created_at && imp.resolved_at && (
+                          <span className="text-[10px] text-emerald-700/80 dark:text-emerald-400/80 inline-flex items-center gap-1">
+                            <Clock className="w-2.5 h-2.5" /> Aberto por {formatOpenFor(imp.created_at, imp.resolved_at)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {item.extraDetails && (
+              <div className="rounded-lg border bg-muted/20 px-3 py-2">
+                <p className="text-xs whitespace-pre-wrap break-words text-foreground/90">
+                  {item.extraDetails}
+                </p>
+              </div>
+            )}
+
+            {!entry && !item.extraDetails && (
+              <p className="text-xs text-muted-foreground italic">{item.text}</p>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
