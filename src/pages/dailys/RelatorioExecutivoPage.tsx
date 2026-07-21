@@ -149,7 +149,7 @@ function fmtLong(iso: string) {
   }
 }
 
-export default function RelatorioExecutivoPage() {
+export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnly?: boolean } = {}) {
   const [dateFrom, setDateFrom] = useState<string>(todayISO());
   const [dateTo, setDateTo] = useState<string>(todayISO());
   const effectiveFrom = dateFrom <= dateTo ? dateFrom : dateTo;
