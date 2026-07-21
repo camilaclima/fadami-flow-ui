@@ -1,51 +1,89 @@
-## O que vamos ajustar
+## Nova aba "Relatório Executivo" no Painel da Daily (só para Admin)
 
-### 1) Mostrar há quanto tempo cada impedimento está (ou ficou) aberto
+Uma aba exclusiva do Admin dentro do Painel da Daily que monta um relatório diário automático, permite marcações manuais no histórico e exporta em PDF ou texto.
 
-Onde o impedimento aparece hoje sem essa informação:
-- Modal "Iniciar Daily" do líder (`IniciarDailyModal.tsx`) — blocos "Impedimentos abertos" e "Impedimentos sanados" dentro do card do dev.
-- Visão consolidada da daily (`DailyReadOnlyView.tsx`) — mesmos blocos.
-- Histórico individual do dev (`DevHistoryModal.tsx`) — mesmos blocos.
+---
 
-Vamos adicionar, ao lado do badge de urgência (Alta/Média/Baixa):
-- **Se está aberto:** "Aberto há 3d" (ou "há 4h", "há 12d") — calculado como agora − `created_at`.
-- **Se está sanado:** "Ficou aberto por 5d" — calculado como `resolved_at` − `created_at`. Também mantemos o "Sanado dd/MM HH:mm" que já existe.
+### 1. O que aparece na tela
 
-Formato humano ("2h", "3d", "1d 4h") — vamos criar um helper pequeno em `src/lib/formatDuration.ts` (`formatOpenFor(from, to)`) reutilizando o padrão do `formatDuration` que já existe.
+Dentro do **Painel da Daily**, uma nova aba **"Relatório Executivo"** — visível apenas para quem tem perfil Admin.
 
-### 2) Contador de impedimentos por dia na aba Histórico
+No topo da aba: seletor de **data** da emissão do relatório (padrão: hoje).
 
-**Problema:** hoje o card de cada dia mostra `totalImps` = soma dos impedimentos **criados naquele entry_date**. Se ninguém abriu impedimento novo no dia 20, mas o time tem 11 em aberto herdados de dias anteriores, o card mostra "0 impedimento". Já dentro do modal do dia, os impedimentos abertos herdados aparecem corretamente (via `impsByEntry` que olha `<= D` e ainda em aberto).
+Abaixo, oito cartões, um para cada tópico do relatório:
 
-**Correção:** trocar o cálculo do card pelo mesmo critério do modal — para cada dia D, contar impedimentos:
-- criados por qualquer usuário da squad em escopo com `created_at::date <= D`, e
-- ainda em aberto em D (`resolved = false` OU `resolved_at::date >= D`).
+1. **Bom exemplo por squad** — vem das marcações manuais do Admin.
+2. **Melhor squad** — vem das marcações manuais do Admin.
+3. **Preenchimentos incorretos ou vagos** — automático (regras) + marcações manuais.
+4. **Faltas recentes** — automático.
+5. **Sem pré-daily no prazo** — automático.
+6. **Aguardando tarefas** — automático (palavras-chave) + marcações manuais.
+7. **Tarefas repetidas ou estagnadas** — automático.
+8. **Impedimentos e bloqueios** — automático (abertos e fechados no dia).
 
-Como já buscamos entries dos usuários filtrados via `useDevDailyEntries`, faremos um único fetch em `HistoricoPage` de todos os impedimentos ligados a esses entries e calcularemos o contador por dia com essa regra. O badge passa a mostrar o número real de impedimentos "vivos" no fim daquele dia.
+Em cada item dos cartões:
 
-Nota: se o filtro de squad estiver ativo, contamos apenas impedimentos originados em entries daquela squad (`entry.squad_id === filterSquadId` ou `null` para legado, alinhado ao resto da tela).
+- Uma **chave "Incluir no Relatório Final"** já vem ligada.
+- O texto é **editável** direto na tela antes de exportar.
+- O Admin pode desligar itens que não quer no relatório final.
 
-### 3) Mesma correção no histórico individual do dev (DevHistoryModal)
+No rodapé da aba, dois botões:
 
-Hoje cada linha do histórico do dev mostra "N aberto(s)" contando só impedimentos criados naquele entry. Vamos trocar por: número de impedimentos do dev que estavam abertos até o fim daquele `entry_date` (mesma regra do item 2, escopada a `user_id`). Assim, no exemplo do dia 20/07, aparecem os impedimentos herdados que ainda estão abertos, não só os criados naquele dia.
+- **Gerar PDF** — abre a impressão do navegador com o layout limpo do sistema.
+- **Copiar Texto Formatado** — copia o relatório pronto para colar em e-mail ou chat.
 
-O badge "sanado" também passa a contar impedimentos do dev **sanados naquele dia** (não só os criados+sanados naquele entry), coerente com a leitura de linha do tempo.
+---
 
-### 4) Aumentar o Popover de ausência
+### 2. Regras automáticas (sem uso de IA)
 
-No `IniciarDailyModal.tsx`, o `PopoverContent` da linha 572 é `w-72` e corta o texto dos botões "Banco de horas" e "Interjornada" e os inputs de data. Vamos:
-- Aumentar para `w-96` (ou `min-w-[22rem]`) e permitir que os botões de tipo não trunquem — remover `truncate` dos labels de tipo e deixar em duas colunas com `whitespace-nowrap`.
-- Garantir que os inputs de Início/Fim caibam lado a lado sem overflow.
+O sistema aplica estas regras direto no código, olhando o que já está no banco:
 
-## Onde vamos mexer
+- **Sem pré-daily no prazo**: quem enviou o registro depois do início da daily da squad, ou não enviou até o encerramento.
+- **Aguardando tarefas**: o texto do campo "Hoje" contém qualquer uma destas expressões (sem diferenciar maiúsculas/acentos): *aguardando, no aguardo, sem card, sem demanda, a definir, aguardando definição, sem tarefa*.
+- **Preenchimento curto/incompleto**: quando "Ontem" ou "Hoje" tem menos de 15 caracteres.
+- **Tarefa repetida**: quando o "Hoje" é igual (ou muito parecido) com o "Hoje" que aquele dev escreveu no dia anterior.
+- **Faltas**: devs marcados como ausentes em qualquer squad nos últimos 7 dias, mostrando o motivo informado pelo líder (atestado, férias, banco de horas, interjornada, day off etc.).
+- **Impedimentos**: lista tudo que foi aberto ou fechado no dia, com urgência e tempo em aberto.
 
-- `src/lib/formatDuration.ts` — novo helper `formatOpenFor(fromISO, toISO?)` que devolve "3d", "4h", "1d 5h".
-- `src/components/dailys/IniciarDailyModal.tsx` — badges de duração nos impedimentos + Popover de ausência maior.
-- `src/components/dailys/DailyReadOnlyView.tsx` — badges de duração nos impedimentos.
-- `src/components/dailys/DevHistoryModal.tsx` — badges de duração + corrigir contador de "aberto/sanado" por dia usando regra de linha do tempo.
-- `src/pages/dailys/HistoricoPage.tsx` — corrigir `impCountByEntry` (na verdade contador por dia) para refletir impedimentos vivos no fim daquele dia, respeitando o filtro de squad.
+---
 
-## Fora de escopo
+### 3. Marcações manuais no Histórico
 
-- Mudanças no fluxo de criação/resolução de impedimento.
-- Mudanças no schema do banco.
+Dentro do modal de **Histórico da Daily** que já existe, para cada registro de dev, o Admin ganha um seletor de múltipla escolha com estas etiquetas:
+
+- **Bom Exemplo**
+- **Melhor Squad**
+- **Preenchimento Incorreto ou Incompleto**
+- **Aguardando Tarefa**
+
+As escolhas são salvas na hora, ligadas ao registro daquele dev naquele dia. Depois aparecem automaticamente nos cartões do Relatório Executivo.
+
+---
+
+### 4. Como fica salvo
+
+Uma nova tabela no banco guarda essas etiquetas por registro (id do registro do dev + lista de etiquetas). Só quem for Admin consegue criar/alterar. Todos os dados dos relatórios continuam vindo das tabelas que já existem (registros de daily, impedimentos, ausências, reuniões).
+
+---
+
+### 5. Design e desempenho
+
+- Segue o design system atual: cards arredondados, tema escuro/claro, tokens de cor existentes, sem inventar estilo novo.
+- O PDF sai limpo (fundo claro, tipografia do sistema, logo Fadami no topo) via impressão nativa do navegador.
+- Os dados são carregados em paralelo e ficam em cache para a tela não travar. O estado dos itens (incluído/excluído, texto editado) fica na memória da aba até o Admin fechar.
+
+---
+
+### 6. Onde as coisas serão criadas ou alteradas
+
+Novos:
+
+- Migration para a tabela de etiquetas manuais.
+- Página "Relatório Executivo" e seus cartões.
+- Arquivo com as regras automáticas.
+- Hooks para ler os dados e salvar as etiquetas.
+
+Alterados:
+
+- Painel da Daily: adicionar a nova aba (visível só para Admin).
+- Modal de Histórico da Daily e cartão de leitura do dev: adicionar o seletor de etiquetas.
