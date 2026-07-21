@@ -50,6 +50,11 @@ import { formatOpenFor } from "@/lib/formatDuration";
 import { useDailyEntryTagsByEntries } from "@/hooks/useDailyEntryTags";
 import { DEV_ABSENCE_LABELS, type DevAbsenceType } from "@/hooks/useDevAbsences";
 import {
+  useDevDailyActivitiesByUsers,
+  type DevDailyActivity,
+} from "@/hooks/useDevDailyActivities";
+import { DevActivityCard } from "@/components/dailys/DevActivityCard";
+import {
   isAwaitingTask,
   isRepeatedFromPrev,
   isShortText,
@@ -83,6 +88,9 @@ interface ReportItem {
   squadName?: string;
   entry?: any;
   impediments?: any[];
+  done?: DevDailyActivity[];
+  inactive?: DevDailyActivity[];
+  planned?: DevDailyActivity[];
   extraDetails?: string;
 }
 
