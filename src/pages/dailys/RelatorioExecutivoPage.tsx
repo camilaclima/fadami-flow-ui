@@ -1006,9 +1006,6 @@ function SavedReportsPanel() {
   const del = useDeleteExecutiveReport();
   const [viewing, setViewing] = useState<ExecutiveReport | null>(null);
   const hydrated = useHydratedSections(viewing);
-  const [pdfBusy, setPdfBusy] = useState<string | null>(null);
-  const hydratedForPdf = useHydratedSections(null); // placeholder — handled below
-  void hydratedForPdf;
 
   return (
     <div>
