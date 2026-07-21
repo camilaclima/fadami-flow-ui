@@ -377,7 +377,11 @@ function DayDetailDialog({
 
   // Busca por usuário — assim vemos carry-overs pendentes cuja origem é um entry
   // de dia anterior (não pertence a dayEntryIds).
-  const { data: dayActivities = [] } = useDevDailyActivitiesByUsers(dayUserIds);
+  const { data: dayActivitiesRaw = [] } = useDevDailyActivitiesByUsers(dayUserIds);
+  const dayActivities = useMemo(() => {
+    if (!filterSquadId) return dayActivitiesRaw;
+    return dayActivitiesRaw.filter((a: any) => a.squad_id === filterSquadId || a.squad_id == null);
+  }, [dayActivitiesRaw, filterSquadId]);
 
   const activitiesByEntry = useMemo(() => {
     const done = new Map<string, DevDailyActivity[]>();
