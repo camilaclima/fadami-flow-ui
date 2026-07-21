@@ -35,6 +35,7 @@ interface MeetingRow {
   conducted_by: string | null;
   observations: string | null;
   transcript_url: string | null;
+  duration_seconds?: number | null;
 }
 interface AttendanceRow {
   id: string;
