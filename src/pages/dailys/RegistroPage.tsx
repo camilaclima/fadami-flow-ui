@@ -33,6 +33,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { DevActivityCard } from "@/components/dailys/DevActivityCard";
+import { formatOpenFor } from "@/lib/formatDuration";
 import { useDevDailyEntriesByUser, useUpsertDevDailyEntry } from "@/hooks/useDevDailyEntries";
 import {
   useDevDailyImpedimentsByEntries,
