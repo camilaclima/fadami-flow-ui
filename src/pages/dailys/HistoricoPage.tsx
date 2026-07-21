@@ -840,6 +840,28 @@ function Section({ label, text }: { label: string; text: string | null }) {
   );
 }
 
+function TimeStat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className={cn("rounded-md px-2.5 py-1.5", highlight ? "bg-primary/10" : "bg-background")}>
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={cn("text-sm font-semibold flex items-center gap-1", highlight ? "text-primary" : "text-foreground")}>
+        <Clock className="h-3 w-3" /> {value}
+      </p>
+    </div>
+  );
+}
+
+function _SectionOld({ label, text }: { label: string; text: string | null }) {
+  return (
+    <div>
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">{label}</p>
+      <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground/90">
+        {text?.trim() ? text : "—"}
+      </p>
+    </div>
+  );
+}
+
 function ActivitiesSection({
   label,
   done,
