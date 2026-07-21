@@ -37,15 +37,22 @@ import {
   UserCheck,
   CheckCircle2,
 } from "lucide-react";
-import { format, parseISO, subDays } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useSquads } from "@/hooks/useSquads";
 import { useProfiles } from "@/hooks/useProfiles";
-import { useDevDailyImpedimentsByEntries, URGENCY_LABELS } from "@/hooks/useDevDailyImpediments";
-import { URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
+import { URGENCY_LABELS, URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, X } from "lucide-react";
 import { formatOpenFor } from "@/lib/formatDuration";
 import { useDailyEntryTagsByEntries } from "@/hooks/useDailyEntryTags";
 import { DEV_ABSENCE_LABELS, type DevAbsenceType } from "@/hooks/useDevAbsences";
@@ -146,10 +153,6 @@ export default function RelatorioExecutivoPage() {
   const [dateTo, setDateTo] = useState<string>(todayISO());
   const effectiveFrom = dateFrom <= dateTo ? dateFrom : dateTo;
   const effectiveTo = dateFrom <= dateTo ? dateTo : dateFrom;
-  const sevenDaysAgo = useMemo(() => {
-    const d = subDays(parseISO(effectiveTo), 6);
-    return format(d, "yyyy-MM-dd");
-  }, [effectiveTo]);
   // Faixa alargada para buscar entries do dia útil anterior a cada data do intervalo.
   const prevRangeFrom = useMemo(
     () => prevBusinessDay(effectiveFrom),
@@ -213,15 +216,32 @@ export default function RelatorioExecutivoPage() {
     },
   });
 
-  // Ausências ativas cobrindo os últimos 7 dias.
+  // Ausências ativas que sobrepõem o intervalo do filtro.
   const { data: absences = [] } = useQuery({
-    queryKey: ["exec-report", "absences", effectiveTo, sevenDaysAgo],
+    queryKey: ["exec-report", "absences", effectiveFrom, effectiveTo],
     queryFn: async () => {
       const { data, error } = await (supabase.from("dev_absences") as any)
         .select("*")
         .eq("active", true)
         .lte("start_date", effectiveTo)
-        .gte("end_date", sevenDaysAgo);
+        .gte("end_date", effectiveFrom);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // Presenças das reuniões no intervalo (para faltas por não participação).
+  const meetingIds = useMemo(
+    () => (meetings as any[]).map((m) => m.id),
+    [meetings],
+  );
+  const { data: attendance = [] } = useQuery({
+    queryKey: ["exec-report", "attendance", meetingIds.sort().join(",")],
+    enabled: meetingIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("daily_meeting_attendance") as any)
+        .select("*")
+        .in("meeting_id", meetingIds);
       if (error) throw error;
       return data ?? [];
     },
@@ -263,8 +283,45 @@ export default function RelatorioExecutivoPage() {
   });
 
   const entryIds = useMemo(() => todayEntries.map((e: any) => e.id), [todayEntries]);
-  const { data: impediments = [] } = useDevDailyImpedimentsByEntries(entryIds);
   const { data: manualTags = [] } = useDailyEntryTagsByEntries(entryIds);
+
+  // Impedimentos: abertos, em aberto, ou sanados dentro do intervalo.
+  const { data: rangeImpediments = [] } = useQuery({
+    queryKey: ["exec-report", "impediments-range", effectiveFrom, effectiveTo],
+    queryFn: async () => {
+      const fromISO = `${effectiveFrom}T00:00:00`;
+      const toISO = `${effectiveTo}T23:59:59`;
+      const { data, error } = await (supabase.from("dev_daily_impediments") as any)
+        .select("*")
+        .lte("created_at", toISO)
+        .or(`resolved.eq.false,resolved_at.gte.${fromISO}`);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // Entries referenciadas pelos impedimentos do intervalo (podem estar fora do range de entries).
+  const impEntryIds = useMemo(
+    () => Array.from(new Set((rangeImpediments as any[]).map((i) => i.entry_id).filter(Boolean))),
+    [rangeImpediments],
+  );
+  const { data: impEntries = [] } = useQuery({
+    queryKey: ["exec-report", "imp-entries", impEntryIds.sort().join(",")],
+    enabled: impEntryIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("dev_daily_entries") as any)
+        .select("id,user_id,squad_id,entry_date,did_yesterday,will_do_today,general_notes,fill_completed_at,created_at")
+        .in("id", impEntryIds);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // Impedimentos vigentes (para o card do dev no expandido/dedupe).
+  const impediments = useMemo(
+    () => rangeImpediments as any[],
+    [rangeImpediments],
+  );
 
   const userIdsForActivities = useMemo(
     () => Array.from(new Set((todayEntries as any[]).map((e) => e.user_id).filter(Boolean))),
@@ -337,6 +394,27 @@ export default function RelatorioExecutivoPage() {
     return m;
   }, [impediments]);
 
+  // Estado local: seleção manual de "Melhor Squad" com motivo.
+  const [melhorSquadPicks, setMelhorSquadPicks] = useState<
+    Array<{ id: string; squadId: string; reason: string }>
+  >([]);
+  const [msSquadId, setMsSquadId] = useState<string>("");
+  const [msReason, setMsReason] = useState<string>("");
+  const addMelhorSquad = () => {
+    if (!msSquadId) {
+      toast.error("Selecione uma squad");
+      return;
+    }
+    setMelhorSquadPicks((prev) => [
+      ...prev,
+      { id: `ms-${msSquadId}-${Date.now()}`, squadId: msSquadId, reason: msReason.trim() },
+    ]);
+    setMsSquadId("");
+    setMsReason("");
+  };
+  const removeMelhorSquad = (id: string) =>
+    setMelhorSquadPicks((prev) => prev.filter((p) => p.id !== id));
+
   // ============ Construção das seções ============
   const sections: ReportSection[] = useMemo(() => {
     const bomExemplo: ReportItem[] = [];
@@ -350,8 +428,6 @@ export default function RelatorioExecutivoPage() {
     (prevEntries as any[]).forEach((p) =>
       prevByUserDate.set(`${p.user_id}|${p.entry_date}`, p),
     );
-
-    const squadMelhorTagged = new Map<string, Set<string>>(); // squad_id -> dates
 
     (todayEntries as any[]).forEach((e) => {
       const tags = tagsByEntry.get(e.id) ?? [];
@@ -371,10 +447,6 @@ export default function RelatorioExecutivoPage() {
           entry: e,
           impediments: entryImps,
         });
-      }
-      if (tags.includes("melhor_squad") && e.squad_id) {
-        if (!squadMelhorTagged.has(e.squad_id)) squadMelhorTagged.set(e.squad_id, new Set());
-        squadMelhorTagged.get(e.squad_id)!.add(e.entry_date);
       }
 
       // Preenchimento incorreto (dedup: auto + manual = 1 item)
@@ -452,23 +524,25 @@ export default function RelatorioExecutivoPage() {
       }
     });
 
-    squadMelhorTagged.forEach((dates, sid) => {
-      const sq = squadById.get(sid);
-      const dateList = Array.from(dates).sort().map(fmtShort).join(", ");
-      const sortedDates = Array.from(dates).sort();
+    // Melhor Squad — seleção manual do Admin (squad + motivo)
+    melhorSquadPicks.forEach((p) => {
+      const sq = squadById.get(p.squadId);
+      const name = sq?.name ?? "Squad";
+      const motivo = p.reason ? ` — ${p.reason}` : "";
       melhorSquad.push({
-        id: `ms-${sid}`,
-        text: `${sq?.name ?? "Squad"} — destaque como melhor squad (${dateList}).`,
+        id: p.id,
+        text: `${name} — destaque como melhor squad${motivo}.`,
         origin: "manual",
-        date: sortedDates[sortedDates.length - 1],
-        subject: sq?.name ?? "Squad",
-        squadName: sq?.name,
-        extraDetails: `Dias marcados: ${dateList}`,
+        date: effectiveTo,
+        subject: name,
+        squadName: name,
+        extraDetails: p.reason ? `Motivo: ${p.reason}` : undefined,
       });
     });
 
-    // Faltas (últimos 7 dias)
-    const faltasItems: ReportItem[] = (absences as any[]).map((a) => {
+    // Faltas — dentro do intervalo, considerando ausências cadastradas e não presenças.
+    const faltasItems: ReportItem[] = [];
+    (absences as any[]).forEach((a) => {
       const nm = nameByUser.get(a.user_id) ?? "Dev";
       const tipo = DEV_ABSENCE_LABELS[a.absence_type as DevAbsenceType] ?? a.absence_type;
       const periodo =
@@ -476,14 +550,41 @@ export default function RelatorioExecutivoPage() {
           ? format(parseISO(a.start_date), "dd/MM", { locale: ptBR })
           : `${format(parseISO(a.start_date), "dd/MM", { locale: ptBR })} a ${format(parseISO(a.end_date), "dd/MM", { locale: ptBR })}`;
       const motivo = a.notes ? ` — motivo: ${a.notes}` : "";
-      return {
+      faltasItems.push({
         id: `ab-${a.id}`,
         text: `${nm} — ${tipo} (${periodo})${motivo}.`,
         origin: "auto",
         date: a.start_date,
         subject: nm,
         extraDetails: `${tipo} — ${periodo}${a.notes ? `\nMotivo: ${a.notes}` : ""}`,
-      };
+      });
+    });
+    // Faltas por não presença em reunião (attendance com absent_from_work ou did_not_participate).
+    const meetingById = new Map<string, any>();
+    (meetings as any[]).forEach((m) => meetingById.set(m.id, m));
+    (attendance as any[]).forEach((a) => {
+      const meeting = meetingById.get(a.meeting_id);
+      if (!meeting) return;
+      const absent = a.absent_from_work === true;
+      const didNot = a.did_not_participate === true;
+      if (!absent && !didNot) return;
+      const nm =
+        a.member_name ||
+        (a.member_user_id ? nameByUser.get(a.member_user_id) : null) ||
+        "Dev";
+      const sqName = meeting.squad_id ? squadById.get(meeting.squad_id)?.name ?? "Squad" : "—";
+      const tipoLabel = absent ? "Ausente do trabalho" : "Não participou da daily";
+      const reason = (a.non_participation_reason || a.notes || "").trim();
+      const motivo = reason ? ` — motivo: ${reason}` : " — sem motivo informado";
+      faltasItems.push({
+        id: `att-${a.id}`,
+        text: `${fmtShort(meeting.meeting_date)} — ${nm} · ${sqName} — ${tipoLabel}${motivo}.`,
+        origin: "auto",
+        date: meeting.meeting_date,
+        subject: nm,
+        squadName: sqName,
+        extraDetails: `${tipoLabel}${reason ? `\nMotivo: ${reason}` : "\nSem motivo informado."}`,
+      });
     });
 
     // Sem pré-daily no prazo
@@ -547,22 +648,31 @@ export default function RelatorioExecutivoPage() {
         });
     });
 
-    // Impedimentos abertos/fechados no intervalo
+    // Impedimentos: abertos no intervalo, ainda em aberto, ou sanados no intervalo.
     const entryById = new Map<string, any>();
     (todayEntries as any[]).forEach((e) => entryById.set(e.id, e));
-    const impItems: ReportItem[] = impediments.map((imp) => {
+    (impEntries as any[]).forEach((e) => {
+      if (!entryById.has(e.id)) entryById.set(e.id, e);
+    });
+    const impItems: ReportItem[] = (rangeImpediments as any[]).map((imp) => {
       const e = entryById.get(imp.entry_id);
-      const label = e ? entryLabel(e) : "—";
-      const status = imp.resolved
-        ? `sanado${imp.resolved_at ? ` em ${format(parseISO(imp.resolved_at), "dd/MM HH:mm", { locale: ptBR })}` : ""}`
-        : "em aberto";
+      const openedAt = imp.created_at
+        ? format(parseISO(imp.created_at), "dd/MM HH:mm", { locale: ptBR })
+        : "";
       const dev = e ? (nameByUser.get(e.user_id) ?? "Dev") : "—";
       const sqName = e?.squad_id ? squadById.get(e.squad_id)?.name ?? "Squad" : undefined;
+      const label = e ? entryLabel(e) : `${openedAt} — ${dev}`;
+      let statusLabel: string;
+      if (imp.resolved) {
+        statusLabel = `sanado${imp.resolved_at ? ` em ${format(parseISO(imp.resolved_at), "dd/MM HH:mm", { locale: ptBR })}` : ""}`;
+      } else {
+        statusLabel = `em aberto há ${formatOpenFor(imp.created_at)}`;
+      }
       return {
         id: `imp-${imp.id}`,
-        text: `${label} — [${URGENCY_LABELS[imp.urgency]}] ${imp.description} (${status}).`,
+        text: `${label} — [${URGENCY_LABELS[imp.urgency]}] ${imp.description} (${statusLabel}).`,
         origin: "auto",
-        date: e?.entry_date,
+        date: e?.entry_date ?? (imp.created_at ? imp.created_at.slice(0, 10) : undefined),
         subject: dev,
         squadName: sqName,
         entry: e,
@@ -574,7 +684,7 @@ export default function RelatorioExecutivoPage() {
       { id: "bom_exemplo", title: "Bom exemplo por squad", icon: Award, origin: "Marcações manuais", items: bomExemplo },
       { id: "melhor_squad", title: "Melhor squad", icon: Trophy, origin: "Marcações manuais", items: melhorSquad },
       { id: "preenchimento_incorreto", title: "Preenchimentos incorretos ou vagos", icon: AlertTriangle, origin: "Regra automática + marcações manuais", items: preenchIncorreto },
-      { id: "faltas", title: "Faltas recentes (últimos 7 dias)", icon: CalendarX, origin: "Dados automáticos", items: faltasItems },
+      { id: "faltas", title: "Faltas no período", icon: CalendarX, origin: "Dados automáticos", items: faltasItems },
       { id: "sem_pre_daily", title: "Sem pré-daily no prazo", icon: Clock, origin: "Dados automáticos", items: semPreDaily },
       { id: "aguardando", title: "Aguardando tarefas", icon: HelpCircle, origin: "Palavras-chave + marcações manuais", items: aguardando },
       { id: "repetidas", title: "Tarefas repetidas ou estagnadas", icon: Repeat, origin: "Regra automática + marcações manuais", items: repetidas },
@@ -591,7 +701,7 @@ export default function RelatorioExecutivoPage() {
       });
     });
     return built;
-  }, [todayEntries, prevEntries, tagsByEntry, absences, meetings, squadMembers, impediments, impsByEntry, squadById, nameByUser, activitiesByEntry]);
+  }, [todayEntries, prevEntries, tagsByEntry, absences, meetings, attendance, squadMembers, impediments, rangeImpediments, impEntries, impsByEntry, squadById, nameByUser, activitiesByEntry, melhorSquadPicks, effectiveTo]);
 
   // Estado editável por item
   const [state, setState] = useState<Record<string, ItemState>>({});
@@ -760,6 +870,61 @@ export default function RelatorioExecutivoPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-2">
+                    {s.id === "melhor_squad" && (
+                      <div className="rounded-xl border bg-muted/20 p-3 space-y-2">
+                        <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground">
+                          Marcar melhor squad
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Select value={msSquadId} onValueChange={setMsSquadId}>
+                            <SelectTrigger className="rounded-lg sm:w-[220px]">
+                              <SelectValue placeholder="Selecione a squad" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(squads as any[]).map((sq) => (
+                                <SelectItem key={sq.id} value={sq.id}>
+                                  {sq.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Textarea
+                            value={msReason}
+                            onChange={(e) => setMsReason(e.target.value)}
+                            placeholder="Motivo do destaque (opcional)"
+                            className="rounded-lg min-h-[38px] flex-1"
+                            rows={1}
+                          />
+                          <Button onClick={addMelhorSquad} className="rounded-lg gap-1 sm:self-start">
+                            <Plus className="w-4 h-4" /> Adicionar
+                          </Button>
+                        </div>
+                        {melhorSquadPicks.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {melhorSquadPicks.map((p) => {
+                              const sq = squadById.get(p.squadId);
+                              return (
+                                <Badge
+                                  key={p.id}
+                                  variant="outline"
+                                  className="text-[11px] gap-1 bg-primary/5 text-primary border-primary/20"
+                                >
+                                  {sq?.name ?? "Squad"}
+                                  <button
+                                    type="button"
+                                    onClick={() => removeMelhorSquad(p.id)}
+                                    className="hover:opacity-70"
+                                    aria-label="Remover"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {s.items.length === 0 && (
                       <p className="text-sm text-muted-foreground italic">Nenhum registro para este tópico.</p>
                     )}
