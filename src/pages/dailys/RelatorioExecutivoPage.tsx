@@ -266,6 +266,54 @@ export default function RelatorioExecutivoPage() {
   const { data: impediments = [] } = useDevDailyImpedimentsByEntries(entryIds);
   const { data: manualTags = [] } = useDailyEntryTagsByEntries(entryIds);
 
+  const userIdsForActivities = useMemo(
+    () => Array.from(new Set((todayEntries as any[]).map((e) => e.user_id).filter(Boolean))),
+    [todayEntries],
+  );
+  const { data: allActivities = [] } = useDevDailyActivitiesByUsers(userIdsForActivities);
+
+  const activitiesByEntry = useMemo(() => {
+    const done = new Map<string, DevDailyActivity[]>();
+    const inactive = new Map<string, DevDailyActivity[]>();
+    const planned = new Map<string, DevDailyActivity[]>();
+    const entryById = new Map<string, any>();
+    (todayEntries as any[]).forEach((e) => entryById.set(e.id, e));
+
+    allActivities.forEach((a) => {
+      if (a.closed_entry_id && (a.status === "concluida" || a.status === "inativa")) {
+        const map = a.status === "concluida" ? done : inactive;
+        const list = map.get(a.closed_entry_id) ?? [];
+        list.push(a);
+        map.set(a.closed_entry_id, list);
+      }
+    });
+
+    (todayEntries as any[]).forEach((e) => {
+      const D = e.entry_date;
+      const arr = allActivities.filter((a) => {
+        if (a.user_id !== e.user_id) return false;
+        if (a.status !== "pendente") return false;
+        const origin = a.created_entry_id ? entryById.get(a.created_entry_id) : null;
+        const originDate = origin?.entry_date ?? (a.created_at ? a.created_at.slice(0, 10) : null);
+        if (!originDate || originDate > D) return false;
+        if (a.closed_entry_id) {
+          const closed = entryById.get(a.closed_entry_id);
+          if (closed && closed.entry_date <= D) return false;
+        }
+        return true;
+      });
+      if (arr.length > 0) planned.set(e.id, arr);
+    });
+
+    return { done, inactive, planned };
+  }, [allActivities, todayEntries]);
+
+  const actsFor = (entryId: string) => ({
+    done: activitiesByEntry.done.get(entryId) ?? [],
+    inactive: activitiesByEntry.inactive.get(entryId) ?? [],
+    planned: activitiesByEntry.planned.get(entryId) ?? [],
+  });
+
   const tagsByEntry = useMemo(() => {
     const m = new Map<string, ManualTag[]>();
     manualTags.forEach((t) => m.set(t.entry_id, t.tags as ManualTag[]));
