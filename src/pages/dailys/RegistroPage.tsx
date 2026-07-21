@@ -402,7 +402,7 @@ export default function RegistroPage() {
 
   const isToday = date === toISO(new Date());
   const labelPast = isToday ? "O que fiz hoje" : "O que fiz ontem";
-  const labelFuture = isToday ? "O que farei amanhã" : "O que farei hoje";
+  const labelFuture = (isToday ? "O que farei amanhã" : "O que farei hoje") + " *";
 
   const kpis = useMemo(() => {
     const today = new Date();
@@ -459,13 +459,10 @@ export default function RegistroPage() {
       return;
     }
 
-    const totalPast =
-      carryOverActivities.filter((a) => pastDecisions[a.id] === "done").length +
-      doneDrafts.length +
-      closedInEntry.filter((a) => a.status === "concluida").length;
-    const totalFuture = plannedDrafts.length + plannedInEntry.length;
-    if (totalPast === 0 && totalFuture === 0) {
-      toast.error("Registre pelo menos uma atividade concluída ou planejada.");
+    const carryKeptPending = carryOverActivities.filter((a) => pastDecisions[a.id] === "pending").length;
+    const totalFuture = plannedDrafts.length + plannedInEntry.length + carryKeptPending;
+    if (totalFuture === 0) {
+      toast.error("Informe ao menos uma atividade em 'O que farei hoje'.");
       return;
     }
 
