@@ -751,17 +751,16 @@ export default function RelatorioExecutivoPage() {
   };
 
   const handlePrint = () => {
-    const period =
-      effectiveFrom === effectiveTo
-        ? fmtLong(effectiveFrom)
-        : `${fmtLong(effectiveFrom)} a ${fmtLong(effectiveTo)}`;
-    const sectionsForPrint = sections.map((s) => ({
-      title: s.title,
-      items: s.items
-        .filter((it) => state[it.id]?.included)
-        .map((it) => state[it.id]?.text ?? it.text),
-    }));
-    printReport(period, sectionsForPrint);
+    exportSectionsAsVisualPdf({
+      periodLabel,
+      sections: sections.map((s) => ({
+        id: s.id,
+        title: s.title,
+        items: s.items
+          .filter((it) => state[it.id]?.included)
+          .map((it) => ({ id: it.id, text: state[it.id]?.text ?? it.text, included: true, data: it })),
+      })),
+    });
   };
 
   // Salvar snapshot
@@ -774,6 +773,22 @@ export default function RelatorioExecutivoPage() {
         id: it.id,
         text: state[it.id]?.text ?? it.text,
         included: state[it.id]?.included ?? true,
+        // Snapshot completo para re-renderizar o card visual no histórico.
+        data: {
+          id: it.id,
+          text: state[it.id]?.text ?? it.text,
+          meta: it.meta,
+          origin: it.origin,
+          date: it.date,
+          subject: it.subject,
+          squadName: it.squadName,
+          entry: it.entry ?? null,
+          impediments: it.impediments ?? [],
+          done: it.done ?? [],
+          inactive: it.inactive ?? [],
+          planned: it.planned ?? [],
+          extraDetails: it.extraDetails,
+        },
       })),
     }));
     await createMut.mutateAsync({
