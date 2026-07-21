@@ -1,89 +1,53 @@
-## Nova aba "Relatório Executivo" no Painel da Daily (só para Admin)
+## O que muda no Relatório Executivo
 
-Uma aba exclusiva do Admin dentro do Painel da Daily que monta um relatório diário automático, permite marcações manuais no histórico e exporta em PDF ou texto.
+### 1. Filtro por período (data início + data fim)
+No topo da aba, o campo único de data vira **dois campos**: "De" e "Até" (padrão: hoje/hoje).
+- Todas as consultas passam a olhar o intervalo (entries, reuniões, impedimentos, ausências).
+- Regras que hoje comparam "dia atual x dia anterior" continuam funcionando dia a dia dentro do intervalo (para cada data do range, olha o dia útil anterior).
+- Cada item do relatório mostra a data de origem no texto (ex.: "22/07 — Fulano · Squad X …") para que o intervalo faça sentido na leitura.
 
----
+### 2. Botão "Terminar Relatório" e histórico de relatórios salvos
+Novo botão principal ao lado de "Gerar PDF" e "Copiar Texto".
+- Ao clicar, grava um snapshot fiel do que está na tela naquele momento: período, seções, itens (com o texto editado e o flag incluído/excluído) e o texto final consolidado.
+- Aparece um toast de confirmação e o relatório é adicionado à lista.
+- Nova sub-aba/painel **"Relatórios salvos"** dentro da própria página do Relatório Executivo, mostrando cards com: período, data de emissão, autor, prévia do texto e ações **Ver**, **Copiar texto**, **Gerar PDF** e **Excluir**.
+- Ver reabre o snapshot em modo leitura (mesmo layout do PDF), sem recomputar as regras — é histórico congelado.
 
-### 1. O que aparece na tela
+### 3. Marcações do Admin no Histórico da Daily
+Na aba **Histórico**, ao abrir o dia de uma squad, cada card de dev ganha, logo depois do botão "Observação", um botão de múltipla escolha (mesma UX do seletor que já existe no modal de histórico do dev) com estas opções:
+- Bom exemplo por squad
+- Preenchimentos incorretos ou vagos
+- Aguardando tarefas
+- Tarefas repetidas
 
-Dentro do **Painel da Daily**, uma nova aba **"Relatório Executivo"** — visível apenas para quem tem perfil Admin.
-
-No topo da aba: seletor de **data** da emissão do relatório (padrão: hoje).
-
-Abaixo, oito cartões, um para cada tópico do relatório:
-
-1. **Bom exemplo por squad** — vem das marcações manuais do Admin.
-2. **Melhor squad** — vem das marcações manuais do Admin.
-3. **Preenchimentos incorretos ou vagos** — automático (regras) + marcações manuais.
-4. **Faltas recentes** — automático.
-5. **Sem pré-daily no prazo** — automático.
-6. **Aguardando tarefas** — automático (palavras-chave) + marcações manuais.
-7. **Tarefas repetidas ou estagnadas** — automático.
-8. **Impedimentos e bloqueios** — automático (abertos e fechados no dia).
-
-Em cada item dos cartões:
-
-- Uma **chave "Incluir no Relatório Final"** já vem ligada.
-- O texto é **editável** direto na tela antes de exportar.
-- O Admin pode desligar itens que não quer no relatório final.
-
-No rodapé da aba, dois botões:
-
-- **Gerar PDF** — abre a impressão do navegador com o layout limpo do sistema.
-- **Copiar Texto Formatado** — copia o relatório pronto para colar em e-mail ou chat.
+Regras:
+- Só aparece para Admin.
+- Marcar/desmarcar salva na hora, ligado ao `entry_id` do dev.
+- No Relatório Executivo, cada seção **desduplica** por `entry_id`: se a regra automática já pegou o registro, a marcação manual do Admin não gera um segundo item — apenas adiciona um rótulo "marcado pelo Admin" no mesmo item. Se só a marcação manual existir, o item é criado normalmente.
 
 ---
 
-### 2. Regras automáticas (sem uso de IA)
+## Detalhes técnicos
 
-O sistema aplica estas regras direto no código, olhando o que já está no banco:
+### Banco
+Nova tabela `daily_executive_reports`:
+- `period_start date`, `period_end date`
+- `title text`
+- `content_text text` (texto final consolidado)
+- `sections jsonb` (snapshot: id, título, itens `{id,text,included}`)
+- `created_by uuid`, `created_at`, `updated_at`
+- RLS: SELECT/INSERT/DELETE apenas para Admin (`has_role('diretor')`), com GRANT para `authenticated` e `service_role`.
 
-- **Sem pré-daily no prazo**: quem enviou o registro depois do início da daily da squad, ou não enviou até o encerramento.
-- **Aguardando tarefas**: o texto do campo "Hoje" contém qualquer uma destas expressões (sem diferenciar maiúsculas/acentos): *aguardando, no aguardo, sem card, sem demanda, a definir, aguardando definição, sem tarefa*.
-- **Preenchimento curto/incompleto**: quando "Ontem" ou "Hoje" tem menos de 15 caracteres.
-- **Tarefa repetida**: quando o "Hoje" é igual (ou muito parecido) com o "Hoje" que aquele dev escreveu no dia anterior.
-- **Faltas**: devs marcados como ausentes em qualquer squad nos últimos 7 dias, mostrando o motivo informado pelo líder (atestado, férias, banco de horas, interjornada, day off etc.).
-- **Impedimentos**: lista tudo que foi aberto ou fechado no dia, com urgência e tempo em aberto.
+A tabela `daily_entry_tags` e o seletor já existem — reaproveita para o Histórico (não precisa de migration nova para as marcações).
 
----
+### Front
+- `RelatorioExecutivoPage.tsx`: troca `date` por `dateFrom`/`dateTo`; queries passam a usar `.gte/.lte`; adiciona botão "Terminar Relatório" que faz `INSERT` e invalida a lista; adiciona sub-aba interna (Tabs) "Atual" vs "Salvos".
+- Novo `SavedReportsList.tsx` + hook `useExecutiveReports.ts` (list/create/delete/getById).
+- Novo `SavedReportViewer.tsx` (modal que renderiza o snapshot e reaproveita `handlePrint`/`handleCopy` a partir das `sections` salvas).
+- `DailyReadOnlyView.tsx`: no card do dev, quando `isAdmin`, renderiza `<DailyEntryTagsSelector entryId={e.id} compact />` ao lado do botão "Observação".
+- Regra de desduplicação no `RelatorioExecutivoPage`: hoje já há `entry.id` como base dos ids automáticos (`pi-`, `aw-`, etc.); a lógica manual passa a **enriquecer** o item existente em vez de criar um `manual-*` paralelo. Só cria item novo quando não houver equivalente automático.
 
-### 3. Marcações manuais no Histórico
-
-Dentro do modal de **Histórico da Daily** que já existe, para cada registro de dev, o Admin ganha um seletor de múltipla escolha com estas etiquetas:
-
-- **Bom Exemplo**
-- **Melhor Squad**
-- **Preenchimento Incorreto ou Incompleto**
-- **Aguardando Tarefa**
-
-As escolhas são salvas na hora, ligadas ao registro daquele dev naquele dia. Depois aparecem automaticamente nos cartões do Relatório Executivo.
-
----
-
-### 4. Como fica salvo
-
-Uma nova tabela no banco guarda essas etiquetas por registro (id do registro do dev + lista de etiquetas). Só quem for Admin consegue criar/alterar. Todos os dados dos relatórios continuam vindo das tabelas que já existem (registros de daily, impedimentos, ausências, reuniões).
-
----
-
-### 5. Design e desempenho
-
-- Segue o design system atual: cards arredondados, tema escuro/claro, tokens de cor existentes, sem inventar estilo novo.
-- O PDF sai limpo (fundo claro, tipografia do sistema, logo Fadami no topo) via impressão nativa do navegador.
-- Os dados são carregados em paralelo e ficam em cache para a tela não travar. O estado dos itens (incluído/excluído, texto editado) fica na memória da aba até o Admin fechar.
-
----
-
-### 6. Onde as coisas serão criadas ou alteradas
-
-Novos:
-
-- Migration para a tabela de etiquetas manuais.
-- Página "Relatório Executivo" e seus cartões.
-- Arquivo com as regras automáticas.
-- Hooks para ler os dados e salvar as etiquetas.
-
-Alterados:
-
-- Painel da Daily: adicionar a nova aba (visível só para Admin).
-- Modal de Histórico da Daily e cartão de leitura do dev: adicionar o seletor de etiquetas.
+### Não muda
+- Nenhuma regra automática nova; apenas passam a operar por dia dentro do range.
+- Nenhum modelo de IA envolvido.
+- Design tokens/estilos existentes (cards arredondados, tema escuro/claro, laranja Fadami).
