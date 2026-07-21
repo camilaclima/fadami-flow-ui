@@ -1065,11 +1065,16 @@ export default function PainelGPPage() {
                   <div className="space-y-1.5">
                     {dayImps.map((imp) => {
                       const origin = userEntries.find((e) => e.id === imp.entry_id);
-                      const createdBadge = origin && origin.entry_date !== date ? (
-                        <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground border-border">
-                          Criado em {format(parseISO(origin.entry_date), "dd/MM", { locale: ptBR })}
-                        </Badge>
-                      ) : null;
+                      const createdBadge = origin && origin.entry_date !== date ? (() => {
+                        const suffix = imp.resolved && imp.resolved_at
+                          ? ` — aberto por ${formatOpenFor(origin.entry_date, imp.resolved_at)}`
+                          : ` — há ${formatOpenFor(origin.entry_date)}`;
+                        return (
+                          <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground border-border">
+                            Criado em {format(parseISO(origin.entry_date), "dd/MM", { locale: ptBR })}{suffix}
+                          </Badge>
+                        );
+                      })() : null;
                       return (
                         <div key={imp.id} className="rounded-lg border bg-background/70 p-2 space-y-1">
                           <div className="flex items-center gap-1.5 flex-wrap">
