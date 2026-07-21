@@ -1332,7 +1332,8 @@ async function exportSectionsAsVisualPdf(input: {
     "position:fixed;left:-10000px;top:0;width:1100px;background:#ffffff;padding:24px;z-index:-1;";
   document.body.appendChild(container);
 
-  const { createRoot, flushSync } = await import("react-dom/client") as any;
+  const { createRoot } = await import("react-dom/client");
+  const { flushSync } = await import("react-dom");
   const root = createRoot(container);
   const tree = (
     <div>
