@@ -437,6 +437,47 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_entry_tags: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          entry_id: string
+          id: string
+          notes: string | null
+          tags: string[]
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          entry_id: string
+          id?: string
+          notes?: string | null
+          tags?: string[]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          entry_id?: string
+          id?: string
+          notes?: string | null
+          tags?: string[]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_entry_tags_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: true
+            referencedRelation: "dev_daily_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_meeting_attendance: {
         Row: {
           absence_id: string | null
