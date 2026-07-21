@@ -1464,16 +1464,22 @@ function ReportSectionsView({
   sections,
   interactive,
   forceOpen,
+  collapsibleSections = false,
+  stacked = false,
 }: {
   sections: RenderSection[];
   interactive: boolean;
   forceOpen: boolean;
+  collapsibleSections?: boolean;
+  stacked?: boolean;
 }) {
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+    <div className={stacked ? "flex flex-col gap-4" : "grid grid-cols-1 xl:grid-cols-2 gap-4"}>
       {sections.map((s) => {
         const Icon = SECTION_ICONS[s.id] ?? FileText;
-        return (
+        return collapsibleSections ? (
+          <CollapsibleSectionCard key={s.id} section={s} Icon={Icon} interactive={interactive} forceOpen={forceOpen} />
+        ) : (
           <Card key={s.id} className="rounded-2xl">
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
@@ -1514,6 +1520,63 @@ function ReportSectionsView({
         );
       })}
     </div>
+  );
+}
+
+function CollapsibleSectionCard({
+  section,
+  Icon,
+  interactive,
+  forceOpen,
+}: {
+  section: RenderSection;
+  Icon: React.ComponentType<{ className?: string }>;
+  interactive: boolean;
+  forceOpen: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Card className="rounded-2xl">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between gap-3 px-6 py-4 text-left hover:bg-muted/40 rounded-t-2xl transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          {open ? (
+            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          )}
+          <Icon className="w-4 h-4 text-primary" />
+          <span className="text-base font-semibold">{section.title}</span>
+        </div>
+        <Badge variant="outline" className="text-[10px]">
+          {section.items.length} {section.items.length === 1 ? "registro" : "registros"}
+        </Badge>
+      </button>
+      {open && (
+        <CardContent className="space-y-2 pt-0">
+          {section.items.length === 0 && (
+            <p className="text-sm text-muted-foreground italic">Nenhum registro.</p>
+          )}
+          {section.items.map((raw) => {
+            const it = reviveItem(raw);
+            return section.id === "impedimentos" ? (
+              <ImpedimentReportCard key={raw.id} item={it} included={true} interactive={interactive} />
+            ) : (
+              <ExecReportItemCard
+                key={raw.id}
+                item={it}
+                included={true}
+                interactive={interactive}
+                forceOpen={forceOpen}
+              />
+            );
+          })}
+        </CardContent>
+      )}
+    </Card>
   );
 }
 
