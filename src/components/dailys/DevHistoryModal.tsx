@@ -10,6 +10,8 @@ import { useDevDailyEntriesByUser } from "@/hooks/useDevDailyEntries";
 import { useDevDailyActivitiesByUser } from "@/hooks/useDevDailyActivities";
 import { useDevDailyImpedimentsByEntries, URGENCY_LABELS, URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
 import { DevActivityCard } from "@/components/dailys/DevActivityCard";
+import { useSquads } from "@/hooks/useSquads";
+import { Users } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -23,6 +25,12 @@ export function DevHistoryModal({ open, onOpenChange, userId, name }: Props) {
   const { data: activities = [] } = useDevDailyActivitiesByUser(open ? userId : null);
   const entryIds = useMemo(() => entries.map((e) => e.id), [entries]);
   const { data: impediments = [] } = useDevDailyImpedimentsByEntries(open ? entryIds : []);
+  const { data: squads = [] } = useSquads();
+  const squadNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    (squads as any[]).forEach((s) => m.set(s.id, s.name));
+    return m;
+  }, [squads]);
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const toggle = (id: string) => setExpanded((p) => ({ ...p, [id]: !p[id] }));
@@ -71,6 +79,13 @@ export function DevHistoryModal({ open, onOpenChange, userId, name }: Props) {
                       <p className="text-sm font-semibold capitalize truncate">{dateLabel}</p>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] gap-1 border-primary/30 text-primary bg-primary/5"
+                      >
+                        <Users className="w-2.5 h-2.5" />
+                        {e.squad_id ? (squadNameById.get(e.squad_id) ?? "Squad") : "Sem squad"}
+                      </Badge>
                       {openImps.length > 0 && (
                         <Badge variant="outline" className="text-[10px] gap-1 bg-orange-500/10 text-orange-600 border-orange-500/30">
                           <AlertTriangle className="w-2.5 h-2.5" /> {openImps.length} aberto{openImps.length > 1 ? "s" : ""}
