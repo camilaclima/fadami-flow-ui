@@ -1225,13 +1225,34 @@ interface RenderSection {
 
 function reviveItem(raw: { id: string; text: string; data?: any }): ReportItem {
   const d = raw.data ?? {};
+  // Fallback: extrai subject/squad/data do texto "DD/MM — Nome · Squad — …"
+  // para relatórios salvos antes do snapshot rico.
+  let subject: string = d.subject ?? "";
+  let squadName: string | undefined = d.squadName;
+  let date: string | undefined = d.date;
+  if (!subject || subject === "—") {
+    const m = raw.text.match(/^(\d{2}\/\d{2})\s+—\s+([^·—]+?)(?:\s+·\s+([^—]+?))?\s+—/);
+    if (m) {
+      if (!date) {
+        const [dd, mm] = m[1].split("/");
+        // Assume ano atual apenas para exibição do badge.
+        date = `${new Date().getFullYear()}-${mm}-${dd}`;
+      }
+      subject = m[2].trim();
+      if (!squadName && m[3]) squadName = m[3].trim();
+    } else {
+      // Padrão "Nome — …" sem data.
+      const m2 = raw.text.match(/^([^—]+?)\s+—/);
+      if (m2) subject = m2[1].trim();
+    }
+  }
   return {
     id: raw.id,
     text: raw.text,
     origin: d.origin ?? "auto",
-    subject: d.subject ?? "—",
-    date: d.date,
-    squadName: d.squadName,
+    subject: subject || "—",
+    date,
+    squadName,
     entry: d.entry ?? undefined,
     impediments: d.impediments ?? [],
     done: d.done ?? [],
@@ -1308,32 +1329,39 @@ async function exportSectionsAsVisualPdf(input: {
   const { periodLabel, sections } = input;
   const container = document.createElement("div");
   container.style.cssText =
-    "position:fixed;left:-10000px;top:0;width:1100px;background:#ffffff;padding:24px;";
+    "position:fixed;left:-10000px;top:0;width:1100px;background:#ffffff;padding:24px;z-index:-1;";
   document.body.appendChild(container);
 
   const { createRoot } = await import("react-dom/client");
+  const { flushSync } = await import("react-dom");
   const root = createRoot(container);
-  await new Promise<void>((resolve) => {
-    root.render(
-      <div>
-        <div style={{ marginBottom: 16 }}>
-          <h1 style={{ margin: 0, fontSize: 22, color: "#0f172a" }}>
-            Relatório Executivo da Daily
-          </h1>
-          <p style={{ margin: "4px 0 0", color: "#475569", fontSize: 13 }}>
-            {periodLabel} · Fadami Flow
-          </p>
-          <div style={{ height: 2, background: "#F97316", marginTop: 12 }} />
-        </div>
-        <ReportSectionsView
-          sections={sections}
-          interactive={false}
-          forceOpen={true}
-        />
-      </div>,
-    );
-    setTimeout(resolve, 400);
-  });
+  const tree = (
+    <div>
+      <div style={{ marginBottom: 16 }}>
+        <h1 style={{ margin: 0, fontSize: 22, color: "#0f172a" }}>
+          Relatório Executivo da Daily
+        </h1>
+        <p style={{ margin: "4px 0 0", color: "#475569", fontSize: 13 }}>
+          {periodLabel} · Fadami Flow
+        </p>
+        <div style={{ height: 2, background: "#F97316", marginTop: 12 }} />
+      </div>
+      <ReportSectionsView
+        sections={sections}
+        interactive={false}
+        forceOpen={true}
+      />
+    </div>
+  );
+  // flushSync garante que a árvore esteja no DOM antes do html2canvas.
+  if (typeof flushSync === "function") {
+    flushSync(() => root.render(tree));
+  } else {
+    root.render(tree);
+  }
+  // 2x requestAnimationFrame + timeout curto para permitir layout/paint.
+  await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+  await new Promise<void>((r) => setTimeout(r, 250));
 
   try {
     await downloadElementAsPdf(
