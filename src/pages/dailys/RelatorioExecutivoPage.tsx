@@ -1119,17 +1119,36 @@ function ExecReportItemCard({
                   <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-1">
                     Ontem
                   </p>
-                  <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">
-                    {entry.did_yesterday || "—"}
-                  </p>
+                  {(item.done?.length ?? 0) + (item.inactive?.length ?? 0) > 0 ? (
+                    <div className="space-y-1.5">
+                      {item.done?.map((a) => (
+                        <DevActivityCard key={a.id} kind="done" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
+                      ))}
+                      {item.inactive?.map((a) => (
+                        <DevActivityCard key={a.id} kind="inactive" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">
+                      {entry.did_yesterday || "—"}
+                    </p>
+                  )}
                 </div>
                 <div className="rounded-lg bg-primary/5 px-3 py-2">
                   <p className="text-[10px] uppercase tracking-wide font-semibold text-primary/80 mb-1">
                     Hoje
                   </p>
-                  <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">
-                    {entry.will_do_today || "—"}
-                  </p>
+                  {(item.planned?.length ?? 0) > 0 ? (
+                    <div className="space-y-1.5">
+                      {item.planned?.map((a) => (
+                        <DevActivityCard key={a.id} kind="pending" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">
+                      {entry.will_do_today || "—"}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
