@@ -42,6 +42,7 @@ interface ImpedimentLike {
   urgency: string;
   resolved: boolean;
   resolved_at?: string | null;
+  created_at?: string | null;
 }
 interface MeetingLike {
   id: string;
