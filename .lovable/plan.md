@@ -1,76 +1,51 @@
-# Plano de correções e melhorias na Daily
+## Objetivo
 
-## 1) Corrigir alteração de senha do usuário (erro 401)
+1. Fazer a aba **Histórico** do Painel da Daily respeitar o filtro de Squad selecionado no topo (hoje ignora a squad e mostra todos os devs de todas as squads do líder).
+2. Tornar obrigatório o preenchimento de **"O que farei hoje"** ao registrar a daily — mínimo 1 atividade planejada — evitando entries com `will_do_today` vazio que causam o "—" no painel do líder.
+3. Backfill retroativo do snapshot textual para registros antigos que já foram salvos vazios.
 
-**Causa:** a Edge Function `admin-change-password` está sem `verify_jwt = false` em `supabase/config.toml`. Com o novo sistema de chaves de assinatura da plataforma, isso faz o gateway rejeitar a requisição com 401 antes mesmo do código rodar. A função já valida o JWT internamente via `auth.getUser()` e cheque de permissão `users`, então é seguro desligar o verify_jwt do gateway.
+## Diagnóstico
 
-**Ação:**
-- Adicionar bloco `[functions.admin-change-password]` com `verify_jwt = false` em `supabase/config.toml`.
-- Manter a validação de sessão e de permissão que já existe dentro da função.
+**Item 1** — `src/pages/dailys/HistoricoPage.tsx` usa `sim.squadIds` (todas as squads do líder) e nunca aplica o `effectiveSquadId` selecionado no topo. Um líder de TOR e TOR+ vê no Histórico devs das duas squads mesmo com "TOR" selecionado.
 
-## 2) Cronômetro do registro da daily (Dev)
+**Item 2** — Em `src/pages/dailys/RegistroPage.tsx` a validação atual (`totalPast === 0 && totalFuture === 0`) aceita a daily se houver **apenas** atividades concluídas, permitindo salvar sem nenhum plano para hoje. Isso gera entries com `will_do_today` vazio, que no painel do líder aparecem como "—".
 
-Registrar quanto tempo o dev levou para preencher a daily.
+## Alterações
 
-**Banco (`dev_daily_entries`):**
-- Novas colunas: `fill_started_at TIMESTAMPTZ`, `fill_completed_at TIMESTAMPTZ`, `fill_duration_seconds INT`.
+### 1) `src/pages/dailys/HistoricoPage.tsx` — respeitar filtro de squad
 
-**Frontend (`RegistroPage.tsx`):**
-- Ao abrir o modal de registro (Criar ou Editar sem `fill_completed_at`), marcar `fill_started_at = now()` em memória.
-- Exibir badge de cronômetro em tempo real no header do modal ("Tempo: mm:ss").
-- No submit, calcular a duração e persistir `fill_started_at`, `fill_completed_at`, `fill_duration_seconds`. Em edições posteriores, preservar a duração original (não sobrescrever).
-- No card de resumo em "Minha Daily", ao lado do "Registrada", mostrar `⏱ 4m 12s` quando `fill_duration_seconds` existir.
+- Ler `effectiveSquadId` do mesmo estado usado por `PainelGPPage` (mesmo store/contexto/URL param).
+- Quando houver squad selecionada:
+  - Restringir `allowedUserIds` aos membros daquela squad apenas.
+  - Filtrar `dev_daily_entries` por `squad_id = effectiveSquadId`, com fallback `is('squad_id', null)` para membros conhecidos daquela squad (padrão já usado em `useDevDailyEntriesByDate`).
+  - Filtrar `activitiesByEntry` também por `squad_id` (com mesmo fallback `null`) antes de compor `done` / `inactive` / `planned`.
+  - Passar `scopedSquadIds = [effectiveSquadId]` para `DayDetailDialog` para que `daily_meetings` também respeite a squad.
+- Em "Todas as squads", manter comportamento atual.
 
-**Painel do Líder:**
-- `HistoricoPage.tsx`, `PainelGPPage.tsx` (aba Status de Preenchimento), e `IniciarDailyModal.tsx`: ao lado do nome do usuário, exibir chip discreto `⏱ 4m 12s` quando houver duração registrada na entrada do dia.
+### 2) `src/pages/dailys/RegistroPage.tsx` — tornar "O que farei hoje" obrigatório
 
-## 3) Cronômetro da daily do líder
+- Ajustar a validação em `handleSave`:
+  - Exigir `totalFuture >= 1` (soma de `plannedDrafts.length + plannedInEntry.length + carry-overs mantidos como "pending"`).
+  - Se `totalFuture === 0`, bloquear o save com toast: `"Informe ao menos uma atividade em 'O que farei hoje'."`.
+  - Manter também a regra existente de exigir ao menos uma concluída ou planejada? Não — a nova regra é mais estrita: **sempre** precisa de plano para hoje.
+- Reforço visual: marcar o cabeçalho "O que farei hoje" com asterisco/`*` e desabilitar o botão "Salvar" enquanto `totalFuture === 0`, com tooltip explicando a exigência.
+- Ajustar o fluxo de "carry-over" para que marcar todos os pendentes como `done` não seja suficiente — o dev precisa adicionar pelo menos 1 nova atividade planejada **ou** manter pelo menos 1 pendente como `pending`.
 
-Registrar quanto tempo o líder levou desde "Iniciar Daily" até "Salvar Daily".
+### 3) Backfill retroativo (migration)
 
-**Banco (`daily_meetings`):**
-- Novas colunas: `started_at TIMESTAMPTZ`, `finished_at TIMESTAMPTZ`, `duration_seconds INT`.
+Para entries antigas com `will_do_today`/`did_yesterday` NULL ou vazio, mas com atividades estruturadas em `dev_daily_activities`:
 
-**Frontend (`IniciarDailyModal.tsx`):**
-- Ao abrir o modal, marcar `startedAt = new Date()` em estado.
-- Exibir cronômetro no header (mm:ss) atualizando a cada 1s.
-- No `submit`, enviar `started_at`, `finished_at = now()`, `duration_seconds` para o `useCreateDailyMeeting`.
-- Exibir a duração final no histórico da daily (aba Histórico do líder) ao lado da data.
+- `did_yesterday`: `✓ <description>` para atividades com `closed_entry_id = entry.id` e `status = 'concluida'`; `⊘ <description> (Inativada)` para `status = 'inativa'`.
+- `will_do_today`: `○ <description>` para atividades com `created_entry_id = entry.id` que não estejam fechadas na própria entry.
+- Só atualiza campos NULL/vazios; nunca sobrescreve dados válidos.
 
-## 4) "Não participou da daily" — persistir registro do usuário e manter caixa de motivo visível
+## Fora de escopo
 
-Hoje, ao marcar "não participou", o motivo só aparece se o card estiver expandido. E o registro feito pelo dev fica visualmente descartado.
-
-**Ação (`IniciarDailyModal.tsx`):**
-- Manter as informações da entrada do dev renderizadas mesmo em `no_participate` (somente leitura, com aviso "Não participou — resposta preservada").
-- Renderizar o campo "Motivo da não participação" na **linha compacta do cabeçalho** do card (fora do bloco expansível), logo abaixo do toggle de status, para estar sempre acessível independentemente do estado retraído/expandido.
-- Auto-focar o textarea quando o status muda para `no_participate`.
-
-## 5) UX de ausência (tipo + período) e motivo próximos ao botão
-
-Hoje o líder muda o status no cabeçalho, mas os campos aparecem só na área expandida — obrigando expandir para completar.
-
-**Ação (`IniciarDailyModal.tsx`):**
-- Ao selecionar "Ausente do trabalho" via dropdown, abrir um **Popover ancorado no próprio botão** com:
-  - Select do tipo de ausência (Atestado, Férias, Banco de horas, Interjornada, Day Off).
-  - Se o tipo exigir período (`atestado`, `ferias`, `banco_horas`): dois inputs de data (início / fim) já no mesmo popover.
-  - Botão "Confirmar" que fecha o popover e mantém os valores no state do membro.
-- Um chip resumo aparece no cabeçalho (`Atestado · 20/07 → 25/07`) com botão "editar" que reabre o mesmo popover.
-- Mesma abordagem para "Não participou": popover com textarea de motivo ancorado no toggle, além do campo persistente sugerido no item 4 (o popover é atalho, o campo permanece visível).
-- Validações existentes (tipo obrigatório, período obrigatório para ranged) continuam iguais e destacam o card ao falhar.
+- Nenhuma mudança em `PainelGPPage` (já respeita `effectiveSquadId`).
+- Nenhuma mudança no formato do modal do dev além da validação e do indicador de obrigatoriedade.
 
 ## Detalhes técnicos
 
-**Arquivos a alterar:**
-- `supabase/config.toml` — adicionar `[functions.admin-change-password] verify_jwt = false`.
-- Migração SQL — colunas de tempo em `dev_daily_entries` e `daily_meetings`.
-- `src/integrations/supabase/types.ts` — regenerado após migração.
-- `src/hooks/useDevDailyEntries.ts` — persistir campos de tempo no upsert.
-- `src/hooks/useDailyMeetings.ts` — persistir `started_at/finished_at/duration_seconds` no create.
-- `src/pages/dailys/RegistroPage.tsx` — cronômetro do dev, exibição no card resumo.
-- `src/components/dailys/IniciarDailyModal.tsx` — cronômetro do líder, motivo sempre visível, popovers de ausência/motivo.
-- `src/pages/dailys/HistoricoPage.tsx` e `src/pages/dailys/PainelGPPage.tsx` — mostrar duração ao lado do nome do dev.
-
-**Formatação de tempo:** util compartilhado `formatDuration(seconds)` → `4m 12s` / `1h 02m`.
-
-**Compatibilidade:** todos os novos campos são opcionais; registros antigos simplesmente não exibem o chip de tempo.
+- Fonte de verdade permanece `dev_daily_activities`; os snapshots textuais (`will_do_today` / `did_yesterday`) continuam sendo usados como fallback de renderização.
+- Fallback `squad_id IS NULL` é mantido enquanto existirem entries legadas.
+- A validação nova é frontend; se quiser, em passo futuro, pode-se adicionar um CHECK/trigger no banco — não incluído aqui para não bloquear escrita via edge functions administrativas.
