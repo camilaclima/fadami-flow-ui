@@ -871,6 +871,61 @@ export default function RelatorioExecutivoPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-2">
+                    {s.id === "melhor_squad" && (
+                      <div className="rounded-xl border bg-muted/20 p-3 space-y-2">
+                        <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground">
+                          Marcar melhor squad
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Select value={msSquadId} onValueChange={setMsSquadId}>
+                            <SelectTrigger className="rounded-lg sm:w-[220px]">
+                              <SelectValue placeholder="Selecione a squad" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(squads as any[]).map((sq) => (
+                                <SelectItem key={sq.id} value={sq.id}>
+                                  {sq.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Textarea
+                            value={msReason}
+                            onChange={(e) => setMsReason(e.target.value)}
+                            placeholder="Motivo do destaque (opcional)"
+                            className="rounded-lg min-h-[38px] flex-1"
+                            rows={1}
+                          />
+                          <Button onClick={addMelhorSquad} className="rounded-lg gap-1 sm:self-start">
+                            <Plus className="w-4 h-4" /> Adicionar
+                          </Button>
+                        </div>
+                        {melhorSquadPicks.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {melhorSquadPicks.map((p) => {
+                              const sq = squadById.get(p.squadId);
+                              return (
+                                <Badge
+                                  key={p.id}
+                                  variant="outline"
+                                  className="text-[11px] gap-1 bg-primary/5 text-primary border-primary/20"
+                                >
+                                  {sq?.name ?? "Squad"}
+                                  <button
+                                    type="button"
+                                    onClick={() => removeMelhorSquad(p.id)}
+                                    className="hover:opacity-70"
+                                    aria-label="Remover"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {s.items.length === 0 && (
                       <p className="text-sm text-muted-foreground italic">Nenhum registro para este tópico.</p>
                     )}
