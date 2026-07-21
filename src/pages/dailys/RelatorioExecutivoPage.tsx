@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +54,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, X } from "lucide-react";
 import { formatOpenFor } from "@/lib/formatDuration";
+import { downloadElementAsPdf } from "@/lib/visualPdf";
 import { useDailyEntryTagsByEntries } from "@/hooks/useDailyEntryTags";
 import { DEV_ABSENCE_LABELS, type DevAbsenceType } from "@/hooks/useDevAbsences";
 import {
@@ -750,17 +751,16 @@ export default function RelatorioExecutivoPage() {
   };
 
   const handlePrint = () => {
-    const period =
-      effectiveFrom === effectiveTo
-        ? fmtLong(effectiveFrom)
-        : `${fmtLong(effectiveFrom)} a ${fmtLong(effectiveTo)}`;
-    const sectionsForPrint = sections.map((s) => ({
-      title: s.title,
-      items: s.items
-        .filter((it) => state[it.id]?.included)
-        .map((it) => state[it.id]?.text ?? it.text),
-    }));
-    printReport(period, sectionsForPrint);
+    exportSectionsAsVisualPdf({
+      periodLabel,
+      sections: sections.map((s) => ({
+        id: s.id,
+        title: s.title,
+        items: s.items
+          .filter((it) => state[it.id]?.included)
+          .map((it) => ({ id: it.id, text: state[it.id]?.text ?? it.text, included: true, data: it })),
+      })),
+    });
   };
 
   // Salvar snapshot
@@ -773,6 +773,22 @@ export default function RelatorioExecutivoPage() {
         id: it.id,
         text: state[it.id]?.text ?? it.text,
         included: state[it.id]?.included ?? true,
+        // Snapshot completo para re-renderizar o card visual no histórico.
+        data: {
+          id: it.id,
+          text: state[it.id]?.text ?? it.text,
+          meta: it.meta,
+          origin: it.origin,
+          date: it.date,
+          subject: it.subject,
+          squadName: it.squadName,
+          entry: it.entry ?? null,
+          impediments: it.impediments ?? [],
+          done: it.done ?? [],
+          inactive: it.inactive ?? [],
+          planned: it.planned ?? [],
+          extraDetails: it.extraDetails,
+        },
       })),
     }));
     await createMut.mutateAsync({
@@ -1054,11 +1070,14 @@ function SavedReportsPanel() {
                         r.period_start === r.period_end
                           ? fmtLong(r.period_start)
                           : `${fmtLong(r.period_start)} a ${fmtLong(r.period_end)}`;
-                      const secs = r.sections.map((s) => ({
-                        title: s.title,
-                        items: s.items.filter((i) => i.included).map((i) => i.text),
-                      }));
-                      printReport(period2, secs);
+                      exportSectionsAsVisualPdf({
+                        periodLabel: period2,
+                        sections: r.sections.map((s) => ({
+                          id: s.id,
+                          title: s.title,
+                          items: s.items.filter((i) => i.included),
+                        })),
+                      });
                     }}
                   >
                     <Printer className="w-3.5 h-3.5" /> PDF
@@ -1081,7 +1100,7 @@ function SavedReportsPanel() {
       </div>
 
       <Dialog open={!!viewing} onOpenChange={(v) => !v && setViewing(null)}>
-        <DialogContent className="max-w-3xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-hidden p-0">
+        <DialogContent className="max-w-5xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-hidden p-0">
           <DialogHeader className="px-6 pt-6 pb-3 border-b">
             <DialogTitle className="text-lg flex items-center gap-2">
               <FileText className="w-5 h-5 text-primary" /> Relatório salvo
@@ -1096,24 +1115,19 @@ function SavedReportsPanel() {
           </DialogHeader>
           <ScrollArea className="max-h-[65vh]">
             <div className="px-6 py-4 space-y-4">
-              {viewing?.sections
-                ?.filter((s) => s.items.some((i) => i.included))
-                .map((s) => (
-                  <div key={s.id}>
-                    <p className="text-xs uppercase tracking-wide font-semibold text-primary mb-1.5">
-                      {s.title}
-                    </p>
-                    <ul className="list-disc pl-5 space-y-1">
-                      {s.items
-                        .filter((i) => i.included)
-                        .map((i) => (
-                          <li key={i.id} className="text-sm whitespace-pre-wrap">
-                            {i.text}
-                          </li>
-                        ))}
-                    </ul>
-                  </div>
-                ))}
+              {viewing && (
+                <ReportSectionsView
+                  sections={viewing.sections
+                    .filter((s) => s.items.some((i) => i.included))
+                    .map((s) => ({
+                      id: s.id,
+                      title: s.title,
+                      items: s.items.filter((i) => i.included),
+                    }))}
+                  interactive={false}
+                  forceOpen={false}
+                />
+              )}
             </div>
           </ScrollArea>
           <DialogFooter className="px-6 py-3 border-t">
@@ -1190,6 +1204,149 @@ function escapeHtml(s: string): string {
 }
 
 // ============================================================
+// Ícones e renderização compartilhada dos cards do relatório
+// ============================================================
+const SECTION_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  bom_exemplo: Award,
+  melhor_squad: Trophy,
+  preenchimento_incorreto: AlertTriangle,
+  faltas: CalendarX,
+  sem_pre_daily: Clock,
+  aguardando: HelpCircle,
+  repetidas: Repeat,
+  impedimentos: AlertOctagon,
+};
+
+interface RenderSection {
+  id: string;
+  title: string;
+  items: Array<{ id: string; text: string; included: boolean; data?: any }>;
+}
+
+function reviveItem(raw: { id: string; text: string; data?: any }): ReportItem {
+  const d = raw.data ?? {};
+  return {
+    id: raw.id,
+    text: raw.text,
+    origin: d.origin ?? "auto",
+    subject: d.subject ?? "—",
+    date: d.date,
+    squadName: d.squadName,
+    entry: d.entry ?? undefined,
+    impediments: d.impediments ?? [],
+    done: d.done ?? [],
+    inactive: d.inactive ?? [],
+    planned: d.planned ?? [],
+    extraDetails: d.extraDetails,
+  };
+}
+
+function ReportSectionsView({
+  sections,
+  interactive,
+  forceOpen,
+}: {
+  sections: RenderSection[];
+  interactive: boolean;
+  forceOpen: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      {sections.map((s) => {
+        const Icon = SECTION_ICONS[s.id] ?? FileText;
+        return (
+          <Card key={s.id} className="rounded-2xl">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Icon className="w-4 h-4 text-primary" />
+                {s.title}
+              </CardTitle>
+              <div className="flex items-center gap-1.5 mt-1">
+                <Badge variant="outline" className="text-[10px]">
+                  {s.items.length} {s.items.length === 1 ? "item" : "itens"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {s.items.length === 0 && (
+                <p className="text-sm text-muted-foreground italic">Nenhum registro.</p>
+              )}
+              {s.items.map((raw) => {
+                const it = reviveItem(raw);
+                return s.id === "impedimentos" ? (
+                  <ImpedimentReportCard
+                    key={raw.id}
+                    item={it}
+                    included={true}
+                    interactive={interactive}
+                  />
+                ) : (
+                  <ExecReportItemCard
+                    key={raw.id}
+                    item={it}
+                    included={true}
+                    interactive={interactive}
+                    forceOpen={forceOpen}
+                  />
+                );
+              })}
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+// ============================================================
+// Exportação em PDF preservando o layout visual (expandido).
+// ============================================================
+async function exportSectionsAsVisualPdf(input: {
+  periodLabel: string;
+  sections: RenderSection[];
+}) {
+  const { periodLabel, sections } = input;
+  const container = document.createElement("div");
+  container.style.cssText =
+    "position:fixed;left:-10000px;top:0;width:1100px;background:#ffffff;padding:24px;";
+  document.body.appendChild(container);
+
+  const { createRoot } = await import("react-dom/client");
+  const root = createRoot(container);
+  await new Promise<void>((resolve) => {
+    root.render(
+      <div>
+        <div style={{ marginBottom: 16 }}>
+          <h1 style={{ margin: 0, fontSize: 22, color: "#0f172a" }}>
+            Relatório Executivo da Daily
+          </h1>
+          <p style={{ margin: "4px 0 0", color: "#475569", fontSize: 13 }}>
+            {periodLabel} · Fadami Flow
+          </p>
+          <div style={{ height: 2, background: "#F97316", marginTop: 12 }} />
+        </div>
+        <ReportSectionsView
+          sections={sections}
+          interactive={false}
+          forceOpen={true}
+        />
+      </div>,
+    );
+    setTimeout(resolve, 400);
+  });
+
+  try {
+    await downloadElementAsPdf(
+      container,
+      `relatorio-executivo-${periodLabel.replace(/\s+/g, "_")}.pdf`,
+    );
+  } finally {
+    root.unmount();
+    document.body.removeChild(container);
+  }
+}
+
+// ============================================================
 // Card colapsável de item do relatório — visual do histórico
 // ============================================================
 const initialsOf = (name: string) =>
@@ -1204,12 +1361,17 @@ function ExecReportItemCard({
   item,
   included,
   onIncludeChange,
+  interactive = true,
+  forceOpen = false,
 }: {
   item: ReportItem;
   included: boolean;
-  onIncludeChange: (v: boolean) => void;
+  onIncludeChange?: (v: boolean) => void;
+  interactive?: boolean;
+  forceOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [openState, setOpen] = useState(false);
+  const open = forceOpen || openState;
   const entry = item.entry;
   const imps = item.impediments ?? [];
   const openImps = imps.filter((i) => !i.resolved);
@@ -1278,15 +1440,17 @@ function ExecReportItemCard({
               )}
             </div>
           </div>
-          <div
-            className="flex items-center gap-2 shrink-0"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <span className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground hidden md:inline">
-              Incluir
-            </span>
-            <Switch checked={included} onCheckedChange={onIncludeChange} />
-          </div>
+          {interactive && onIncludeChange && (
+            <div
+              className="flex items-center gap-2 shrink-0"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground hidden md:inline">
+                Incluir
+              </span>
+              <Switch checked={included} onCheckedChange={onIncludeChange} />
+            </div>
+          )}
         </div>
 
         {open && (
@@ -1435,10 +1599,12 @@ function ImpedimentReportCard({
   item,
   included,
   onIncludeChange,
+  interactive = true,
 }: {
   item: ReportItem;
   included: boolean;
-  onIncludeChange: (v: boolean) => void;
+  onIncludeChange?: (v: boolean) => void;
+  interactive?: boolean;
 }) {
   const imp = item.impediments?.[0];
   if (!imp) return null;
@@ -1518,15 +1684,17 @@ function ImpedimentReportCard({
             )}
           </div>
         </div>
-        <div
-          className="flex items-center gap-2 shrink-0"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground hidden md:inline">
-            Incluir
-          </span>
-          <Switch checked={included} onCheckedChange={onIncludeChange} />
-        </div>
+        {interactive && onIncludeChange && (
+          <div
+            className="flex items-center gap-2 shrink-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground hidden md:inline">
+              Incluir
+            </span>
+            <Switch checked={included} onCheckedChange={onIncludeChange} />
+          </div>
+        )}
       </div>
     </div>
   );

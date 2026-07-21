@@ -12,7 +12,7 @@ export interface ExecutiveReport {
   sections: Array<{
     id: string;
     title: string;
-    items: Array<{ id: string; text: string; included: boolean }>;
+    items: Array<{ id: string; text: string; included: boolean; data?: any }>;
   }>;
   created_by: string | null;
   created_at: string;
