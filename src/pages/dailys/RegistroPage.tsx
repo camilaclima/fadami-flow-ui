@@ -402,7 +402,7 @@ export default function RegistroPage() {
 
   const isToday = date === toISO(new Date());
   const labelPast = isToday ? "O que fiz hoje" : "O que fiz ontem";
-  const labelFuture = isToday ? "O que farei amanhã" : "O que farei hoje";
+  const labelFuture = (isToday ? "O que farei amanhã" : "O que farei hoje") + " *";
 
   const kpis = useMemo(() => {
     const today = new Date();
