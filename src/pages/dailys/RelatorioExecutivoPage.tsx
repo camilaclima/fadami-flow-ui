@@ -1443,10 +1443,12 @@ function ImpedimentReportCard({
   item,
   included,
   onIncludeChange,
+  interactive = true,
 }: {
   item: ReportItem;
   included: boolean;
-  onIncludeChange: (v: boolean) => void;
+  onIncludeChange?: (v: boolean) => void;
+  interactive?: boolean;
 }) {
   const imp = item.impediments?.[0];
   if (!imp) return null;
@@ -1526,15 +1528,17 @@ function ImpedimentReportCard({
             )}
           </div>
         </div>
-        <div
-          className="flex items-center gap-2 shrink-0"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground hidden md:inline">
-            Incluir
-          </span>
-          <Switch checked={included} onCheckedChange={onIncludeChange} />
-        </div>
+        {interactive && onIncludeChange && (
+          <div
+            className="flex items-center gap-2 shrink-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground hidden md:inline">
+              Incluir
+            </span>
+            <Switch checked={included} onCheckedChange={onIncludeChange} />
+          </div>
+        )}
       </div>
     </div>
   );
