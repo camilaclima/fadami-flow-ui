@@ -155,10 +155,10 @@ export function DevHistoryModal({ open, onOpenChange, userId, name }: Props) {
                           <p className="text-xs text-muted-foreground italic">Nenhuma observação geral registrada.</p>
                         )}
                       </div>
-                      {openImpsThisEntry.length > 0 && (
+                      {openImps.length > 0 && (
                         <div className="space-y-1.5">
                           <p className="text-[10px] uppercase tracking-wide font-semibold text-orange-600">Impedimentos abertos</p>
-                          {openImpsThisEntry.map((imp) => (
+                          {openImps.map((imp) => (
                             <div key={imp.id} className="flex items-start gap-2 p-2 rounded-lg bg-orange-500/5 border border-orange-500/20">
                               <AlertTriangle className="w-3.5 h-3.5 text-orange-600 mt-0.5 shrink-0" />
                               <div className="flex-1 min-w-0">
@@ -170,16 +170,21 @@ export function DevHistoryModal({ open, onOpenChange, userId, name }: Props) {
                                       <Clock className="w-2.5 h-2.5" /> Aberto há {formatOpenFor(imp.created_at)}
                                     </span>
                                   )}
+                                  {imp.created_at && imp.created_at.slice(0, 10) !== e.entry_date && (
+                                    <span className="text-[10px] text-muted-foreground">
+                                      Criado em {format(new Date(imp.created_at), "dd/MM")}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                             </div>
                           ))}
                         </div>
                       )}
-                      {resolvedImpsThisEntry.length > 0 && (
+                      {resolvedImps.length > 0 && (
                         <div className="space-y-1.5">
                           <p className="text-[10px] uppercase tracking-wide font-semibold text-emerald-600">Impedimentos sanados</p>
-                          {resolvedImpsThisEntry.map((imp) => (
+                          {resolvedImps.map((imp) => (
                             <div key={imp.id} className="flex items-start gap-2 p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
                               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
                               <div className="flex-1 min-w-0">
