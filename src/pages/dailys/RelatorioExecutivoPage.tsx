@@ -1001,6 +1001,172 @@ export default function RelatorioExecutivoPage() {
 // ============================================================
 // Salvos
 // ============================================================
+// Rehidrata os itens de um relatório salvo buscando dados vivos
+// (entries, atividades, impedimentos) a partir dos ids codificados
+// no próprio id do item (be-<entry>, pi-<entry>, aw-<entry>,
+// rp-<entry>, pd-<entry>, imp-<impediment>).
+function useHydratedSections(report: ExecutiveReport | null): RenderSection[] {
+  const entryIds = useMemo(() => {
+    if (!report) return [] as string[];
+    const ids = new Set<string>();
+    report.sections.forEach((s) => {
+      s.items.forEach((it) => {
+        if (!it.included) return;
+        const m = it.id.match(/^(be|pi|aw|rp|pd)-(.+)$/);
+        if (m) ids.add(m[2]);
+      });
+    });
+    return Array.from(ids);
+  }, [report]);
+
+  const impIds = useMemo(() => {
+    if (!report) return [] as string[];
+    const ids = new Set<string>();
+    report.sections.forEach((s) => {
+      s.items.forEach((it) => {
+        if (!it.included) return;
+        const m = it.id.match(/^imp-(.+)$/);
+        if (m) ids.add(m[1]);
+      });
+    });
+    return Array.from(ids);
+  }, [report]);
+
+  const { data: entries = [] } = useQuery({
+    queryKey: ["exec_report_hydrate_entries", entryIds.sort().join(",")],
+    enabled: entryIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("dev_daily_entries")
+        .select("*")
+        .in("id", entryIds);
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  const { data: acts = [] } = useQuery({
+    queryKey: ["exec_report_hydrate_acts", entryIds.sort().join(",")],
+    enabled: entryIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("dev_daily_activities") as any)
+        .select("*")
+        .in("linked_entry_id", entryIds);
+      if (error) throw error;
+      return (data ?? []) as DevDailyActivity[];
+    },
+  });
+
+  const { data: entryImps = [] } = useQuery({
+    queryKey: ["exec_report_hydrate_entry_imps", entryIds.sort().join(",")],
+    enabled: entryIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("dev_daily_impediments")
+        .select("*")
+        .in("entry_id", entryIds);
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  const { data: standaloneImps = [] } = useQuery({
+    queryKey: ["exec_report_hydrate_imps", impIds.sort().join(",")],
+    enabled: impIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("dev_daily_impediments")
+        .select("*")
+        .in("id", impIds);
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  const { data: squads = [] } = useSquads();
+  const { data: profiles = [] } = useProfiles();
+
+  return useMemo(() => {
+    if (!report) return [];
+    const entryById = new Map<string, any>(entries.map((e) => [e.id, e]));
+    const squadById = new Map<string, any>(squads.map((s: any) => [s.id, s]));
+    const nameByUser = new Map<string, string>(
+      profiles.map((p: any) => [p.user_id, p.name ?? p.email ?? "Dev"]),
+    );
+    const impById = new Map<string, any>(standaloneImps.map((i) => [i.id, i]));
+    const impsByEntry = new Map<string, any[]>();
+    entryImps.forEach((i) => {
+      const arr = impsByEntry.get(i.entry_id) ?? [];
+      arr.push(i);
+      impsByEntry.set(i.entry_id, arr);
+    });
+    const actsByEntry = new Map<string, DevDailyActivity[]>();
+    (acts as DevDailyActivity[]).forEach((a) => {
+      const key = (a as any).linked_entry_id as string | undefined;
+      if (!key) return;
+      const arr = actsByEntry.get(key) ?? [];
+      arr.push(a);
+      actsByEntry.set(key, arr);
+    });
+
+    const hydrateEntryItem = (raw: any): any => {
+      const m = raw.id.match(/^(be|pi|aw|rp|pd)-(.+)$/);
+      if (!m) return raw;
+      const entry = entryById.get(m[2]);
+      if (!entry) return raw;
+      const dev = nameByUser.get(entry.user_id) ?? "Dev";
+      const sqName = entry.squad_id ? squadById.get(entry.squad_id)?.name : undefined;
+      const entryActs = actsByEntry.get(entry.id) ?? [];
+      const done = entryActs.filter((a: any) => a.status === "concluida");
+      const inactive = entryActs.filter((a: any) => a.status === "inativa" || a.status === "cancelada");
+      const planned = entryActs.filter((a: any) => a.status === "pendente" || a.status === "em_andamento" || a.status === "planejada");
+      const data = {
+        ...(raw.data ?? {}),
+        subject: raw.data?.subject ?? dev,
+        squadName: raw.data?.squadName ?? sqName,
+        date: raw.data?.date ?? entry.entry_date,
+        origin: raw.data?.origin ?? (m[1] === "be" ? "manual" : "auto"),
+        entry,
+        impediments: raw.data?.impediments ?? (impsByEntry.get(entry.id) ?? []),
+        done: raw.data?.done ?? done,
+        inactive: raw.data?.inactive ?? inactive,
+        planned: raw.data?.planned ?? planned,
+      };
+      return { ...raw, data };
+    };
+
+    const hydrateImpItem = (raw: any): any => {
+      const m = raw.id.match(/^imp-(.+)$/);
+      if (!m) return raw;
+      const imp = impById.get(m[1]);
+      if (!imp) return raw;
+      const entry = entryById.get(imp.entry_id);
+      const dev = entry ? (nameByUser.get(entry.user_id) ?? "Dev") : "—";
+      const sqName = entry?.squad_id ? squadById.get(entry.squad_id)?.name : undefined;
+      const data = {
+        ...(raw.data ?? {}),
+        subject: raw.data?.subject ?? dev,
+        squadName: raw.data?.squadName ?? sqName,
+        date: raw.data?.date ?? entry?.entry_date ?? imp.created_at?.slice(0, 10),
+        origin: raw.data?.origin ?? "auto",
+        entry: raw.data?.entry ?? entry,
+        impediments: raw.data?.impediments?.length ? raw.data.impediments : [imp],
+      };
+      return { ...raw, data };
+    };
+
+    return report.sections
+      .filter((s) => s.items.some((i) => i.included))
+      .map((s) => ({
+        id: s.id,
+        title: s.title,
+        items: s.items
+          .filter((i) => i.included)
+          .map((raw) => (s.id === "impedimentos" ? hydrateImpItem(raw) : hydrateEntryItem(raw))),
+      }));
+  }, [report, entries, acts, entryImps, standaloneImps, squads, profiles]);
+}
+
 function SavedReportsPanel() {
   const { data: reports = [], isLoading } = useExecutiveReports();
   const del = useDeleteExecutiveReport();
