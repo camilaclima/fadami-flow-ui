@@ -315,6 +315,7 @@ function DayDetailDialog({
   impediments,
   scopedSquadIds,
   squadNameById,
+  filterSquadId,
 }: {
   day: DayGroup | null;
   onClose: () => void;
@@ -322,6 +323,7 @@ function DayDetailDialog({
   impediments: { id: string; entry_id: string; description: string; urgency: string; resolved: boolean }[];
   scopedSquadIds: string[] | null;
   squadNameById: Map<string, string>;
+  filterSquadId?: string | null;
 }) {
   const [insights, setInsights] = useState<AIInsights | null>(null);
   const [loadingAI, setLoadingAI] = useState(false);
