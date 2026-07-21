@@ -78,7 +78,7 @@ interface DayGroup {
   entries: DevEntryRow[];
 }
 
-export default function HistoricoPage() {
+export default function HistoricoPage({ filterSquadId }: { filterSquadId?: string | null } = {}) {
   const { current: sim } = useDailySim();
   const { data: profiles = [] } = useProfiles();
   const { data: squads = [] } = useSquads();
@@ -86,13 +86,19 @@ export default function HistoricoPage() {
 
   // Resolve os user_ids visíveis: GP vê apenas membros das suas squads;
   // Diretor vê todos os user_ids que registraram dailys.
-  const squadIds = sim.role === "gp" ? (sim.squadIds ?? []) : null;
+  // Se um filterSquadId for informado (ex.: filtro do topo do Painel), restringe a essa squad.
+  const squadIds = filterSquadId
+    ? [filterSquadId]
+    : sim.role === "gp"
+      ? (sim.squadIds ?? [])
+      : null;
+  const scopedSquadId = filterSquadId ?? null;
 
   const { data: allowedUserIds = null } = useQuery<string[] | null>({
-    queryKey: ["historico_allowed_users", sim.role, (squadIds ?? []).slice().sort().join(",")],
-    enabled: sim.role === "diretor" || (squadIds !== null && squadIds.length > 0),
+    queryKey: ["historico_allowed_users", sim.role, scopedSquadId ?? "any", (squadIds ?? []).slice().sort().join(",")],
+    enabled: sim.role === "diretor" || (squadIds !== null && squadIds.length > 0) || !!scopedSquadId,
     queryFn: async () => {
-      if (sim.role === "diretor") return null; // null = sem filtro
+      if (sim.role === "diretor" && !scopedSquadId) return null; // null = sem filtro
       if (!squadIds || squadIds.length === 0) return [];
       const { data: sm } = await (supabase.from("squad_members") as any)
         .select("team_member_id")
@@ -118,14 +124,18 @@ export default function HistoricoPage() {
   });
 
   const { data: entries = [], isLoading } = useQuery<DevEntryRow[]>({
-    queryKey: ["historico_dev_entries", sim.role, (allowedUserIds ?? ["__all__"]).slice().sort().join(",")],
-    enabled: sim.role === "diretor" || (Array.isArray(allowedUserIds) && allowedUserIds.length > 0),
+    queryKey: ["historico_dev_entries", sim.role, scopedSquadId ?? "any", (allowedUserIds ?? ["__all__"]).slice().sort().join(",")],
+    enabled: (sim.role === "diretor" && !scopedSquadId) || (Array.isArray(allowedUserIds) && allowedUserIds.length > 0),
     queryFn: async () => {
       let q = (supabase.from("dev_daily_entries") as any)
         .select("*")
         .order("entry_date", { ascending: false });
-      if (sim.role !== "diretor" && allowedUserIds && allowedUserIds.length > 0) {
+      if (allowedUserIds && allowedUserIds.length > 0) {
         q = q.in("user_id", allowedUserIds);
+      }
+      if (scopedSquadId) {
+        // Entries desta squad OU legadas (squad_id NULL) para os membros permitidos.
+        q = q.or(`squad_id.eq.${scopedSquadId},squad_id.is.null`);
       }
       const { data, error } = await q;
       if (error) throw error;
@@ -244,8 +254,9 @@ export default function HistoricoPage() {
         onClose={() => setSelectedDay(null)}
         nameFor={nameFor}
         impediments={dayImpediments}
-        scopedSquadIds={sim.role === "diretor" ? null : (sim.squadIds ?? [])}
+        scopedSquadIds={scopedSquadId ? [scopedSquadId] : (sim.role === "diretor" ? null : (sim.squadIds ?? []))}
         squadNameById={squadNameById}
+        filterSquadId={scopedSquadId}
       />
     </div>
   );
