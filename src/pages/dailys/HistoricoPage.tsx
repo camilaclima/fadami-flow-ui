@@ -349,15 +349,19 @@ function DayDetailDialog({
     [day],
   );
   const { data: userEntriesUpto = [] } = useQuery({
-    queryKey: ["historico_user_entries_upto", day?.date ?? "", dayUserIds.slice().sort().join(",")],
+    queryKey: ["historico_user_entries_upto", day?.date ?? "", dayUserIds.slice().sort().join(","), filterSquadId ?? "any"],
     enabled: !!day && dayUserIds.length > 0,
     queryFn: async () => {
-      const { data, error } = await (supabase.from("dev_daily_entries") as any)
-        .select("id,user_id,entry_date")
+      let q = (supabase.from("dev_daily_entries") as any)
+        .select("id,user_id,entry_date,squad_id")
         .in("user_id", dayUserIds)
         .lte("entry_date", day!.date);
+      if (filterSquadId) {
+        q = q.or(`squad_id.eq.${filterSquadId},squad_id.is.null`);
+      }
+      const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []) as { id: string; user_id: string; entry_date: string }[];
+      return (data ?? []) as { id: string; user_id: string; entry_date: string; squad_id: string | null }[];
     },
   });
   const uptoEntryIds = useMemo(() => userEntriesUpto.map((e) => e.id), [userEntriesUpto]);
