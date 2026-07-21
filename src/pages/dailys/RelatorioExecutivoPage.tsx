@@ -46,6 +46,14 @@ import { useSquads } from "@/hooks/useSquads";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useDevDailyImpedimentsByEntries, URGENCY_LABELS } from "@/hooks/useDevDailyImpediments";
 import { URGENCY_STYLES } from "@/hooks/useDevDailyImpediments";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, X } from "lucide-react";
 import { formatOpenFor } from "@/lib/formatDuration";
 import { useDailyEntryTagsByEntries } from "@/hooks/useDailyEntryTags";
 import { DEV_ABSENCE_LABELS, type DevAbsenceType } from "@/hooks/useDevAbsences";
@@ -146,10 +154,6 @@ export default function RelatorioExecutivoPage() {
   const [dateTo, setDateTo] = useState<string>(todayISO());
   const effectiveFrom = dateFrom <= dateTo ? dateFrom : dateTo;
   const effectiveTo = dateFrom <= dateTo ? dateTo : dateFrom;
-  const sevenDaysAgo = useMemo(() => {
-    const d = subDays(parseISO(effectiveTo), 6);
-    return format(d, "yyyy-MM-dd");
-  }, [effectiveTo]);
   // Faixa alargada para buscar entries do dia útil anterior a cada data do intervalo.
   const prevRangeFrom = useMemo(
     () => prevBusinessDay(effectiveFrom),
@@ -213,15 +217,32 @@ export default function RelatorioExecutivoPage() {
     },
   });
 
-  // Ausências ativas cobrindo os últimos 7 dias.
+  // Ausências ativas que sobrepõem o intervalo do filtro.
   const { data: absences = [] } = useQuery({
-    queryKey: ["exec-report", "absences", effectiveTo, sevenDaysAgo],
+    queryKey: ["exec-report", "absences", effectiveFrom, effectiveTo],
     queryFn: async () => {
       const { data, error } = await (supabase.from("dev_absences") as any)
         .select("*")
         .eq("active", true)
         .lte("start_date", effectiveTo)
-        .gte("end_date", sevenDaysAgo);
+        .gte("end_date", effectiveFrom);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // Presenças das reuniões no intervalo (para faltas por não participação).
+  const meetingIds = useMemo(
+    () => (meetings as any[]).map((m) => m.id),
+    [meetings],
+  );
+  const { data: attendance = [] } = useQuery({
+    queryKey: ["exec-report", "attendance", meetingIds.sort().join(",")],
+    enabled: meetingIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("daily_meeting_attendance") as any)
+        .select("*")
+        .in("meeting_id", meetingIds);
       if (error) throw error;
       return data ?? [];
     },
@@ -263,8 +284,45 @@ export default function RelatorioExecutivoPage() {
   });
 
   const entryIds = useMemo(() => todayEntries.map((e: any) => e.id), [todayEntries]);
-  const { data: impediments = [] } = useDevDailyImpedimentsByEntries(entryIds);
   const { data: manualTags = [] } = useDailyEntryTagsByEntries(entryIds);
+
+  // Impedimentos: abertos, em aberto, ou sanados dentro do intervalo.
+  const { data: rangeImpediments = [] } = useQuery({
+    queryKey: ["exec-report", "impediments-range", effectiveFrom, effectiveTo],
+    queryFn: async () => {
+      const fromISO = `${effectiveFrom}T00:00:00`;
+      const toISO = `${effectiveTo}T23:59:59`;
+      const { data, error } = await (supabase.from("dev_daily_impediments") as any)
+        .select("*")
+        .lte("created_at", toISO)
+        .or(`resolved.eq.false,resolved_at.gte.${fromISO}`);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // Entries referenciadas pelos impedimentos do intervalo (podem estar fora do range de entries).
+  const impEntryIds = useMemo(
+    () => Array.from(new Set((rangeImpediments as any[]).map((i) => i.entry_id).filter(Boolean))),
+    [rangeImpediments],
+  );
+  const { data: impEntries = [] } = useQuery({
+    queryKey: ["exec-report", "imp-entries", impEntryIds.sort().join(",")],
+    enabled: impEntryIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("dev_daily_entries") as any)
+        .select("id,user_id,squad_id,entry_date,did_yesterday,will_do_today,general_notes,fill_completed_at,created_at")
+        .in("id", impEntryIds);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // Impedimentos vigentes (para o card do dev no expandido/dedupe).
+  const impediments = useMemo(
+    () => rangeImpediments as any[],
+    [rangeImpediments],
+  );
 
   const userIdsForActivities = useMemo(
     () => Array.from(new Set((todayEntries as any[]).map((e) => e.user_id).filter(Boolean))),
@@ -336,6 +394,27 @@ export default function RelatorioExecutivoPage() {
     });
     return m;
   }, [impediments]);
+
+  // Estado local: seleção manual de "Melhor Squad" com motivo.
+  const [melhorSquadPicks, setMelhorSquadPicks] = useState<
+    Array<{ id: string; squadId: string; reason: string }>
+  >([]);
+  const [msSquadId, setMsSquadId] = useState<string>("");
+  const [msReason, setMsReason] = useState<string>("");
+  const addMelhorSquad = () => {
+    if (!msSquadId) {
+      toast.error("Selecione uma squad");
+      return;
+    }
+    setMelhorSquadPicks((prev) => [
+      ...prev,
+      { id: `ms-${msSquadId}-${Date.now()}`, squadId: msSquadId, reason: msReason.trim() },
+    ]);
+    setMsSquadId("");
+    setMsReason("");
+  };
+  const removeMelhorSquad = (id: string) =>
+    setMelhorSquadPicks((prev) => prev.filter((p) => p.id !== id));
 
   // ============ Construção das seções ============
   const sections: ReportSection[] = useMemo(() => {
