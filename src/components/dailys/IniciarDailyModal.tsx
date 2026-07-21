@@ -570,7 +570,7 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                 <ChevronDown className="w-3 h-3 opacity-70" />
                               </Button>
                             </PopoverTrigger>
-                            <PopoverContent align="end" className="w-72 p-3 space-y-2" onKeyDown={(e) => e.stopPropagation()}>
+                            <PopoverContent align="end" className="w-[26rem] max-w-[calc(100vw-2rem)] p-3 space-y-2" onKeyDown={(e) => e.stopPropagation()}>
                               <Label className="text-[11px] font-semibold text-muted-foreground">Motivo da ausência</Label>
                               <div className="grid grid-cols-2 gap-1.5">
                                 {(Object.keys(DEV_ABSENCE_LABELS) as DevAbsenceType[]).map((t) => {
@@ -593,10 +593,10 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                           absence_end: ranged ? (st.absence_end || date) : date,
                                         });
                                       }}
-                                      className={`h-8 justify-start gap-1.5 text-xs ${active ? "border-red-500/50 bg-red-500/10 text-red-700" : ""}`}
+                                      className={`h-8 justify-start gap-1.5 text-xs px-2 ${active ? "border-red-500/50 bg-red-500/10 text-red-700" : ""}`}
                                     >
-                                      <Icon className="w-3.5 h-3.5" />
-                                      <span className="truncate">{DEV_ABSENCE_LABELS[t]}</span>
+                                      <Icon className="w-3.5 h-3.5 shrink-0" />
+                                      <span className="whitespace-nowrap">{DEV_ABSENCE_LABELS[t]}</span>
                                     </Button>
                                   );
                                 })}
