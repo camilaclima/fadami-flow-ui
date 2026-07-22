@@ -360,8 +360,10 @@ export function DailyReadOnlyView({
                                   <DevActivityCard key={a.id} kind="inactive" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
                                 ))}
                               </div>
+                            ) : e.did_yesterday?.trim() ? (
+                              <DevActivityCard kind="done" description={e.did_yesterday} createdAt={e.created_at} />
                             ) : (
-                              <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">{e.did_yesterday || "—"}</p>
+                              <p className="text-xs text-muted-foreground italic">—</p>
                             )}
                           </div>
                           <div className="rounded-lg bg-primary/5 px-3 py-2">
@@ -372,8 +374,10 @@ export function DailyReadOnlyView({
                                   <DevActivityCard key={a.id} kind="pending" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
                                 ))}
                               </div>
+                            ) : e.will_do_today?.trim() ? (
+                              <DevActivityCard kind="pending" description={e.will_do_today} createdAt={e.created_at} />
                             ) : (
-                              <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">{e.will_do_today || "—"}</p>
+                              <p className="text-xs text-muted-foreground italic">—</p>
                             )}
                           </div>
                         </div>
