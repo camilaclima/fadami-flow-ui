@@ -33,6 +33,7 @@ import { ptBR } from "date-fns/locale";
 import { Clock } from "lucide-react";
 import { formatDuration, formatOpenFor } from "@/lib/formatDuration";
 import { FreeTextActivityList } from "@/lib/dailyFreeText";
+import { buildYesterdayTodayLists } from "@/lib/dailyActivitiesView";
 
 function daysAgoLabel(iso: string): string {
   const created = new Date(iso);
@@ -397,7 +398,24 @@ export default function PainelGPPage() {
   const detailRow = useMemo(() => rows.find((r) => r.id === detailEntryId) ?? null, [rows, detailEntryId]);
   const detailActivities = useDevDailyActivitiesByEntries(detailRow ? [detailRow.id] : []);
   // Também precisa das atividades do usuário para detectar carry-over pendente.
-  const detailUserActivities = useDevDailyActivitiesByUsers(detailRow ? [detailRow.user_id] : []);
+  // Escopo por squad para não misturar atividades do dev em outra squad.
+  const detailUserActivities = useDevDailyActivitiesByUsers(
+    detailRow ? [detailRow.user_id] : [],
+    effectiveSquadId,
+  );
+  const detailLists = useMemo(() => {
+    if (!detailRow) return null;
+    const acts = (detailUserActivities.data ?? []).filter(
+      (a) => a.user_id === detailRow.user_id,
+    );
+    const entriesForUser = userEntries.filter((e) => e.user_id === detailRow.user_id);
+    return buildYesterdayTodayLists({
+      entry: { id: detailRow.id, entry_date: detailRow.entry_date },
+      activities: acts,
+      entriesForUser,
+      date: detailRow.entry_date,
+    });
+  }, [detailRow, detailUserActivities.data, userEntries]);
 
   const handleGenerate = async () => {
     const result = await gen.mutateAsync(rows.map(r => ({
@@ -997,21 +1015,7 @@ export default function PainelGPPage() {
                 <div className="rounded-xl border bg-muted/30 p-3">
                   <p className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5">Ontem</p>
                   {(() => {
-                    const D = detailRow.entry_date;
-                    const userActs = detailUserActivities.data ?? [];
-                    const closedHere = userActs.filter((a) => a.closed_entry_id === detailRow.id && a.status !== "pendente");
-                    const stillPending = userActs.filter((a) => {
-                      if (a.closed_entry_id === detailRow.id) return false;
-                      const origin = a.created_entry_id ? userEntries.find((e) => e.id === a.created_entry_id) : null;
-                      const originDate = origin?.entry_date ?? (a.created_at ? a.created_at.slice(0, 10) : null);
-                      if (!originDate || originDate >= D) return false;
-                      if (a.closed_entry_id) {
-                        const closed = userEntries.find((e) => e.id === a.closed_entry_id);
-                        if (closed && closed.entry_date <= D) return false;
-                      }
-                      return true;
-                    });
-                    const acts = [...closedHere, ...stillPending];
+                    const acts = detailLists?.yesterday ?? [];
                     if (acts.length === 0) return (
                       <FreeTextActivityList
                         text={detailRow.did_yesterday}
@@ -1032,22 +1036,9 @@ export default function PainelGPPage() {
                 <div className="rounded-xl border bg-primary/5 p-3">
                   <p className="text-[11px] uppercase tracking-wide font-semibold text-primary/80 mb-1.5">Hoje</p>
                   {(() => {
-                    // "Hoje" = tudo o que o dev ainda tem em aberto neste dia:
-                    //  - atividades criadas neste entry e ainda pendentes; e
-                    //  - carry-overs pendentes de dias anteriores que continuam abertos.
-                    const D = detailRow.entry_date;
-                    const userActs = detailUserActivities.data ?? [];
-                    const acts = userActs.filter((a) => {
-                      if (a.status !== "pendente") return false;
-                      const origin = a.created_entry_id ? userEntries.find((e) => e.id === a.created_entry_id) : null;
-                      const originDate = origin?.entry_date ?? (a.created_at ? a.created_at.slice(0, 10) : null);
-                      if (!originDate || originDate > D) return false;
-                      if (a.closed_entry_id) {
-                        const closed = userEntries.find((e) => e.id === a.closed_entry_id);
-                        if (closed && closed.entry_date <= D) return false;
-                      }
-                      return true;
-                    });
+                    // "Hoje" = atividades pendentes criadas neste próprio registro
+                    // (mesma regra da visão do líder, evita mistura com carry-over).
+                    const acts = detailLists?.today ?? [];
                     if (acts.length === 0) return (
                       <FreeTextActivityList
                         text={detailRow.will_do_today}

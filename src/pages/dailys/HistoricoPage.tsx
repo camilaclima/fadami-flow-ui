@@ -395,7 +395,10 @@ function DayDetailDialog({
 
   // Busca por usuário — assim vemos carry-overs pendentes cuja origem é um entry
   // de dia anterior (não pertence a dayEntryIds).
-  const { data: dayActivitiesRaw = [] } = useDevDailyActivitiesByUsers(dayUserIds);
+  const { data: dayActivitiesRaw = [] } = useDevDailyActivitiesByUsers(
+    dayUserIds,
+    filterSquadId ?? null,
+  );
   const dayActivities = useMemo(() => {
     if (!filterSquadId) return dayActivitiesRaw;
     return dayActivitiesRaw.filter((a: any) => a.squad_id === filterSquadId || a.squad_id == null);
@@ -424,8 +427,9 @@ function DayDetailDialog({
         if (a.user_id !== e.user_id) return false;
         if (a.status !== "pendente") return false;
         const origin = a.created_entry_id ? entryById.get(a.created_entry_id) : null;
-        const originDate = origin?.entry_date ?? (a.created_at ? a.created_at.slice(0, 10) : null);
-        if (!originDate || originDate > D) return false;
+        if (!origin) return false;
+        const originDate = origin.entry_date;
+        if (originDate > D) return false;
         if (a.closed_entry_id) {
           const closed = entryById.get(a.closed_entry_id);
           if (closed && closed.entry_date <= D) return false;
