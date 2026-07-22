@@ -1,50 +1,65 @@
 
-## Por que acontece (em linguagem simples)
+## O problema, em palavras simples
 
-Quando um desenvolvedor registra a daily, o texto de "Ontem" e "Hoje" pode ser salvo de duas formas diferentes:
+No **Painel da Daily**, quando você clica no nome de um desenvolvedor (no "status de preenchimento") para ver o que ele registrou, aparecem duas visões diferentes dependendo de quem está logado:
 
-1. **Como atividades estruturadas** (cada tarefa vira uma linha no banco). Aí a tela mostra um cartão por tarefa naturalmente.
-2. **Como texto livre** (um único parágrafo com várias linhas). Aí depende da tela saber "quebrar" esse parágrafo em cartões.
+- **Visão do líder** (ao "Iniciar Daily"): mostra corretamente apenas o que o dev registrou para aquele dia e para aquela squad.
+- **Visão do admin** (ao clicar no card do dev): mostra vários itens a mais — atividades de outros dias e, às vezes, de outras squads — misturadas nos blocos "Ontem" e "Hoje".
 
-A tela do **líder da squad** já foi ajustada anteriormente para quebrar o texto livre em vários cartões. Por isso, quando você entra como líder, vê tudo bonitinho.
+A causa é técnica, mas dá para explicar assim:
 
-Já a tela usada pelo **Admin** (o modal "Painel da Daily" que abre ao clicar num colaborador no bloco *Status de preenchimento*) é um componente **diferente**, e essa quebra em cartões nunca foi aplicada nele. Por isso o mesmo registro do Eder aparece "colado" para o admin e correto para o líder — não é um problema de dados, é a mesma informação sendo exibida por dois componentes diferentes, e só um deles foi corrigido.
+1. A tela do **líder** monta a lista "Ontem/Hoje" olhando somente para as atividades ligadas ao registro daquele dia específico ("Hoje" = só atividades criadas naquele registro e ainda pendentes).
+2. A tela do **admin** foi escrita com uma lógica diferente: ela tenta reconstruir "Ontem" e "Hoje" a partir de todas as atividades do usuário, com uma regra de carry-over que, quando não encontra o registro de origem (porque está em outra squad ou sem squad), assume o `created_at` bruto — e acaba puxando itens que não pertencem ao dia/squad em questão.
+3. Além disso, o hook que busca atividades por usuário (`useDevDailyActivitiesByUsers`) **não filtra por squad**. Como o admin visualiza várias squads e o mesmo dev pode ter registros em mais de uma, a lista contamina a visão do dia.
 
-Além do modal do admin no Painel da Daily, existem outros lugares no sistema com o mesmo problema (mesmo componente antigo de exibição de texto):
+Resultado: o admin vê "Ontem" cheio de tarefas antigas/concluídas em outros contextos e "Hoje" com pendências que não são daquele dia.
 
-- Modal "Histórico do dev" (botão *Histórico* nos painéis).
-- Aba **Histórico** da Daily (visão detalhada do registro).
-- Modal **Iniciar Daily** do líder (quando abre o registro de cada membro).
-- Preview do relatório executivo (quando abre um registro para conferência).
+## O que fazer
 
-Todos eles precisam ganhar o mesmo comportamento: se o dev escreveu texto livre com várias linhas, transformar cada linha num cartão de atividade, exatamente igual às demais telas.
+Alinhar a visão do admin **à mesma lógica da visão do líder**, e blindar contra mistura entre squads.
 
-## O que vai ser feito
+### 1. Reescrever o modal de detalhe do dev no `PainelGPPage.tsx`
+Trocar o cálculo atual dos blocos "Ontem" e "Hoje" pelo mesmo modelo usado no `IniciarDailyModal` (visão do líder):
 
-1. Extrair a função `splitFreeText` (que já existe hoje em `DailyReadOnlyView.tsx`) para um utilitário compartilhado, para que todas as telas usem a mesma regra de quebra (por quebras de linha, removendo bullets tipo `- `, `* `, `○ `, `1.`, etc.).
+- **Ontem** = atividades cujo `closed_entry_id` é exatamente o registro (`detailRow.id`) sendo visto (concluídas + inativadas) **+** carry-overs pendentes de dias anteriores que ainda estavam abertos no dia D.
+- **Hoje** = atividades pendentes cujo `created_entry_id` é exatamente o registro sendo visto.
+- Se não houver nenhuma atividade estruturada, cair no texto livre (`did_yesterday` / `will_do_today`) como já faz hoje.
 
-2. Criar um pequeno componente auxiliar `FreeTextActivityList` que recebe o texto livre e o tipo (`done` para "Ontem" / `pending` para "Hoje") e renderiza cada linha como um `DevActivityCard`. Ele já é usado internamente por `DailyReadOnlyView`; vamos reutilizá-lo nos demais lugares.
+### 2. Filtrar as atividades por squad na origem
+Na busca `useDevDailyActivitiesByUsers` usada pelo Painel GP, passar o `effectiveSquadId` selecionado e filtrar por `squad_id` (ou `squad_id IS NULL` para registros legados). Isso impede que atividades do mesmo dev em **outra squad** apareçam no detalhe.
 
-3. Aplicar esse componente nos locais que hoje ainda mostram texto cru:
-   - `src/pages/dailys/PainelGPPage.tsx` — modal de detalhe do dev (aquele das imagens 161–163).
-   - `src/components/dailys/DevHistoryModal.tsx` — listagem histórica por dev.
-   - `src/pages/dailys/HistoricoPage.tsx` — funções `ActivitiesSection` e `PlannedSection`.
-   - `src/components/dailys/IniciarDailyModal.tsx` — visualização do registro de cada membro.
-   - `src/pages/dailys/RelatorioExecutivoPage.tsx` — trechos de "Ontem/Hoje" nos cards de preview.
+### 3. Corrigir o cálculo de carry-over para não usar `created_at` bruto
+No filtro `stillPending`, quando o `origin` (registro de origem da atividade) não é encontrado na lista carregada, hoje o código cai para `a.created_at.slice(0,10)`. Vamos:
 
-4. Manter a regra atual: se existirem atividades estruturadas, elas continuam sendo mostradas normalmente; a quebra em cartões só é usada como *fallback* para texto livre. Nenhuma tela perde funcionalidade.
+- Buscar sempre a lista de entries do usuário na squad selecionada (o que já é feito em `userEntries`), e
+- Ignorar atividades sem `origin` encontrado — em vez de "adivinhar" pela data de criação. Isso evita puxar itens de outras squads/contextos.
 
-5. Não mexer em banco de dados, permissões nem em regras de negócio. É uma correção puramente visual/de apresentação.
+### 4. Aplicar a mesma padronização nas outras telas que usam esse padrão
+Para garantir consistência, revisar e alinhar (usando exatamente a mesma função utilitária):
 
-## Como você vai perceber o resultado
+- `src/components/dailys/DailyReadOnlyView.tsx` (usado no Relatório e em outros pontos)
+- `src/pages/dailys/HistoricoPage.tsx` (aba Histórico do Painel)
+- `src/components/dailys/DevHistoryModal.tsx` (histórico do dev)
 
-- Entrando como **Admin** e clicando num colaborador no *Status de preenchimento* do Painel da Daily, o modal do dev (ex.: Eder, Vanessa, Wesley) mostrará cada tarefa do "Ontem" e do "Hoje" em cartões separados com o mesmo ícone verde/laranja usado nas outras telas.
-- Mesma padronização aparece no modal **Histórico do dev**, na aba **Histórico da Daily**, no **Iniciar Daily** do líder e no preview do **Relatório Executivo**.
-- Ao logar como líder, tudo continua exatamente como já está hoje.
+Vou extrair a lógica de "Ontem/Hoje a partir das atividades + entry" para um **único helper** compartilhado (ex.: `src/lib/dailyActivitiesView.ts`), para que admin, líder, histórico e relatório executivo usem exatamente as mesmas regras. Assim a inconsistência não volta a aparecer quando um dos lugares for alterado no futuro.
 
-## Área técnica (para referência)
+### 5. Verificar impedimentos e presença com o mesmo cuidado
+Rápida checagem para confirmar que:
 
-- Novo utilitário: `src/lib/dailyFreeText.ts` exportando `splitFreeText` + componente `FreeTextActivityList`.
-- Refatoração leve em `DailyReadOnlyView.tsx` para consumir o utilitário (sem mudar visual).
-- Substituição dos `<p className="whitespace-pre-wrap">{did_yesterday}</p>` / `{will_do_today}` nos arquivos listados por `<FreeTextActivityList text={...} kind="done|pending" />`.
-- Sem migrações, sem alterações em RLS, sem alterações em edge functions.
+- O bloco de impedimentos no modal de detalhe respeita o mesmo filtro por squad (já respeita hoje — apenas confirmar após o ajuste).
+- O contador "concluídas hoje / pendentes" no card do dev no painel usa os mesmos números que o modal passa a mostrar.
+
+## Como saberemos que ficou certo
+
+Após as mudanças, no mesmo dia e mesma squad:
+
+- Abrir o modal do dev como **admin** → deve exibir exatamente os mesmos itens que aparecem para o **líder** ao iniciar a daily.
+- Trocar de squad no filtro do admin → o modal do mesmo dev deve refletir apenas os itens daquela squad.
+- Abrir o histórico do dev → contagens de "Ontem/Hoje/Impedimentos" batem com o modal.
+
+## Detalhes técnicos (para referência)
+
+- Arquivos principais: `src/pages/dailys/PainelGPPage.tsx`, `src/components/dailys/IniciarDailyModal.tsx`, `src/hooks/useDevDailyActivities.ts`.
+- Novo helper sugerido: `src/lib/dailyActivitiesView.ts` exportando `buildYesterdayTodayLists({ entry, activities, entriesForUser, date })`.
+- Ajuste no hook `useDevDailyActivitiesByUsers` para aceitar `squadId?: string | null` opcional e aplicar `.eq("squad_id", squadId)` (com fallback opcional para `is null` quando for admin em modo compatibilidade).
+- Nenhuma alteração de schema é necessária.
