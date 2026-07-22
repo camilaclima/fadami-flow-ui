@@ -18,6 +18,13 @@ import type { DevDailyActivity } from "@/hooks/useDevDailyActivities";
 import { useDailySim } from "@/contexts/DailySimContext";
 import { DailyEntryTagsSelector } from "@/components/dailys/DailyEntryTagsSelector";
 
+function splitFreeText(text: string): string[] {
+  return text
+    .split(/\r?\n+/)
+    .map((l) => l.replace(/^\s*(?:[-*•○●◦▪▫»·]|\d+[.)])\s*/, "").trim())
+    .filter((l) => l.length > 0);
+}
+
 interface EntryLike {
   id: string;
   user_id: string;
