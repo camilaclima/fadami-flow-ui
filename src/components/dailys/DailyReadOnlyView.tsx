@@ -361,7 +361,11 @@ export function DailyReadOnlyView({
                                 ))}
                               </div>
                             ) : e.did_yesterday?.trim() ? (
-                              <DevActivityCard kind="done" description={e.did_yesterday} createdAt={e.created_at} />
+                              <div className="space-y-1.5">
+                                {splitFreeText(e.did_yesterday).map((line, i) => (
+                                  <DevActivityCard key={`y-${i}`} kind="done" description={line} createdAt={e.created_at} />
+                                ))}
+                              </div>
                             ) : (
                               <p className="text-xs text-muted-foreground italic">—</p>
                             )}
@@ -375,7 +379,11 @@ export function DailyReadOnlyView({
                                 ))}
                               </div>
                             ) : e.will_do_today?.trim() ? (
-                              <DevActivityCard kind="pending" description={e.will_do_today} createdAt={e.created_at} />
+                              <div className="space-y-1.5">
+                                {splitFreeText(e.will_do_today).map((line, i) => (
+                                  <DevActivityCard key={`t-${i}`} kind="pending" description={line} createdAt={e.created_at} />
+                                ))}
+                              </div>
                             ) : (
                               <p className="text-xs text-muted-foreground italic">—</p>
                             )}
