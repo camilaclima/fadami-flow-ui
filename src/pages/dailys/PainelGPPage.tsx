@@ -32,6 +32,7 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Clock } from "lucide-react";
 import { formatDuration, formatOpenFor } from "@/lib/formatDuration";
+import { FreeTextActivityList } from "@/lib/dailyFreeText";
 
 function daysAgoLabel(iso: string): string {
   const created = new Date(iso);
