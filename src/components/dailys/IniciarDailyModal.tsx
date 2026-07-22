@@ -115,7 +115,10 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
     () => Array.from(new Set(members.map((m) => m.entry?.user_id).filter((v): v is string => !!v))),
     [members],
   );
-  const { data: userActivities = [] } = useDevDailyActivitiesByUsers(open ? memberUserIds : []);
+  const { data: userActivities = [] } = useDevDailyActivitiesByUsers(
+    open ? memberUserIds : [],
+    squadId,
+  );
   const { data: userEntriesAll = [] } = useDevDailyEntriesByUsers(open ? memberUserIds : []);
   const { data: activeAbsences = [] } = useActiveDevAbsences(open ? memberUserIds : [], date);
 
