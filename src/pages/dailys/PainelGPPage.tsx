@@ -33,6 +33,7 @@ import { ptBR } from "date-fns/locale";
 import { Clock } from "lucide-react";
 import { formatDuration, formatOpenFor } from "@/lib/formatDuration";
 import { FreeTextActivityList } from "@/lib/dailyFreeText";
+import { buildYesterdayTodayLists } from "@/lib/dailyActivitiesView";
 
 function daysAgoLabel(iso: string): string {
   const created = new Date(iso);
@@ -397,7 +398,24 @@ export default function PainelGPPage() {
   const detailRow = useMemo(() => rows.find((r) => r.id === detailEntryId) ?? null, [rows, detailEntryId]);
   const detailActivities = useDevDailyActivitiesByEntries(detailRow ? [detailRow.id] : []);
   // Também precisa das atividades do usuário para detectar carry-over pendente.
-  const detailUserActivities = useDevDailyActivitiesByUsers(detailRow ? [detailRow.user_id] : []);
+  // Escopo por squad para não misturar atividades do dev em outra squad.
+  const detailUserActivities = useDevDailyActivitiesByUsers(
+    detailRow ? [detailRow.user_id] : [],
+    effectiveSquadId,
+  );
+  const detailLists = useMemo(() => {
+    if (!detailRow) return null;
+    const acts = (detailUserActivities.data ?? []).filter(
+      (a) => a.user_id === detailRow.user_id,
+    );
+    const entriesForUser = userEntries.filter((e) => e.user_id === detailRow.user_id);
+    return buildYesterdayTodayLists({
+      entry: { id: detailRow.id, entry_date: detailRow.entry_date },
+      activities: acts,
+      entriesForUser,
+      date: detailRow.entry_date,
+    });
+  }, [detailRow, detailUserActivities.data, userEntries]);
 
   const handleGenerate = async () => {
     const result = await gen.mutateAsync(rows.map(r => ({
