@@ -15,6 +15,7 @@ import { Users } from "lucide-react";
 import { formatOpenFor } from "@/lib/formatDuration";
 import { useDailySim } from "@/contexts/DailySimContext";
 import { DailyEntryTagsSelector } from "@/components/dailys/DailyEntryTagsSelector";
+import { FreeTextActivityList } from "@/lib/dailyFreeText";
 
 interface Props {
   open: boolean;
@@ -141,7 +142,13 @@ export function DevHistoryModal({ open, onOpenChange, userId, name }: Props) {
                               ))}
                             </div>
                           ) : (
-                            <p className="text-xs whitespace-pre-wrap break-words">{e.did_yesterday || "—"}</p>
+                            <FreeTextActivityList
+                              text={e.did_yesterday}
+                              kind="done"
+                              createdAt={e.created_at}
+                              emptyFallback={<p className="text-xs text-muted-foreground">—</p>}
+                              keyPrefix={`dhm-y-${e.id}`}
+                            />
                           )}
                         </div>
                         <div className="rounded-lg bg-primary/5 px-3 py-2">
@@ -153,7 +160,13 @@ export function DevHistoryModal({ open, onOpenChange, userId, name }: Props) {
                               ))}
                             </div>
                           ) : (
-                            <p className="text-xs whitespace-pre-wrap break-words">{e.will_do_today || "—"}</p>
+                            <FreeTextActivityList
+                              text={e.will_do_today}
+                              kind="pending"
+                              createdAt={e.created_at}
+                              emptyFallback={<p className="text-xs text-muted-foreground">—</p>}
+                              keyPrefix={`dhm-t-${e.id}`}
+                            />
                           )}
                         </div>
                       </div>
