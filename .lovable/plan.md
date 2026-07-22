@@ -1,53 +1,50 @@
-## O que muda no Relatório Executivo
 
-### 1. Filtro por período (data início + data fim)
-No topo da aba, o campo único de data vira **dois campos**: "De" e "Até" (padrão: hoje/hoje).
-- Todas as consultas passam a olhar o intervalo (entries, reuniões, impedimentos, ausências).
-- Regras que hoje comparam "dia atual x dia anterior" continuam funcionando dia a dia dentro do intervalo (para cada data do range, olha o dia útil anterior).
-- Cada item do relatório mostra a data de origem no texto (ex.: "22/07 — Fulano · Squad X …") para que o intervalo faça sentido na leitura.
+## Por que acontece (em linguagem simples)
 
-### 2. Botão "Terminar Relatório" e histórico de relatórios salvos
-Novo botão principal ao lado de "Gerar PDF" e "Copiar Texto".
-- Ao clicar, grava um snapshot fiel do que está na tela naquele momento: período, seções, itens (com o texto editado e o flag incluído/excluído) e o texto final consolidado.
-- Aparece um toast de confirmação e o relatório é adicionado à lista.
-- Nova sub-aba/painel **"Relatórios salvos"** dentro da própria página do Relatório Executivo, mostrando cards com: período, data de emissão, autor, prévia do texto e ações **Ver**, **Copiar texto**, **Gerar PDF** e **Excluir**.
-- Ver reabre o snapshot em modo leitura (mesmo layout do PDF), sem recomputar as regras — é histórico congelado.
+Quando um desenvolvedor registra a daily, o texto de "Ontem" e "Hoje" pode ser salvo de duas formas diferentes:
 
-### 3. Marcações do Admin no Histórico da Daily
-Na aba **Histórico**, ao abrir o dia de uma squad, cada card de dev ganha, logo depois do botão "Observação", um botão de múltipla escolha (mesma UX do seletor que já existe no modal de histórico do dev) com estas opções:
-- Bom exemplo por squad
-- Preenchimentos incorretos ou vagos
-- Aguardando tarefas
-- Tarefas repetidas
+1. **Como atividades estruturadas** (cada tarefa vira uma linha no banco). Aí a tela mostra um cartão por tarefa naturalmente.
+2. **Como texto livre** (um único parágrafo com várias linhas). Aí depende da tela saber "quebrar" esse parágrafo em cartões.
 
-Regras:
-- Só aparece para Admin.
-- Marcar/desmarcar salva na hora, ligado ao `entry_id` do dev.
-- No Relatório Executivo, cada seção **desduplica** por `entry_id`: se a regra automática já pegou o registro, a marcação manual do Admin não gera um segundo item — apenas adiciona um rótulo "marcado pelo Admin" no mesmo item. Se só a marcação manual existir, o item é criado normalmente.
+A tela do **líder da squad** já foi ajustada anteriormente para quebrar o texto livre em vários cartões. Por isso, quando você entra como líder, vê tudo bonitinho.
 
----
+Já a tela usada pelo **Admin** (o modal "Painel da Daily" que abre ao clicar num colaborador no bloco *Status de preenchimento*) é um componente **diferente**, e essa quebra em cartões nunca foi aplicada nele. Por isso o mesmo registro do Eder aparece "colado" para o admin e correto para o líder — não é um problema de dados, é a mesma informação sendo exibida por dois componentes diferentes, e só um deles foi corrigido.
 
-## Detalhes técnicos
+Além do modal do admin no Painel da Daily, existem outros lugares no sistema com o mesmo problema (mesmo componente antigo de exibição de texto):
 
-### Banco
-Nova tabela `daily_executive_reports`:
-- `period_start date`, `period_end date`
-- `title text`
-- `content_text text` (texto final consolidado)
-- `sections jsonb` (snapshot: id, título, itens `{id,text,included}`)
-- `created_by uuid`, `created_at`, `updated_at`
-- RLS: SELECT/INSERT/DELETE apenas para Admin (`has_role('diretor')`), com GRANT para `authenticated` e `service_role`.
+- Modal "Histórico do dev" (botão *Histórico* nos painéis).
+- Aba **Histórico** da Daily (visão detalhada do registro).
+- Modal **Iniciar Daily** do líder (quando abre o registro de cada membro).
+- Preview do relatório executivo (quando abre um registro para conferência).
 
-A tabela `daily_entry_tags` e o seletor já existem — reaproveita para o Histórico (não precisa de migration nova para as marcações).
+Todos eles precisam ganhar o mesmo comportamento: se o dev escreveu texto livre com várias linhas, transformar cada linha num cartão de atividade, exatamente igual às demais telas.
 
-### Front
-- `RelatorioExecutivoPage.tsx`: troca `date` por `dateFrom`/`dateTo`; queries passam a usar `.gte/.lte`; adiciona botão "Terminar Relatório" que faz `INSERT` e invalida a lista; adiciona sub-aba interna (Tabs) "Atual" vs "Salvos".
-- Novo `SavedReportsList.tsx` + hook `useExecutiveReports.ts` (list/create/delete/getById).
-- Novo `SavedReportViewer.tsx` (modal que renderiza o snapshot e reaproveita `handlePrint`/`handleCopy` a partir das `sections` salvas).
-- `DailyReadOnlyView.tsx`: no card do dev, quando `isAdmin`, renderiza `<DailyEntryTagsSelector entryId={e.id} compact />` ao lado do botão "Observação".
-- Regra de desduplicação no `RelatorioExecutivoPage`: hoje já há `entry.id` como base dos ids automáticos (`pi-`, `aw-`, etc.); a lógica manual passa a **enriquecer** o item existente em vez de criar um `manual-*` paralelo. Só cria item novo quando não houver equivalente automático.
+## O que vai ser feito
 
-### Não muda
-- Nenhuma regra automática nova; apenas passam a operar por dia dentro do range.
-- Nenhum modelo de IA envolvido.
-- Design tokens/estilos existentes (cards arredondados, tema escuro/claro, laranja Fadami).
+1. Extrair a função `splitFreeText` (que já existe hoje em `DailyReadOnlyView.tsx`) para um utilitário compartilhado, para que todas as telas usem a mesma regra de quebra (por quebras de linha, removendo bullets tipo `- `, `* `, `○ `, `1.`, etc.).
+
+2. Criar um pequeno componente auxiliar `FreeTextActivityList` que recebe o texto livre e o tipo (`done` para "Ontem" / `pending` para "Hoje") e renderiza cada linha como um `DevActivityCard`. Ele já é usado internamente por `DailyReadOnlyView`; vamos reutilizá-lo nos demais lugares.
+
+3. Aplicar esse componente nos locais que hoje ainda mostram texto cru:
+   - `src/pages/dailys/PainelGPPage.tsx` — modal de detalhe do dev (aquele das imagens 161–163).
+   - `src/components/dailys/DevHistoryModal.tsx` — listagem histórica por dev.
+   - `src/pages/dailys/HistoricoPage.tsx` — funções `ActivitiesSection` e `PlannedSection`.
+   - `src/components/dailys/IniciarDailyModal.tsx` — visualização do registro de cada membro.
+   - `src/pages/dailys/RelatorioExecutivoPage.tsx` — trechos de "Ontem/Hoje" nos cards de preview.
+
+4. Manter a regra atual: se existirem atividades estruturadas, elas continuam sendo mostradas normalmente; a quebra em cartões só é usada como *fallback* para texto livre. Nenhuma tela perde funcionalidade.
+
+5. Não mexer em banco de dados, permissões nem em regras de negócio. É uma correção puramente visual/de apresentação.
+
+## Como você vai perceber o resultado
+
+- Entrando como **Admin** e clicando num colaborador no *Status de preenchimento* do Painel da Daily, o modal do dev (ex.: Eder, Vanessa, Wesley) mostrará cada tarefa do "Ontem" e do "Hoje" em cartões separados com o mesmo ícone verde/laranja usado nas outras telas.
+- Mesma padronização aparece no modal **Histórico do dev**, na aba **Histórico da Daily**, no **Iniciar Daily** do líder e no preview do **Relatório Executivo**.
+- Ao logar como líder, tudo continua exatamente como já está hoje.
+
+## Área técnica (para referência)
+
+- Novo utilitário: `src/lib/dailyFreeText.ts` exportando `splitFreeText` + componente `FreeTextActivityList`.
+- Refatoração leve em `DailyReadOnlyView.tsx` para consumir o utilitário (sem mudar visual).
+- Substituição dos `<p className="whitespace-pre-wrap">{did_yesterday}</p>` / `{will_do_today}` nos arquivos listados por `<FreeTextActivityList text={...} kind="done|pending" />`.
+- Sem migrações, sem alterações em RLS, sem alterações em edge functions.
