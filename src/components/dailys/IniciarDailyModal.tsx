@@ -19,6 +19,7 @@ import { useActiveDevAbsences, useCreateDevAbsence, DEV_ABSENCE_LABELS, DEV_ABSE
 import { DevHistoryModal } from "@/components/dailys/DevHistoryModal";
 import { DevActivityCard } from "@/components/dailys/DevActivityCard";
 import { formatOpenFor } from "@/lib/formatDuration";
+import { FreeTextActivityList } from "@/lib/dailyFreeText";
 import { toast } from "sonner";
 import { format, parseISO, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -812,7 +813,12 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                               ))}
                                             </div>
                                           ) : (
-                                            <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">{m.entry!.did_yesterday || "—"}</p>
+                                            <FreeTextActivityList
+                                              text={m.entry!.did_yesterday}
+                                              kind="done"
+                                              emptyFallback={<p className="text-xs text-muted-foreground">—</p>}
+                                              keyPrefix={`idm-y-${m.entry!.id}`}
+                                            />
                                           )}
                                         </div>
                                         <div className="rounded-lg bg-primary/5 px-3 py-2">
@@ -824,7 +830,12 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                               ))}
                                             </div>
                                           ) : (
-                                            <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">{m.entry!.will_do_today || "—"}</p>
+                                            <FreeTextActivityList
+                                              text={m.entry!.will_do_today}
+                                              kind="pending"
+                                              emptyFallback={<p className="text-xs text-muted-foreground">—</p>}
+                                              keyPrefix={`idm-t-${m.entry!.id}`}
+                                            />
                                           )}
                                         </div>
                                       </div>

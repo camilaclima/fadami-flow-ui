@@ -27,6 +27,7 @@ import { Circle, XCircle } from "lucide-react";
 import { DailyReadOnlyView } from "@/components/dailys/DailyReadOnlyView";
 import { Clock } from "lucide-react";
 import { formatDuration } from "@/lib/formatDuration";
+import { FreeTextActivityList } from "@/lib/dailyFreeText";
 
 interface MeetingRow {
   id: string;
@@ -878,13 +879,17 @@ function ActivitiesSection({
   inactive: DevDailyActivity[];
   fallback: string | null;
 }) {
-  if (fallback?.trim()) {
-    return <Section label={label} text={fallback} />;
-  }
-
   const hasAny = done.length + inactive.length > 0;
   if (!hasAny) {
-    return <Section label={label} text={fallback} />;
+    if (fallback?.trim()) {
+      return (
+        <div>
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">{label}</p>
+          <FreeTextActivityList text={fallback} kind="done" />
+        </div>
+      );
+    }
+    return <Section label={label} text={null} />;
   }
   return (
     <div>
@@ -919,12 +924,16 @@ function PlannedSection({
   planned: DevDailyActivity[];
   fallback: string | null;
 }) {
-  if (fallback?.trim()) {
-    return <Section label={label} text={fallback} />;
-  }
-
   if (planned.length === 0) {
-    return <Section label={label} text={fallback} />;
+    if (fallback?.trim()) {
+      return (
+        <div>
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">{label}</p>
+          <FreeTextActivityList text={fallback} kind="pending" />
+        </div>
+      );
+    }
+    return <Section label={label} text={null} />;
   }
   return (
     <div>

@@ -32,6 +32,7 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Clock } from "lucide-react";
 import { formatDuration, formatOpenFor } from "@/lib/formatDuration";
+import { FreeTextActivityList } from "@/lib/dailyFreeText";
 
 function daysAgoLabel(iso: string): string {
   const created = new Date(iso);
@@ -1012,7 +1013,12 @@ export default function PainelGPPage() {
                     });
                     const acts = [...closedHere, ...stillPending];
                     if (acts.length === 0) return (
-                      <p className="text-sm whitespace-pre-wrap break-words">{detailRow.did_yesterday || <span className="text-muted-foreground">—</span>}</p>
+                      <FreeTextActivityList
+                        text={detailRow.did_yesterday}
+                        kind="done"
+                        emptyFallback={<p className="text-sm text-muted-foreground">—</p>}
+                        keyPrefix={`pgp-y-${detailRow.id}`}
+                      />
                     );
                     return (
                       <div className="space-y-1.5">
@@ -1043,7 +1049,12 @@ export default function PainelGPPage() {
                       return true;
                     });
                     if (acts.length === 0) return (
-                      <p className="text-sm whitespace-pre-wrap break-words">{detailRow.will_do_today || <span className="text-muted-foreground">—</span>}</p>
+                      <FreeTextActivityList
+                        text={detailRow.will_do_today}
+                        kind="pending"
+                        emptyFallback={<p className="text-sm text-muted-foreground">—</p>}
+                        keyPrefix={`pgp-t-${detailRow.id}`}
+                      />
                     );
                     return (
                       <div className="space-y-1.5">

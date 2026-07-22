@@ -62,6 +62,7 @@ import {
   type DevDailyActivity,
 } from "@/hooks/useDevDailyActivities";
 import { DevActivityCard } from "@/components/dailys/DevActivityCard";
+import { FreeTextActivityList } from "@/lib/dailyFreeText";
 import {
   isAwaitingTask,
   isRepeatedFromPrev,
@@ -1769,9 +1770,12 @@ function ExecReportItemCard({
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">
-                      {entry.did_yesterday || "—"}
-                    </p>
+                    <FreeTextActivityList
+                      text={entry.did_yesterday}
+                      kind="done"
+                      emptyFallback={<p className="text-xs text-muted-foreground">—</p>}
+                      keyPrefix={`rel-y-${entry.id}`}
+                    />
                   )}
                 </div>
                 <div className="rounded-lg bg-primary/5 px-3 py-2">
@@ -1785,9 +1789,12 @@ function ExecReportItemCard({
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words">
-                      {entry.will_do_today || "—"}
-                    </p>
+                    <FreeTextActivityList
+                      text={entry.will_do_today}
+                      kind="pending"
+                      emptyFallback={<p className="text-xs text-muted-foreground">—</p>}
+                      keyPrefix={`rel-t-${entry.id}`}
+                    />
                   )}
                 </div>
               </div>
