@@ -106,9 +106,10 @@ export default function HistoricoPage({ filterSquadId }: { filterSquadId?: strin
         .select("team_member_id")
         .in("squad_id", squadIds);
       const tmIds = (sm ?? []).map((r: any) => r.team_member_id);
-      if (tmIds.length === 0) return [];
-      const { data: tms } = await (supabase.from("team_members") as any)
-        .select("id,email,name").in("id", tmIds);
+      const { data: tms } = tmIds.length > 0
+        ? await (supabase.from("team_members") as any)
+            .select("id,email,name").in("id", tmIds)
+        : { data: [] as any[] };
       const emails = (tms ?? []).map((t: any) => String(t.email ?? "").trim().toLowerCase()).filter(Boolean);
       const names = (tms ?? []).map((t: any) => String(t.name ?? "").trim().toLowerCase()).filter(Boolean);
       const { data: profs } = await (supabase.from("profiles") as any)
@@ -121,7 +122,14 @@ export default function HistoricoPage({ filterSquadId }: { filterSquadId?: strin
         })
         .map((p: any) => p.user_id)
         .filter(Boolean);
-      return Array.from(new Set(ids)) as string[];
+      // União com quem efetivamente registrou dailies para as squads em escopo,
+      // garantindo que o Histórico não esconda devs que registram mas não estão
+      // formalmente listados em squad_members (fonte única de verdade).
+      const { data: entryAuthors } = await (supabase.from("dev_daily_entries") as any)
+        .select("user_id")
+        .in("squad_id", squadIds);
+      const authorIds = (entryAuthors ?? []).map((r: any) => r.user_id).filter(Boolean);
+      return Array.from(new Set<string>([...(ids as string[]), ...authorIds]));
     },
   });
 
@@ -499,9 +507,10 @@ function DayDetailDialog({
         .select("team_member_id")
         .in("squad_id", scopedSquadIds!);
       const tmIds = (sm ?? []).map((r: any) => r.team_member_id);
-      if (tmIds.length === 0) return [];
-      const { data: tms } = await (supabase.from("team_members") as any)
-        .select("id,email,name").in("id", tmIds);
+      const { data: tms } = tmIds.length > 0
+        ? await (supabase.from("team_members") as any)
+            .select("id,email,name").in("id", tmIds)
+        : { data: [] as any[] };
       const emails = (tms ?? []).map((t: any) => String(t.email ?? "").trim().toLowerCase()).filter(Boolean);
       const names = (tms ?? []).map((t: any) => String(t.name ?? "").trim().toLowerCase()).filter(Boolean);
       const { data: profs } = await (supabase.from("profiles") as any)
@@ -514,7 +523,13 @@ function DayDetailDialog({
         })
         .map((p: any) => p.user_id)
         .filter(Boolean);
-      return Array.from(new Set(ids)) as string[];
+      // Inclui também autores de dailies nas squads em escopo, para não esconder
+      // devs que registraram mas não estão em squad_members.
+      const { data: entryAuthors } = await (supabase.from("dev_daily_entries") as any)
+        .select("user_id")
+        .in("squad_id", scopedSquadIds!);
+      const authorIds = (entryAuthors ?? []).map((r: any) => r.user_id).filter(Boolean);
+      return Array.from(new Set<string>([...(ids as string[]), ...authorIds]));
     },
   });
 

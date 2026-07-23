@@ -1,49 +1,76 @@
+## O que está acontecendo (explicação simples)
 
-## O que está acontecendo (em linguagem simples)
+O sistema tem **duas listas diferentes** de "quem faz parte da squad":
 
-Nas telas de daily, cada dev tem três tipos de atividade num dia:
+1. **Lista oficial da squad** (`squad_members` → `team_members`): usada pela aba **Histórico da Daily** e pelo Painel do GP para saber quem deveria aparecer no card do dia.
+2. **Registros feitos pelos devs** (`dev_daily_entries`): usada pelo **Relatório Executivo**, que simplesmente lê todos os registros com aquele `squad_id`.
 
-1. **Concluídas** naquele dia (✓ verde)
-2. **Inativadas** naquele dia (✗ cinza)
-3. **Pendentes que sobraram de dias anteriores** e continuavam abertas (⏱ laranja) — chamamos de "carry-over"
+Quando uma pessoa registra a daily para uma squad em que **ela não está na lista oficial**, o Relatório mostra o registro (porque olha o dado bruto) mas o Histórico não mostra (porque monta a lista a partir dos membros oficiais).
 
-No **Histórico** e no **Painel do Líder (Iniciar Daily)**, a coluna **"Ontem"** mostra os **três** tipos juntos. É por isso que você vê 2 itens em "Ontem".
+## Isso acontece com mais gente?
 
-Já no **Relatório Executivo**, a coluna **"Ontem"** mostra **só os dois primeiros** (concluídas + inativadas). O carry-over foi esquecido, então some 1 item que existia como pendência arrastada de dias anteriores.
+Sim. Rodei uma consulta no banco e encontrei **13 devs** que registram dailies em squads onde não constam como membros:
 
-Resultado: mesmo dev, mesmo dia, número de itens diferente entre as telas.
+- Squad Inovação: Thiago Soares, Eder Telhado, Philipp Neto, Rafael Fernandes, Ewerton Mello, dev2
+- TOR+: Thiago Vieira, Luiz Barbosa, Aurelio Silva
+- TOR: Lucas Samel, Thiago Vieira
+- SmartFlow: **Rayane Pinheiro** (o caso relatado)
+- Portais de Pagamento: José Lima
 
-### Onde isso aparece hoje
+No caso da Rayane especificamente: na SmartFlow o `squad_members` tem "Rayane **Ribeiro**", que é outra pessoa. A Rayane **Pinheiro** existe como usuário e registra dailies para SmartFlow, mas nunca foi adicionada como membro da squad.
 
-- `src/lib/dailyActivitiesView.ts` (`buildYesterdayTodayLists`) — é a regra "oficial", usada pelo `IniciarDailyModal` e pelo `DevHistoryModal`. Ela junta `done + inactive + stillPending` em "Ontem".
-- `src/pages/dailys/HistoricoPage.tsx` (função `activitiesByEntry`) — segue a mesma regra: monta `planned` incluindo pendências antigas ainda abertas (equivalente a `stillPending`) e exibe em "Hoje/Farei". A coluna "O que fiz" mostra done+inactive. *(observação: aqui o carry-over aparece em "Hoje/Farei", que é outro corte — ver seção "efeito colateral" abaixo).*
-- `src/pages/dailys/RelatorioExecutivoPage.tsx` (função `activitiesByEntry`, ~linha 360, e a exibição em ~linha 2019) — só calcula `done`, `inactive` e `planned`. Não calcula `stillPending`, então "Ontem" fica curto.
+Correção definitiva (3 frentes)
 
-### Por que isso importa em outros lugares
+### 1. Histórico passa a mostrar quem realmente registrou (fonte única de verdade)
 
-- **PDF do Relatório Executivo**: usa a mesma função, então o PDF também sai com "Ontem" incompleto.
-- **Métricas do relatório** (ex.: "campo Ontem curto") olham só o texto livre `did_yesterday` — não são afetadas.
-- **Painel GP / Iniciar Daily / Histórico do Dev**: já usam `buildYesterdayTodayLists`, então estão corretos e servem como referência.
+No `src/pages/dailys/HistoricoPage.tsx`, a lista `allowedUserIds` e `squadMemberUserIds` são construídas só a partir de `squad_members`. Vou mudar para a **união**:
 
-## Correção proposta
+- membros oficiais da squad (comportamento atual, para mostrar cards cinza de quem faltou), **mais**
+- todos os `user_id` que têm `dev_daily_entries` para as squads em escopo.
 
-Trazer o Relatório Executivo para a mesma regra que o resto do app, reaproveitando a lógica que já existe.
+Assim o Histórico e o Relatório Executivo sempre batem, e ninguém "some" só porque não está na lista oficial.
 
-1. Em `src/pages/dailys/RelatorioExecutivoPage.tsx`, no `useMemo` `activitiesByEntry`, calcular também `stillPending` por entry, usando exatamente a mesma condição de `buildYesterdayTodayLists`:
-   - origem (`created_entry_id`) é anterior ao dia D da entry
-   - ainda não foi fechada até D (`closed_entry_id` inexistente ou seu `entry_date` > D)
-   - `closed_entry_id !== entryId`
-2. Expor `stillPending` no helper `actsFor(entryId)` e no tipo `ReportItem` que persiste o snapshot do relatório (para o histórico salvo continuar consistente).
-3. Na renderização de "Ontem" (por volta da linha 2019), somar `done + inactive + stillPending`. Cada `stillPending` é exibida com o `DevActivityCard` no modo `pending` (mesmo visual da tela de origem), abaixo das concluídas/inativadas.
-4. Ajustar a condição "vazio" ((done+inactive+stillPending).length === 0) para só cair no fallback de texto livre `did_yesterday` quando realmente não há nenhuma atividade estruturada.
-5. Ajustar a serialização/rehidratação do snapshot (`item.done`, `item.inactive`, `item.planned` → acrescentar `item.stillPending`) para que relatórios salvos abram idênticos.
+### 2. Evitar o problema no futuro (registro)
 
-### Efeito colateral a validar (sem mudar comportamento agora)
+Em `src/pages/dailys/RegistroPage.tsx`, o dropdown "Selecione a squad" hoje mostra squads a partir do contexto `DailySimContext`. Vou garantir que:
 
-No `HistoricoPage`, o carry-over hoje aparece em **"O que farei"** (planned), enquanto no `IniciarDailyModal` aparece em **"Ontem"**. Isso é uma inconsistência menor separada, e não é o que o usuário reportou. Vou **deixar como está** nesta correção e só sinalizar aqui para você decidir depois se quer padronizar também.
+- a lista venha estritamente de `squad_members` do usuário logado (via email do profile → team_member → squad_members);
+- se o dev não estiver em nenhuma squad, mostrar aviso "Você não está cadastrado em nenhuma squad — peça ao líder para incluir você" em vez de deixar registrar solto.
 
-## Como validar
+### 3. Corrigir o vínculo automaticamente ao criar usuário Desenvolvedor
 
-- Abrir a mesma daily (ex.: Julio Souza, 21/07) no Histórico e no Relatório Executivo → contagem em "Ontem" bate.
-- Gerar o PDF → mesmo conteúdo.
-- Abrir um relatório salvo antigo → continua abrindo sem quebrar (campos novos ficam vazios em snapshots antigos, sem erro).
+Em `src/components/admin/UserFormModalSupabase.tsx` já existe o auto-vínculo em `squad_members` quando o cargo é Desenvolvedor. Vou reforçar:
+
+- se **não existir** um `team_member` com o email do usuário, criar um antes de inserir em `squad_members` (hoje pode falhar silenciosamente porque `squad_members.team_member_id` exige uma linha em `team_members`).
+- essa mesma rotina rodará também ao editar um usuário existente que ainda não tenha `team_member` associado.
+
+## Backfill dos dados atuais
+
+Migration única para consertar os 13 casos hoje:
+
+- Para cada dev com `dev_daily_entries` em uma squad onde ele não está em `squad_members`, criar (se necessário) um `team_member` com o email do profile e depois inserir a linha em `squad_members` correspondente.
+- Coordinator do novo `team_member` = líder atual da squad (ou primeiro registro em `squad_leaders`); se não houver, usar um admin como fallback.
+
+## Como verificar depois
+
+1. Abrir o Histórico do dia 21/07 da SmartFlow → Rayane Pinheiro deve aparecer com as atividades dela.
+2. Abrir o Relatório Executivo do mesmo dia → contagens continuam iguais (nada mudou lá) e agora batem com o Histórico.
+3. Repetir para pelo menos um dev de Squad Inovação e um de TOR+.
+4. Tentar registrar daily como um usuário sem squad → deve ver a mensagem de aviso em vez de conseguir escolher uma squad "solta".
+
+## Detalhes técnicos (para referência)
+
+- Consulta de diagnóstico usada:
+
+```sql
+SELECT p.email, s.name, COUNT(*) FROM dev_daily_entries de
+JOIN profiles p ON p.user_id = de.user_id
+JOIN squads s ON s.id = de.squad_id
+LEFT JOIN team_members tm ON lower(tm.email) = lower(p.email)
+LEFT JOIN squad_members sm ON sm.squad_id = de.squad_id AND sm.team_member_id = tm.id
+WHERE sm.id IS NULL
+GROUP BY p.email, s.name;
+```
+
+- Arquivos alterados: `HistoricoPage.tsx`, `RegistroPage.tsx`, `UserFormModalSupabase.tsx`.
+- Uma migration Supabase para o backfill + criação de `team_members` faltantes.
