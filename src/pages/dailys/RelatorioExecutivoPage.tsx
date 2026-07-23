@@ -70,6 +70,7 @@ import {
   MANUAL_TAG_OPTIONS,
   type ManualTag,
 } from "@/lib/executiveReportRules";
+import { isExactSameTask, normalize } from "@/lib/executiveReportRules";
 import {
   useCreateExecutiveReport,
   useDeleteExecutiveReport,
