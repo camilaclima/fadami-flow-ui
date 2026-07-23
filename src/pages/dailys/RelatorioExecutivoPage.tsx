@@ -1347,6 +1347,20 @@ function useHydratedSections(report: ExecutiveReport | null): RenderSection[] {
       const planned = userActs.filter(
         (a) => a.status === "pendente" && a.created_at.slice(0, 10) <= entry.entry_date,
       );
+      // Carry-over: pendências vindas de dias ANTES de D e que continuavam
+      // abertas em D (mesma regra usada em Histórico/IniciarDailyModal).
+      const stillPending = userActs.filter((a) => {
+        if (a.closed_entry_id === entry.id) return false;
+        const origin = a.created_entry_id ? entryById.get(a.created_entry_id) : null;
+        const originDate = origin?.entry_date ?? (a.created_at ? a.created_at.slice(0, 10) : null);
+        if (!originDate) return false;
+        if (originDate >= entry.entry_date) return false;
+        if (a.closed_entry_id) {
+          const closed = entryById.get(a.closed_entry_id);
+          if (closed && closed.entry_date <= entry.entry_date) return false;
+        }
+        return true;
+      });
       const data = {
         ...(raw.data ?? {}),
         subject: dev,
@@ -1358,6 +1372,7 @@ function useHydratedSections(report: ExecutiveReport | null): RenderSection[] {
         done: raw.data?.done?.length ? raw.data.done : done,
         inactive: raw.data?.inactive?.length ? raw.data.inactive : inactive,
         planned: raw.data?.planned?.length ? raw.data.planned : planned,
+        stillPending: raw.data?.stillPending?.length ? raw.data.stillPending : stillPending,
       };
       return { ...raw, data };
     };
