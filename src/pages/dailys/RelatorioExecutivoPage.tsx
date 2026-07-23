@@ -773,22 +773,35 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
         const sqName = squadById.get(squadId)?.name ?? "Squad";
         const devs = Array.from(devMap.values());
         const devCount = devs.length;
-        const totalSec = devs.reduce((acc, v) => acc + v.total, 0);
+        const devsSec = devs.reduce((acc, v) => acc + v.total, 0);
         const totalCount = devs.reduce((acc, v) => acc + v.count, 0);
-        const avg = totalCount > 0 ? totalSec / totalCount : 0;
-        return { squadId, sqName, avg, devCount };
+        const avg = totalCount > 0 ? devsSec / totalCount : 0;
+        return { squadId, sqName, avg, devCount, devsSec };
       })
       .filter((r) => r.devCount > 0 && r.avg > 0)
       .sort((a, b) => a.avg - b.avg);
     squadTempoAgg.forEach((r, idx) => {
       const pos = idx + 1;
+      const meetingForSquad = (meetings as any[]).find(
+        (m) => m.squad_id === r.squadId && m.meeting_date === effectiveTo,
+      );
+      const meetingSec = Number(meetingForSquad?.duration_seconds) || 0;
+      const totalSec = meetingSec + r.devsSec;
+      const avgSec = r.devCount > 0 ? Math.round(r.devsSec / r.devCount) : null;
       acompTempoItems.push({
         id: `at-${r.squadId}`,
         text: `${pos}º ${r.sqName} — ${fmtShort(effectiveTo)} — média ${fmtSecs(r.avg)} por dev (${r.devCount} ${r.devCount === 1 ? "dev" : "devs"}).`,
         origin: "auto",
         date: effectiveTo,
         subject: r.sqName,
-        squadName: r.sqName,
+        rank: pos,
+        timeStats: {
+          meetingSec,
+          devsSec: r.devsSec,
+          totalSec,
+          avgSec,
+          devsCount: r.devCount,
+        },
       });
     });
 
