@@ -54,6 +54,17 @@ export function isRepeatedFromPrev(today: string, prevToday: string, threshold =
   return textSimilarity(a, b) >= threshold;
 }
 
+/**
+ * Compara duas descrições de tarefa exigindo IGUALDADE EXATA
+ * (após normalização de acentos/caixa/espacos).
+ */
+export function isExactSameTask(a: string | null | undefined, b: string | null | undefined): boolean {
+  const na = normalize(a).replace(/\s+/g, " ");
+  const nb = normalize(b).replace(/\s+/g, " ");
+  if (!na || !nb) return false;
+  return na === nb;
+}
+
 export const MANUAL_TAG_OPTIONS = [
   { value: "bom_exemplo", label: "Bom Exemplo" },
   { value: "melhor_squad", label: "Melhor Squad" },

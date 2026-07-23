@@ -70,6 +70,7 @@ import {
   MANUAL_TAG_OPTIONS,
   type ManualTag,
 } from "@/lib/executiveReportRules";
+import { isExactSameTask, normalize } from "@/lib/executiveReportRules";
 import {
   useCreateExecutiveReport,
   useDeleteExecutiveReport,
@@ -157,7 +158,14 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
   const effectiveTo = dateFrom <= dateTo ? dateTo : dateFrom;
   // Faixa alargada para buscar entries do dia útil anterior a cada data do intervalo.
   const prevRangeFrom = useMemo(
-    () => prevBusinessDay(effectiveFrom),
+    () => {
+      // Vai 2 dias úteis a mais para trás para conseguir detectar
+      // sequências de 3 dias consecutivos com a mesma tarefa.
+      let iso = prevBusinessDay(effectiveFrom);
+      iso = prevBusinessDay(iso);
+      iso = prevBusinessDay(iso);
+      return iso;
+    },
     [effectiveFrom],
   );
 
@@ -498,20 +506,46 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
         });
       }
 
-      // Tarefas repetidas (dedup: auto + manual = 1 item)
-      const prevIso = prevBusinessDay(e.entry_date);
-      const prev = prevByUserDate.get(`${e.user_id}|${prevIso}`);
-      const isAutoRepeat =
-        !!prev?.will_do_today &&
+      // Tarefas repetidas ou estagnadas — critérios EXATOS:
+      //  A) Mesmo colaborador escreveu a mesma tarefa em "Ontem" e "Hoje"
+      //     do MESMO dia (texto normalizado idêntico).
+      //  B) Mesmo colaborador manteve a mesma tarefa em "Hoje" por 3 dias
+      //     úteis consecutivos (D, D-1, D-2).
+      const prev1Iso = prevBusinessDay(e.entry_date);
+      const prev2Iso = prevBusinessDay(prev1Iso);
+      const prev1 = prevByUserDate.get(`${e.user_id}|${prev1Iso}`);
+      const prev2 = prevByUserDate.get(`${e.user_id}|${prev2Iso}`);
+
+      const sameDayRepeat =
+        !!e.did_yesterday &&
         !!e.will_do_today &&
-        isRepeatedFromPrev(e.will_do_today, prev.will_do_today);
+        isExactSameTask(e.did_yesterday, e.will_do_today);
+
+      const threeDayStreak =
+        !!e.will_do_today &&
+        !!prev1?.will_do_today &&
+        !!prev2?.will_do_today &&
+        isExactSameTask(e.will_do_today, prev1.will_do_today) &&
+        isExactSameTask(e.will_do_today, prev2.will_do_today);
+
+      const isAutoRepeat = sameDayRepeat || threeDayStreak;
       const isManualRepeat = tags.includes("tarefas_repetidas");
       if (isAutoRepeat || isManualRepeat) {
         const originParts: string[] = [];
-        if (isAutoRepeat) originParts.push(`repetiu tarefa do dia anterior (${fmtShort(prev.entry_date)})`);
+        if (sameDayRepeat) originParts.push('mesma tarefa em "Ontem" e "Hoje" do mesmo dia');
+        if (threeDayStreak) originParts.push(`mesma tarefa há 3 dias úteis (${fmtShort(prev2.entry_date)}, ${fmtShort(prev1.entry_date)}, ${fmtShort(e.entry_date)})`);
         if (isManualRepeat) originParts.push("marcado pelo Admin");
         const origin: ReportItem["origin"] =
           isAutoRepeat && isManualRepeat ? "both" : isManualRepeat ? "manual" : "auto";
+        const extra: string[] = [];
+        if (sameDayRepeat) {
+          extra.push(`Tarefa: ${e.will_do_today}`);
+        }
+        if (threeDayStreak) {
+          extra.push(`${fmtShort(prev2.entry_date)}: ${prev2.will_do_today}`);
+          extra.push(`${fmtShort(prev1.entry_date)}: ${prev1.will_do_today}`);
+          extra.push(`${fmtShort(e.entry_date)}: ${e.will_do_today}`);
+        }
         repetidas.push({
           id: `rp-${e.id}`,
           text: `${label} — ${originParts.join(" · ")}.`,
@@ -521,9 +555,7 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
           squadName: sqName,
           entry: e,
           impediments: entryImps,
-          extraDetails: isAutoRepeat && prev?.will_do_today
-            ? `Dia anterior (${fmtShort(prev.entry_date)}): ${prev.will_do_today}`
-            : undefined,
+          extraDetails: extra.length ? extra.join("\n") : undefined,
         });
       }
     });
