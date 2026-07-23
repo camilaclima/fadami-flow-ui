@@ -55,7 +55,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, X } from "lucide-react";
-import { formatOpenFor } from "@/lib/formatDuration";
+import { formatOpenFor, formatDuration } from "@/lib/formatDuration";
 import { downloadElementAsPdf } from "@/lib/visualPdf";
 import { useDailyEntryTagsByEntries } from "@/hooks/useDailyEntryTags";
 import { DEV_ABSENCE_LABELS, type DevAbsenceType } from "@/hooks/useDevAbsences";
@@ -109,6 +109,14 @@ interface ReportItem {
   repeatDetails?: {
     sameDay?: { date: string; task: string };
     streak?: Array<{ date: string; task: string }>;
+  };
+  rank?: number;
+  timeStats?: {
+    meetingSec: number;
+    devsSec: number;
+    totalSec: number;
+    avgSec: number | null;
+    devsCount: number;
   };
 }
 
@@ -226,7 +234,7 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
     queryKey: ["exec-report", "meetings", effectiveFrom, effectiveTo],
     queryFn: async () => {
       const { data, error } = await (supabase.from("daily_meetings") as any)
-        .select("id,squad_id,meeting_date,started_at,finished_at,created_at")
+        .select("id,squad_id,meeting_date,started_at,finished_at,duration_seconds,created_at")
         .gte("meeting_date", effectiveFrom)
         .lte("meeting_date", effectiveTo);
       if (error) throw error;
@@ -765,22 +773,35 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
         const sqName = squadById.get(squadId)?.name ?? "Squad";
         const devs = Array.from(devMap.values());
         const devCount = devs.length;
-        const totalSec = devs.reduce((acc, v) => acc + v.total, 0);
+        const devsSec = devs.reduce((acc, v) => acc + v.total, 0);
         const totalCount = devs.reduce((acc, v) => acc + v.count, 0);
-        const avg = totalCount > 0 ? totalSec / totalCount : 0;
-        return { squadId, sqName, avg, devCount };
+        const avg = totalCount > 0 ? devsSec / totalCount : 0;
+        return { squadId, sqName, avg, devCount, devsSec };
       })
       .filter((r) => r.devCount > 0 && r.avg > 0)
       .sort((a, b) => a.avg - b.avg);
     squadTempoAgg.forEach((r, idx) => {
       const pos = idx + 1;
+      const meetingForSquad = (meetings as any[]).find(
+        (m) => m.squad_id === r.squadId && m.meeting_date === effectiveTo,
+      );
+      const meetingSec = Number(meetingForSquad?.duration_seconds) || 0;
+      const totalSec = meetingSec + r.devsSec;
+      const avgSec = r.devCount > 0 ? Math.round(r.devsSec / r.devCount) : null;
       acompTempoItems.push({
         id: `at-${r.squadId}`,
         text: `${pos}º ${r.sqName} — ${fmtShort(effectiveTo)} — média ${fmtSecs(r.avg)} por dev (${r.devCount} ${r.devCount === 1 ? "dev" : "devs"}).`,
         origin: "auto",
         date: effectiveTo,
         subject: r.sqName,
-        squadName: r.sqName,
+        rank: pos,
+        timeStats: {
+          meetingSec,
+          devsSec: r.devsSec,
+          totalSec,
+          avgSec,
+          devsCount: r.devCount,
+        },
       });
     });
 
@@ -949,6 +970,8 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
           planned: it.planned ?? [],
           extraDetails: it.extraDetails,
           repeatDetails: it.repeatDetails,
+          rank: it.rank,
+          timeStats: it.timeStats,
         },
       })),
     }));
@@ -1620,6 +1643,8 @@ function reviveItem(raw: { id: string; text: string; data?: any }): ReportItem {
     planned: d.planned ?? [],
     extraDetails: d.extraDetails,
     repeatDetails: d.repeatDetails,
+    rank: d.rank,
+    timeStats: d.timeStats,
   };
 }
 
@@ -1882,6 +1907,7 @@ function ExecReportItemCard({
   })();
 
   const dateStr = item.date ? fmtShort(item.date) : null;
+  const isTimeStats = !!item.timeStats;
 
   return (
     <Card
@@ -1905,27 +1931,35 @@ function ExecReportItemCard({
           <div className="text-muted-foreground shrink-0">
             {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
           </div>
-          <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 bg-primary/10 text-primary">
-            {initialsOf(item.subject)}
-          </div>
+          {isTimeStats && item.rank ? (
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 bg-primary/10 text-primary">
+              {item.rank}º
+            </div>
+          ) : (
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 bg-primary/10 text-primary">
+              {initialsOf(item.subject)}
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="font-semibold text-sm leading-tight">{item.subject}</span>
-              {item.squadName && (
+              {!isTimeStats && item.squadName && (
                 <Badge variant="outline" className="text-[10px] bg-muted/40">
                   {item.squadName}
                 </Badge>
               )}
-              <Badge variant="outline" className={`text-[10px] gap-1 ${originBadge.className}`}>
-                <Sparkles className="w-2.5 h-2.5" />
-                {originBadge.label}
-              </Badge>
+              {!isTimeStats && (
+                <Badge variant="outline" className={`text-[10px] gap-1 ${originBadge.className}`}>
+                  <Sparkles className="w-2.5 h-2.5" />
+                  {originBadge.label}
+                </Badge>
+              )}
               {dateStr && (
                 <Badge variant="outline" className="text-[10px] gap-1">
                   <Clock className="w-2.5 h-2.5" /> {dateStr}
                 </Badge>
               )}
-              {openImps.length > 0 && (
+              {!isTimeStats && openImps.length > 0 && (
                 <Badge
                   variant="outline"
                   className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30 gap-1"
@@ -1951,7 +1985,38 @@ function ExecReportItemCard({
 
         {open && (
           <div className="px-3 pb-3 pt-1 space-y-3 border-t bg-background/40">
-            {entry && (
+            {isTimeStats && item.timeStats && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 rounded-lg border bg-muted/20 p-2">
+                <div className="rounded-md px-2.5 py-1.5 bg-background">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">TEMPO TOTAL DA DAILY</p>
+                  <p className="text-sm font-semibold flex items-center gap-1 text-foreground">
+                    <Clock className="h-3 w-3" /> {formatDuration(item.timeStats.meetingSec) ?? "—"}
+                  </p>
+                </div>
+                <div className="rounded-md px-2.5 py-1.5 bg-background">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">TEMPO TOTAL DOS DEVS</p>
+                  <p className="text-sm font-semibold flex items-center gap-1 text-foreground">
+                    <Clock className="h-3 w-3" /> {formatDuration(item.timeStats.devsSec) ?? "—"}
+                  </p>
+                </div>
+                <div className="rounded-md px-2.5 py-1.5 bg-primary/10">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">TEMPO TOTAL DO TIME</p>
+                  <p className="text-sm font-semibold flex items-center gap-1 text-primary">
+                    <Clock className="h-3 w-3" /> {formatDuration(item.timeStats.totalSec) ?? "—"}
+                  </p>
+                </div>
+                <div className="rounded-md px-2.5 py-1.5 bg-background">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    MÉDIA POR DEV{item.timeStats.devsCount ? ` (${item.timeStats.devsCount})` : ""}
+                  </p>
+                  <p className="text-sm font-semibold flex items-center gap-1 text-foreground">
+                    <Clock className="h-3 w-3" /> {item.timeStats.avgSec != null ? (formatDuration(item.timeStats.avgSec) ?? "—") : "—"}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {!isTimeStats && entry && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div className="rounded-lg bg-muted/40 px-3 py-2">
                   <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-1">
@@ -2141,7 +2206,7 @@ function ExecReportItemCard({
               </div>
             )}
 
-            {!entry && !item.extraDetails && (
+            {!isTimeStats && !entry && !item.extraDetails && (
               <p className="text-xs text-muted-foreground italic">{item.text}</p>
             )}
           </div>
