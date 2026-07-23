@@ -55,7 +55,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, X } from "lucide-react";
-import { formatOpenFor } from "@/lib/formatDuration";
+import { formatOpenFor, formatDuration } from "@/lib/formatDuration";
 import { downloadElementAsPdf } from "@/lib/visualPdf";
 import { useDailyEntryTagsByEntries } from "@/hooks/useDailyEntryTags";
 import { DEV_ABSENCE_LABELS, type DevAbsenceType } from "@/hooks/useDevAbsences";
@@ -109,6 +109,14 @@ interface ReportItem {
   repeatDetails?: {
     sameDay?: { date: string; task: string };
     streak?: Array<{ date: string; task: string }>;
+  };
+  rank?: number;
+  timeStats?: {
+    meetingSec: number;
+    devsSec: number;
+    totalSec: number;
+    avgSec: number | null;
+    devsCount: number;
   };
 }
 
@@ -226,7 +234,7 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
     queryKey: ["exec-report", "meetings", effectiveFrom, effectiveTo],
     queryFn: async () => {
       const { data, error } = await (supabase.from("daily_meetings") as any)
-        .select("id,squad_id,meeting_date,started_at,finished_at,created_at")
+        .select("id,squad_id,meeting_date,started_at,finished_at,duration_seconds,created_at")
         .gte("meeting_date", effectiveFrom)
         .lte("meeting_date", effectiveTo);
       if (error) throw error;
