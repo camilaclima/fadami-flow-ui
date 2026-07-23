@@ -2206,7 +2206,7 @@ function ExecReportItemCard({
               </div>
             )}
 
-            {!entry && !item.extraDetails && (
+            {!isTimeStats && !entry && !item.extraDetails && (
               <p className="text-xs text-muted-foreground italic">{item.text}</p>
             )}
           </div>
