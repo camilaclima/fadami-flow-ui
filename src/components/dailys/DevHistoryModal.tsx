@@ -16,6 +16,7 @@ import { formatOpenFor } from "@/lib/formatDuration";
 import { useDailySim } from "@/contexts/DailySimContext";
 import { DailyEntryTagsSelector } from "@/components/dailys/DailyEntryTagsSelector";
 import { FreeTextActivityList } from "@/lib/dailyFreeText";
+import { buildYesterdayTodayLists } from "@/lib/dailyActivitiesView";
 
 interface Props {
   open: boolean;
@@ -75,12 +76,11 @@ export function DevHistoryModal({ open, onOpenChange, userId, name }: Props) {
               const impsThisEntry = impediments.filter((i) => i.entry_id === e.id);
               const openImpsThisEntry = impsThisEntry.filter((i) => !i.resolved);
               const resolvedImpsThisEntry = impsThisEntry.filter((i) => i.resolved);
-              const acts = activities.filter(
-                (a) => a.created_entry_id === e.id || a.closed_entry_id === e.id,
-              );
-              const done = acts.filter((a) => a.status === "concluida" && a.closed_entry_id === e.id);
-              const inactive = acts.filter((a) => a.status === "inativa" && a.closed_entry_id === e.id);
-              const pending = acts.filter((a) => a.status === "pendente" && a.created_entry_id === e.id);
+              const { done, inactive, stillPending, today: pending } = buildYesterdayTodayLists({
+                entry: e,
+                activities,
+                entriesForUser: entries,
+              });
               const isOpen = expanded[e.id] ?? false;
               let dateLabel = e.entry_date;
               try {
@@ -132,13 +132,16 @@ export function DevHistoryModal({ open, onOpenChange, userId, name }: Props) {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                         <div className="rounded-lg bg-muted/40 px-3 py-2">
                           <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-1">Ontem</p>
-                          {done.length + inactive.length > 0 ? (
+                          {done.length + inactive.length + stillPending.length > 0 ? (
                             <div className="space-y-1.5">
                               {done.map((a) => (
                                 <DevActivityCard key={a.id} kind="done" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
                               ))}
                               {inactive.map((a) => (
                                 <DevActivityCard key={a.id} kind="inactive" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
+                              ))}
+                              {stillPending.map((a) => (
+                                <DevActivityCard key={a.id} kind="pending" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
                               ))}
                             </div>
                           ) : (
