@@ -837,6 +837,7 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
           inactive: it.inactive ?? [],
           planned: it.planned ?? [],
           extraDetails: it.extraDetails,
+          repeatDetails: it.repeatDetails,
         },
       })),
     }));
