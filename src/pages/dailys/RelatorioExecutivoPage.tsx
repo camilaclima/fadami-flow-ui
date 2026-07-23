@@ -36,6 +36,8 @@ import {
   Sparkles,
   UserCheck,
   CheckCircle2,
+  Timer,
+  CalendarOff,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -86,7 +88,9 @@ type SectionId =
   | "sem_pre_daily"
   | "aguardando"
   | "repetidas"
-  | "impedimentos";
+  | "impedimentos"
+  | "acompanhamento_tempo"
+  | "squads_sem_daily";
 
 interface ReportItem {
   id: string;
