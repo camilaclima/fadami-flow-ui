@@ -20,6 +20,7 @@ import { DevHistoryModal } from "@/components/dailys/DevHistoryModal";
 import { DevActivityCard } from "@/components/dailys/DevActivityCard";
 import { formatOpenFor } from "@/lib/formatDuration";
 import { FreeTextActivityList } from "@/lib/dailyFreeText";
+import { buildYesterdayTodayLists } from "@/lib/dailyActivitiesView";
 import { toast } from "sonner";
 import { format, parseISO, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
