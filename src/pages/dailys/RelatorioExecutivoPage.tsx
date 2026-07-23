@@ -1584,6 +1584,8 @@ const SECTION_ICONS: Record<string, React.ComponentType<{ className?: string }>>
   aguardando: HelpCircle,
   repetidas: Repeat,
   impedimentos: AlertOctagon,
+  acompanhamento_tempo: Timer,
+  squads_sem_daily: CalendarOff,
 };
 
 interface RenderSection {
