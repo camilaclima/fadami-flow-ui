@@ -1907,6 +1907,7 @@ function ExecReportItemCard({
   })();
 
   const dateStr = item.date ? fmtShort(item.date) : null;
+  const isTimeStats = !!item.timeStats;
 
   return (
     <Card
@@ -1930,27 +1931,35 @@ function ExecReportItemCard({
           <div className="text-muted-foreground shrink-0">
             {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
           </div>
-          <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 bg-primary/10 text-primary">
-            {initialsOf(item.subject)}
-          </div>
+          {isTimeStats && item.rank ? (
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 bg-primary/10 text-primary">
+              {item.rank}º
+            </div>
+          ) : (
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 bg-primary/10 text-primary">
+              {initialsOf(item.subject)}
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="font-semibold text-sm leading-tight">{item.subject}</span>
-              {item.squadName && (
+              {!isTimeStats && item.squadName && (
                 <Badge variant="outline" className="text-[10px] bg-muted/40">
                   {item.squadName}
                 </Badge>
               )}
-              <Badge variant="outline" className={`text-[10px] gap-1 ${originBadge.className}`}>
-                <Sparkles className="w-2.5 h-2.5" />
-                {originBadge.label}
-              </Badge>
+              {!isTimeStats && (
+                <Badge variant="outline" className={`text-[10px] gap-1 ${originBadge.className}`}>
+                  <Sparkles className="w-2.5 h-2.5" />
+                  {originBadge.label}
+                </Badge>
+              )}
               {dateStr && (
                 <Badge variant="outline" className="text-[10px] gap-1">
                   <Clock className="w-2.5 h-2.5" /> {dateStr}
                 </Badge>
               )}
-              {openImps.length > 0 && (
+              {!isTimeStats && openImps.length > 0 && (
                 <Badge
                   variant="outline"
                   className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30 gap-1"
@@ -1976,7 +1985,38 @@ function ExecReportItemCard({
 
         {open && (
           <div className="px-3 pb-3 pt-1 space-y-3 border-t bg-background/40">
-            {entry && (
+            {isTimeStats && item.timeStats && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 rounded-lg border bg-muted/20 p-2">
+                <div className="rounded-md px-2.5 py-1.5 bg-background">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">TEMPO TOTAL DA DAILY</p>
+                  <p className="text-sm font-semibold flex items-center gap-1 text-foreground">
+                    <Clock className="h-3 w-3" /> {formatDuration(item.timeStats.meetingSec) ?? "—"}
+                  </p>
+                </div>
+                <div className="rounded-md px-2.5 py-1.5 bg-background">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">TEMPO TOTAL DOS DEVS</p>
+                  <p className="text-sm font-semibold flex items-center gap-1 text-foreground">
+                    <Clock className="h-3 w-3" /> {formatDuration(item.timeStats.devsSec) ?? "—"}
+                  </p>
+                </div>
+                <div className="rounded-md px-2.5 py-1.5 bg-primary/10">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">TEMPO TOTAL DO TIME</p>
+                  <p className="text-sm font-semibold flex items-center gap-1 text-primary">
+                    <Clock className="h-3 w-3" /> {formatDuration(item.timeStats.totalSec) ?? "—"}
+                  </p>
+                </div>
+                <div className="rounded-md px-2.5 py-1.5 bg-background">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    MÉDIA POR DEV{item.timeStats.devsCount ? ` (${item.timeStats.devsCount})` : ""}
+                  </p>
+                  <p className="text-sm font-semibold flex items-center gap-1 text-foreground">
+                    <Clock className="h-3 w-3" /> {item.timeStats.avgSec != null ? (formatDuration(item.timeStats.avgSec) ?? "—") : "—"}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {!isTimeStats && entry && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div className="rounded-lg bg-muted/40 px-3 py-2">
                   <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-1">
