@@ -760,40 +760,29 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
       if (m <= 0) return `${sec}s`;
       return `${m}m ${String(sec).padStart(2, "0")}s`;
     };
-    Array.from(bySquadDev.entries())
-      .sort((a, b) => {
-        const na = squadById.get(a[0])?.name ?? "";
-        const nb = squadById.get(b[0])?.name ?? "";
-        return na.localeCompare(nb);
-      })
-      .forEach(([squadId, devMap]) => {
+    const squadTempoAgg = Array.from(bySquadDev.entries())
+      .map(([squadId, devMap]) => {
         const sqName = squadById.get(squadId)?.name ?? "Squad";
-        const ranking = Array.from(devMap.entries())
-          .map(([uid, v]) => ({
-            uid,
-            name: nameByUser.get(uid) ?? "Dev",
-            avg: v.total / v.count,
-            count: v.count,
-          }))
-          .sort((a, b) => a.avg - b.avg);
-        if (ranking.length === 0) return;
-        const positions = ["1º", "2º", "3º", "4º", "5º", "6º", "7º", "8º", "9º", "10º"];
-        const lines = ranking.map((r, idx) => {
-          const pos = positions[idx] ?? `${idx + 1}º`;
-          return `${pos} ${r.name} — média ${fmtSecs(r.avg)} (${r.count} ${r.count === 1 ? "daily" : "dailys"})`;
-        });
-        acompTempoItems.push({
-          id: `at-${squadId}`,
-          text: `${sqName} — ranking de tempo médio por dev: ${ranking
-            .map((r) => `${r.name} (${fmtSecs(r.avg)})`)
-            .join(", ")}.`,
-          origin: "auto",
-          date: effectiveTo,
-          subject: sqName,
-          squadName: sqName,
-          extraDetails: lines.join("\n"),
-        });
+        const devs = Array.from(devMap.values());
+        const devCount = devs.length;
+        const totalSec = devs.reduce((acc, v) => acc + v.total, 0);
+        const totalCount = devs.reduce((acc, v) => acc + v.count, 0);
+        const avg = totalCount > 0 ? totalSec / totalCount : 0;
+        return { squadId, sqName, avg, devCount };
+      })
+      .filter((r) => r.devCount > 0 && r.avg > 0)
+      .sort((a, b) => a.avg - b.avg);
+    squadTempoAgg.forEach((r, idx) => {
+      const pos = idx + 1;
+      acompTempoItems.push({
+        id: `at-${r.squadId}`,
+        text: `${pos}º ${r.sqName} — ${fmtShort(effectiveTo)} — média ${fmtSecs(r.avg)} por dev (${r.devCount} ${r.devCount === 1 ? "dev" : "devs"}).`,
+        origin: "auto",
+        date: effectiveTo,
+        subject: r.sqName,
+        squadName: r.sqName,
       });
+    });
 
     // Squads que não iniciaram daily — para cada squad ativa, conta os dias
     // úteis do intervalo em que NÃO houve reunião com presença registrada
