@@ -158,7 +158,14 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
   const effectiveTo = dateFrom <= dateTo ? dateTo : dateFrom;
   // Faixa alargada para buscar entries do dia útil anterior a cada data do intervalo.
   const prevRangeFrom = useMemo(
-    () => prevBusinessDay(effectiveFrom),
+    () => {
+      // Vai 2 dias úteis a mais para trás para conseguir detectar
+      // sequências de 3 dias consecutivos com a mesma tarefa.
+      let iso = prevBusinessDay(effectiveFrom);
+      iso = prevBusinessDay(iso);
+      iso = prevBusinessDay(iso);
+      return iso;
+    },
     [effectiveFrom],
   );
 
