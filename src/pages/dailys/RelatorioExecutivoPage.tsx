@@ -1643,6 +1643,8 @@ function reviveItem(raw: { id: string; text: string; data?: any }): ReportItem {
     planned: d.planned ?? [],
     extraDetails: d.extraDetails,
     repeatDetails: d.repeatDetails,
+    rank: d.rank,
+    timeStats: d.timeStats,
   };
 }
 
