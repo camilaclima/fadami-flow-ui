@@ -1506,6 +1506,7 @@ function reviveItem(raw: { id: string; text: string; data?: any }): ReportItem {
     inactive: d.inactive ?? [],
     planned: d.planned ?? [],
     extraDetails: d.extraDetails,
+    repeatDetails: d.repeatDetails,
   };
 }
 
