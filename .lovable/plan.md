@@ -1,65 +1,49 @@
 
-## O problema, em palavras simples
+## O que está acontecendo (em linguagem simples)
 
-No **Painel da Daily**, quando você clica no nome de um desenvolvedor (no "status de preenchimento") para ver o que ele registrou, aparecem duas visões diferentes dependendo de quem está logado:
+Nas telas de daily, cada dev tem três tipos de atividade num dia:
 
-- **Visão do líder** (ao "Iniciar Daily"): mostra corretamente apenas o que o dev registrou para aquele dia e para aquela squad.
-- **Visão do admin** (ao clicar no card do dev): mostra vários itens a mais — atividades de outros dias e, às vezes, de outras squads — misturadas nos blocos "Ontem" e "Hoje".
+1. **Concluídas** naquele dia (✓ verde)
+2. **Inativadas** naquele dia (✗ cinza)
+3. **Pendentes que sobraram de dias anteriores** e continuavam abertas (⏱ laranja) — chamamos de "carry-over"
 
-A causa é técnica, mas dá para explicar assim:
+No **Histórico** e no **Painel do Líder (Iniciar Daily)**, a coluna **"Ontem"** mostra os **três** tipos juntos. É por isso que você vê 2 itens em "Ontem".
 
-1. A tela do **líder** monta a lista "Ontem/Hoje" olhando somente para as atividades ligadas ao registro daquele dia específico ("Hoje" = só atividades criadas naquele registro e ainda pendentes).
-2. A tela do **admin** foi escrita com uma lógica diferente: ela tenta reconstruir "Ontem" e "Hoje" a partir de todas as atividades do usuário, com uma regra de carry-over que, quando não encontra o registro de origem (porque está em outra squad ou sem squad), assume o `created_at` bruto — e acaba puxando itens que não pertencem ao dia/squad em questão.
-3. Além disso, o hook que busca atividades por usuário (`useDevDailyActivitiesByUsers`) **não filtra por squad**. Como o admin visualiza várias squads e o mesmo dev pode ter registros em mais de uma, a lista contamina a visão do dia.
+Já no **Relatório Executivo**, a coluna **"Ontem"** mostra **só os dois primeiros** (concluídas + inativadas). O carry-over foi esquecido, então some 1 item que existia como pendência arrastada de dias anteriores.
 
-Resultado: o admin vê "Ontem" cheio de tarefas antigas/concluídas em outros contextos e "Hoje" com pendências que não são daquele dia.
+Resultado: mesmo dev, mesmo dia, número de itens diferente entre as telas.
 
-## O que fazer
+### Onde isso aparece hoje
 
-Alinhar a visão do admin **à mesma lógica da visão do líder**, e blindar contra mistura entre squads.
+- `src/lib/dailyActivitiesView.ts` (`buildYesterdayTodayLists`) — é a regra "oficial", usada pelo `IniciarDailyModal` e pelo `DevHistoryModal`. Ela junta `done + inactive + stillPending` em "Ontem".
+- `src/pages/dailys/HistoricoPage.tsx` (função `activitiesByEntry`) — segue a mesma regra: monta `planned` incluindo pendências antigas ainda abertas (equivalente a `stillPending`) e exibe em "Hoje/Farei". A coluna "O que fiz" mostra done+inactive. *(observação: aqui o carry-over aparece em "Hoje/Farei", que é outro corte — ver seção "efeito colateral" abaixo).*
+- `src/pages/dailys/RelatorioExecutivoPage.tsx` (função `activitiesByEntry`, ~linha 360, e a exibição em ~linha 2019) — só calcula `done`, `inactive` e `planned`. Não calcula `stillPending`, então "Ontem" fica curto.
 
-### 1. Reescrever o modal de detalhe do dev no `PainelGPPage.tsx`
-Trocar o cálculo atual dos blocos "Ontem" e "Hoje" pelo mesmo modelo usado no `IniciarDailyModal` (visão do líder):
+### Por que isso importa em outros lugares
 
-- **Ontem** = atividades cujo `closed_entry_id` é exatamente o registro (`detailRow.id`) sendo visto (concluídas + inativadas) **+** carry-overs pendentes de dias anteriores que ainda estavam abertos no dia D.
-- **Hoje** = atividades pendentes cujo `created_entry_id` é exatamente o registro sendo visto.
-- Se não houver nenhuma atividade estruturada, cair no texto livre (`did_yesterday` / `will_do_today`) como já faz hoje.
+- **PDF do Relatório Executivo**: usa a mesma função, então o PDF também sai com "Ontem" incompleto.
+- **Métricas do relatório** (ex.: "campo Ontem curto") olham só o texto livre `did_yesterday` — não são afetadas.
+- **Painel GP / Iniciar Daily / Histórico do Dev**: já usam `buildYesterdayTodayLists`, então estão corretos e servem como referência.
 
-### 2. Filtrar as atividades por squad na origem
-Na busca `useDevDailyActivitiesByUsers` usada pelo Painel GP, passar o `effectiveSquadId` selecionado e filtrar por `squad_id` (ou `squad_id IS NULL` para registros legados). Isso impede que atividades do mesmo dev em **outra squad** apareçam no detalhe.
+## Correção proposta
 
-### 3. Corrigir o cálculo de carry-over para não usar `created_at` bruto
-No filtro `stillPending`, quando o `origin` (registro de origem da atividade) não é encontrado na lista carregada, hoje o código cai para `a.created_at.slice(0,10)`. Vamos:
+Trazer o Relatório Executivo para a mesma regra que o resto do app, reaproveitando a lógica que já existe.
 
-- Buscar sempre a lista de entries do usuário na squad selecionada (o que já é feito em `userEntries`), e
-- Ignorar atividades sem `origin` encontrado — em vez de "adivinhar" pela data de criação. Isso evita puxar itens de outras squads/contextos.
+1. Em `src/pages/dailys/RelatorioExecutivoPage.tsx`, no `useMemo` `activitiesByEntry`, calcular também `stillPending` por entry, usando exatamente a mesma condição de `buildYesterdayTodayLists`:
+   - origem (`created_entry_id`) é anterior ao dia D da entry
+   - ainda não foi fechada até D (`closed_entry_id` inexistente ou seu `entry_date` > D)
+   - `closed_entry_id !== entryId`
+2. Expor `stillPending` no helper `actsFor(entryId)` e no tipo `ReportItem` que persiste o snapshot do relatório (para o histórico salvo continuar consistente).
+3. Na renderização de "Ontem" (por volta da linha 2019), somar `done + inactive + stillPending`. Cada `stillPending` é exibida com o `DevActivityCard` no modo `pending` (mesmo visual da tela de origem), abaixo das concluídas/inativadas.
+4. Ajustar a condição "vazio" ((done+inactive+stillPending).length === 0) para só cair no fallback de texto livre `did_yesterday` quando realmente não há nenhuma atividade estruturada.
+5. Ajustar a serialização/rehidratação do snapshot (`item.done`, `item.inactive`, `item.planned` → acrescentar `item.stillPending`) para que relatórios salvos abram idênticos.
 
-### 4. Aplicar a mesma padronização nas outras telas que usam esse padrão
-Para garantir consistência, revisar e alinhar (usando exatamente a mesma função utilitária):
+### Efeito colateral a validar (sem mudar comportamento agora)
 
-- `src/components/dailys/DailyReadOnlyView.tsx` (usado no Relatório e em outros pontos)
-- `src/pages/dailys/HistoricoPage.tsx` (aba Histórico do Painel)
-- `src/components/dailys/DevHistoryModal.tsx` (histórico do dev)
+No `HistoricoPage`, o carry-over hoje aparece em **"O que farei"** (planned), enquanto no `IniciarDailyModal` aparece em **"Ontem"**. Isso é uma inconsistência menor separada, e não é o que o usuário reportou. Vou **deixar como está** nesta correção e só sinalizar aqui para você decidir depois se quer padronizar também.
 
-Vou extrair a lógica de "Ontem/Hoje a partir das atividades + entry" para um **único helper** compartilhado (ex.: `src/lib/dailyActivitiesView.ts`), para que admin, líder, histórico e relatório executivo usem exatamente as mesmas regras. Assim a inconsistência não volta a aparecer quando um dos lugares for alterado no futuro.
+## Como validar
 
-### 5. Verificar impedimentos e presença com o mesmo cuidado
-Rápida checagem para confirmar que:
-
-- O bloco de impedimentos no modal de detalhe respeita o mesmo filtro por squad (já respeita hoje — apenas confirmar após o ajuste).
-- O contador "concluídas hoje / pendentes" no card do dev no painel usa os mesmos números que o modal passa a mostrar.
-
-## Como saberemos que ficou certo
-
-Após as mudanças, no mesmo dia e mesma squad:
-
-- Abrir o modal do dev como **admin** → deve exibir exatamente os mesmos itens que aparecem para o **líder** ao iniciar a daily.
-- Trocar de squad no filtro do admin → o modal do mesmo dev deve refletir apenas os itens daquela squad.
-- Abrir o histórico do dev → contagens de "Ontem/Hoje/Impedimentos" batem com o modal.
-
-## Detalhes técnicos (para referência)
-
-- Arquivos principais: `src/pages/dailys/PainelGPPage.tsx`, `src/components/dailys/IniciarDailyModal.tsx`, `src/hooks/useDevDailyActivities.ts`.
-- Novo helper sugerido: `src/lib/dailyActivitiesView.ts` exportando `buildYesterdayTodayLists({ entry, activities, entriesForUser, date })`.
-- Ajuste no hook `useDevDailyActivitiesByUsers` para aceitar `squadId?: string | null` opcional e aplicar `.eq("squad_id", squadId)` (com fallback opcional para `is null` quando for admin em modo compatibilidade).
-- Nenhuma alteração de schema é necessária.
+- Abrir a mesma daily (ex.: Julio Souza, 21/07) no Histórico e no Relatório Executivo → contagem em "Ontem" bate.
+- Gerar o PDF → mesmo conteúdo.
+- Abrir um relatório salvo antigo → continua abrindo sem quebrar (campos novos ficam vazios em snapshots antigos, sem erro).

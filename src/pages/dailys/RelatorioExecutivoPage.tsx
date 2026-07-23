@@ -105,6 +105,7 @@ interface ReportItem {
   done?: DevDailyActivity[];
   inactive?: DevDailyActivity[];
   planned?: DevDailyActivity[];
+  stillPending?: DevDailyActivity[];
   extraDetails?: string;
   repeatDetails?: {
     sameDay?: { date: string; task: string };
@@ -361,8 +362,14 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
     const done = new Map<string, DevDailyActivity[]>();
     const inactive = new Map<string, DevDailyActivity[]>();
     const planned = new Map<string, DevDailyActivity[]>();
+    const stillPending = new Map<string, DevDailyActivity[]>();
     const entryById = new Map<string, any>();
     (todayEntries as any[]).forEach((e) => entryById.set(e.id, e));
+    // Inclui entries anteriores ao range para localizar a origem de atividades
+    // que "arrastam" pendências de dias fora do intervalo consultado.
+    (prevEntries as any[]).forEach((e) => {
+      if (!entryById.has(e.id)) entryById.set(e.id, e);
+    });
 
     allActivities.forEach((a) => {
       if (a.closed_entry_id && (a.status === "concluida" || a.status === "inativa")) {
@@ -388,15 +395,33 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
         return true;
       });
       if (arr.length > 0) planned.set(e.id, arr);
+
+      // "stillPending" = pendências vindas de dias ANTERIORES a D que
+      // continuavam abertas no dia D (mesma regra de buildYesterdayTodayLists).
+      const carry = allActivities.filter((a) => {
+        if (a.user_id !== e.user_id) return false;
+        if (a.closed_entry_id === e.id) return false;
+        const origin = a.created_entry_id ? entryById.get(a.created_entry_id) : null;
+        const originDate = origin?.entry_date ?? (a.created_at ? a.created_at.slice(0, 10) : null);
+        if (!originDate) return false;
+        if (originDate >= D) return false;
+        if (a.closed_entry_id) {
+          const closed = entryById.get(a.closed_entry_id);
+          if (closed && closed.entry_date <= D) return false;
+        }
+        return true;
+      });
+      if (carry.length > 0) stillPending.set(e.id, carry);
     });
 
-    return { done, inactive, planned };
-  }, [allActivities, todayEntries]);
+    return { done, inactive, planned, stillPending };
+  }, [allActivities, todayEntries, prevEntries]);
 
   const actsFor = (entryId: string) => ({
     done: activitiesByEntry.done.get(entryId) ?? [],
     inactive: activitiesByEntry.inactive.get(entryId) ?? [],
     planned: activitiesByEntry.planned.get(entryId) ?? [],
+    stillPending: activitiesByEntry.stillPending.get(entryId) ?? [],
   });
 
   const tagsByEntry = useMemo(() => {
@@ -881,6 +906,7 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
           it.done = a.done;
           it.inactive = a.inactive;
           it.planned = a.planned;
+          it.stillPending = a.stillPending;
         }
       });
     });
@@ -968,6 +994,7 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
           done: it.done ?? [],
           inactive: it.inactive ?? [],
           planned: it.planned ?? [],
+          stillPending: it.stillPending ?? [],
           extraDetails: it.extraDetails,
           repeatDetails: it.repeatDetails,
           rank: it.rank,
@@ -1320,6 +1347,20 @@ function useHydratedSections(report: ExecutiveReport | null): RenderSection[] {
       const planned = userActs.filter(
         (a) => a.status === "pendente" && a.created_at.slice(0, 10) <= entry.entry_date,
       );
+      // Carry-over: pendências vindas de dias ANTES de D e que continuavam
+      // abertas em D (mesma regra usada em Histórico/IniciarDailyModal).
+      const stillPending = userActs.filter((a) => {
+        if (a.closed_entry_id === entry.id) return false;
+        const origin = a.created_entry_id ? entryById.get(a.created_entry_id) : null;
+        const originDate = origin?.entry_date ?? (a.created_at ? a.created_at.slice(0, 10) : null);
+        if (!originDate) return false;
+        if (originDate >= entry.entry_date) return false;
+        if (a.closed_entry_id) {
+          const closed = entryById.get(a.closed_entry_id);
+          if (closed && closed.entry_date <= entry.entry_date) return false;
+        }
+        return true;
+      });
       const data = {
         ...(raw.data ?? {}),
         subject: dev,
@@ -1331,6 +1372,7 @@ function useHydratedSections(report: ExecutiveReport | null): RenderSection[] {
         done: raw.data?.done?.length ? raw.data.done : done,
         inactive: raw.data?.inactive?.length ? raw.data.inactive : inactive,
         planned: raw.data?.planned?.length ? raw.data.planned : planned,
+        stillPending: raw.data?.stillPending?.length ? raw.data.stillPending : stillPending,
       };
       return { ...raw, data };
     };
@@ -1641,6 +1683,7 @@ function reviveItem(raw: { id: string; text: string; data?: any }): ReportItem {
     done: d.done ?? [],
     inactive: d.inactive ?? [],
     planned: d.planned ?? [],
+    stillPending: d.stillPending ?? [],
     extraDetails: d.extraDetails,
     repeatDetails: d.repeatDetails,
     rank: d.rank,
@@ -2022,7 +2065,7 @@ function ExecReportItemCard({
                   <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-1">
                     Ontem
                   </p>
-                  {(item.done?.length ?? 0) + (item.inactive?.length ?? 0) > 0 ? (
+                  {(item.done?.length ?? 0) + (item.inactive?.length ?? 0) + (item.stillPending?.length ?? 0) > 0 ? (
                     <div className="space-y-1.5">
                       {item.done?.flatMap((a) => {
                         const lines = splitFreeText(a.description || "");
@@ -2036,6 +2079,13 @@ function ExecReportItemCard({
                         const list = lines.length > 0 ? lines : [a.description];
                         return list.map((line, idx) => (
                           <DevActivityCard key={`${a.id}-${idx}`} kind="inactive" description={line} createdAt={a.created_at} devNotes={a.dev_notes} />
+                        ));
+                      })}
+                      {item.stillPending?.flatMap((a) => {
+                        const lines = splitFreeText(a.description || "");
+                        const list = lines.length > 0 ? lines : [a.description];
+                        return list.map((line, idx) => (
+                          <DevActivityCard key={`${a.id}-sp-${idx}`} kind="pending" description={line} createdAt={a.created_at} devNotes={a.dev_notes} />
                         ));
                       })}
                     </div>
