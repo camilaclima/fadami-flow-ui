@@ -36,6 +36,8 @@ import {
   Sparkles,
   UserCheck,
   CheckCircle2,
+  Timer,
+  CalendarOff,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -86,7 +88,9 @@ type SectionId =
   | "sem_pre_daily"
   | "aguardando"
   | "repetidas"
-  | "impedimentos";
+  | "impedimentos"
+  | "acompanhamento_tempo"
+  | "squads_sem_daily";
 
 interface ReportItem {
   id: string;
@@ -196,7 +200,7 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
     queryKey: ["exec-report", "entries", effectiveFrom, effectiveTo],
     queryFn: async () => {
       const { data, error } = await (supabase.from("dev_daily_entries") as any)
-        .select("id,user_id,squad_id,entry_date,did_yesterday,will_do_today,impediments,general_notes,fill_completed_at,created_at")
+        .select("id,user_id,squad_id,entry_date,did_yesterday,will_do_today,impediments,general_notes,fill_completed_at,fill_duration_seconds,created_at")
         .gte("entry_date", effectiveFrom)
         .lte("entry_date", effectiveTo);
       if (error) throw error;
@@ -732,6 +736,122 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
       };
     });
 
+    // Acompanhamento do tempo — média de fill_duration_seconds por dev,
+    // agrupada por squad, ordenada da mais rápida para a mais demorada.
+    const acompTempoItems: ReportItem[] = [];
+    const bySquadDev = new Map<string, Map<string, { total: number; count: number }>>();
+    (todayEntries as any[]).forEach((e) => {
+      const dur = Number(e.fill_duration_seconds);
+      if (!Number.isFinite(dur) || dur <= 0) return;
+      if (!e.squad_id || !e.user_id) return;
+      let sMap = bySquadDev.get(e.squad_id);
+      if (!sMap) {
+        sMap = new Map();
+        bySquadDev.set(e.squad_id, sMap);
+      }
+      const cur = sMap.get(e.user_id) ?? { total: 0, count: 0 };
+      cur.total += dur;
+      cur.count += 1;
+      sMap.set(e.user_id, cur);
+    });
+    const fmtSecs = (s: number) => {
+      const m = Math.floor(s / 60);
+      const sec = Math.round(s % 60);
+      if (m <= 0) return `${sec}s`;
+      return `${m}m ${String(sec).padStart(2, "0")}s`;
+    };
+    Array.from(bySquadDev.entries())
+      .sort((a, b) => {
+        const na = squadById.get(a[0])?.name ?? "";
+        const nb = squadById.get(b[0])?.name ?? "";
+        return na.localeCompare(nb);
+      })
+      .forEach(([squadId, devMap]) => {
+        const sqName = squadById.get(squadId)?.name ?? "Squad";
+        const ranking = Array.from(devMap.entries())
+          .map(([uid, v]) => ({
+            uid,
+            name: nameByUser.get(uid) ?? "Dev",
+            avg: v.total / v.count,
+            count: v.count,
+          }))
+          .sort((a, b) => a.avg - b.avg);
+        if (ranking.length === 0) return;
+        const positions = ["1º", "2º", "3º", "4º", "5º", "6º", "7º", "8º", "9º", "10º"];
+        const lines = ranking.map((r, idx) => {
+          const pos = positions[idx] ?? `${idx + 1}º`;
+          return `${pos} ${r.name} — média ${fmtSecs(r.avg)} (${r.count} ${r.count === 1 ? "daily" : "dailys"})`;
+        });
+        acompTempoItems.push({
+          id: `at-${squadId}`,
+          text: `${sqName} — ranking de tempo médio por dev: ${ranking
+            .map((r) => `${r.name} (${fmtSecs(r.avg)})`)
+            .join(", ")}.`,
+          origin: "auto",
+          date: effectiveTo,
+          subject: sqName,
+          squadName: sqName,
+          extraDetails: lines.join("\n"),
+        });
+      });
+
+    // Squads que não iniciaram daily — para cada squad ativa, conta os dias
+    // úteis do intervalo em que NÃO houve reunião com presença registrada
+    // NEM tempo de daily preenchido (duration_seconds/started_at/finished_at).
+    const attendanceByMeeting = new Map<string, number>();
+    (attendance as any[]).forEach((a) => {
+      attendanceByMeeting.set(
+        a.meeting_id,
+        (attendanceByMeeting.get(a.meeting_id) ?? 0) + 1,
+      );
+    });
+    const businessDays: string[] = [];
+    {
+      const start = parseISO(effectiveFrom);
+      const end = parseISO(effectiveTo);
+      const cur = new Date(start);
+      while (cur <= end) {
+        const dow = cur.getDay();
+        if (dow !== 0 && dow !== 6) {
+          const y = cur.getFullYear();
+          const m = String(cur.getMonth() + 1).padStart(2, "0");
+          const d = String(cur.getDate()).padStart(2, "0");
+          businessDays.push(`${y}-${m}-${d}`);
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+    }
+    const meetingBySquadDate = new Map<string, any>();
+    (meetings as any[]).forEach((m) => {
+      if (m.squad_id) meetingBySquadDate.set(`${m.squad_id}|${m.meeting_date}`, m);
+    });
+    const squadsSemDailyItems: ReportItem[] = [];
+    (squads as any[])
+      .filter((s) => s.active)
+      .forEach((s) => {
+        const missingDays: string[] = [];
+        businessDays.forEach((d) => {
+          const m = meetingBySquadDate.get(`${s.id}|${d}`);
+          const hasAttendance = m ? (attendanceByMeeting.get(m.id) ?? 0) > 0 : false;
+          const hasTime = m
+            ? Boolean(m.duration_seconds) || (Boolean(m.started_at) && Boolean(m.finished_at))
+            : false;
+          if (!m || (!hasAttendance && !hasTime)) missingDays.push(d);
+        });
+        if (missingDays.length === 0) return;
+        const list = missingDays.map((d) => fmtShort(d)).join(", ");
+        squadsSemDailyItems.push({
+          id: `ssd-${s.id}`,
+          text: `${s.name} — não iniciou a daily em ${missingDays.length} ${missingDays.length === 1 ? "dia" : "dias"} do período (${list}).`,
+          origin: "auto",
+          date: missingDays[missingDays.length - 1],
+          subject: s.name,
+          squadName: s.name,
+          extraDetails: `Ocorrências no período: ${missingDays.length}\nDias sem daily: ${list}`,
+        });
+      });
+    squadsSemDailyItems.sort((a, b) => a.subject.localeCompare(b.subject));
+
     const built: ReportSection[] = [
       { id: "bom_exemplo", title: "Melhor colaborador de cada squad", icon: Award, origin: "Marcações manuais", items: bomExemplo },
       { id: "melhor_squad", title: "Melhor squad", icon: Trophy, origin: "Marcações manuais", items: melhorSquad },
@@ -741,6 +861,8 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
       { id: "aguardando", title: "Aguardando tarefas", icon: HelpCircle, origin: "Palavras-chave + marcações manuais", items: aguardando },
       { id: "repetidas", title: "Tarefas repetidas ou estagnadas", icon: Repeat, origin: "Regra automática + marcações manuais", items: repetidas },
       { id: "impedimentos", title: "Impedimentos e bloqueios", icon: AlertOctagon, origin: "Dados automáticos", items: impItems },
+      { id: "acompanhamento_tempo", title: "Acompanhamento do tempo", icon: Timer, origin: "Dados automáticos", items: acompTempoItems },
+      { id: "squads_sem_daily", title: "Squads que não iniciaram daily", icon: CalendarOff, origin: "Dados automáticos", items: squadsSemDailyItems },
     ];
     built.forEach((sec) => {
       sec.items.forEach((it) => {
@@ -753,7 +875,7 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
       });
     });
     return built;
-  }, [todayEntries, prevEntries, tagsByEntry, absences, meetings, attendance, squadMembers, impediments, rangeImpediments, impEntries, impsByEntry, squadById, nameByUser, activitiesByEntry, melhorSquadPicks, effectiveTo]);
+  }, [todayEntries, prevEntries, tagsByEntry, absences, meetings, attendance, squadMembers, impediments, rangeImpediments, impEntries, impsByEntry, squads, squadById, nameByUser, activitiesByEntry, melhorSquadPicks, effectiveFrom, effectiveTo]);
 
   // Estado editável por item
   const [state, setState] = useState<Record<string, ItemState>>({});
@@ -1462,6 +1584,8 @@ const SECTION_ICONS: Record<string, React.ComponentType<{ className?: string }>>
   aguardando: HelpCircle,
   repetidas: Repeat,
   impedimentos: AlertOctagon,
+  acompanhamento_tempo: Timer,
+  squads_sem_daily: CalendarOff,
 };
 
 interface RenderSection {

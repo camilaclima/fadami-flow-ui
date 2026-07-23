@@ -67,7 +67,6 @@ export function isExactSameTask(a: string | null | undefined, b: string | null |
 
 export const MANUAL_TAG_OPTIONS = [
   { value: "bom_exemplo", label: "Bom Exemplo" },
-  { value: "melhor_squad", label: "Melhor Squad" },
   { value: "preenchimento_incorreto", label: "Preenchimento Incorreto ou Incompleto" },
   { value: "aguardando_tarefa", label: "Aguardando Tarefa" },
   { value: "tarefas_repetidas", label: "Tarefas Repetidas" },
