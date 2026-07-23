@@ -875,7 +875,7 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
       });
     });
     return built;
-  }, [todayEntries, prevEntries, tagsByEntry, absences, meetings, attendance, squadMembers, impediments, rangeImpediments, impEntries, impsByEntry, squadById, nameByUser, activitiesByEntry, melhorSquadPicks, effectiveTo]);
+  }, [todayEntries, prevEntries, tagsByEntry, absences, meetings, attendance, squadMembers, impediments, rangeImpediments, impEntries, impsByEntry, squads, squadById, nameByUser, activitiesByEntry, melhorSquadPicks, effectiveFrom, effectiveTo]);
 
   // Estado editável por item
   const [state, setState] = useState<Record<string, ItemState>>({});
