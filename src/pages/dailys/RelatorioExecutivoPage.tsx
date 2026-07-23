@@ -550,6 +550,17 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
           extra.push(`${fmtShort(prev1.entry_date)}: ${prev1.will_do_today}`);
           extra.push(`${fmtShort(e.entry_date)}: ${e.will_do_today}`);
         }
+        const repeatDetails: ReportItem["repeatDetails"] = {};
+        if (sameDayRepeat) {
+          repeatDetails.sameDay = { date: e.entry_date, task: e.will_do_today! };
+        }
+        if (threeDayStreak) {
+          repeatDetails.streak = [
+            { date: prev2!.entry_date, task: prev2!.will_do_today! },
+            { date: prev1!.entry_date, task: prev1!.will_do_today! },
+            { date: e.entry_date, task: e.will_do_today! },
+          ];
+        }
         repetidas.push({
           id: `rp-${e.id}`,
           text: `${label} — ${originParts.join(" · ")}.`,
@@ -560,6 +571,7 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
           entry: e,
           impediments: entryImps,
           extraDetails: extra.length ? extra.join("\n") : undefined,
+          repeatDetails: Object.keys(repeatDetails).length ? repeatDetails : undefined,
         });
       }
     });
