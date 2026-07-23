@@ -20,6 +20,7 @@ import { DevHistoryModal } from "@/components/dailys/DevHistoryModal";
 import { DevActivityCard } from "@/components/dailys/DevActivityCard";
 import { formatOpenFor } from "@/lib/formatDuration";
 import { FreeTextActivityList } from "@/lib/dailyFreeText";
+import { buildYesterdayTodayLists } from "@/lib/dailyActivitiesView";
 import { toast } from "sonner";
 import { format, parseISO, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -775,30 +776,13 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                   {(() => {
                                     const D = date;
                                     const userActs = userActivities.filter((a) => a.user_id === m.entry!.user_id);
-                                    const done = userActs.filter(
-                                      (a) => a.status === "concluida" && a.closed_entry_id === m.entry!.id,
-                                    );
-                                    const inactive = userActs.filter(
-                                      (a) => a.status === "inativa" && a.closed_entry_id === m.entry!.id,
-                                    );
-                                    // Carry-over que continua pendente após esta daily.
-                                    const stillPending = userActs.filter((a) => {
-                                      if (a.closed_entry_id === m.entry!.id) return false;
-                                      const origin = a.created_entry_id
-                                        ? userEntriesAll.find((e) => e.id === a.created_entry_id)
-                                        : null;
-                                      const originDate = origin?.entry_date ?? (a.created_at ? a.created_at.slice(0, 10) : null);
-                                      if (!originDate || originDate >= D) return false;
-                                      if (a.closed_entry_id) {
-                                        const closed = userEntriesAll.find((e) => e.id === a.closed_entry_id);
-                                        if (closed && closed.entry_date <= D) return false;
-                                      }
-                                      return true;
+                                    const userEntriesForUser = userEntriesAll.filter((e: any) => e.user_id === m.entry!.user_id);
+                                    const { done, inactive, stillPending, today: pending } = buildYesterdayTodayLists({
+                                      entry: { id: m.entry!.id, entry_date: D },
+                                      activities: userActs,
+                                      entriesForUser: userEntriesForUser as any,
+                                      date: D,
                                     });
-                                    // Atividades planejadas para hoje (registradas nesta entry, ainda pendentes).
-                                    const pending = userActs.filter(
-                                      (a) => a.status === "pendente" && a.created_entry_id === m.entry!.id,
-                                    );
                                     return (
                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                         <div className="rounded-lg bg-muted/40 px-3 py-2">
