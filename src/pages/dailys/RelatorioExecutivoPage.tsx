@@ -102,6 +102,10 @@ interface ReportItem {
   inactive?: DevDailyActivity[];
   planned?: DevDailyActivity[];
   extraDetails?: string;
+  repeatDetails?: {
+    sameDay?: { date: string; task: string };
+    streak?: Array<{ date: string; task: string }>;
+  };
 }
 
 interface ReportSection {
