@@ -970,6 +970,8 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
           planned: it.planned ?? [],
           extraDetails: it.extraDetails,
           repeatDetails: it.repeatDetails,
+          rank: it.rank,
+          timeStats: it.timeStats,
         },
       })),
     }));
