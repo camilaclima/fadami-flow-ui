@@ -872,26 +872,17 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
             <p className="text-sm text-muted-foreground">Carregando dados…</p>
           )}
 
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <div className="flex flex-col gap-4">
             {sections.map((s) => {
               const Icon = s.icon;
               return (
-                <Card key={s.id} className="rounded-2xl">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Icon className="w-4 h-4 text-primary" />
-                      {s.title}
-                    </CardTitle>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <Badge variant="outline" className="text-[10px] bg-muted/40">
-                        {s.origin}
-                      </Badge>
-                      <Badge variant="outline" className="text-[10px]">
-                        {s.items.length} {s.items.length === 1 ? "item" : "itens"}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
+                <ComposeSectionCard
+                  key={s.id}
+                  title={s.title}
+                  Icon={Icon}
+                  origin={s.origin}
+                  count={s.items.length}
+                >
                     {s.id === "melhor_squad" && (
                       <div className="rounded-xl border bg-muted/20 p-3 space-y-2">
                         <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground">
@@ -974,8 +965,7 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
                         )
                       );
                     })}
-                  </CardContent>
-                </Card>
+                </ComposeSectionCard>
               );
             })}
           </div>
