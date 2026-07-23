@@ -200,7 +200,7 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
     queryKey: ["exec-report", "entries", effectiveFrom, effectiveTo],
     queryFn: async () => {
       const { data, error } = await (supabase.from("dev_daily_entries") as any)
-        .select("id,user_id,squad_id,entry_date,did_yesterday,will_do_today,impediments,general_notes,fill_completed_at,created_at")
+        .select("id,user_id,squad_id,entry_date,did_yesterday,will_do_today,impediments,general_notes,fill_completed_at,fill_duration_seconds,created_at")
         .gte("entry_date", effectiveFrom)
         .lte("entry_date", effectiveTo);
       if (error) throw error;
@@ -745,6 +745,8 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
       { id: "aguardando", title: "Aguardando tarefas", icon: HelpCircle, origin: "Palavras-chave + marcações manuais", items: aguardando },
       { id: "repetidas", title: "Tarefas repetidas ou estagnadas", icon: Repeat, origin: "Regra automática + marcações manuais", items: repetidas },
       { id: "impedimentos", title: "Impedimentos e bloqueios", icon: AlertOctagon, origin: "Dados automáticos", items: impItems },
+      { id: "acompanhamento_tempo", title: "Acompanhamento do tempo", icon: Timer, origin: "Dados automáticos", items: acompTempoItems },
+      { id: "squads_sem_daily", title: "Squads que não iniciaram daily", icon: CalendarOff, origin: "Dados automáticos", items: squadsSemDailyItems },
     ];
     built.forEach((sec) => {
       sec.items.forEach((it) => {
