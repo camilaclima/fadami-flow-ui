@@ -105,6 +105,7 @@ interface ReportItem {
   done?: DevDailyActivity[];
   inactive?: DevDailyActivity[];
   planned?: DevDailyActivity[];
+  stillPending?: DevDailyActivity[];
   extraDetails?: string;
   repeatDetails?: {
     sameDay?: { date: string; task: string };
@@ -361,8 +362,14 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
     const done = new Map<string, DevDailyActivity[]>();
     const inactive = new Map<string, DevDailyActivity[]>();
     const planned = new Map<string, DevDailyActivity[]>();
+    const stillPending = new Map<string, DevDailyActivity[]>();
     const entryById = new Map<string, any>();
     (todayEntries as any[]).forEach((e) => entryById.set(e.id, e));
+    // Inclui entries anteriores ao range para localizar a origem de atividades
+    // que "arrastam" pendências de dias fora do intervalo consultado.
+    (prevEntries as any[]).forEach((e) => {
+      if (!entryById.has(e.id)) entryById.set(e.id, e);
+    });
 
     allActivities.forEach((a) => {
       if (a.closed_entry_id && (a.status === "concluida" || a.status === "inativa")) {
@@ -388,15 +395,33 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
         return true;
       });
       if (arr.length > 0) planned.set(e.id, arr);
+
+      // "stillPending" = pendências vindas de dias ANTERIORES a D que
+      // continuavam abertas no dia D (mesma regra de buildYesterdayTodayLists).
+      const carry = allActivities.filter((a) => {
+        if (a.user_id !== e.user_id) return false;
+        if (a.closed_entry_id === e.id) return false;
+        const origin = a.created_entry_id ? entryById.get(a.created_entry_id) : null;
+        const originDate = origin?.entry_date ?? (a.created_at ? a.created_at.slice(0, 10) : null);
+        if (!originDate) return false;
+        if (originDate >= D) return false;
+        if (a.closed_entry_id) {
+          const closed = entryById.get(a.closed_entry_id);
+          if (closed && closed.entry_date <= D) return false;
+        }
+        return true;
+      });
+      if (carry.length > 0) stillPending.set(e.id, carry);
     });
 
-    return { done, inactive, planned };
-  }, [allActivities, todayEntries]);
+    return { done, inactive, planned, stillPending };
+  }, [allActivities, todayEntries, prevEntries]);
 
   const actsFor = (entryId: string) => ({
     done: activitiesByEntry.done.get(entryId) ?? [],
     inactive: activitiesByEntry.inactive.get(entryId) ?? [],
     planned: activitiesByEntry.planned.get(entryId) ?? [],
+    stillPending: activitiesByEntry.stillPending.get(entryId) ?? [],
   });
 
   const tagsByEntry = useMemo(() => {
@@ -881,6 +906,7 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
           it.done = a.done;
           it.inactive = a.inactive;
           it.planned = a.planned;
+          it.stillPending = a.stillPending;
         }
       });
     });
@@ -968,6 +994,7 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
           done: it.done ?? [],
           inactive: it.inactive ?? [],
           planned: it.planned ?? [],
+          stillPending: it.stillPending ?? [],
           extraDetails: it.extraDetails,
           repeatDetails: it.repeatDetails,
           rank: it.rank,
@@ -1641,6 +1668,7 @@ function reviveItem(raw: { id: string; text: string; data?: any }): ReportItem {
     done: d.done ?? [],
     inactive: d.inactive ?? [],
     planned: d.planned ?? [],
+    stillPending: d.stillPending ?? [],
     extraDetails: d.extraDetails,
     repeatDetails: d.repeatDetails,
     rank: d.rank,
