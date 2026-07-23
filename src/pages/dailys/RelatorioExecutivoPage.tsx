@@ -102,6 +102,10 @@ interface ReportItem {
   inactive?: DevDailyActivity[];
   planned?: DevDailyActivity[];
   extraDetails?: string;
+  repeatDetails?: {
+    sameDay?: { date: string; task: string };
+    streak?: Array<{ date: string; task: string }>;
+  };
 }
 
 interface ReportSection {
@@ -546,6 +550,17 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
           extra.push(`${fmtShort(prev1.entry_date)}: ${prev1.will_do_today}`);
           extra.push(`${fmtShort(e.entry_date)}: ${e.will_do_today}`);
         }
+        const repeatDetails: ReportItem["repeatDetails"] = {};
+        if (sameDayRepeat) {
+          repeatDetails.sameDay = { date: e.entry_date, task: e.will_do_today! };
+        }
+        if (threeDayStreak) {
+          repeatDetails.streak = [
+            { date: prev2!.entry_date, task: prev2!.will_do_today! },
+            { date: prev1!.entry_date, task: prev1!.will_do_today! },
+            { date: e.entry_date, task: e.will_do_today! },
+          ];
+        }
         repetidas.push({
           id: `rp-${e.id}`,
           text: `${label} — ${originParts.join(" · ")}.`,
@@ -556,6 +571,7 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
           entry: e,
           impediments: entryImps,
           extraDetails: extra.length ? extra.join("\n") : undefined,
+          repeatDetails: Object.keys(repeatDetails).length ? repeatDetails : undefined,
         });
       }
     });
@@ -821,6 +837,7 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
           inactive: it.inactive ?? [],
           planned: it.planned ?? [],
           extraDetails: it.extraDetails,
+          repeatDetails: it.repeatDetails,
         },
       })),
     }));
@@ -1489,6 +1506,7 @@ function reviveItem(raw: { id: string; text: string; data?: any }): ReportItem {
     inactive: d.inactive ?? [],
     planned: d.planned ?? [],
     extraDetails: d.extraDetails,
+    repeatDetails: d.repeatDetails,
   };
 }
 
@@ -1957,7 +1975,52 @@ function ExecReportItemCard({
               </div>
             )}
 
-            {item.extraDetails && (
+            {item.repeatDetails ? (
+              <div className="space-y-2">
+                {item.repeatDetails.sameDay && (
+                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Repeat className="w-3.5 h-3.5 text-amber-600" />
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                        Mesma tarefa em "Ontem" e "Hoje"
+                      </span>
+                      <Badge variant="outline" className="text-[10px] gap-1 ml-auto">
+                        <Clock className="w-2.5 h-2.5" />
+                        {fmtShort(item.repeatDetails.sameDay.date)}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-foreground/90 break-words whitespace-pre-wrap leading-snug">
+                      {item.repeatDetails.sameDay.task}
+                    </p>
+                  </div>
+                )}
+                {item.repeatDetails.streak && item.repeatDetails.streak.length > 0 && (
+                  <div className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertTriangle className="w-3.5 h-3.5 text-orange-600" />
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-orange-700 dark:text-orange-400">
+                        Mesma tarefa há {item.repeatDetails.streak.length} dias úteis
+                      </span>
+                    </div>
+                    <ol className="relative border-l-2 border-orange-500/30 pl-4 space-y-2 ml-1">
+                      {item.repeatDetails.streak.map((s, idx) => (
+                        <li key={idx} className="relative">
+                          <span className="absolute -left-[21px] top-1 w-3 h-3 rounded-full bg-orange-500/80 ring-2 ring-background" />
+                          <div className="flex items-start gap-2">
+                            <Badge variant="outline" className="text-[10px] shrink-0 bg-background">
+                              {fmtShort(s.date)}
+                            </Badge>
+                            <p className="text-sm text-foreground/90 break-words whitespace-pre-wrap leading-snug">
+                              {s.task}
+                            </p>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+              </div>
+            ) : item.extraDetails && (
               <div className="rounded-lg border bg-muted/20 px-3 py-2">
                 <p className="text-xs whitespace-pre-wrap break-words text-foreground/90">
                   {item.extraDetails}
