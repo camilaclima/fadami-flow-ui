@@ -65,17 +65,31 @@ export function useDevDailyActivitiesByUsers(userIds: string[], squadId?: string
     ],
     enabled: userIds.length > 0,
     queryFn: async () => {
-      let q = (supabase.from("dev_daily_activities") as any)
-        .select("*")
-        .in("user_id", userIds);
-      if (squadId) {
-        // Escopo por squad: inclui as atividades da squad e as legadas
-        // (sem squad atribuído) para não perder registros históricos.
-        q = q.or(`squad_id.eq.${squadId},squad_id.is.null`);
+      // Pagina os resultados: o limite padrão do PostgREST (1000) pode
+      // truncar silenciosamente atividades quando a tabela cresce, causando
+      // divergência entre Histórico e Relatório Executivo.
+      const PAGE = 1000;
+      const all: DevDailyActivity[] = [];
+      let from = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        let q = (supabase.from("dev_daily_activities") as any)
+          .select("*")
+          .in("user_id", userIds)
+          .range(from, from + PAGE - 1);
+        if (squadId) {
+          // Escopo por squad: inclui as atividades da squad e as legadas
+          // (sem squad atribuído) para não perder registros históricos.
+          q = q.or(`squad_id.eq.${squadId},squad_id.is.null`);
+        }
+        const { data, error } = await q;
+        if (error) throw error;
+        const chunk = (data ?? []) as DevDailyActivity[];
+        all.push(...chunk);
+        if (chunk.length < PAGE) break;
+        from += PAGE;
       }
-      const { data, error } = await q;
-      if (error) throw error;
-      return (data ?? []) as DevDailyActivity[];
+      return all;
     },
   });
 }
