@@ -1259,11 +1259,23 @@ function useHydratedSections(report: ExecutiveReport | null): RenderSection[] {
     queryKey: ["exec_report_hydrate_acts", [...entryUserIds].sort().join(",")],
     enabled: entryUserIds.length > 0,
     queryFn: async () => {
-      const { data, error } = await (supabase.from("dev_daily_activities") as any)
-        .select("*")
-        .in("user_id", entryUserIds);
-      if (error) throw error;
-      return (data ?? []) as DevDailyActivity[];
+      // Pagina para evitar o teto padrão de 1000 linhas do PostgREST.
+      const PAGE = 1000;
+      const all: DevDailyActivity[] = [];
+      let from = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await (supabase.from("dev_daily_activities") as any)
+          .select("*")
+          .in("user_id", entryUserIds)
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const chunk = (data ?? []) as DevDailyActivity[];
+        all.push(...chunk);
+        if (chunk.length < PAGE) break;
+        from += PAGE;
+      }
+      return all;
     },
   });
 
