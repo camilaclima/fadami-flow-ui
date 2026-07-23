@@ -174,24 +174,48 @@ export function UserFormModalSupabase({ open, onOpenChange, profile, cloneData }
       if (!role || role.title.trim().toLowerCase() !== "desenvolvedor") return;
       if (squadIds.length === 0 || !userEmail) return;
 
-      const { data: tm } = await (supabase.from("team_members") as any)
+      let { data: tm } = await (supabase.from("team_members") as any)
         .select("id")
         .ilike("email", userEmail)
         .eq("active", true)
         .maybeSingle();
       if (!tm?.id) {
-        toast.info("Cadastre o desenvolvedor em Colaboradores para vinculá-lo à squad.");
-        return;
+        // Auto-criar team_member para garantir vínculo com a squad e evitar
+        // que o dev suma do Histórico da Daily por falta de cadastro.
+        const { data: authData } = await supabase.auth.getUser();
+        const coordinatorId = authData?.user?.id;
+        if (!coordinatorId) {
+          toast.info("Não foi possível vincular o dev à squad (sessão expirada).");
+          return;
+        }
+        const displayName =
+          [firstName, lastName].filter(Boolean).join(" ").trim() || userEmail;
+        const { data: created, error: createErr } = await (supabase
+          .from("team_members") as any)
+          .insert({
+            name: displayName,
+            email: userEmail,
+            role: "dev",
+            coordinator_id: coordinatorId,
+          })
+          .select("id")
+          .single();
+        if (createErr || !created?.id) {
+          console.error("Falha ao criar team_member para o dev", createErr);
+          toast.info("Cadastre o desenvolvedor em Colaboradores para vinculá-lo à squad.");
+          return;
+        }
+        tm = created;
       }
 
       const { data: existing } = await (supabase.from("squad_members") as any)
         .select("squad_id")
-        .eq("team_member_id", tm.id)
+        .eq("team_member_id", tm!.id)
         .in("squad_id", squadIds);
       const existingIds = new Set((existing ?? []).map((r: any) => r.squad_id));
       const toInsert = squadIds
         .filter((sid) => !existingIds.has(sid))
-        .map((sid) => ({ squad_id: sid, team_member_id: tm.id }));
+        .map((sid) => ({ squad_id: sid, team_member_id: tm!.id }));
       if (toInsert.length > 0) {
         await (supabase.from("squad_members") as any).insert(toInsert);
         queryClient.invalidateQueries({ queryKey: ["squads"] });
