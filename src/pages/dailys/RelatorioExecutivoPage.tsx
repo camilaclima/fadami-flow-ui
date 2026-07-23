@@ -2050,7 +2050,7 @@ function ExecReportItemCard({
                   <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-1">
                     Ontem
                   </p>
-                  {(item.done?.length ?? 0) + (item.inactive?.length ?? 0) > 0 ? (
+                  {(item.done?.length ?? 0) + (item.inactive?.length ?? 0) + (item.stillPending?.length ?? 0) > 0 ? (
                     <div className="space-y-1.5">
                       {item.done?.flatMap((a) => {
                         const lines = splitFreeText(a.description || "");
@@ -2064,6 +2064,13 @@ function ExecReportItemCard({
                         const list = lines.length > 0 ? lines : [a.description];
                         return list.map((line, idx) => (
                           <DevActivityCard key={`${a.id}-${idx}`} kind="inactive" description={line} createdAt={a.created_at} devNotes={a.dev_notes} />
+                        ));
+                      })}
+                      {item.stillPending?.flatMap((a) => {
+                        const lines = splitFreeText(a.description || "");
+                        const list = lines.length > 0 ? lines : [a.description];
+                        return list.map((line, idx) => (
+                          <DevActivityCard key={`${a.id}-sp-${idx}`} kind="pending" description={line} createdAt={a.created_at} devNotes={a.dev_notes} />
                         ));
                       })}
                     </div>
