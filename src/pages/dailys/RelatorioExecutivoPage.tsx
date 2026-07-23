@@ -1580,6 +1580,50 @@ function CollapsibleSectionCard({
   );
 }
 
+function ComposeSectionCard({
+  title,
+  Icon,
+  origin,
+  count,
+  children,
+}: {
+  title: string;
+  Icon: React.ComponentType<{ className?: string }>;
+  origin: string;
+  count: number;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Card className="rounded-2xl">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between gap-3 px-6 py-4 text-left hover:bg-muted/40 rounded-t-2xl transition-colors"
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          {open ? (
+            <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+          ) : (
+            <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+          )}
+          <Icon className="w-4 h-4 text-primary shrink-0" />
+          <span className="text-base font-semibold truncate">{title}</span>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Badge variant="outline" className="text-[10px] bg-muted/40">
+            {origin}
+          </Badge>
+          <Badge variant="outline" className="text-[10px]">
+            {count} {count === 1 ? "registro" : "registros"}
+          </Badge>
+        </div>
+      </button>
+      {open && <CardContent className="space-y-2 pt-0">{children}</CardContent>}
+    </Card>
+  );
+}
+
 // ============================================================
 // Exportação em PDF preservando o layout visual (expandido).
 // ============================================================
