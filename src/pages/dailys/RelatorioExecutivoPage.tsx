@@ -872,26 +872,17 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
             <p className="text-sm text-muted-foreground">Carregando dados…</p>
           )}
 
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <div className="flex flex-col gap-4">
             {sections.map((s) => {
               const Icon = s.icon;
               return (
-                <Card key={s.id} className="rounded-2xl">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Icon className="w-4 h-4 text-primary" />
-                      {s.title}
-                    </CardTitle>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <Badge variant="outline" className="text-[10px] bg-muted/40">
-                        {s.origin}
-                      </Badge>
-                      <Badge variant="outline" className="text-[10px]">
-                        {s.items.length} {s.items.length === 1 ? "item" : "itens"}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
+                <ComposeSectionCard
+                  key={s.id}
+                  title={s.title}
+                  Icon={Icon}
+                  origin={s.origin}
+                  count={s.items.length}
+                >
                     {s.id === "melhor_squad" && (
                       <div className="rounded-xl border bg-muted/20 p-3 space-y-2">
                         <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground">
@@ -974,8 +965,7 @@ export default function RelatorioExecutivoPage({ savedOnly = false }: { savedOnl
                         )
                       );
                     })}
-                  </CardContent>
-                </Card>
+                </ComposeSectionCard>
               );
             })}
           </div>
@@ -1586,6 +1576,50 @@ function CollapsibleSectionCard({
           })}
         </CardContent>
       )}
+    </Card>
+  );
+}
+
+function ComposeSectionCard({
+  title,
+  Icon,
+  origin,
+  count,
+  children,
+}: {
+  title: string;
+  Icon: React.ComponentType<{ className?: string }>;
+  origin: string;
+  count: number;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Card className="rounded-2xl">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between gap-3 px-6 py-4 text-left hover:bg-muted/40 rounded-t-2xl transition-colors"
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          {open ? (
+            <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+          ) : (
+            <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+          )}
+          <Icon className="w-4 h-4 text-primary shrink-0" />
+          <span className="text-base font-semibold truncate">{title}</span>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Badge variant="outline" className="text-[10px] bg-muted/40">
+            {origin}
+          </Badge>
+          <Badge variant="outline" className="text-[10px]">
+            {count} {count === 1 ? "registro" : "registros"}
+          </Badge>
+        </div>
+      </button>
+      {open && <CardContent className="space-y-2 pt-0">{children}</CardContent>}
     </Card>
   );
 }
