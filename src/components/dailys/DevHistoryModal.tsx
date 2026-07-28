@@ -156,20 +156,21 @@ export function DevHistoryModal({ open, onOpenChange, userId, name }: Props) {
                         </div>
                         <div className="rounded-lg bg-primary/5 px-3 py-2">
                           <p className="text-[10px] uppercase tracking-wide font-semibold text-primary/80 mb-1">Hoje</p>
-                          {pending.length > 0 ? (
+                           {e.will_do_today?.trim() ? (
+                             <FreeTextActivityList
+                               text={e.will_do_today}
+                               kind="pending"
+                               createdAt={e.created_at}
+                               keyPrefix={`dhm-t-${e.id}`}
+                             />
+                           ) : pending.length > 0 ? (
                             <div className="space-y-1.5">
                               {pending.map((a) => (
                                 <DevActivityCard key={a.id} kind="pending" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
                               ))}
                             </div>
                           ) : (
-                            <FreeTextActivityList
-                              text={e.will_do_today}
-                              kind="pending"
-                              createdAt={e.created_at}
-                              emptyFallback={<p className="text-xs text-muted-foreground">—</p>}
-                              keyPrefix={`dhm-t-${e.id}`}
-                            />
+                             <p className="text-xs text-muted-foreground">—</p>
                           )}
                         </div>
                       </div>
