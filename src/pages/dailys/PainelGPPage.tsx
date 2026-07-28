@@ -147,7 +147,7 @@ export default function PainelGPPage() {
         if (em) byEmail.set(em, p);
         if (full) byName.set(full, p);
       });
-      return (tms ?? []).map((t: any) => {
+      const mapped = (tms ?? []).map((t: any) => {
         const em = String(t.email ?? "").trim().toLowerCase();
         const nm = String(t.name ?? "").trim().toLowerCase();
         const p = (em && byEmail.get(em)) || (nm && byName.get(nm)) || null;
@@ -157,6 +157,30 @@ export default function PainelGPPage() {
           email: t.email as string | null,
         };
       }) as { user_id: string | null; name: string; email: string | null }[];
+      // Dedupe defensivo: mesma pessoa cadastrada mais de uma vez
+      // (registros legados sem e-mail). Mantém o que tem user_id/e-mail.
+      const dedup = new Map<string, (typeof mapped)[number]>();
+      mapped.forEach((m) => {
+        const key =
+          m.user_id ??
+          String(m.email ?? "").trim().toLowerCase() ??
+          String(m.name ?? "").trim().toLowerCase();
+        const k = key || String(m.name ?? "").trim().toLowerCase();
+        const prev = dedup.get(k);
+        if (!prev || (!prev.user_id && m.user_id) || (!prev.email && m.email)) {
+          dedup.set(k, m);
+        }
+      });
+      // Também remove duplicatas por nome quando um dos registros não tem vínculo.
+      const byNameKey = new Map<string, (typeof mapped)[number]>();
+      Array.from(dedup.values()).forEach((m) => {
+        const nk = String(m.name ?? "").trim().toLowerCase();
+        const prev = byNameKey.get(nk);
+        if (!prev || (!prev.user_id && m.user_id) || (!prev.email && m.email)) {
+          byNameKey.set(nk, m);
+        }
+      });
+      return Array.from(byNameKey.values());
     },
   });
 
