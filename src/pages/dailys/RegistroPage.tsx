@@ -504,6 +504,13 @@ export default function RegistroPage() {
       .join("\n");
 
     const futureSnapshot = [
+      // Uma atividade de dias anteriores que o dev decidiu manter pendente
+      // também é trabalho planejado para este dia. Antes ela validava o
+      // formulário, mas não era gravada em "Hoje", deixando o painel do líder
+      // com um traço mesmo após o preenchimento da daily.
+      ...carryOverActivities
+        .filter((a) => pastDecisions[a.id] === "pending")
+        .map((a) => `○ ${a.description}`),
       ...plannedInEntry.map((a) => `○ ${a.description}`),
       ...plannedDrafts.map((d) => `○ ${d.description}`),
     ].join("\n");

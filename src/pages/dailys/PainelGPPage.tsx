@@ -1060,17 +1060,17 @@ export default function PainelGPPage() {
                 <div className="rounded-xl border bg-primary/5 p-3">
                   <p className="text-[11px] uppercase tracking-wide font-semibold text-primary/80 mb-1.5">Hoje</p>
                   {(() => {
-                    // "Hoje" = atividades pendentes criadas neste próprio registro
-                    // (mesma regra da visão do líder, evita mistura com carry-over).
                     const acts = detailLists?.today ?? [];
-                    if (acts.length === 0) return (
+                    // O snapshot é a fonte fiel do que o dev escolheu para Hoje:
+                    // ele também contém carry-overs selecionados neste preenchimento.
+                    if (detailRow.will_do_today?.trim()) return (
                       <FreeTextActivityList
                         text={detailRow.will_do_today}
                         kind="pending"
-                        emptyFallback={<p className="text-sm text-muted-foreground">—</p>}
                         keyPrefix={`pgp-t-${detailRow.id}`}
                       />
                     );
+                    if (acts.length === 0) return <p className="text-sm text-muted-foreground">—</p>;
                     return (
                       <div className="space-y-1.5">
                         {acts.map((a) => (

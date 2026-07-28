@@ -374,16 +374,16 @@ export function DailyReadOnlyView({
                           </div>
                           <div className="rounded-lg bg-primary/5 px-3 py-2">
                             <p className="text-[10px] uppercase tracking-wide font-semibold text-primary/80 mb-1">Hoje</p>
-                            {planned.length > 0 ? (
+                             {e.will_do_today?.trim() ? (
+                               <div className="space-y-1.5">
+                                 {splitFreeText(e.will_do_today).map((line, i) => (
+                                   <DevActivityCard key={`t-${i}`} kind="pending" description={line} createdAt={e.created_at} />
+                                 ))}
+                               </div>
+                             ) : planned.length > 0 ? (
                               <div className="space-y-1.5">
                                 {planned.map((a) => (
                                   <DevActivityCard key={a.id} kind="pending" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
-                                ))}
-                              </div>
-                            ) : e.will_do_today?.trim() ? (
-                              <div className="space-y-1.5">
-                                {splitFreeText(e.will_do_today).map((line, i) => (
-                                  <DevActivityCard key={`t-${i}`} kind="pending" description={line} createdAt={e.created_at} />
                                 ))}
                               </div>
                             ) : (
