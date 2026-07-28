@@ -1,35 +1,35 @@
-## O que está acontecendo (em linguagem simples)
+## Diagnóstico confirmado
 
-Quando um desenvolvedor deixa uma tarefa "pendente" num dia (ex.: 21/07) e no dia seguinte (22/07) essa tarefa continua em aberto, ela é uma **tarefa "arrastada"** — precisa aparecer no dia 22 como algo que ainda está pra fazer.
+O conteúdo não está sendo perdido em todos os casos. Existem dois formatos de armazenamento: o resumo textual da daily (`did_yesterday`/`will_do_today`) e as atividades estruturadas.
 
-- **Painel do líder (Histórico da squad)** já sabe olhar para essas tarefas arrastadas de dias anteriores e as mostra junto com a daily do dia 22.
-- **Modal "Histórico do dev"** (visão individual do desenvolvedor) **NÃO** olha para as tarefas arrastadas. Ele só mostra atividades que estão marcadas como "criadas nesse dia" ou "fechadas nesse dia". Se a tarefa foi criada em outro dia e continua pendente, ela some — e o "HOJE" acaba aparecendo vazio (traço "—").
+A causa principal confirmada está no salvamento da **Minha Daily**:
 
-Foi exatamente isso que aconteceu com a Lorrayne no dia 22/07: as 2 tarefas do "HOJE" que aparecem no painel da squad ("Adaptação view monitoramento Power BI Elovias" e "Migração CLN - Relatórios") são pendências vindas do registro dela do dia 21/07 que continuavam abertas. O modal individual não sabe considerar essas pendências, então mostra "HOJE —".
+- Uma atividade antiga que o desenvolvedor mantém como **pendente** é aceita como trabalho de “Hoje”.
+- Porém, essa atividade é incluída somente no resumo de “Ontem” e é omitida de `will_do_today`.
+- Ela também continua vinculada à entrada original, portanto não aparece entre as atividades criadas na entrada atual.
+- Como a lista estruturada de “Hoje” e o texto `will_do_today` ficam vazios, o painel do líder mostra `—`.
 
-**Acontece com outros desenvolvedores?** Sim. Uma varredura na base mostrou **96 registros** de daily (de **34 desenvolvedores** diferentes) com pelo menos uma pendência arrastada de dia anterior. Ou seja, sempre que um dev fica com tarefa em aberto de um dia para o outro, o modal individual vai divergir do painel da squad.
+Na base atual, há registros recentes com texto preenchido, mas sem atividade diretamente vinculada à entrada; vários casos de 27/07 possuem atividades pendentes descritas em “Ontem” e “Hoje” vazio. Portanto, é possível recuperar boa parte do que foi informado.
 
-## Correção proposta
+## Correção
 
-Alinhar a lógica do `DevHistoryModal` com a do painel do líder, usando o utilitário compartilhado que já existe (`src/lib/dailyActivitiesView.ts` → `buildYesterdayTodayLists`). Ele já implementa a regra correta:
+1. **Corrigir o salvamento da Minha Daily**
+   - Incluir no snapshot de “Hoje” as atividades anteriores que o desenvolvedor marcou para continuar pendentes.
+   - Manter essas mesmas atividades em “Ontem” como pendentes, respeitando a regra atual, mas também registrar que foram escolhidas como trabalho do dia.
+   - Garantir que a validação e o conteúdo salvo usem exatamente a mesma lista, evitando permitir o envio de uma daily cujo “Hoje” termina vazio.
 
-- **ONTEM** = concluídas + inativadas fechadas nesse dia + pendências ainda abertas vindas de dias anteriores (carry-over).
-- **HOJE** = pendências criadas exatamente nesse registro.
+2. **Fortalecer a leitura no Painel da Daily**
+   - Centralizar a montagem de “Ontem” e “Hoje” para que o modal do líder, detalhes, histórico e relatório usem a mesma regra.
+   - Preservar o fallback para os snapshots textuais quando os vínculos estruturados estiverem ausentes.
+   - Buscar as atividades do desenvolvedor pela entrada e pelo usuário, sem perder conteúdo por inconsistências históricas de vínculo, mantendo a separação por squad e data.
 
-## Arquivos alterados
+3. **Recuperar os registros históricos afetados**
+   - Identificar entradas com `will_do_today` vazio e tarefas explicitamente marcadas como pendentes no snapshot de “Ontem”.
+   - Preencher “Hoje” somente com essas tarefas recuperáveis, sem inventar conteúdo nem misturar dias ou squads.
+   - Não alterar registros cujo conteúdo não possa ser determinado com segurança.
 
-- `src/components/dailys/DevHistoryModal.tsx`
-  - Substituir a montagem manual de `done`/`inactive`/`pending` pela chamada a `buildYesterdayTodayLists({ entry, activities, entriesForUser: entries })`.
-  - Renderizar `yesterday` (done + inactive + stillPending, cada um com seu `kind`) na coluna ONTEM e `today` na coluna HOJE.
-  - Manter os fallbacks de texto livre (`did_yesterday`/`will_do_today`) apenas quando não existir nenhuma atividade estruturada correspondente.
-
-## Fora do escopo
-
-- Não alterar o painel do líder — a lógica dele já está correta.
-- Não alterar o Relatório Executivo — a decisão anterior de excluir carry-over do "ONTEM" do relatório continua valendo (foi pedido explícito de outro card).
-- Sem migração de banco: é só uma correção de exibição.
-
-## Como validar
-
-- Abrir o histórico da Lorrayne no dia 22/07: o "HOJE" deve mostrar as 2 tarefas pendentes ("Adaptação view monitoramento Power BI Elovias" e "Migração CLN - Relatórios"), batendo com o painel da squad.
-- Conferir em outros dias/desenvolvedores com carry-over que as colunas passem a bater entre os dois lugares.
+4. **Validar a correção**
+   - Conferir casos reais afetados no banco antes e depois da recuperação.
+   - Testar desenvolvedor com uma e múltiplas squads.
+   - Comparar Minha Daily, Painel do Líder, Histórico e Relatório Executivo para a mesma pessoa, squad e data.
+   - Confirmar que novas dailies não exibem `—` quando o desenvolvedor selecionou uma atividade para continuar no dia.
