@@ -627,6 +627,27 @@ function DayDetailDialog({
                 <Badge variant="outline" className="capitalize">
                   {format(parseISO(day.date), "EEEE", { locale: ptBR })}
                 </Badge>
+                {(() => {
+                  const ids = filterSquadId
+                    ? [filterSquadId]
+                    : Array.from(
+                        new Set(
+                          (day.entries ?? [])
+                            .map((e) => e.squad_id)
+                            .filter((v): v is string => !!v),
+                        ),
+                      );
+                  if (ids.length === 0) return null;
+                  return ids.map((sid) => (
+                    <Badge
+                      key={sid}
+                      variant="outline"
+                      className="gap-1 border-primary/30 text-primary bg-primary/5"
+                    >
+                      <Users className="h-3 w-3" /> {squadNameById.get(sid) ?? "Squad"}
+                    </Badge>
+                  ));
+                })()}
               </DialogDescription>
             </DialogHeader>
 
