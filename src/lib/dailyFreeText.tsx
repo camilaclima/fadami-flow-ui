@@ -3,7 +3,7 @@ import { DevActivityCard } from "@/components/dailys/DevActivityCard";
 export function splitFreeText(text: string): string[] {
   return text
     .split(/\r?\n+/)
-    .map((l) => l.replace(/^\s*(?:[-*•○●◦▪▫»·]|\d+[.)])\s*/, "").trim())
+    .map((l) => l.replace(/^\s*(?:[-*•○●◦▪▫»·✓⊘]|\d+[.)])\s*/, "").trim())
     .filter((l) => l.length > 0);
 }
 

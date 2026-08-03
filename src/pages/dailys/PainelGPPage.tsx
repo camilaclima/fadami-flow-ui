@@ -48,13 +48,8 @@ function daysAgoLabel(iso: string): string {
 
 /** Retorna a data (YYYY-MM-DD) do último dia útil anterior à data atual.
  *  Segunda-feira → sexta anterior. Sábado/Domingo → sexta anterior. */
-function previousBusinessDayISO(): string {
+function currentDateISO(): string {
   const d = new Date();
-  d.setDate(d.getDate() - 1);
-  while (d.getDay() === 0 || d.getDay() === 6) {
-    d.setDate(d.getDate() - 1);
-  }
-  // Normaliza para meia-noite local antes de serializar.
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -65,12 +60,12 @@ export default function PainelGPPage() {
   const { current: sim, loading: simLoading } = useDailySim();
   const { user } = useAuth();
   const isFabio = (user?.email ?? "").toLowerCase() === "fabio@fadami.com.br";
-  const [date, setDate] = useState<string>(previousBusinessDayISO());
-  // Mantém a data sempre apontando para o último dia útil anterior
+  const [date, setDate] = useState<string>(currentDateISO());
+  // Mantém a data sempre apontando para o dia atual
   // (atualiza automaticamente após a virada do dia, sem reload).
   useEffect(() => {
     const id = setInterval(() => {
-      const t = previousBusinessDayISO();
+      const t = currentDateISO();
       setDate((cur) => (cur === t ? cur : t));
     }, 60_000);
     return () => clearInterval(id);
@@ -316,6 +311,7 @@ export default function PainelGPPage() {
     if (!effectiveSquadId) {
       return rows.map((r) => ({
         key: r.id,
+        user_id: r.user_id,
         name: r.dev_name,
         filled: true as const,
         entry: r,
@@ -325,6 +321,7 @@ export default function PainelGPPage() {
     const entryByUser = new Map(rows.map((r) => [r.user_id, r]));
     const out: Array<{
       key: string;
+      user_id: string | null;
       name: string;
       filled: boolean;
       entry: (typeof rows)[number] | null;
@@ -335,6 +332,7 @@ export default function PainelGPPage() {
       const imps = (m.user_id && impsByUser.get(m.user_id)) || [];
       out.push({
         key: m.user_id ?? m.email ?? m.name,
+        user_id: m.user_id,
         name: m.name,
         filled: !!r,
         entry: r,
@@ -344,7 +342,7 @@ export default function PainelGPPage() {
     // Garante que entries de devs fora da squad também apareçam (fallback).
     rows.forEach((r) => {
       if (!out.find((o) => o.entry?.id === r.id) && !squadProfiles.find((m) => m.user_id === r.user_id)) {
-        out.push({ key: r.id, name: r.dev_name, filled: true, entry: r, imps: r.imps });
+        out.push({ key: r.id, user_id: r.user_id, name: r.dev_name, filled: true, entry: r, imps: r.imps });
       }
     });
     return out.sort((a, b) => Number(b.filled) - Number(a.filled) || a.name.localeCompare(b.name));
@@ -997,6 +995,7 @@ export default function PainelGPPage() {
         squadId={effectiveSquadId}
         members={memberRows.map((m) => ({
           key: m.key,
+          user_id: m.user_id ?? m.entry?.user_id ?? null,
           name: m.name,
           filled: m.filled,
           entry: m.entry

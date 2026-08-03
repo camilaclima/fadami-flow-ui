@@ -91,10 +91,10 @@ function allowedDates(): { value: string; label: string }[] {
   const prev = dow === 1 ? subDays(now, 3) : dow === 0 ? subDays(now, 2) : subDays(now, 1);
   const opts: { value: string; label: string }[] = [];
 
-  if (dow !== 0 && dow !== 6 && now.getHours() >= 17) {
-    opts.push({ value: toISO(now), label: `Hoje — ${format(now, "EEEE, dd/MM", { locale: ptBR })}` });
+  opts.push({ value: toISO(now), label: `Hoje — ${format(now, "EEEE, dd/MM", { locale: ptBR })}` });
+  if (toISO(prev) !== toISO(now)) {
+    opts.push({ value: toISO(prev), label: `Último dia útil — ${format(prev, "EEEE, dd/MM", { locale: ptBR })}` });
   }
-  opts.push({ value: toISO(prev), label: `Ontem útil — ${format(prev, "EEEE, dd/MM", { locale: ptBR })}` });
 
   return opts;
 }
@@ -201,6 +201,7 @@ export default function RegistroPage() {
   const [saving, setSaving] = useState(false);
   const [showImpsModal, setShowImpsModal] = useState(false);
   const [showStagnantModal, setShowStagnantModal] = useState(false);
+  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
 
   const [pastDecisions, setPastDecisions] = useState<Record<string, PastDecision>>({});
   const [plannedDrafts, setPlannedDrafts] = useState<DraftPlanned[]>([]);
@@ -409,7 +410,7 @@ export default function RegistroPage() {
     const today = new Date();
     const monday = startOfWeek(today, { weekStartsOn: 1 });
     const friday = addDays(monday, 4);
-    const weekWorkdays = workdaysInRange(monday, friday);
+    const weekWorkdays = workdaysInRange(monday, friday).filter((day) => day <= today);
     const registeredWeekDays = weekWorkdays.filter((wd) => entries.some((e) => e.entry_date === toISO(wd))).length;
     const attendanceRate = weekWorkdays.length > 0 ? Math.round((registeredWeekDays / weekWorkdays.length) * 100) : 0;
 
@@ -431,24 +432,33 @@ export default function RegistroPage() {
       .sort((a, b) => (b.imp.created_at ?? "").localeCompare(a.imp.created_at ?? ""));
   }, [allImpediments, entries]);
 
+  const attendanceWeeks = useMemo(() => {
+    const entryDates = new Set(entries.map((entry) => entry.entry_date));
+    const currentMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
+    return Array.from({ length: 4 }, (_, weekOffset) => {
+      const monday = subDays(currentMonday, weekOffset * 7);
+      return {
+        label: weekOffset === 0 ? "Semana atual" : `Semana de ${format(monday, "dd/MM", { locale: ptBR })}`,
+        days: Array.from({ length: 5 }, (_, dayOffset) => {
+          const day = addDays(monday, dayOffset);
+          const iso = toISO(day);
+          return { iso, label: format(day, "EEE", { locale: ptBR }), registered: entryDates.has(iso), future: day > new Date() };
+        }),
+      };
+    });
+  }, [entries]);
+
   const stagnantData = useMemo(() => {
     const now = Date.now();
     const pending: Array<{ a: DevDailyActivity; days: number }> = [];
-    const resolved: Array<{ a: DevDailyActivity; days: number }> = [];
     allActivities.forEach((a) => {
-      if (a.status === "inativa") return;
+      if (a.status !== "pendente") return;
       const created = new Date(a.created_at).getTime();
-      if (a.status === "pendente") {
-        const days = Math.floor((now - created) / 86400000);
-        if (days > 2) pending.push({ a, days });
-      } else if (a.status === "concluida" && a.completed_at) {
-        const days = Math.floor((new Date(a.completed_at).getTime() - created) / 86400000);
-        if (days > 2) resolved.push({ a, days });
-      }
+      const days = Math.floor((now - created) / 86400000);
+      if (days > 2) pending.push({ a, days });
     });
     pending.sort((x, y) => y.days - x.days);
-    resolved.sort((x, y) => y.days - x.days);
-    return { pending, resolved, total: pending.length + resolved.length };
+    return { pending, total: pending.length };
   }, [allActivities]);
 
   const submit = async () => {
@@ -715,7 +725,13 @@ export default function RegistroPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl">
+        <Card
+          role="button"
+          tabIndex={0}
+          onClick={() => setShowAttendanceModal(true)}
+          onKeyDown={(ev) => ev.key === "Enter" && setShowAttendanceModal(true)}
+          className="rounded-2xl cursor-pointer hover:border-primary/40 hover:shadow-md transition-all"
+        >
           <CardContent className="p-4 flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-primary/10 text-primary">
               <TrendingUp className="w-5 h-5" />
@@ -1409,6 +1425,35 @@ export default function RegistroPage() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={showAttendanceModal} onOpenChange={setShowAttendanceModal}>
+        <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-primary" /> Histórico de Assiduidade
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {attendanceWeeks.map((week) => (
+              <div key={week.label} className="rounded-xl border p-3">
+                <p className="text-sm font-semibold mb-2">{week.label}</p>
+                <div className="grid grid-cols-5 gap-2">
+                  {week.days.map((day) => (
+                    <div key={day.iso} className="text-center space-y-1">
+                      <p className="text-[10px] uppercase text-muted-foreground">{day.label}</p>
+                      <div className={`h-9 rounded-lg border flex items-center justify-center ${day.future ? "bg-muted/40 text-muted-foreground" : day.registered ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600" : "bg-red-500/10 border-red-500/30 text-red-600"}`}>
+                        {day.future ? "—" : day.registered ? <CheckCircle2 className="w-4 h-4" /> : <X className="w-4 h-4" />}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">{format(parseISO(day.iso), "dd/MM")}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter><Button onClick={() => setShowAttendanceModal(false)}>Fechar</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showStagnantModal} onOpenChange={setShowStagnantModal}>
         <DialogContent className="max-w-3xl w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto rounded-2xl">
           <DialogHeader>
@@ -1440,32 +1485,6 @@ export default function RegistroPage() {
                           <p className="text-[11px] text-muted-foreground mt-0.5">
                             Pendente há {days} dia{days !== 1 ? "s" : ""} · criada em{" "}
                             {format(parseISO(a.created_at), "dd/MM", { locale: ptBR })}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide font-semibold text-emerald-600 mb-2 flex items-center gap-1.5">
-                  <CircleCheck className="w-3.5 h-3.5" /> Sanadas ({stagnantData.resolved.length})
-                </p>
-                {stagnantData.resolved.length === 0 ? (
-                  <p className="text-sm text-muted-foreground italic">Nenhuma.</p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {stagnantData.resolved.map(({ a, days }) => (
-                      <div
-                        key={a.id}
-                        className="rounded-lg border bg-emerald-500/5 border-emerald-500/20 p-2.5 flex items-start gap-2"
-                      >
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm break-words whitespace-pre-wrap">{a.description}</p>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">
-                            Levou {days} dia{days !== 1 ? "s" : ""} · concluída em{" "}
-                            {a.completed_at ? format(parseISO(a.completed_at), "dd/MM", { locale: ptBR }) : "—"}
                           </p>
                         </div>
                       </div>

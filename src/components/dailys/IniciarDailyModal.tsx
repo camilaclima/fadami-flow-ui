@@ -29,6 +29,7 @@ import { formatDuration } from "@/lib/formatDuration";
 
 interface MemberRow {
   key: string;
+  user_id: string | null;
   name: string;
   filled: boolean;
   entry: {
@@ -113,7 +114,7 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
     : 0;
 
   const memberUserIds = useMemo(
-    () => Array.from(new Set(members.map((m) => m.entry?.user_id).filter((v): v is string => !!v))),
+    () => Array.from(new Set(members.map((m) => m.user_id ?? m.entry?.user_id).filter((v): v is string => !!v))),
     [members],
   );
   const { data: userActivities = [] } = useDevDailyActivitiesByUsers(
@@ -140,7 +141,7 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
       const exp: Record<string, boolean> = {};
       members.forEach((m) => {
         const base = defaultState(m.filled);
-        const uid = m.entry?.user_id;
+        const uid = m.user_id ?? m.entry?.user_id;
         const abs = uid ? absenceByUser.get(uid) : null;
         init[m.key] = abs
           ? { ...base, status: "absent_work", absence_type: abs.absence_type, absence_start: abs.start_date, absence_end: abs.end_date, absence_id: abs.id, camera_on: false }
@@ -275,7 +276,7 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
       const s = memberState[m.key];
       if (s?.status !== "absent_work" || !s.absence_type) continue;
       if (s.absence_id) { absenceCreated[m.key] = { id: s.absence_id, type: s.absence_type }; continue; }
-      const uid = m.entry?.user_id;
+      const uid = m.user_id ?? m.entry?.user_id;
       if (!uid) { absenceCreated[m.key] = null; continue; }
       const ranged = DEV_ABSENCE_RANGED.includes(s.absence_type);
       const start = ranged ? s.absence_start : date;
@@ -312,7 +313,7 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
         const abs = absent ? absenceCreated[m.key] : null;
         return {
           member_name: m.name,
-          member_user_id: m.entry?.user_id ?? null,
+          member_user_id: m.user_id ?? m.entry?.user_id ?? null,
           // Se ausente/não participou, câmera e "ficou em silêncio" não se aplicam
           camera_on: s.status === "present" ? s.camera_on : false,
           stayed_silent: false,
@@ -871,10 +872,22 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                         size="sm"
                                         variant="outline"
                                         className="h-7 rounded-lg gap-1 text-xs border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10 shrink-0"
-                                        onClick={() => resolve.mutate({ id: imp.id, resolved: true })}
-                                        disabled={resolve.isPending}
+                                        onClick={async () => {
+                                          try {
+                                            await resolve.mutateAsync({ id: imp.id, resolved: true });
+                                            toast.success("Impedimento sanado");
+                                          } catch {
+                                            // O hook já exibe a mensagem de erro do backend.
+                                          }
+                                        }}
+                                        disabled={resolve.isPending && resolve.variables?.id === imp.id}
                                       >
-                                        <CheckCircle2 className="w-3 h-3" /> Sanar
+                                        {resolve.isPending && resolve.variables?.id === imp.id ? (
+                                          <RefreshCcw className="w-3 h-3 animate-spin" />
+                                        ) : (
+                                          <CheckCircle2 className="w-3 h-3" />
+                                        )}
+                                        Sanar
                                       </Button>
                                     </div>
                                   ))}
