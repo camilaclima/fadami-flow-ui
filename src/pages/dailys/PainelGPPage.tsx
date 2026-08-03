@@ -46,8 +46,7 @@ function daysAgoLabel(iso: string): string {
   return `Há ${days} dias`;
 }
 
-/** Retorna a data (YYYY-MM-DD) do último dia útil anterior à data atual.
- *  Segunda-feira → sexta anterior. Sábado/Domingo → sexta anterior. */
+/** Retorna a data local atual no formato YYYY-MM-DD. */
 function currentDateISO(): string {
   const d = new Date();
   const y = d.getFullYear();
@@ -766,7 +765,7 @@ export default function PainelGPPage() {
           <CardContent className="space-y-4">
             {rows.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                Ninguém preencheu a daily do último dia útil. O resumo aparecerá aqui assim que houver pelo menos um registro.
+                Ninguém preencheu a daily nesta data. O resumo aparecerá aqui assim que houver pelo menos um registro.
               </p>
             )}
             {rows.length > 0 && !summary && !summaryLoading && !summaryError && (
