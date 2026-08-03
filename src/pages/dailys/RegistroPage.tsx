@@ -87,16 +87,7 @@ function toISO(d: Date): string {
 
 function allowedDates(): { value: string; label: string }[] {
   const now = new Date();
-  const dow = now.getDay();
-  const prev = dow === 1 ? subDays(now, 3) : dow === 0 ? subDays(now, 2) : subDays(now, 1);
-  const opts: { value: string; label: string }[] = [];
-
-  opts.push({ value: toISO(now), label: `Hoje — ${format(now, "EEEE, dd/MM", { locale: ptBR })}` });
-  if (toISO(prev) !== toISO(now)) {
-    opts.push({ value: toISO(prev), label: `Último dia útil — ${format(prev, "EEEE, dd/MM", { locale: ptBR })}` });
-  }
-
-  return opts;
+  return [{ value: toISO(now), label: `Hoje — ${format(now, "EEEE, dd/MM", { locale: ptBR })}` }];
 }
 
 function useMySquadNames(squadIds: string[] | null | undefined) {
@@ -189,7 +180,7 @@ export default function RegistroPage() {
 
   const lockedDates = useMemo(() => new Set(lockedMeetings.map((m) => m.meeting_date)), [lockedMeetings]);
 
-  const dateOptions = useMemo(() => allowedDates(), []);
+  const dateOptions = allowedDates();
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<string>(dateOptions[0]?.value ?? toISO(new Date()));
   const [draftImps, setDraftImps] = useState<DraftImpediment[]>([]);
@@ -781,7 +772,7 @@ export default function RegistroPage() {
               title={
                 hasAvailableDate
                   ? undefined
-                  : "Todas as dailys disponíveis já foram registradas. Novo registro liberará às 17h."
+                   : "A daily de hoje já foi registrada nesta squad."
               }
             >
               <Plus className="w-4 h-4" /> Registrar daily
