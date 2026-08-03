@@ -432,6 +432,22 @@ export default function RegistroPage() {
       .sort((a, b) => (b.imp.created_at ?? "").localeCompare(a.imp.created_at ?? ""));
   }, [allImpediments, entries]);
 
+  const attendanceWeeks = useMemo(() => {
+    const entryDates = new Set(entries.map((entry) => entry.entry_date));
+    const currentMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
+    return Array.from({ length: 4 }, (_, weekOffset) => {
+      const monday = subDays(currentMonday, weekOffset * 7);
+      return {
+        label: weekOffset === 0 ? "Semana atual" : `Semana de ${format(monday, "dd/MM", { locale: ptBR })}`,
+        days: Array.from({ length: 5 }, (_, dayOffset) => {
+          const day = addDays(monday, dayOffset);
+          const iso = toISO(day);
+          return { iso, label: format(day, "EEE", { locale: ptBR }), registered: entryDates.has(iso), future: day > new Date() };
+        }),
+      };
+    });
+  }, [entries]);
+
   const stagnantData = useMemo(() => {
     const now = Date.now();
     const pending: Array<{ a: DevDailyActivity; days: number }> = [];
@@ -1406,6 +1422,35 @@ export default function RegistroPage() {
               Fechar
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAttendanceModal} onOpenChange={setShowAttendanceModal}>
+        <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-primary" /> Histórico de Assiduidade
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {attendanceWeeks.map((week) => (
+              <div key={week.label} className="rounded-xl border p-3">
+                <p className="text-sm font-semibold mb-2">{week.label}</p>
+                <div className="grid grid-cols-5 gap-2">
+                  {week.days.map((day) => (
+                    <div key={day.iso} className="text-center space-y-1">
+                      <p className="text-[10px] uppercase text-muted-foreground">{day.label}</p>
+                      <div className={`h-9 rounded-lg border flex items-center justify-center ${day.future ? "bg-muted/40 text-muted-foreground" : day.registered ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600" : "bg-red-500/10 border-red-500/30 text-red-600"}`}>
+                        {day.future ? "—" : day.registered ? <CheckCircle2 className="w-4 h-4" /> : <X className="w-4 h-4" />}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">{format(parseISO(day.iso), "dd/MM")}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter><Button onClick={() => setShowAttendanceModal(false)}>Fechar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

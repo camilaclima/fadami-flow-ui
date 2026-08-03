@@ -311,6 +311,7 @@ export default function PainelGPPage() {
     if (!effectiveSquadId) {
       return rows.map((r) => ({
         key: r.id,
+        user_id: r.user_id,
         name: r.dev_name,
         filled: true as const,
         entry: r,
