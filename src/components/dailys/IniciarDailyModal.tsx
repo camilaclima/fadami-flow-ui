@@ -872,10 +872,22 @@ export function IniciarDailyModal({ open, onOpenChange, date, squadId, members }
                                         size="sm"
                                         variant="outline"
                                         className="h-7 rounded-lg gap-1 text-xs border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10 shrink-0"
-                                        onClick={() => resolve.mutate({ id: imp.id, resolved: true })}
-                                        disabled={resolve.isPending}
+                                        onClick={async () => {
+                                          try {
+                                            await resolve.mutateAsync({ id: imp.id, resolved: true });
+                                            toast.success("Impedimento sanado");
+                                          } catch {
+                                            // O hook já exibe a mensagem de erro do backend.
+                                          }
+                                        }}
+                                        disabled={resolve.isPending && resolve.variables?.id === imp.id}
                                       >
-                                        <CheckCircle2 className="w-3 h-3" /> Sanar
+                                        {resolve.isPending && resolve.variables?.id === imp.id ? (
+                                          <RefreshCcw className="w-3 h-3 animate-spin" />
+                                        ) : (
+                                          <CheckCircle2 className="w-3 h-3" />
+                                        )}
+                                        Sanar
                                       </Button>
                                     </div>
                                   ))}
