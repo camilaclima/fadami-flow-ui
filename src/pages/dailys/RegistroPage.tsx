@@ -410,7 +410,7 @@ export default function RegistroPage() {
     const today = new Date();
     const monday = startOfWeek(today, { weekStartsOn: 1 });
     const friday = addDays(monday, 4);
-    const weekWorkdays = workdaysInRange(monday, friday);
+    const weekWorkdays = workdaysInRange(monday, friday).filter((day) => day <= today);
     const registeredWeekDays = weekWorkdays.filter((wd) => entries.some((e) => e.entry_date === toISO(wd))).length;
     const attendanceRate = weekWorkdays.length > 0 ? Math.round((registeredWeekDays / weekWorkdays.length) * 100) : 0;
 
