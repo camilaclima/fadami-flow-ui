@@ -1,0 +1,2 @@
+ALTER TABLE public.daily_meeting_attendance
+DROP CONSTRAINT IF EXISTS daily_meeting_attendance_member_user_id_fkey;
