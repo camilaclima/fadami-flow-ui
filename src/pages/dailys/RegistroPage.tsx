@@ -91,10 +91,10 @@ function allowedDates(): { value: string; label: string }[] {
   const prev = dow === 1 ? subDays(now, 3) : dow === 0 ? subDays(now, 2) : subDays(now, 1);
   const opts: { value: string; label: string }[] = [];
 
-  if (dow !== 0 && dow !== 6 && now.getHours() >= 17) {
-    opts.push({ value: toISO(now), label: `Hoje — ${format(now, "EEEE, dd/MM", { locale: ptBR })}` });
+  opts.push({ value: toISO(now), label: `Hoje — ${format(now, "EEEE, dd/MM", { locale: ptBR })}` });
+  if (toISO(prev) !== toISO(now)) {
+    opts.push({ value: toISO(prev), label: `Último dia útil — ${format(prev, "EEEE, dd/MM", { locale: ptBR })}` });
   }
-  opts.push({ value: toISO(prev), label: `Ontem útil — ${format(prev, "EEEE, dd/MM", { locale: ptBR })}` });
 
   return opts;
 }
@@ -201,6 +201,7 @@ export default function RegistroPage() {
   const [saving, setSaving] = useState(false);
   const [showImpsModal, setShowImpsModal] = useState(false);
   const [showStagnantModal, setShowStagnantModal] = useState(false);
+  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
 
   const [pastDecisions, setPastDecisions] = useState<Record<string, PastDecision>>({});
   const [plannedDrafts, setPlannedDrafts] = useState<DraftPlanned[]>([]);
@@ -434,21 +435,14 @@ export default function RegistroPage() {
   const stagnantData = useMemo(() => {
     const now = Date.now();
     const pending: Array<{ a: DevDailyActivity; days: number }> = [];
-    const resolved: Array<{ a: DevDailyActivity; days: number }> = [];
     allActivities.forEach((a) => {
-      if (a.status === "inativa") return;
+      if (a.status !== "pendente") return;
       const created = new Date(a.created_at).getTime();
-      if (a.status === "pendente") {
-        const days = Math.floor((now - created) / 86400000);
-        if (days > 2) pending.push({ a, days });
-      } else if (a.status === "concluida" && a.completed_at) {
-        const days = Math.floor((new Date(a.completed_at).getTime() - created) / 86400000);
-        if (days > 2) resolved.push({ a, days });
-      }
+      const days = Math.floor((now - created) / 86400000);
+      if (days > 2) pending.push({ a, days });
     });
     pending.sort((x, y) => y.days - x.days);
-    resolved.sort((x, y) => y.days - x.days);
-    return { pending, resolved, total: pending.length + resolved.length };
+    return { pending, total: pending.length };
   }, [allActivities]);
 
   const submit = async () => {
@@ -715,7 +709,13 @@ export default function RegistroPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl">
+        <Card
+          role="button"
+          tabIndex={0}
+          onClick={() => setShowAttendanceModal(true)}
+          onKeyDown={(ev) => ev.key === "Enter" && setShowAttendanceModal(true)}
+          className="rounded-2xl cursor-pointer hover:border-primary/40 hover:shadow-md transition-all"
+        >
           <CardContent className="p-4 flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-primary/10 text-primary">
               <TrendingUp className="w-5 h-5" />
@@ -1440,32 +1440,6 @@ export default function RegistroPage() {
                           <p className="text-[11px] text-muted-foreground mt-0.5">
                             Pendente há {days} dia{days !== 1 ? "s" : ""} · criada em{" "}
                             {format(parseISO(a.created_at), "dd/MM", { locale: ptBR })}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide font-semibold text-emerald-600 mb-2 flex items-center gap-1.5">
-                  <CircleCheck className="w-3.5 h-3.5" /> Sanadas ({stagnantData.resolved.length})
-                </p>
-                {stagnantData.resolved.length === 0 ? (
-                  <p className="text-sm text-muted-foreground italic">Nenhuma.</p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {stagnantData.resolved.map(({ a, days }) => (
-                      <div
-                        key={a.id}
-                        className="rounded-lg border bg-emerald-500/5 border-emerald-500/20 p-2.5 flex items-start gap-2"
-                      >
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm break-words whitespace-pre-wrap">{a.description}</p>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">
-                            Levou {days} dia{days !== 1 ? "s" : ""} · concluída em{" "}
-                            {a.completed_at ? format(parseISO(a.completed_at), "dd/MM", { locale: ptBR }) : "—"}
                           </p>
                         </div>
                       </div>

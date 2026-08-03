@@ -48,13 +48,8 @@ function daysAgoLabel(iso: string): string {
 
 /** Retorna a data (YYYY-MM-DD) do último dia útil anterior à data atual.
  *  Segunda-feira → sexta anterior. Sábado/Domingo → sexta anterior. */
-function previousBusinessDayISO(): string {
+function currentDateISO(): string {
   const d = new Date();
-  d.setDate(d.getDate() - 1);
-  while (d.getDay() === 0 || d.getDay() === 6) {
-    d.setDate(d.getDate() - 1);
-  }
-  // Normaliza para meia-noite local antes de serializar.
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -65,12 +60,12 @@ export default function PainelGPPage() {
   const { current: sim, loading: simLoading } = useDailySim();
   const { user } = useAuth();
   const isFabio = (user?.email ?? "").toLowerCase() === "fabio@fadami.com.br";
-  const [date, setDate] = useState<string>(previousBusinessDayISO());
-  // Mantém a data sempre apontando para o último dia útil anterior
+  const [date, setDate] = useState<string>(currentDateISO());
+  // Mantém a data sempre apontando para o dia atual
   // (atualiza automaticamente após a virada do dia, sem reload).
   useEffect(() => {
     const id = setInterval(() => {
-      const t = previousBusinessDayISO();
+      const t = currentDateISO();
       setDate((cur) => (cur === t ? cur : t));
     }, 60_000);
     return () => clearInterval(id);
