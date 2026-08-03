@@ -320,6 +320,7 @@ export default function PainelGPPage() {
     const entryByUser = new Map(rows.map((r) => [r.user_id, r]));
     const out: Array<{
       key: string;
+      user_id: string | null;
       name: string;
       filled: boolean;
       entry: (typeof rows)[number] | null;
@@ -330,6 +331,7 @@ export default function PainelGPPage() {
       const imps = (m.user_id && impsByUser.get(m.user_id)) || [];
       out.push({
         key: m.user_id ?? m.email ?? m.name,
+        user_id: m.user_id,
         name: m.name,
         filled: !!r,
         entry: r,
@@ -339,7 +341,7 @@ export default function PainelGPPage() {
     // Garante que entries de devs fora da squad também apareçam (fallback).
     rows.forEach((r) => {
       if (!out.find((o) => o.entry?.id === r.id) && !squadProfiles.find((m) => m.user_id === r.user_id)) {
-        out.push({ key: r.id, name: r.dev_name, filled: true, entry: r, imps: r.imps });
+        out.push({ key: r.id, user_id: r.user_id, name: r.dev_name, filled: true, entry: r, imps: r.imps });
       }
     });
     return out.sort((a, b) => Number(b.filled) - Number(a.filled) || a.name.localeCompare(b.name));
@@ -992,6 +994,7 @@ export default function PainelGPPage() {
         squadId={effectiveSquadId}
         members={memberRows.map((m) => ({
           key: m.key,
+          user_id: m.user_id ?? m.entry?.user_id ?? null,
           name: m.name,
           filled: m.filled,
           entry: m.entry

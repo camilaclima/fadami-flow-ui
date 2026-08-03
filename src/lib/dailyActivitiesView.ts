@@ -37,7 +37,14 @@ export function buildYesterdayTodayLists(params: {
   date?: string;
 }): YesterdayTodayLists {
   const D = params.date ?? params.entry.entry_date;
-  const acts = params.activities;
+  const seen = new Set<string>();
+  const acts = params.activities.filter((activity) => {
+    const normalized = activity.description.trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-BR");
+    const key = `${activity.created_entry_id ?? "legacy"}|${activity.closed_entry_id ?? "open"}|${activity.status}|${normalized}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
   const entryId = params.entry.id;
   const findEntry = (id: string | null | undefined) =>
     id ? params.entriesForUser.find((e) => e.id === id) ?? null : null;
