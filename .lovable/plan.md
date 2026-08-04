@@ -1,35 +1,31 @@
-## Diagnóstico confirmado
+# Corrigir registro e início das dailys de hoje
 
-O conteúdo não está sendo perdido em todos os casos. Existem dois formatos de armazenamento: o resumo textual da daily (`did_yesterday`/`will_do_today`) e as atividades estruturadas.
+## O que está acontecendo
 
-A causa principal confirmada está no salvamento da **Minha Daily**:
+Os dois lados do fluxo estão travados na data de **ontem**, não na de hoje:
 
-- Uma atividade antiga que o desenvolvedor mantém como **pendente** é aceita como trabalho de “Hoje”.
-- Porém, essa atividade é incluída somente no resumo de “Ontem” e é omitida de `will_do_today`.
-- Ela também continua vinculada à entrada original, portanto não aparece entre as atividades criadas na entrada atual.
-- Como a lista estruturada de “Hoje” e o texto `will_do_today` ficam vazios, o painel do líder mostra `—`.
+1. **Tela do dev (Minha Daily)** — a lista de datas permitidas só inclui "Hoje" quando o relógio passa das **17:00**. Antes disso a única opção é "Ontem útil". Como agora são 11h, nenhum dev consegue registrar a daily de hoje.
+2. **Painel do líder** — a data do painel é fixada por código no último dia útil anterior, sem seletor. Um intervalo a cada 60s reescreve qualquer valor. Então "Iniciar Daily" cria/consulta o encontro com a data de ontem, e a daily de hoje nunca aparece nem pode ser iniciada.
 
-Na base atual, há registros recentes com texto preenchido, mas sem atividade diretamente vinculada à entrada; vários casos de 27/07 possuem atividades pendentes descritas em “Ontem” e “Hoje” vazio. Portanto, é possível recuperar boa parte do que foi informado.
+Como isso está no código atual (e não nos dados), reverter versões não resolveu.
 
-## Correção
+## Correção proposta
 
-1. **Corrigir o salvamento da Minha Daily**
-   - Incluir no snapshot de “Hoje” as atividades anteriores que o desenvolvedor marcou para continuar pendentes.
-   - Manter essas mesmas atividades em “Ontem” como pendentes, respeitando a regra atual, mas também registrar que foram escolhidas como trabalho do dia.
-   - Garantir que a validação e o conteúdo salvo usem exatamente a mesma lista, evitando permitir o envio de uma daily cujo “Hoje” termina vazio.
+**Tela do dev**
+- Voltar a oferecer "Hoje" como primeira opção em qualquer horário de dia útil, mantendo "Ontem útil" como segunda opção.
+- Padrão de seleção: hoje (quando dia útil); em fim de semana, o último dia útil.
 
-2. **Fortalecer a leitura no Painel da Daily**
-   - Centralizar a montagem de “Ontem” e “Hoje” para que o modal do líder, detalhes, histórico e relatório usem a mesma regra.
-   - Preservar o fallback para os snapshots textuais quando os vínculos estruturados estiverem ausentes.
-   - Buscar as atividades do desenvolvedor pela entrada e pelo usuário, sem perder conteúdo por inconsistências históricas de vínculo, mantendo a separação por squad e data.
+**Painel do líder**
+- Padrão do painel volta a ser **hoje** (em fim de semana, último dia útil).
+- Remover a fixação forçada no dia anterior (o intervalo que sobrescreve a data), mantendo apenas a atualização na virada do dia.
+- Adicionar um seletor de data simples no cabeçalho (Hoje / Ontem útil) para o líder consultar o dia anterior quando quiser, sem ficar preso a ele.
 
-3. **Recuperar os registros históricos afetados**
-   - Identificar entradas com `will_do_today` vazio e tarefas explicitamente marcadas como pendentes no snapshot de “Ontem”.
-   - Preencher “Hoje” somente com essas tarefas recuperáveis, sem inventar conteúdo nem misturar dias ou squads.
-   - Não alterar registros cujo conteúdo não possa ser determinado com segurança.
+**Validação**
+- Conferir que o botão "Iniciar Daily" fica habilitado para hoje e que o bloqueio pós-encerramento continua valendo por squad + data.
+- Conferir que um registro salvo pelo dev hoje aparece imediatamente no painel do líder e no histórico.
 
-4. **Validar a correção**
-   - Conferir casos reais afetados no banco antes e depois da recuperação.
-   - Testar desenvolvedor com uma e múltiplas squads.
-   - Comparar Minha Daily, Painel do Líder, Histórico e Relatório Executivo para a mesma pessoa, squad e data.
-   - Confirmar que novas dailies não exibem `—` quando o desenvolvedor selecionou uma atividade para continuar no dia.
+## Detalhes técnicos
+
+- `src/pages/dailys/RegistroPage.tsx`: função `allowedDates()` — remover a condição `now.getHours() >= 17` que suprime a opção "Hoje".
+- `src/pages/dailys/PainelGPPage.tsx`: substituir `previousBusinessDayISO()` por um `currentBusinessDayISO()` no estado inicial, ajustar o `useEffect` de 60s para só corrigir na virada de dia, e expor `setDate` num seletor no cabeçalho.
+- Nenhuma alteração de banco de dados ou de RLS é necessária; os registros já gravados permanecem intactos.
