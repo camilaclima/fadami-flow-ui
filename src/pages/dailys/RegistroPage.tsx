@@ -203,6 +203,24 @@ export default function RegistroPage() {
 
   const skipAutoFill = useRef(false);
   const [mode, setMode] = useState<"create" | "edit">("create");
+  // Mantém a data do novo registro sempre no dia atual — evita salvar a daily
+  // no dia anterior quando a aba fica aberta durante a virada do dia.
+  useEffect(() => {
+    if (mode !== "create") return;
+    const sync = () => {
+      const today = toISO(new Date());
+      setDate((cur) => (cur === today ? cur : today));
+    };
+    const onVisible = () => { if (document.visibilityState === "visible") sync(); };
+    window.addEventListener("focus", sync);
+    document.addEventListener("visibilitychange", onVisible);
+    const id = setInterval(sync, 60_000);
+    return () => {
+      window.removeEventListener("focus", sync);
+      document.removeEventListener("visibilitychange", onVisible);
+      clearInterval(id);
+    };
+  }, [mode]);
   const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
   // Cronômetro de preenchimento
   const [fillStartedAt, setFillStartedAt] = useState<Date | null>(null);
