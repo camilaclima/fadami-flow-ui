@@ -295,7 +295,10 @@ export default function RegistroPage() {
   }, [allActivities, existing]);
 
   const handleOpenCreate = () => {
-    const available = dateOptions.find((o) => !entries.some((e) => e.entry_date === o.value));
+    // Recalcula a data no momento da abertura: evita usar um "hoje" congelado
+    // quando a aba fica aberta durante a virada do dia.
+    const freshOptions = allowedDates();
+    const available = freshOptions.find((o) => !entries.some((e) => e.entry_date === o.value));
     if (!available) {
       toast.info("Todas as dailys disponíveis já foram registradas nesta squad.");
       return;
