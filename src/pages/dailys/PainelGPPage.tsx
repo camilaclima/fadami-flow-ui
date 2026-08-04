@@ -63,11 +63,19 @@ export default function PainelGPPage() {
   // Mantém a data sempre apontando para o dia atual
   // (atualiza automaticamente após a virada do dia, sem reload).
   useEffect(() => {
-    const id = setInterval(() => {
+    const sync = () => {
       const t = currentDateISO();
       setDate((cur) => (cur === t ? cur : t));
-    }, 60_000);
-    return () => clearInterval(id);
+    };
+    const onVisible = () => { if (document.visibilityState === "visible") sync(); };
+    window.addEventListener("focus", sync);
+    document.addEventListener("visibilitychange", onVisible);
+    const id = setInterval(sync, 60_000);
+    return () => {
+      window.removeEventListener("focus", sync);
+      document.removeEventListener("visibilitychange", onVisible);
+      clearInterval(id);
+    };
   }, []);
   const [squadId, setSquadId] = useState<string | null>(null);
   const [openModal, setOpenModal] = useState(false);
