@@ -169,10 +169,11 @@ export default function RegistroPage() {
     queryKey: ["daily_meetings_lock", selectedSquadId ?? (sim.squadIds ?? []).join(",")],
     enabled: !!sim.squadIds && sim.squadIds.length > 0,
     queryFn: async () => {
-      const scopeIds = selectedSquadId && selectedSquadId !== "legacy" ? [selectedSquadId] : sim.squadIds!;
-      const { data, error } = await (supabase.from("daily_meetings") as any)
-        .select("meeting_date, squad_id")
-        .in("squad_id", scopeIds);
+      let query = (supabase.from("daily_meetings") as any).select("meeting_date, squad_id");
+      query = selectedSquadId === "legacy"
+        ? query.is("squad_id", null)
+        : query.eq("squad_id", selectedSquadId ?? sim.squadIds?.[0]);
+      const { data, error } = await query;
       if (error) throw error;
       return (data ?? []) as { meeting_date: string; squad_id: string }[];
     },
@@ -180,7 +181,7 @@ export default function RegistroPage() {
 
   const lockedDates = useMemo(() => new Set(lockedMeetings.map((m) => m.meeting_date)), [lockedMeetings]);
 
-  const dateOptions = useMemo(() => allowedDates(), []);
+  const dateOptions = allowedDates();
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<string>(dateOptions[0]?.value ?? toISO(new Date()));
   const [draftImps, setDraftImps] = useState<DraftImpediment[]>([]);
@@ -203,6 +204,27 @@ export default function RegistroPage() {
   const skipAutoFill = useRef(false);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
+
+  // Abas que permanecem abertas durante a virada do dia devem passar a usar
+  // a nova data local sem exigir recarregamento ou novo login.
+  useEffect(() => {
+    const syncCurrentDate = () => {
+      if (open && mode === "edit") return;
+      const today = allowedDates()[0]?.value ?? toISO(new Date());
+      setDate((current) => (current === today ? current : today));
+    };
+    const syncWhenVisible = () => {
+      if (document.visibilityState === "visible") syncCurrentDate();
+    };
+    window.addEventListener("focus", syncCurrentDate);
+    document.addEventListener("visibilitychange", syncWhenVisible);
+    const id = setInterval(syncCurrentDate, 60_000);
+    return () => {
+      window.removeEventListener("focus", syncCurrentDate);
+      document.removeEventListener("visibilitychange", syncWhenVisible);
+      clearInterval(id);
+    };
+  }, [mode, open]);
   // Cronômetro de preenchimento
   const [fillStartedAt, setFillStartedAt] = useState<Date | null>(null);
   const [tick, setTick] = useState(0);
@@ -294,7 +316,8 @@ export default function RegistroPage() {
   }, [allActivities, existing]);
 
   const handleOpenCreate = () => {
-    const available = dateOptions.find(
+    const freshOptions = allowedDates();
+    const available = freshOptions.find(
       (o) => !entries.some((e) => e.entry_date === o.value) && !lockedDates.has(o.value),
     );
     if (!available) {
