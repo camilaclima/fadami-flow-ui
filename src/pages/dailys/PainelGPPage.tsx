@@ -46,6 +46,22 @@ function daysAgoLabel(iso: string): string {
   return `Há ${days} dias`;
 }
 
+function toLocalISO(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Data de hoje (YYYY-MM-DD). Em fim de semana, retorna o último dia útil. */
+function currentBusinessDayISO(): string {
+  const d = new Date();
+  while (d.getDay() === 0 || d.getDay() === 6) {
+    d.setDate(d.getDate() - 1);
+  }
+  return toLocalISO(d);
+}
+
 /** Retorna a data (YYYY-MM-DD) do último dia útil anterior à data atual.
  *  Segunda-feira → sexta anterior. Sábado/Domingo → sexta anterior. */
 function previousBusinessDayISO(): string {
@@ -54,24 +70,24 @@ function previousBusinessDayISO(): string {
   while (d.getDay() === 0 || d.getDay() === 6) {
     d.setDate(d.getDate() - 1);
   }
-  // Normaliza para meia-noite local antes de serializar.
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return toLocalISO(d);
 }
 
 export default function PainelGPPage() {
   const { current: sim, loading: simLoading } = useDailySim();
   const { user } = useAuth();
   const isFabio = (user?.email ?? "").toLowerCase() === "fabio@fadami.com.br";
-  const [date, setDate] = useState<string>(previousBusinessDayISO());
-  // Mantém a data sempre apontando para o último dia útil anterior
-  // (atualiza automaticamente após a virada do dia, sem reload).
+  const [date, setDate] = useState<string>(currentBusinessDayISO());
+  // Na virada do dia, move a seleção para o novo dia atual (sem reload),
+  // mas respeita a escolha manual do líder durante o dia.
+  const dayRef = useRef<string>(currentBusinessDayISO());
   useEffect(() => {
     const id = setInterval(() => {
-      const t = previousBusinessDayISO();
-      setDate((cur) => (cur === t ? cur : t));
+      const t = currentBusinessDayISO();
+      if (t !== dayRef.current) {
+        dayRef.current = t;
+        setDate(t);
+      }
     }, 60_000);
     return () => clearInterval(id);
   }, []);
@@ -634,6 +650,20 @@ export default function PainelGPPage() {
             )}
           </TabsList>
           <div className="flex items-end gap-3 flex-wrap">
+            <div>
+              <Label className="mb-1.5 block text-xs">Data</Label>
+              <Select value={date} onValueChange={setDate}>
+                <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={currentBusinessDayISO()}>
+                    Hoje — {format(parseISO(currentBusinessDayISO()), "dd/MM", { locale: ptBR })}
+                  </SelectItem>
+                  <SelectItem value={previousBusinessDayISO()}>
+                    Ontem útil — {format(parseISO(previousBusinessDayISO()), "dd/MM", { locale: ptBR })}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div>
               <Label className="mb-1.5 block text-xs">Squad</Label>
               <Select
