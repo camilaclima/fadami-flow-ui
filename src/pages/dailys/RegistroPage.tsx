@@ -52,7 +52,7 @@ import {
 } from "@/hooks/useDevDailyActivities";
 import { useDailySim } from "@/contexts/DailySimContext";
 import { AccessDeniedCard } from "@/components/dailys/AccessDeniedCard";
-import { format, parseISO, addDays, subDays, startOfWeek } from "date-fns";
+import { format, parseISO, addDays, startOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -87,16 +87,7 @@ function toISO(d: Date): string {
 
 function allowedDates(): { value: string; label: string }[] {
   const now = new Date();
-  const dow = now.getDay();
-  const prev = dow === 1 ? subDays(now, 3) : dow === 0 ? subDays(now, 2) : subDays(now, 1);
-  const opts: { value: string; label: string }[] = [];
-
-  if (dow !== 0 && dow !== 6) {
-    opts.push({ value: toISO(now), label: `Hoje — ${format(now, "EEEE, dd/MM", { locale: ptBR })}` });
-  }
-  opts.push({ value: toISO(prev), label: `Ontem útil — ${format(prev, "EEEE, dd/MM", { locale: ptBR })}` });
-
-  return opts;
+  return [{ value: toISO(now), label: `Hoje — ${format(now, "EEEE, dd/MM", { locale: ptBR })}` }];
 }
 
 function useMySquadNames(squadIds: string[] | null | undefined) {
@@ -303,7 +294,9 @@ export default function RegistroPage() {
   }, [allActivities, existing]);
 
   const handleOpenCreate = () => {
-    const available = dateOptions.find((o) => !entries.some((e) => e.entry_date === o.value));
+    const available = dateOptions.find(
+      (o) => !entries.some((e) => e.entry_date === o.value) && !lockedDates.has(o.value),
+    );
     if (!available) {
       toast.info("Todas as dailys disponíveis já foram registradas nesta squad.");
       return;
@@ -765,7 +758,7 @@ export default function RegistroPage() {
               title={
                 hasAvailableDate
                   ? undefined
-                  : "Todas as dailys disponíveis já foram registradas. Novo registro liberará às 17h."
+                  : "A daily de hoje já foi registrada ou encerrada pelo líder."
               }
             >
               <Plus className="w-4 h-4" /> Registrar daily
