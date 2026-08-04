@@ -748,7 +748,7 @@ export default function RegistroPage() {
       <div className="mb-5 flex justify-end">
         {(() => {
           const hasAvailableDate = dateOptions.some(
-            (o) => !entries.some((e) => e.entry_date === o.value),
+            (o) => !entries.some((e) => e.entry_date === o.value) && !lockedDates.has(o.value),
           );
           return (
             <Button
