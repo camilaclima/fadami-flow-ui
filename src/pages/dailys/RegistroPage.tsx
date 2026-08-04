@@ -183,23 +183,6 @@ export default function RegistroPage() {
   const dateOptions = allowedDates();
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<string>(dateOptions[0]?.value ?? toISO(new Date()));
-  // Mantém a data do formulário sempre no dia atual quando a aba volta ao foco
-  // ou quando o dia vira com a aba aberta.
-  useEffect(() => {
-    const sync = () => {
-      const today = toISO(new Date());
-      setDate((cur) => (cur === today ? cur : today));
-    };
-    const onVisible = () => { if (document.visibilityState === "visible") sync(); };
-    window.addEventListener("focus", sync);
-    document.addEventListener("visibilitychange", onVisible);
-    const id = setInterval(sync, 60_000);
-    return () => {
-      window.removeEventListener("focus", sync);
-      document.removeEventListener("visibilitychange", onVisible);
-      clearInterval(id);
-    };
-  }, []);
   const [draftImps, setDraftImps] = useState<DraftImpediment[]>([]);
   const [showNewImp, setShowNewImp] = useState(false);
   const [newDesc, setNewDesc] = useState("");
