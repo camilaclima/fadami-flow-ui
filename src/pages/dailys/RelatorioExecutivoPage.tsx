@@ -64,7 +64,7 @@ import {
   type DevDailyActivity,
 } from "@/hooks/useDevDailyActivities";
 import { DevActivityCard } from "@/components/dailys/DevActivityCard";
-import { FreeTextActivityList } from "@/lib/dailyFreeText";
+import { FreeTextActivityList, splitFreeText } from "@/lib/dailyFreeText";
 import {
   isAwaitingTask,
   isRepeatedFromPrev,
@@ -2079,12 +2079,20 @@ function ExecReportItemCard({
                   </p>
                   {(item.done?.length ?? 0) + (item.inactive?.length ?? 0) > 0 ? (
                     <div className="space-y-1.5">
-                      {item.done?.map((a) => (
-                        <DevActivityCard key={a.id} kind="done" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
-                      ))}
-                      {item.inactive?.map((a) => (
-                        <DevActivityCard key={a.id} kind="inactive" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
-                      ))}
+                      {item.done?.flatMap((a) => {
+                        const lines = splitFreeText(a.description || "");
+                        const list = lines.length > 0 ? lines : [a.description];
+                        return list.map((line, idx) => (
+                          <DevActivityCard key={`${a.id}-${idx}`} kind="done" description={line} createdAt={a.created_at} devNotes={a.dev_notes} />
+                        ));
+                      })}
+                      {item.inactive?.flatMap((a) => {
+                        const lines = splitFreeText(a.description || "");
+                        const list = lines.length > 0 ? lines : [a.description];
+                        return list.map((line, idx) => (
+                          <DevActivityCard key={`${a.id}-${idx}`} kind="inactive" description={line} createdAt={a.created_at} devNotes={a.dev_notes} />
+                        ));
+                      })}
                     </div>
                   ) : (
                     <FreeTextActivityList
@@ -2101,9 +2109,13 @@ function ExecReportItemCard({
                   </p>
                   {(item.planned?.length ?? 0) > 0 ? (
                     <div className="space-y-1.5">
-                      {item.planned?.map((a) => (
-                        <DevActivityCard key={a.id} kind="pending" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
-                      ))}
+                      {item.planned?.flatMap((a) => {
+                        const lines = splitFreeText(a.description || "");
+                        const list = lines.length > 0 ? lines : [a.description];
+                        return list.map((line, idx) => (
+                          <DevActivityCard key={`${a.id}-${idx}`} kind="pending" description={line} createdAt={a.created_at} devNotes={a.dev_notes} />
+                        ));
+                      })}
                     </div>
                   ) : (
                     <FreeTextActivityList

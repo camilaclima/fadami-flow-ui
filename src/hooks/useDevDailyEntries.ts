@@ -175,19 +175,6 @@ export function useUpsertDevDailyEntry() {
         if (error) throw error;
         return { id: input.id };
       } else {
-        const { data: existing } = await (supabase.from("dev_daily_entries") as any)
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("entry_date", input.entry_date)
-          .eq("squad_id", input.squad_id)
-          .maybeSingle();
-        if (existing?.id) {
-          const { error } = await (supabase.from("dev_daily_entries") as any)
-            .update(payload)
-            .eq("id", existing.id);
-          if (error) throw error;
-          return { id: existing.id as string };
-        }
         const { data, error } = await (supabase.from("dev_daily_entries") as any)
           .insert(payload)
           .select("id")

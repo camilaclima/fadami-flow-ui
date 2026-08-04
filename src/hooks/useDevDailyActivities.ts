@@ -124,21 +124,12 @@ export function useDevDailyActivityMutations() {
         dev_notes: input.dev_notes ?? null,
         updated_by: user?.id ?? null,
       };
-      const { data, error } = await (supabase as any).rpc("upsert_dev_daily_activity", {
-        _user_id: payload.user_id,
-        _squad_id: payload.squad_id,
-        _description: payload.description,
-        _card_code: payload.card_code,
-        _status: payload.status,
-        _created_entry_id: payload.created_entry_id,
-        _closed_entry_id: payload.closed_entry_id,
-        _completed_at: payload.completed_at,
-        _dev_notes: payload.dev_notes,
-        _updated_by: payload.updated_by,
-      });
+      const { data, error } = await (supabase.from("dev_daily_activities") as any)
+        .insert(payload)
+        .select("id")
+        .single();
       if (error) throw error;
-      const row = Array.isArray(data) ? data[0] : data;
-      return { id: row?.id as string };
+      return { id: (data as any)?.id as string };
     },
     onSuccess: invalidate,
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar atividade"),

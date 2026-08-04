@@ -1821,42 +1821,6 @@ export type Database = {
         Args: { _perm: string; _user_id: string }
         Returns: boolean
       }
-      upsert_dev_daily_activity: {
-        Args: {
-          _card_code: string
-          _closed_entry_id: string
-          _completed_at: string
-          _created_entry_id: string
-          _description: string
-          _dev_notes: string
-          _squad_id: string
-          _status: string
-          _updated_by: string
-          _user_id: string
-        }
-        Returns: {
-          card_code: string | null
-          closed_entry_id: string | null
-          completed_at: string | null
-          created_at: string
-          created_entry_id: string | null
-          description: string
-          dev_notes: string | null
-          id: string
-          inactivated_at: string | null
-          squad_id: string | null
-          status: string
-          updated_at: string
-          updated_by: string | null
-          user_id: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "dev_daily_activities"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
     }
     Enums: {
       dev_absence_type:
