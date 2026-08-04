@@ -91,7 +91,7 @@ function allowedDates(): { value: string; label: string }[] {
   const prev = dow === 1 ? subDays(now, 3) : dow === 0 ? subDays(now, 2) : subDays(now, 1);
   const opts: { value: string; label: string }[] = [];
 
-  if (dow !== 0 && dow !== 6 && now.getHours() >= 17) {
+  if (dow !== 0 && dow !== 6) {
     opts.push({ value: toISO(now), label: `Hoje — ${format(now, "EEEE, dd/MM", { locale: ptBR })}` });
   }
   opts.push({ value: toISO(prev), label: `Ontem útil — ${format(prev, "EEEE, dd/MM", { locale: ptBR })}` });
