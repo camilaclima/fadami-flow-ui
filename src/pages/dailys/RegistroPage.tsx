@@ -52,7 +52,7 @@ import {
 } from "@/hooks/useDevDailyActivities";
 import { useDailySim } from "@/contexts/DailySimContext";
 import { AccessDeniedCard } from "@/components/dailys/AccessDeniedCard";
-import { format, parseISO, addDays, subDays, startOfWeek } from "date-fns";
+import { format, parseISO, addDays, startOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -87,16 +87,7 @@ function toISO(d: Date): string {
 
 function allowedDates(): { value: string; label: string }[] {
   const now = new Date();
-  const dow = now.getDay();
-  const prev = dow === 1 ? subDays(now, 3) : dow === 0 ? subDays(now, 2) : subDays(now, 1);
-  const opts: { value: string; label: string }[] = [];
-
-  if (dow !== 0 && dow !== 6) {
-    opts.push({ value: toISO(now), label: `Hoje — ${format(now, "EEEE, dd/MM", { locale: ptBR })}` });
-  }
-  opts.push({ value: toISO(prev), label: `Ontem útil — ${format(prev, "EEEE, dd/MM", { locale: ptBR })}` });
-
-  return opts;
+  return [{ value: toISO(now), label: `Hoje — ${format(now, "EEEE, dd/MM", { locale: ptBR })}` }];
 }
 
 function useMySquadNames(squadIds: string[] | null | undefined) {
@@ -178,10 +169,11 @@ export default function RegistroPage() {
     queryKey: ["daily_meetings_lock", selectedSquadId ?? (sim.squadIds ?? []).join(",")],
     enabled: !!sim.squadIds && sim.squadIds.length > 0,
     queryFn: async () => {
-      const scopeIds = selectedSquadId && selectedSquadId !== "legacy" ? [selectedSquadId] : sim.squadIds!;
-      const { data, error } = await (supabase.from("daily_meetings") as any)
-        .select("meeting_date, squad_id")
-        .in("squad_id", scopeIds);
+      let query = (supabase.from("daily_meetings") as any).select("meeting_date, squad_id");
+      query = selectedSquadId === "legacy"
+        ? query.is("squad_id", null)
+        : query.eq("squad_id", selectedSquadId ?? sim.squadIds?.[0]);
+      const { data, error } = await query;
       if (error) throw error;
       return (data ?? []) as { meeting_date: string; squad_id: string }[];
     },
@@ -189,7 +181,7 @@ export default function RegistroPage() {
 
   const lockedDates = useMemo(() => new Set(lockedMeetings.map((m) => m.meeting_date)), [lockedMeetings]);
 
-  const dateOptions = useMemo(() => allowedDates(), []);
+  const dateOptions = allowedDates();
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<string>(dateOptions[0]?.value ?? toISO(new Date()));
   const [draftImps, setDraftImps] = useState<DraftImpediment[]>([]);
@@ -212,6 +204,27 @@ export default function RegistroPage() {
   const skipAutoFill = useRef(false);
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
+
+  // Abas que permanecem abertas durante a virada do dia devem passar a usar
+  // a nova data local sem exigir recarregamento ou novo login.
+  useEffect(() => {
+    const syncCurrentDate = () => {
+      if (open && mode === "edit") return;
+      const today = allowedDates()[0]?.value ?? toISO(new Date());
+      setDate((current) => (current === today ? current : today));
+    };
+    const syncWhenVisible = () => {
+      if (document.visibilityState === "visible") syncCurrentDate();
+    };
+    window.addEventListener("focus", syncCurrentDate);
+    document.addEventListener("visibilitychange", syncWhenVisible);
+    const id = setInterval(syncCurrentDate, 60_000);
+    return () => {
+      window.removeEventListener("focus", syncCurrentDate);
+      document.removeEventListener("visibilitychange", syncWhenVisible);
+      clearInterval(id);
+    };
+  }, [mode, open]);
   // Cronômetro de preenchimento
   const [fillStartedAt, setFillStartedAt] = useState<Date | null>(null);
   const [tick, setTick] = useState(0);
@@ -303,7 +316,10 @@ export default function RegistroPage() {
   }, [allActivities, existing]);
 
   const handleOpenCreate = () => {
-    const available = dateOptions.find((o) => !entries.some((e) => e.entry_date === o.value));
+    const freshOptions = allowedDates();
+    const available = freshOptions.find(
+      (o) => !entries.some((e) => e.entry_date === o.value) && !lockedDates.has(o.value),
+    );
     if (!available) {
       toast.info("Todas as dailys disponíveis já foram registradas nesta squad.");
       return;
@@ -755,7 +771,7 @@ export default function RegistroPage() {
       <div className="mb-5 flex justify-end">
         {(() => {
           const hasAvailableDate = dateOptions.some(
-            (o) => !entries.some((e) => e.entry_date === o.value),
+            (o) => !entries.some((e) => e.entry_date === o.value) && !lockedDates.has(o.value),
           );
           return (
             <Button
@@ -765,7 +781,7 @@ export default function RegistroPage() {
               title={
                 hasAvailableDate
                   ? undefined
-                  : "Todas as dailys disponíveis já foram registradas. Novo registro liberará às 17h."
+                  : "A daily de hoje já foi registrada ou encerrada pelo líder."
               }
             >
               <Plus className="w-4 h-4" /> Registrar daily
