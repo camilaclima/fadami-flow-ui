@@ -241,6 +241,7 @@ export default function RegistroPage() {
   const [saving, setSaving] = useState(false);
   const [showImpsModal, setShowImpsModal] = useState(false);
   const [showStagnantModal, setShowStagnantModal] = useState(false);
+  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
 
   const [pastDecisions, setPastDecisions] = useState<Record<string, PastDecision>>({});
   const [plannedDrafts, setPlannedDrafts] = useState<DraftPlanned[]>([]);
@@ -492,6 +493,42 @@ export default function RegistroPage() {
       impedimentsCount,
     };
   }, [entries, allImpediments]);
+
+  /** Assiduidade por semana (segunda a sexta), últimas 6 semanas. */
+  const weeklyAttendance = useMemo(() => {
+    const today = new Date();
+    const todayISO = toISO(today);
+    const currentMonday = startOfWeek(today, { weekStartsOn: 1 });
+    const registered = new Set(entries.map((e) => e.entry_date));
+
+    return Array.from({ length: 6 }, (_, i) => {
+      const monday = addDays(currentMonday, -7 * i);
+      const friday = addDays(monday, 4);
+      const days = workdaysInRange(monday, friday).map((d) => {
+        const iso = toISO(d);
+        const future = iso > todayISO;
+        return {
+          iso,
+          weekday: format(d, "EEE", { locale: ptBR }).replace(".", "").toUpperCase(),
+          label: format(d, "dd/MM"),
+          future,
+          filled: registered.has(iso),
+        };
+      });
+      const elapsed = days.filter((d) => !d.future);
+      const filled = elapsed.filter((d) => d.filled).length;
+      const rate = elapsed.length > 0 ? Math.round((filled / elapsed.length) * 100) : 0;
+      return {
+        key: toISO(monday),
+        isCurrent: i === 0,
+        rangeLabel: `${format(monday, "dd/MM")} a ${format(friday, "dd/MM")}`,
+        days,
+        filled,
+        total: elapsed.length,
+        rate,
+      };
+    });
+  }, [entries]);
 
   const activeImpedimentsList = useMemo(() => {
     return allImpediments
@@ -805,13 +842,21 @@ export default function RegistroPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl">
+        <Card
+          role="button"
+          tabIndex={0}
+          onClick={() => setShowAttendanceModal(true)}
+          onKeyDown={(ev) => {
+            if (ev.key === "Enter") setShowAttendanceModal(true);
+          }}
+          className="rounded-2xl cursor-pointer hover:border-primary/40 hover:shadow-md transition-all"
+        >
           <CardContent className="p-4 flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-primary/10 text-primary">
               <TrendingUp className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs text-muted-foreground mb-0.5">Sua Assiduidade</p>
+              <p className="text-xs text-muted-foreground mb-0.5">Sua Assiduidade (semana)</p>
               <p className="text-lg font-semibold leading-tight">{kpis.attendanceRate}%</p>
             </div>
           </CardContent>
