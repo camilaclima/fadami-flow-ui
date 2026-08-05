@@ -493,7 +493,9 @@ export default function RegistroPage() {
     });
     pending.sort((x, y) => y.days - x.days);
     resolved.sort((x, y) => y.days - x.days);
-    return { pending, resolved, total: pending.length + resolved.length };
+    // KPI conta apenas as que PERMANECEM estagnadas (pendentes há mais de 2 dias).
+    // Concluídas ou inativadas deixam de contar.
+    return { pending, resolved, total: pending.length };
   }, [allActivities]);
 
   const submit = async () => {
