@@ -1470,7 +1470,7 @@ export default function RegistroPage() {
               <span className="text-xs font-normal text-muted-foreground">(mais de 2 dias)</span>
             </DialogTitle>
           </DialogHeader>
-          {stagnantData.total === 0 ? (
+          {stagnantData.total === 0 && stagnantData.resolved.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4">Nenhuma tarefa estagnada.</p>
           ) : (
             <div className="space-y-4">
