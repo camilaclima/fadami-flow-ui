@@ -85,9 +85,32 @@ function toISO(d: Date): string {
   return format(d, "yyyy-MM-dd");
 }
 
-function allowedDates(): { value: string; label: string }[] {
-  const now = new Date();
-  return [{ value: toISO(now), label: `Hoje — ${format(now, "EEEE, dd/MM", { locale: ptBR })}` }];
+type DailyDateOption = {
+  value: string;
+  label: string;
+  enabled: boolean;
+};
+
+function previousBusinessDay(from: Date): Date {
+  let previous = addDays(from, -1);
+  while (!isWorkday(previous)) previous = addDays(previous, -1);
+  return previous;
+}
+
+function allowedDates(now = new Date()): DailyDateOption[] {
+  const yesterday = previousBusinessDay(now);
+  return [
+    {
+      value: toISO(now),
+      label: `Hoje — ${format(now, "EEEE, dd/MM", { locale: ptBR })}`,
+      enabled: now.getHours() >= 17,
+    },
+    {
+      value: toISO(yesterday),
+      label: `Ontem — ${format(yesterday, "EEEE, dd/MM", { locale: ptBR })}`,
+      enabled: true,
+    },
+  ];
 }
 
 function useMySquadNames(squadIds: string[] | null | undefined) {
@@ -181,9 +204,13 @@ export default function RegistroPage() {
 
   const lockedDates = useMemo(() => new Set(lockedMeetings.map((m) => m.meeting_date)), [lockedMeetings]);
 
-  const dateOptions = allowedDates();
+  const [referenceNow, setReferenceNow] = useState(() => new Date());
+  const dateOptions = useMemo(() => allowedDates(referenceNow), [referenceNow]);
   const [open, setOpen] = useState(false);
-  const [date, setDate] = useState<string>(dateOptions[0]?.value ?? toISO(new Date()));
+  const [date, setDate] = useState<string>(() => {
+    const initialOptions = allowedDates();
+    return initialOptions.find((option) => option.enabled)?.value ?? initialOptions[0]?.value ?? toISO(new Date());
+  });
   const [draftImps, setDraftImps] = useState<DraftImpediment[]>([]);
   const [showNewImp, setShowNewImp] = useState(false);
   const [newDesc, setNewDesc] = useState("");
@@ -205,26 +232,28 @@ export default function RegistroPage() {
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
 
-  // Abas que permanecem abertas durante a virada do dia devem passar a usar
-  // a nova data local sem exigir recarregamento ou novo login.
+  // Mantém as opções atualizadas na passagem das 17h e na virada do dia, sem
+  // trocar a escolha do dev enquanto ele estiver preenchendo o formulário.
   useEffect(() => {
-    const syncCurrentDate = () => {
-      if (open && mode === "edit") return;
-      const today = allowedDates()[0]?.value ?? toISO(new Date());
-      setDate((current) => (current === today ? current : today));
-    };
+    const syncReferenceTime = () => setReferenceNow(new Date());
     const syncWhenVisible = () => {
-      if (document.visibilityState === "visible") syncCurrentDate();
+      if (document.visibilityState === "visible") syncReferenceTime();
     };
-    window.addEventListener("focus", syncCurrentDate);
+    window.addEventListener("focus", syncReferenceTime);
     document.addEventListener("visibilitychange", syncWhenVisible);
-    const id = setInterval(syncCurrentDate, 60_000);
+    const id = setInterval(syncReferenceTime, 60_000);
     return () => {
-      window.removeEventListener("focus", syncCurrentDate);
+      window.removeEventListener("focus", syncReferenceTime);
       document.removeEventListener("visibilitychange", syncWhenVisible);
       clearInterval(id);
     };
-  }, [mode, open]);
+  }, []);
+
+  useEffect(() => {
+    if (open) return;
+    const preferred = dateOptions.find((option) => option.enabled);
+    if (preferred) setDate(preferred.value);
+  }, [dateOptions, open]);
   // Cronômetro de preenchimento
   const [fillStartedAt, setFillStartedAt] = useState<Date | null>(null);
   const [tick, setTick] = useState(0);
@@ -318,7 +347,7 @@ export default function RegistroPage() {
   const handleOpenCreate = () => {
     const freshOptions = allowedDates();
     const available = freshOptions.find(
-      (o) => !entries.some((e) => e.entry_date === o.value) && !lockedDates.has(o.value),
+      (o) => o.enabled && !entries.some((e) => e.entry_date === o.value) && !lockedDates.has(o.value),
     );
     if (!available) {
       toast.info("Todas as dailys disponíveis já foram registradas nesta squad.");
@@ -771,7 +800,7 @@ export default function RegistroPage() {
       <div className="mb-5 flex justify-end">
         {(() => {
           const hasAvailableDate = dateOptions.some(
-            (o) => !entries.some((e) => e.entry_date === o.value) && !lockedDates.has(o.value),
+            (o) => o.enabled && !entries.some((e) => e.entry_date === o.value) && !lockedDates.has(o.value),
           );
           return (
             <Button
@@ -781,7 +810,7 @@ export default function RegistroPage() {
               title={
                 hasAvailableDate
                   ? undefined
-                  : "A daily de hoje já foi registrada ou encerrada pelo líder."
+                  : "As dailys disponíveis já foram registradas, ainda não foram liberadas ou foram encerradas pelo líder."
               }
             >
               <Plus className="w-4 h-4" /> Registrar daily
@@ -1084,11 +1113,16 @@ export default function RegistroPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {dateOptions.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
+                  {dateOptions.map((o) => {
+                    const unavailableInCreate = mode === "create" && (
+                      !o.enabled || entries.some((entry) => entry.entry_date === o.value) || lockedDates.has(o.value)
+                    );
+                    return (
+                    <SelectItem key={o.value} value={o.value} disabled={unavailableInCreate}>
                       {o.label}
                     </SelectItem>
-                  ))}
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
