@@ -210,7 +210,14 @@ export default function RegistroPage() {
     },
   });
 
-  const lockedDates = useMemo(() => new Set(lockedMeetings.map((m) => m.meeting_date)), [lockedMeetings]);
+  // EXCEÇÃO TEMPORÁRIA (somente 05/08/2026): o encerramento da daily pelo líder
+  // não bloqueia o registro do dev. Remover após esta data — a regra volta ao normal.
+  const lockedDates = useMemo(() => {
+    const now = new Date();
+    const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    if (todayISO === "2026-08-05") return new Set<string>();
+    return new Set(lockedMeetings.map((m) => m.meeting_date));
+  }, [lockedMeetings]);
   const registeredDates = useMemo(() => new Set(entries.map((entry) => entry.entry_date)), [entries]);
 
   const [referenceNow, setReferenceNow] = useState(() => new Date());
