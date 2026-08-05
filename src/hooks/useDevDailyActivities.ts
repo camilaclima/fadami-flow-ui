@@ -128,7 +128,25 @@ export function useDevDailyActivityMutations() {
         .insert(payload)
         .select("id")
         .single();
-      if (error) throw error;
+      if (error) {
+        // Atividade idêntica já registrada para a mesma entrada/squad: reaproveita o registro existente
+        if ((error as any)?.code === "23505") {
+          const normalized = input.description.trim().replace(/\s+/g, " ").toLowerCase();
+          let q = (supabase.from("dev_daily_activities") as any)
+            .select("id, description")
+            .eq("user_id", input.user_id)
+            .eq("created_entry_id", input.created_entry_id)
+            .eq("status", payload.status);
+          q = input.squad_id ? q.eq("squad_id", input.squad_id) : q.is("squad_id", null);
+          const { data: existing } = await q;
+          const match = (existing ?? []).find(
+            (row: any) =>
+              String(row.description ?? "").trim().replace(/\s+/g, " ").toLowerCase() === normalized,
+          );
+          if (match?.id) return { id: match.id as string };
+        }
+        throw error;
+      }
       return { id: (data as any)?.id as string };
     },
     onSuccess: invalidate,
