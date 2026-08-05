@@ -1538,10 +1538,6 @@ export default function RegistroPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showStagnantModal} onOpenChange={setShowStagnantModal}>
-        <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto rounded-2xl hidden" />
-      </Dialog>
-
       <Dialog open={showAttendanceModal} onOpenChange={setShowAttendanceModal}>
         <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto rounded-2xl">
           <DialogHeader>
