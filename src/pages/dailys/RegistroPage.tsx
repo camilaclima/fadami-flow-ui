@@ -1539,6 +1539,84 @@ export default function RegistroPage() {
       </Dialog>
 
       <Dialog open={showStagnantModal} onOpenChange={setShowStagnantModal}>
+        <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto rounded-2xl hidden" />
+      </Dialog>
+
+      <Dialog open={showAttendanceModal} onOpenChange={setShowAttendanceModal}>
+        <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+              <TrendingUp className="w-4.5 h-4.5 text-primary" /> Histórico de Assiduidade
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {weeklyAttendance.map((w) => (
+              <div key={w.key} className="rounded-2xl border bg-card/60 p-4">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <p className="text-sm font-medium">
+                    {w.rangeLabel}
+                    {w.isCurrent && <span className="text-muted-foreground font-normal"> (semana atual)</span>}
+                  </p>
+                  <Badge
+                    variant="outline"
+                    className={`rounded-full text-[11px] font-semibold border-transparent ${
+                      w.rate >= 80
+                        ? "bg-emerald-500/10 text-emerald-600"
+                        : w.rate >= 50
+                          ? "bg-amber-500/10 text-amber-600"
+                          : "bg-destructive/10 text-destructive"
+                    }`}
+                  >
+                    {w.rate}%
+                  </Badge>
+                </div>
+
+                <div className="h-1.5 rounded-full bg-muted overflow-hidden mb-3">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{ width: `${w.rate}%` }}
+                  />
+                </div>
+
+                <div className="grid grid-cols-5 gap-2">
+                  {w.days.map((d) => (
+                    <div
+                      key={d.iso}
+                      className="rounded-xl border border-border/60 bg-muted/30 py-2.5 flex flex-col items-center gap-1.5"
+                    >
+                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{d.weekday}</span>
+                      {d.future ? (
+                        <span className="w-6 h-6 rounded-full border border-dashed border-border flex items-center justify-center text-muted-foreground text-xs">
+                          —
+                        </span>
+                      ) : d.filled ? (
+                        <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+                      ) : (
+                        <X className="w-6 h-6 text-destructive/70" />
+                      )}
+                      <span className="text-[10px] text-muted-foreground">{d.label}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <p className="text-[11px] text-muted-foreground mt-2.5">
+                  {w.filled} de {w.total} dia{w.total !== 1 ? "s" : ""} útil{w.total !== 1 ? "eis" : ""} registrado
+                  {w.filled !== 1 ? "s" : ""}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" className="rounded-xl" onClick={() => setShowAttendanceModal(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showStagnantModal} onOpenChange={setShowStagnantModal}>
         <DialogContent className="max-w-3xl w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
