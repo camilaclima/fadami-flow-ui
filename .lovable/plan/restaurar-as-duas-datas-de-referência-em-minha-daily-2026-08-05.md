@@ -11,15 +11,14 @@ Esta mudança ficará restrita à tela **Minha Daily**. Não será alterada a da
 Ao clicar em **Registrar daily**, o campo **Data de referência** exibirá duas opções, nesta ordem:
 
 1. **Hoje — dia da semana, dd/mm**
-   - Antes das 17h: aparece na lista, mas fica desabilitada.
-   - A partir das 17h: fica habilitada e pode ser selecionada.
-   - Ao selecioná-la, os títulos serão **“O que fiz hoje”** e **“O que farei amanhã”**.
-
+  - Antes das 17h: aparece na lista, mas fica desabilitada.
+  - A partir das 17h: fica habilitada e pode ser selecionada.
+  - Ao selecioná-la, os títulos serão **“O que fiz hoje”** e **“O que farei amanhã”**.
 2. **Ontem — dia da semana, dd/mm**
-   - Representa sempre o último dia útil anterior.
-   - Em uma segunda-feira, por exemplo, apontará para a sexta-feira anterior.
-   - Fica disponível independentemente do horário, desde que a daily dessa data ainda possa ser registrada.
-   - Ao selecioná-la, os títulos serão **“O que fiz ontem”** e **“O que farei hoje”**.
+  - Representa sempre o último dia útil anterior.
+  - Em uma segunda-feira, por exemplo, apontará para a sexta-feira anterior.
+  - Fica disponível até a daily do líder ser encerrada, ou seja, não é permitido registros após o encerramento da daily e nem edições.
+  - Ao selecioná-la, os títulos serão **“O que fiz ontem”** e **“O que farei hoje”**.
 
 Antes das 17h, o formulário abrirá com **Ontem** selecionado. A partir das 17h, abrirá com **Hoje** selecionado. Se a opção preferencial já estiver registrada ou encerrada, o sistema escolherá a outra opção disponível.
 
