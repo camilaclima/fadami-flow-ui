@@ -113,6 +113,14 @@ function allowedDates(now = new Date()): DailyDateOption[] {
   ];
 }
 
+function isDailyDateAvailable(
+  option: DailyDateOption,
+  registeredDates: ReadonlySet<string>,
+  lockedDates: ReadonlySet<string>,
+): boolean {
+  return option.enabled && !registeredDates.has(option.value) && !lockedDates.has(option.value);
+}
+
 function useMySquadNames(squadIds: string[] | null | undefined) {
   return useQuery({
     queryKey: ["my-squad-names", (squadIds ?? []).join(",")],
@@ -203,9 +211,22 @@ export default function RegistroPage() {
   });
 
   const lockedDates = useMemo(() => new Set(lockedMeetings.map((m) => m.meeting_date)), [lockedMeetings]);
+  const registeredDates = useMemo(() => new Set(entries.map((entry) => entry.entry_date)), [entries]);
 
   const [referenceNow, setReferenceNow] = useState(() => new Date());
   const dateOptions = useMemo(() => allowedDates(referenceNow), [referenceNow]);
+  const availableDateOptions = useMemo(
+    () => dateOptions.filter((option) => isDailyDateAvailable(option, registeredDates, lockedDates)),
+    [dateOptions, registeredDates, lockedDates],
+  );
+  const unavailableDateMessage = useMemo(() => {
+    const today = dateOptions[0];
+    const yesterday = dateOptions[1];
+    if (today && !today.enabled && yesterday && !isDailyDateAvailable(yesterday, registeredDates, lockedDates)) {
+      return "A daily de ontem já foi registrada ou encerrada. A opção Hoje será liberada às 17h.";
+    }
+    return "As datas disponíveis já foram registradas ou encerradas pelo líder.";
+  }, [dateOptions, registeredDates, lockedDates]);
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<string>(() => {
     const initialOptions = allowedDates();
@@ -346,11 +367,17 @@ export default function RegistroPage() {
 
   const handleOpenCreate = () => {
     const freshOptions = allowedDates();
-    const available = freshOptions.find(
-      (o) => o.enabled && !entries.some((e) => e.entry_date === o.value) && !lockedDates.has(o.value),
-    );
+    const available = freshOptions.find((option) => isDailyDateAvailable(option, registeredDates, lockedDates));
     if (!available) {
-      toast.info("Todas as dailys disponíveis já foram registradas nesta squad.");
+      const today = freshOptions[0];
+      const yesterday = freshOptions[1];
+      const waitingForToday = today && !today.enabled && yesterday
+        && !isDailyDateAvailable(yesterday, registeredDates, lockedDates);
+      toast.info(
+        waitingForToday
+          ? "A daily de ontem já foi registrada ou encerrada. A opção Hoje será liberada às 17h."
+          : "Todas as dailys disponíveis já foram registradas ou encerradas nesta squad.",
+      );
       return;
     }
     const targetDate = available.value;
@@ -500,6 +527,22 @@ export default function RegistroPage() {
 
   const submit = async () => {
     setTouched(true);
+
+    if (mode === "create") {
+      const selectedOption = allowedDates().find((option) => option.value === date);
+      if (!selectedOption?.enabled) {
+        toast.error("Esta data ainda não está liberada para registro. A opção Hoje é liberada às 17h.");
+        return;
+      }
+      if (registeredDates.has(date)) {
+        toast.error("Já existe uma daily registrada para esta data nesta squad.");
+        return;
+      }
+      if (lockedDates.has(date)) {
+        toast.error("A daily desta data já foi encerrada pelo líder.");
+        return;
+      }
+    }
 
     const missingDecision = carryOverActivities.find((a) => !pastDecisions[a.id]);
     if (missingDecision) {
@@ -800,25 +843,14 @@ export default function RegistroPage() {
       </div>
 
       <div className="mb-5 flex justify-end">
-        {(() => {
-          const hasAvailableDate = dateOptions.some(
-            (o) => o.enabled && !entries.some((e) => e.entry_date === o.value) && !lockedDates.has(o.value),
-          );
-          return (
             <Button
               onClick={handleOpenCreate}
               className="rounded-xl gap-2"
-              disabled={!hasAvailableDate}
-              title={
-                hasAvailableDate
-                  ? undefined
-                  : "As dailys disponíveis já foram registradas, ainda não foram liberadas ou foram encerradas pelo líder."
-              }
+              disabled={availableDateOptions.length === 0}
+              title={availableDateOptions.length > 0 ? undefined : unavailableDateMessage}
             >
               <Plus className="w-4 h-4" /> Registrar daily
             </Button>
-          );
-        })()}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
@@ -1116,10 +1148,9 @@ export default function RegistroPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {dateOptions.map((o) => {
-                    const unavailableOption = !o.enabled || (mode === "create" && (
-                      entries.some((entry) => entry.entry_date === o.value) || lockedDates.has(o.value)
-                    )
-                    );
+                    const unavailableOption = mode === "create"
+                      ? !isDailyDateAvailable(o, registeredDates, lockedDates)
+                      : !o.enabled;
                     return (
                     <SelectItem key={o.value} value={o.value} disabled={unavailableOption}>
                       {o.label}
