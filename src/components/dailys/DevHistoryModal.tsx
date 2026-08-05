@@ -135,13 +135,13 @@ export function DevHistoryModal({ open, onOpenChange, userId, name }: Props) {
                           {done.length + inactive.length + stillPending.length > 0 ? (
                             <div className="space-y-1.5">
                               {done.map((a) => (
-                                <DevActivityCard key={a.id} kind="done" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
+                                <DevActivityCard key={a.id} kind="done" description={a.description} cardCode={a.card_code} createdAt={a.created_at} devNotes={a.dev_notes} />
                               ))}
                               {inactive.map((a) => (
-                                <DevActivityCard key={a.id} kind="inactive" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
+                                <DevActivityCard key={a.id} kind="inactive" description={a.description} cardCode={a.card_code} createdAt={a.created_at} devNotes={a.dev_notes} />
                               ))}
                               {stillPending.map((a) => (
-                                <DevActivityCard key={a.id} kind="pending" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
+                                <DevActivityCard key={a.id} kind="pending" description={a.description} cardCode={a.card_code} createdAt={a.created_at} devNotes={a.dev_notes} />
                               ))}
                             </div>
                           ) : (
@@ -166,7 +166,7 @@ export function DevHistoryModal({ open, onOpenChange, userId, name }: Props) {
                            ) : pending.length > 0 ? (
                             <div className="space-y-1.5">
                               {pending.map((a) => (
-                                <DevActivityCard key={a.id} kind="pending" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
+                                <DevActivityCard key={a.id} kind="pending" description={a.description} cardCode={a.card_code} createdAt={a.created_at} devNotes={a.dev_notes} />
                               ))}
                             </div>
                           ) : (

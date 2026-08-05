@@ -1054,7 +1054,7 @@ export default function PainelGPPage() {
                     return (
                       <div className="space-y-1.5">
                         {acts.map((a) => (
-                          <DevActivityCard key={a.id} kind={a.status === "concluida" ? "done" : a.status === "inativa" ? "inactive" : "pending"} description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
+                          <DevActivityCard key={a.id} kind={a.status === "concluida" ? "done" : a.status === "inativa" ? "inactive" : "pending"} description={a.description} cardCode={a.card_code} createdAt={a.created_at} devNotes={a.dev_notes} />
                         ))}
                       </div>
                     );
@@ -1077,7 +1077,7 @@ export default function PainelGPPage() {
                     return (
                       <div className="space-y-1.5">
                         {acts.map((a) => (
-                          <DevActivityCard key={a.id} kind="pending" description={a.description} createdAt={a.created_at} devNotes={a.dev_notes} />
+                          <DevActivityCard key={a.id} kind="pending" description={a.description} cardCode={a.card_code} createdAt={a.created_at} devNotes={a.dev_notes} />
                         ))}
                       </div>
                     );
