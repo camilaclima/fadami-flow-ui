@@ -34,6 +34,7 @@ import { Clock } from "lucide-react";
 import { formatDuration, formatOpenFor } from "@/lib/formatDuration";
 import { FreeTextActivityList } from "@/lib/dailyFreeText";
 import { buildYesterdayTodayLists } from "@/lib/dailyActivitiesView";
+import { currentDailyReferenceDate } from "@/lib/dailyReferenceDate";
 
 function daysAgoLabel(iso: string): string {
   const created = new Date(iso);
@@ -47,11 +48,8 @@ function daysAgoLabel(iso: string): string {
 }
 
 function currentDateISO(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  // Mesma regra do registro do dev: antes das 17h a daily corrente é a de ontem.
+  return currentDailyReferenceDate();
 }
 
 export default function PainelGPPage() {
