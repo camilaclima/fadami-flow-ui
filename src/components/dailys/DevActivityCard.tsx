@@ -11,6 +11,7 @@ export type DevActivityKind = "done" | "inactive" | "pending";
 interface Props {
   kind: DevActivityKind;
   description: string;
+  cardCode?: string | null;
   createdAt?: string | null;
   devNotes?: string | null;
   editable?: boolean;
@@ -21,6 +22,7 @@ interface Props {
 export function DevActivityCard({
   kind,
   description,
+  cardCode,
   createdAt,
   devNotes,
   editable,
@@ -43,6 +45,11 @@ export function DevActivityCard({
       {kind === "inactive" && <Ban className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />}
       {kind === "pending" && <Clock className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />}
       <div className="flex-1 min-w-0">
+        {cardCode && cardCode.trim() && (
+          <Badge variant="secondary" className="text-[10px] font-mono mb-1">
+            #{cardCode.trim()}
+          </Badge>
+        )}
         <p className={`text-sm break-words whitespace-pre-wrap ${kind === "inactive" ? "text-muted-foreground line-through" : ""}`}>
           {description}
         </p>

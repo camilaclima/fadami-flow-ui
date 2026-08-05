@@ -493,7 +493,9 @@ export default function RegistroPage() {
     });
     pending.sort((x, y) => y.days - x.days);
     resolved.sort((x, y) => y.days - x.days);
-    return { pending, resolved, total: pending.length + resolved.length };
+    // KPI conta apenas as que PERMANECEM estagnadas (pendentes há mais de 2 dias).
+    // Concluídas ou inativadas deixam de contar.
+    return { pending, resolved, total: pending.length };
   }, [allActivities]);
 
   const submit = async () => {
@@ -1468,7 +1470,7 @@ export default function RegistroPage() {
               <span className="text-xs font-normal text-muted-foreground">(mais de 2 dias)</span>
             </DialogTitle>
           </DialogHeader>
-          {stagnantData.total === 0 ? (
+          {stagnantData.total === 0 && stagnantData.resolved.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4">Nenhuma tarefa estagnada.</p>
           ) : (
             <div className="space-y-4">
