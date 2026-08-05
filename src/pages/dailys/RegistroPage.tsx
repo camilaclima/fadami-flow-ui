@@ -241,6 +241,7 @@ export default function RegistroPage() {
   const [saving, setSaving] = useState(false);
   const [showImpsModal, setShowImpsModal] = useState(false);
   const [showStagnantModal, setShowStagnantModal] = useState(false);
+  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
 
   const [pastDecisions, setPastDecisions] = useState<Record<string, PastDecision>>({});
   const [plannedDrafts, setPlannedDrafts] = useState<DraftPlanned[]>([]);
@@ -492,6 +493,42 @@ export default function RegistroPage() {
       impedimentsCount,
     };
   }, [entries, allImpediments]);
+
+  /** Assiduidade por semana (segunda a sexta), últimas 6 semanas. */
+  const weeklyAttendance = useMemo(() => {
+    const today = new Date();
+    const todayISO = toISO(today);
+    const currentMonday = startOfWeek(today, { weekStartsOn: 1 });
+    const registered = new Set(entries.map((e) => e.entry_date));
+
+    return Array.from({ length: 6 }, (_, i) => {
+      const monday = addDays(currentMonday, -7 * i);
+      const friday = addDays(monday, 4);
+      const days = workdaysInRange(monday, friday).map((d) => {
+        const iso = toISO(d);
+        const future = iso > todayISO;
+        return {
+          iso,
+          weekday: format(d, "EEE", { locale: ptBR }).replace(".", "").toUpperCase(),
+          label: format(d, "dd/MM"),
+          future,
+          filled: registered.has(iso),
+        };
+      });
+      const elapsed = days.filter((d) => !d.future);
+      const filled = elapsed.filter((d) => d.filled).length;
+      const rate = elapsed.length > 0 ? Math.round((filled / elapsed.length) * 100) : 0;
+      return {
+        key: toISO(monday),
+        isCurrent: i === 0,
+        rangeLabel: `${format(monday, "dd/MM")} a ${format(friday, "dd/MM")}`,
+        days,
+        filled,
+        total: elapsed.length,
+        rate,
+      };
+    });
+  }, [entries]);
 
   const activeImpedimentsList = useMemo(() => {
     return allImpediments
@@ -805,13 +842,21 @@ export default function RegistroPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl">
+        <Card
+          role="button"
+          tabIndex={0}
+          onClick={() => setShowAttendanceModal(true)}
+          onKeyDown={(ev) => {
+            if (ev.key === "Enter") setShowAttendanceModal(true);
+          }}
+          className="rounded-2xl cursor-pointer hover:border-primary/40 hover:shadow-md transition-all"
+        >
           <CardContent className="p-4 flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-primary/10 text-primary">
               <TrendingUp className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs text-muted-foreground mb-0.5">Sua Assiduidade</p>
+              <p className="text-xs text-muted-foreground mb-0.5">Sua Assiduidade (semana)</p>
               <p className="text-lg font-semibold leading-tight">{kpis.attendanceRate}%</p>
             </div>
           </CardContent>
@@ -1487,6 +1532,80 @@ export default function RegistroPage() {
           )}
           <DialogFooter>
             <Button onClick={() => setShowImpsModal(false)} className="rounded-xl">
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAttendanceModal} onOpenChange={setShowAttendanceModal}>
+        <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+              <TrendingUp className="w-4.5 h-4.5 text-primary" /> Histórico de Assiduidade
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {weeklyAttendance.map((w) => (
+              <div key={w.key} className="rounded-2xl border bg-card/60 p-4">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <p className="text-sm font-medium">
+                    {w.rangeLabel}
+                    {w.isCurrent && <span className="text-muted-foreground font-normal"> (semana atual)</span>}
+                  </p>
+                  <Badge
+                    variant="outline"
+                    className={`rounded-full text-[11px] font-semibold border-transparent ${
+                      w.rate >= 80
+                        ? "bg-emerald-500/10 text-emerald-600"
+                        : w.rate >= 50
+                          ? "bg-amber-500/10 text-amber-600"
+                          : "bg-destructive/10 text-destructive"
+                    }`}
+                  >
+                    {w.rate}%
+                  </Badge>
+                </div>
+
+                <div className="h-1.5 rounded-full bg-muted overflow-hidden mb-3">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{ width: `${w.rate}%` }}
+                  />
+                </div>
+
+                <div className="grid grid-cols-5 gap-2">
+                  {w.days.map((d) => (
+                    <div
+                      key={d.iso}
+                      className="rounded-xl border border-border/60 bg-muted/30 py-2.5 flex flex-col items-center gap-1.5"
+                    >
+                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{d.weekday}</span>
+                      {d.future ? (
+                        <span className="w-6 h-6 rounded-full border border-dashed border-border flex items-center justify-center text-muted-foreground text-xs">
+                          —
+                        </span>
+                      ) : d.filled ? (
+                        <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+                      ) : (
+                        <X className="w-6 h-6 text-destructive/70" />
+                      )}
+                      <span className="text-[10px] text-muted-foreground">{d.label}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <p className="text-[11px] text-muted-foreground mt-2.5">
+                  {w.filled} de {w.total} dia{w.total !== 1 ? "s" : ""} útil{w.total !== 1 ? "eis" : ""} registrado
+                  {w.filled !== 1 ? "s" : ""}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" className="rounded-xl" onClick={() => setShowAttendanceModal(false)}>
               Fechar
             </Button>
           </DialogFooter>
