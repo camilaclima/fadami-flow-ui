@@ -1114,11 +1114,12 @@ export default function RegistroPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {dateOptions.map((o) => {
-                    const unavailableInCreate = mode === "create" && (
-                      !o.enabled || entries.some((entry) => entry.entry_date === o.value) || lockedDates.has(o.value)
+                    const unavailableOption = !o.enabled || (mode === "create" && (
+                      entries.some((entry) => entry.entry_date === o.value) || lockedDates.has(o.value)
+                    )
                     );
                     return (
-                    <SelectItem key={o.value} value={o.value} disabled={unavailableInCreate}>
+                    <SelectItem key={o.value} value={o.value} disabled={unavailableOption}>
                       {o.label}
                     </SelectItem>
                     );
