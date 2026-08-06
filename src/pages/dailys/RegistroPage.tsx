@@ -70,6 +70,16 @@ function isWorkday(d: Date): boolean {
   return dow !== 0 && dow !== 6;
 }
 
+/** Mesma normalização usada pela trava do banco (texto sem espaços extras, minúsculo). */
+function normalizeActivityText(text: string): string {
+  return String(text ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function isWorkdayLegacy(d: Date): boolean {
+  const dow = d.getDay();
+  return dow !== 0 && dow !== 6;
+}
+
 function workdaysInRange(start: Date, end: Date): Date[] {
   const days: Date[] = [];
   let cur = new Date(start);
