@@ -112,42 +112,24 @@ export function useDevDailyActivityMutations() {
       completed_at?: string | null;
       dev_notes?: string | null;
     }) => {
-      const payload: any = {
-        user_id: input.user_id,
-        squad_id: input.squad_id,
-        description: input.description,
-        card_code: input.card_code,
-        status: input.status ?? "pendente",
-        created_entry_id: input.created_entry_id,
-        closed_entry_id: input.closed_entry_id ?? null,
-        completed_at: input.completed_at ?? null,
-        dev_notes: input.dev_notes ?? null,
-        updated_by: user?.id ?? null,
-      };
-      const { data, error } = await (supabase.from("dev_daily_activities") as any)
-        .insert(payload)
-        .select("id")
-        .single();
-      if (error) {
-        // Atividade idêntica já registrada para a mesma entrada/squad: reaproveita o registro existente
-        if ((error as any)?.code === "23505") {
-          const normalized = input.description.trim().replace(/\s+/g, " ").toLowerCase();
-          let q = (supabase.from("dev_daily_activities") as any)
-            .select("id, description")
-            .eq("user_id", input.user_id)
-            .eq("created_entry_id", input.created_entry_id)
-            .eq("status", payload.status);
-          q = input.squad_id ? q.eq("squad_id", input.squad_id) : q.is("squad_id", null);
-          const { data: existing } = await q;
-          const match = (existing ?? []).find(
-            (row: any) =>
-              String(row.description ?? "").trim().replace(/\s+/g, " ").toLowerCase() === normalized,
-          );
-          if (match?.id) return { id: match.id as string };
-        }
-        throw error;
-      }
-      return { id: (data as any)?.id as string };
+      // Regra: dentro de um mesmo registro de daily cada atividade existe uma única
+      // vez (independente do status). Em dias diferentes a mesma atividade pode ser
+      // criada novamente. A função do banco cria ou reaproveita a atividade existente.
+      const { data, error } = await (supabase.rpc as any)("upsert_dev_daily_activity", {
+        _user_id: input.user_id,
+        _squad_id: input.squad_id,
+        _description: input.description,
+        _card_code: input.card_code,
+        _status: input.status ?? "pendente",
+        _created_entry_id: input.created_entry_id,
+        _closed_entry_id: input.closed_entry_id ?? null,
+        _completed_at: input.completed_at ?? null,
+        _dev_notes: input.dev_notes ?? null,
+        _updated_by: user?.id ?? null,
+      });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return { id: (row as any)?.id as string };
     },
     onSuccess: invalidate,
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar atividade"),
