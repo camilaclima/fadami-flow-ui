@@ -702,8 +702,25 @@ export default function RegistroPage() {
           }),
         );
 
+        // Garante uma única atividade por texto dentro do mesmo registro de daily.
+        const seen = new Set<string>(
+          [...plannedInEntry, ...closedInEntry].map((a: any) => normalizeActivityText(a.description)),
+        );
+        const uniquePlanned = plannedDrafts.filter((d) => {
+          const n = normalizeActivityText(d.description);
+          if (seen.has(n)) return false;
+          seen.add(n);
+          return true;
+        });
+        const uniqueDone = doneDrafts.filter((d) => {
+          const n = normalizeActivityText(d.description);
+          if (seen.has(n)) return false;
+          seen.add(n);
+          return true;
+        });
+
         await Promise.all(
-          plannedDrafts.map((d) =>
+          uniquePlanned.map((d) =>
             createActivity.mutateAsync({
               user_id: sim.devUserId!,
               squad_id: currentSquadId,
@@ -717,7 +734,7 @@ export default function RegistroPage() {
         );
 
         await Promise.all(
-          doneDrafts.map((d) =>
+          uniqueDone.map((d) =>
             createActivity.mutateAsync({
               user_id: sim.devUserId!,
               squad_id: currentSquadId,
