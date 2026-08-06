@@ -70,6 +70,11 @@ function isWorkday(d: Date): boolean {
   return dow !== 0 && dow !== 6;
 }
 
+/** Mesma normalização usada pela trava do banco (texto sem espaços extras, minúsculo). */
+function normalizeActivityText(text: string): string {
+  return String(text ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
 function workdaysInRange(start: Date, end: Date): Date[] {
   const days: Date[] = [];
   let cur = new Date(start);
@@ -697,8 +702,25 @@ export default function RegistroPage() {
           }),
         );
 
+        // Garante uma única atividade por texto dentro do mesmo registro de daily.
+        const seen = new Set<string>(
+          [...plannedInEntry, ...closedInEntry].map((a: any) => normalizeActivityText(a.description)),
+        );
+        const uniquePlanned = plannedDrafts.filter((d) => {
+          const n = normalizeActivityText(d.description);
+          if (seen.has(n)) return false;
+          seen.add(n);
+          return true;
+        });
+        const uniqueDone = doneDrafts.filter((d) => {
+          const n = normalizeActivityText(d.description);
+          if (seen.has(n)) return false;
+          seen.add(n);
+          return true;
+        });
+
         await Promise.all(
-          plannedDrafts.map((d) =>
+          uniquePlanned.map((d) =>
             createActivity.mutateAsync({
               user_id: sim.devUserId!,
               squad_id: currentSquadId,
@@ -712,7 +734,7 @@ export default function RegistroPage() {
         );
 
         await Promise.all(
-          doneDrafts.map((d) =>
+          uniqueDone.map((d) =>
             createActivity.mutateAsync({
               user_id: sim.devUserId!,
               squad_id: currentSquadId,
@@ -1857,6 +1879,15 @@ function ActivitiesPastSection(props: {
       toast.error("O Código do Card deve conter apenas números.");
       return;
     }
+    const norm = normalizeActivityText(d);
+    const dup =
+      doneDrafts.some((x) => normalizeActivityText(x.description) === norm) ||
+      closedInEntry.some((x) => normalizeActivityText(x.description) === norm) ||
+      carryOver.some((x) => normalizeActivityText(x.description) === norm);
+    if (dup) {
+      toast.info("Essa atividade já está nesta daily.");
+      return;
+    }
     setDoneDrafts((p) => [
       ...p,
       { id: crypto.randomUUID(), description: d, cardCode: code, notes: newNote.trim() || undefined },
@@ -2081,6 +2112,14 @@ function ActivitiesFutureSection(props: {
     if (!d) return;
     if (code && !/^\d+$/.test(code)) {
       toast.error("O Código do Card deve conter apenas números.");
+      return;
+    }
+    const norm = normalizeActivityText(d);
+    const dup =
+      plannedDrafts.some((x) => normalizeActivityText(x.description) === norm) ||
+      plannedInEntry.some((x) => normalizeActivityText(x.description) === norm);
+    if (dup) {
+      toast.info("Essa atividade já está nesta daily.");
       return;
     }
     setPlannedDrafts((p) => [
