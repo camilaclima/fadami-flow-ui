@@ -1857,6 +1857,15 @@ function ActivitiesPastSection(props: {
       toast.error("O Código do Card deve conter apenas números.");
       return;
     }
+    const norm = normalizeActivityText(d);
+    const dup =
+      doneDrafts.some((x) => normalizeActivityText(x.description) === norm) ||
+      closedInEntry.some((x) => normalizeActivityText(x.description) === norm) ||
+      carryOver.some((x) => normalizeActivityText(x.description) === norm);
+    if (dup) {
+      toast.info("Essa atividade já está nesta daily.");
+      return;
+    }
     setDoneDrafts((p) => [
       ...p,
       { id: crypto.randomUUID(), description: d, cardCode: code, notes: newNote.trim() || undefined },
