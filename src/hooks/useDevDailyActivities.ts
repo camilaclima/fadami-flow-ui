@@ -100,6 +100,40 @@ export function useDevDailyActivityMutations() {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["dev_daily_activities"] });
 
+  /**
+   * Fallback de segurança: se por algum motivo ainda existir uma atividade "gêmea"
+   * (mesmo texto, mesmo registro de daily), consolidamos em uma única linha em vez
+   * de exibir erro técnico para o dev.
+   */
+  const mergeTwinOnConflict = async (id: string, patch: Record<string, any>) => {
+    const { data: current } = await (supabase.from("dev_daily_activities") as any)
+      .select("id, user_id, squad_id, created_entry_id, description, card_code, dev_notes")
+      .eq("id", id)
+      .maybeSingle();
+    if (!current?.created_entry_id) return false;
+    const normalized = String(current.description ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+    let q = (supabase.from("dev_daily_activities") as any)
+      .select("id, description, card_code, dev_notes")
+      .eq("user_id", current.user_id)
+      .eq("created_entry_id", current.created_entry_id)
+      .neq("id", id);
+    q = current.squad_id ? q.eq("squad_id", current.squad_id) : q.is("squad_id", null);
+    const { data: siblings } = await q;
+    const twin = (siblings ?? []).find(
+      (row: any) => String(row.description ?? "").trim().replace(/\s+/g, " ").toLowerCase() === normalized,
+    );
+    if (!twin?.id) return false;
+    await (supabase.from("dev_daily_activities") as any)
+      .update({
+        ...patch,
+        card_code: twin.card_code || current.card_code || "",
+        dev_notes: twin.dev_notes ?? current.dev_notes ?? null,
+      })
+      .eq("id", twin.id);
+    await (supabase.from("dev_daily_activities") as any).delete().eq("id", id);
+    return true;
+  };
+
   const create = useMutation({
     mutationFn: async (input: {
       user_id: string;
@@ -137,16 +171,20 @@ export function useDevDailyActivityMutations() {
 
   const markCompleted = useMutation({
     mutationFn: async (input: { id: string; closed_entry_id: string }) => {
+      const patch = {
+        status: "concluida",
+        completed_at: new Date().toISOString(),
+        inactivated_at: null,
+        closed_entry_id: input.closed_entry_id,
+        updated_by: user?.id ?? null,
+      };
       const { error } = await (supabase.from("dev_daily_activities") as any)
-        .update({
-          status: "concluida",
-          completed_at: new Date().toISOString(),
-          inactivated_at: null,
-          closed_entry_id: input.closed_entry_id,
-          updated_by: user?.id ?? null,
-        })
+        .update(patch)
         .eq("id", input.id);
-      if (error) throw error;
+      if (error) {
+        if ((error as any)?.code === "23505" && (await mergeTwinOnConflict(input.id, patch))) return;
+        throw error;
+      }
     },
     onSuccess: invalidate,
     onError: (e: any) => toast.error(e?.message ?? "Erro ao concluir atividade"),
@@ -154,16 +192,20 @@ export function useDevDailyActivityMutations() {
 
   const markInactive = useMutation({
     mutationFn: async (input: { id: string; closed_entry_id: string }) => {
+      const patch = {
+        status: "inativa",
+        inactivated_at: new Date().toISOString(),
+        completed_at: null,
+        closed_entry_id: input.closed_entry_id,
+        updated_by: user?.id ?? null,
+      };
       const { error } = await (supabase.from("dev_daily_activities") as any)
-        .update({
-          status: "inativa",
-          inactivated_at: new Date().toISOString(),
-          completed_at: null,
-          closed_entry_id: input.closed_entry_id,
-          updated_by: user?.id ?? null,
-        })
+        .update(patch)
         .eq("id", input.id);
-      if (error) throw error;
+      if (error) {
+        if ((error as any)?.code === "23505" && (await mergeTwinOnConflict(input.id, patch))) return;
+        throw error;
+      }
     },
     onSuccess: invalidate,
     onError: (e: any) => toast.error(e?.message ?? "Erro ao inativar atividade"),
@@ -171,16 +213,20 @@ export function useDevDailyActivityMutations() {
 
   const revertPending = useMutation({
     mutationFn: async (id: string) => {
+      const patch = {
+        status: "pendente",
+        completed_at: null,
+        inactivated_at: null,
+        closed_entry_id: null,
+        updated_by: user?.id ?? null,
+      };
       const { error } = await (supabase.from("dev_daily_activities") as any)
-        .update({
-          status: "pendente",
-          completed_at: null,
-          inactivated_at: null,
-          closed_entry_id: null,
-          updated_by: user?.id ?? null,
-        })
+        .update(patch)
         .eq("id", id);
-      if (error) throw error;
+      if (error) {
+        if ((error as any)?.code === "23505" && (await mergeTwinOnConflict(id, patch))) return;
+        throw error;
+      }
     },
     onSuccess: invalidate,
     onError: (e: any) => toast.error(e?.message ?? "Erro ao atualizar atividade"),
