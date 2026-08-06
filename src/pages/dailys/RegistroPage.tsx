@@ -2092,6 +2092,14 @@ function ActivitiesFutureSection(props: {
       toast.error("O Código do Card deve conter apenas números.");
       return;
     }
+    const norm = normalizeActivityText(d);
+    const dup =
+      plannedDrafts.some((x) => normalizeActivityText(x.description) === norm) ||
+      plannedInEntry.some((x) => normalizeActivityText(x.description) === norm);
+    if (dup) {
+      toast.info("Essa atividade já está nesta daily.");
+      return;
+    }
     setPlannedDrafts((p) => [
       ...p,
       { id: crypto.randomUUID(), description: d, cardCode: code, notes: newNote.trim() || undefined },
