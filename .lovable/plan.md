@@ -1,47 +1,45 @@
-# Corrigir o erro "duplicate key value violates unique constraint" ao salvar a daily
+# Corrigir o erro de duplicidade ao salvar a daily (mantendo a regra correta)
 
-## O que está acontecendo (explicação simples)
+## Regra que vale (conforme você definiu)
 
-O banco tem uma trava que impede que a **mesma pessoa** tenha **duas atividades com o mesmo texto e o mesmo estado** (pendente / concluída / inativa) dentro do **mesmo registro de daily**.
+- A mesma atividade **pode** ser criada novamente em outro dia, mesmo que já tenha sido concluída ou inativada antes. É trabalho novo, deve ser permitido.
+- Uma atividade que ficou **pendente continua aparecendo** todos os dias até o dev concluir ou inativar. Ela não deve ser recriada nem duplicada — é sempre a mesma.
+- Dentro de **um mesmo registro de daily** não faz sentido existir a mesma atividade duas vezes.
 
-Essa trava é boa: evita atividades duplicadas. O problema é o momento em que ela dispara.
+## Por que o erro aparece hoje
 
-Exemplo real, igual ao do print:
+A trava do banco hoje considera o **estado** da atividade como parte da chave: ela impede duas atividades com mesmo texto **e mesmo estado** dentro do mesmo registro.
 
-1. Em 31/07 o dev registrou a atividade "Verificação do relatório SIR – Concebra" e ela já foi **concluída**.
-2. Depois, a mesma atividade voltou a existir como **pendente** (ela foi digitada de novo, ou ficou como pendência arrastada).
-3. Hoje, ao salvar a daily, o dev marca essa pendência como **"Concluí"**.
-4. Nesse instante o sistema tenta transformar a pendente em concluída — mas já existe uma concluída idêntica naquele mesmo registro. A trava barra e aparece a mensagem técnica.
+O efeito prático é o contrário do desejado:
 
-Confirmado no banco: existem hoje dezenas de casos de atividades com texto idêntico dentro do mesmo registro, umas pendentes e outras já concluídas ou inativas — exatamente o cenário que provoca o erro.
+- Ela **permite** que exista, no mesmo registro, uma "Verificação do relatório SIR – Concebra" concluída **e** outra pendente ao mesmo tempo (estados diferentes) — foi assim que os dados ficaram: há dezenas de registros nessa situação.
+- E aí, quando o dev marca a pendente como "Concluí", o estado muda para concluída e bate de frente com a concluída que já estava lá → a trava dispara e o salvamento para com a mensagem técnica.
 
-Detalhe importante: hoje o sistema **só sabe tratar** essa trava quando ela acontece ao **criar** uma atividade nova. Quando acontece ao **marcar como Concluí / Inativar**, o erro estoura na tela e o salvamento para no meio.
+Ou seja: o erro não é por repetir a atividade em outro dia (isso já é permitido, porque a trava é por registro de daily). O erro é por existir a mesma atividade duplicada **dentro do mesmo registro**, em estados diferentes.
 
-## Como vai ficar depois da correção
+## Como vai ficar
 
-- Ao marcar "Concluí" ou "Inativar" e já existir uma atividade idêntica no mesmo estado, o sistema simplesmente **reaproveita/consolida** a existente em vez de mostrar erro.
-- A daily salva normalmente, sem mensagem técnica.
-- Nenhuma atividade duplicada nova é criada; o histórico e o painel do líder continuam mostrando uma única entrada por atividade.
-- Se acontecer qualquer outro erro de verdade, a mensagem continua aparecendo (não vamos esconder problemas reais).
+- Repetir a mesma atividade em **outro dia**: permitido, sem nenhuma mudança.
+- Atividade **pendente**: continua aparecendo dia após dia como pendência arrastada, até ser concluída ou inativada. Nunca é recriada em paralelo.
+- Dentro do **mesmo registro**: existe apenas uma atividade com aquele nome. Concluir ou inativar passa a funcionar sempre, sem mensagem de erro.
 
 ## Implementação
 
-1. Em `src/hooks/useDevDailyActivities.ts`:
-   - Tratar o código de erro `23505` também em `markCompleted`, `markInactive` e `revertPending` (hoje só `create` trata).
-   - No tratamento: localizar a atividade "gêmea" já existente (mesmo usuário, mesma squad, mesmo `created_entry_id`, mesma descrição normalizada e o estado de destino) e, em vez de falhar:
-     - atualizar a gêmea com o `closed_entry_id` / datas do fechamento, e
-     - remover a linha duplicada que estava sendo movida, mantendo um único registro.
-2. Também evitar a duplicidade na origem: antes de criar as atividades planejadas em `src/pages/dailys/RegistroPage.tsx`, desconsiderar textos repetidos entre os rascunhos (comparação sem diferença de maiúsculas/espaços).
-3. Nada muda na estrutura do banco: a trava de unicidade permanece como está.
+1. Ajustar a trava do banco: a unicidade passa a ser por **usuário + squad + registro da daily + texto da atividade**, **sem** o estado. Assim uma atividade não pode se duplicar dentro do mesmo registro, e mudar de pendente para concluída/inativa nunca mais colide.
+2. Limpeza dos dados existentes: onde já há duplicatas no mesmo registro, manter uma única linha — a que tem estado final (concluída ou inativa) — repontando notas, nº de card e a data de fechamento, e remover a linha redundante. Nada é apagado de outros dias.
+3. No aplicativo (`src/hooks/useDevDailyActivities.ts`): passar a usar o caminho que já existe no banco para "criar ou reaproveitar" a atividade, e tratar o caso de conflito também ao concluir/inativar, reaproveitando a linha existente em vez de exibir erro.
+4. Em `src/pages/dailys/RegistroPage.tsx`: ao adicionar uma atividade no formulário, se já existir uma pendente com o mesmo texto naquele registro, reaproveitar a pendente em vez de criar outra.
 
 ## Validação
 
-- Marcar como "Concluí" uma pendência que já tem uma concluída idêntica no mesmo registro: salva sem erro e fica só uma atividade concluída.
-- Mesmo teste com "Inativar".
-- Salvar uma daily normal, sem repetições: comportamento inalterado.
-- Reabrir o registro e o painel do líder: a atividade aparece uma única vez, com o número do card preservado.
+- Concluir uma pendência que hoje tem uma "gêmea" concluída no mesmo registro: salva sem erro e fica uma única atividade concluída.
+- Criar em um dia novo uma atividade com nome idêntico a uma já concluída/inativada em dia anterior: permitido e aparece normalmente.
+- Deixar uma atividade pendente: ela reaparece no dia seguinte como pendência arrastada, uma única vez.
+- Painel do líder e histórico: cada atividade aparece uma vez, com o nº do card preservado.
 
 ## Detalhes técnicos
 
-- Índice envolvido: `dev_daily_activities_entry_description_status_unique` em `(user_id, coalesce(squad_id, ...), created_entry_id, lower(regexp_replace(trim(description), '\s+', ' ', 'g')), status)`.
-- Como `status` faz parte da chave, qualquer `UPDATE` de status pode colidir; por isso o tratamento precisa existir nos mutations de update, não só no insert.
+- Índice atual: `dev_daily_activities_entry_description_status_unique` em `(user_id, coalesce(squad_id,...), created_entry_id, texto normalizado, status)`.
+- Novo índice: mesma expressão **sem** `status`, mantendo `WHERE created_entry_id IS NOT NULL`.
+- `upsert_dev_daily_activity` precisa ter o `ON CONFLICT` atualizado para a nova chave.
+- Migração faz, na ordem: consolidação das duplicatas → criação do novo índice → remoção do índice antigo → atualização da função.
