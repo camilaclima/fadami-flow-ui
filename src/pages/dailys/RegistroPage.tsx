@@ -490,12 +490,18 @@ export default function RegistroPage() {
   const labelPast = isToday ? "O que fiz hoje" : "O que fiz ontem";
   const labelFuture = (isToday ? "O que farei amanhã" : "O que farei hoje") + " *";
 
+  /** Datas em que o dev efetivamente preencheu (data de preenchimento, não a de referência). */
+  const filledDates = useMemo(
+    () => new Set(entries.map((e) => toISO(new Date(e.created_at))).filter(Boolean)),
+    [entries]
+  );
+
   const kpis = useMemo(() => {
     const today = new Date();
     const monday = startOfWeek(today, { weekStartsOn: 1 });
     const friday = addDays(monday, 4);
     const weekWorkdays = workdaysInRange(monday, friday);
-    const registeredWeekDays = weekWorkdays.filter((wd) => entries.some((e) => e.entry_date === toISO(wd))).length;
+    const registeredWeekDays = weekWorkdays.filter((wd) => filledDates.has(toISO(wd))).length;
     const attendanceRate = weekWorkdays.length > 0 ? Math.round((registeredWeekDays / weekWorkdays.length) * 100) : 0;
 
     const impedimentsCount = allImpediments.filter((imp) => !imp.resolved).length;
@@ -504,14 +510,14 @@ export default function RegistroPage() {
       attendanceRate,
       impedimentsCount,
     };
-  }, [entries, allImpediments]);
+  }, [filledDates, allImpediments]);
 
   /** Assiduidade por semana (segunda a sexta), últimas 6 semanas. */
   const weeklyAttendance = useMemo(() => {
     const today = new Date();
     const todayISO = toISO(today);
     const currentMonday = startOfWeek(today, { weekStartsOn: 1 });
-    const registered = new Set(entries.map((e) => e.entry_date));
+    const registered = filledDates;
 
     return Array.from({ length: 6 }, (_, i) => {
       const monday = addDays(currentMonday, -7 * i);
@@ -540,7 +546,7 @@ export default function RegistroPage() {
         rate,
       };
     });
-  }, [entries]);
+  }, [filledDates]);
 
   const activeImpedimentsList = useMemo(() => {
     return allImpediments
