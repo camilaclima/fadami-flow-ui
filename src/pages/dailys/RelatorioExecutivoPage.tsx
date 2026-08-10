@@ -1429,6 +1429,16 @@ function SavedReportsPanel() {
   const [pdfTarget, setPdfTarget] = useState<ExecutiveReport | null>(null);
   const hydratedForPdf = useHydratedSections(pdfTarget);
   const pdfFiringRef = useRef(false);
+  const pdfNodeRef = useRef<HTMLDivElement | null>(null);
+
+  const pdfSections = useMemo(() => {
+    const nonEmpty = hydratedForPdf.filter((s) => s.items.length > 0);
+    return [...nonEmpty].sort((a, b) => {
+      if (a.id === "melhor_squad") return -1;
+      if (b.id === "melhor_squad") return 1;
+      return 0;
+    });
+  }, [hydratedForPdf]);
 
   useEffect(() => {
     if (!pdfTarget) {
@@ -1436,22 +1446,70 @@ function SavedReportsPanel() {
       return;
     }
     if (pdfFiringRef.current) return;
-    if (hydratedForPdf.length === 0) return;
+    if (pdfSections.length === 0) return;
+    const node = pdfNodeRef.current;
+    if (!node) return;
     pdfFiringRef.current = true;
     const period2 =
       pdfTarget.period_start === pdfTarget.period_end
         ? fmtLong(pdfTarget.period_start)
         : `${fmtLong(pdfTarget.period_start)} a ${fmtLong(pdfTarget.period_end)}`;
-    exportSectionsAsVisualPdf({
-      periodLabel: period2,
-      sections: hydratedForPdf,
-    }).finally(() => {
-      setPdfTarget(null);
-    });
-  }, [pdfTarget, hydratedForPdf]);
+    let cancelled = false;
+    (async () => {
+      // Aguarda layout/paint da árvore offscreen antes de capturar.
+      await new Promise<void>((r) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => r())),
+      );
+      await new Promise<void>((r) => setTimeout(r, 300));
+      if (cancelled) return;
+      try {
+        await downloadElementAsPdf(
+          node,
+          `relatorio-executivo-${period2.replace(/\s+/g, "_")}.pdf`,
+        );
+      } catch (e: any) {
+        toast.error(e?.message ?? "Não foi possível gerar o PDF");
+      } finally {
+        setPdfTarget(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pdfTarget, pdfSections]);
 
   return (
     <div>
+      {pdfTarget && (
+        <div
+          aria-hidden
+          style={{
+            position: "fixed",
+            left: -10000,
+            top: 0,
+            width: 1100,
+            background: "#ffffff",
+            padding: 24,
+            zIndex: -1,
+          }}
+        >
+          <div ref={pdfNodeRef}>
+            <div style={{ marginBottom: 16 }}>
+              <h1 style={{ margin: 0, fontSize: 22, color: "#0f172a" }}>
+                Relatório Executivo da Daily
+              </h1>
+              <p style={{ margin: "4px 0 0", color: "#475569", fontSize: 13 }}>
+                {(pdfTarget.period_start === pdfTarget.period_end
+                  ? fmtLong(pdfTarget.period_start)
+                  : `${fmtLong(pdfTarget.period_start)} a ${fmtLong(pdfTarget.period_end)}`)}{" "}
+                · Fadami Flow
+              </p>
+              <div style={{ height: 2, background: "#F97316", marginTop: 12 }} />
+            </div>
+            <ReportSectionsView sections={pdfSections} interactive={false} forceOpen={true} stacked />
+          </div>
+        </div>
+      )}
       {isLoading && <p className="text-sm text-muted-foreground">Carregando...</p>}
       {!isLoading && reports.length === 0 && (
         <div className="rounded-2xl border bg-muted/20 p-6 text-center">
