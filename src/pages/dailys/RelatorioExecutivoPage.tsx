@@ -1440,43 +1440,61 @@ function SavedReportsPanel() {
     });
   }, [hydratedForPdf]);
 
+  const pdfSectionsRef = useRef(pdfSections);
+  pdfSectionsRef.current = pdfSections;
+
   useEffect(() => {
     if (!pdfTarget) {
       pdfFiringRef.current = false;
       return;
     }
     if (pdfFiringRef.current) return;
-    if (pdfSections.length === 0) return;
-    const node = pdfNodeRef.current;
-    if (!node) return;
     pdfFiringRef.current = true;
     const period2 =
       pdfTarget.period_start === pdfTarget.period_end
         ? fmtLong(pdfTarget.period_start)
         : `${fmtLong(pdfTarget.period_start)} a ${fmtLong(pdfTarget.period_end)}`;
     let cancelled = false;
+    const toastId = toast.loading("Gerando PDF...");
     (async () => {
-      // Aguarda layout/paint da árvore offscreen antes de capturar.
-      await new Promise<void>((r) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => r())),
-      );
-      await new Promise<void>((r) => setTimeout(r, 300));
-      if (cancelled) return;
       try {
+        // Espera a hidratação das seções (queries) por até ~10s.
+        const deadline = Date.now() + 10000;
+        while (
+          !cancelled &&
+          pdfSectionsRef.current.length === 0 &&
+          Date.now() < deadline
+        ) {
+          await new Promise<void>((r) => setTimeout(r, 200));
+        }
+        if (cancelled) return;
+        // Aguarda layout/paint da árvore offscreen antes de capturar.
+        await new Promise<void>((r) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => r())),
+        );
+        await new Promise<void>((r) => setTimeout(r, 400));
+        if (cancelled) return;
+        const node = pdfNodeRef.current;
+        if (!node) throw new Error("Conteúdo do relatório não ficou pronto");
+        if (pdfSectionsRef.current.length === 0)
+          throw new Error("Este relatório não possui itens para exportar");
         await downloadElementAsPdf(
           node,
           `relatorio-executivo-${period2.replace(/\s+/g, "_")}.pdf`,
         );
+        toast.success("PDF gerado", { id: toastId });
       } catch (e: any) {
-        toast.error(e?.message ?? "Não foi possível gerar o PDF");
+        console.error("[PDF] falha ao gerar", e);
+        toast.error(e?.message ?? "Não foi possível gerar o PDF", { id: toastId });
       } finally {
         setPdfTarget(null);
       }
     })();
     return () => {
       cancelled = true;
+      toast.dismiss(toastId);
     };
-  }, [pdfTarget, pdfSections]);
+  }, [pdfTarget]);
 
   return (
     <div>
