@@ -95,7 +95,50 @@ export default function ResumoEmailPage() {
   const { data: entries = [], isLoading } = useDevDailyEntriesByDate(date, effectiveSquadId);
   const entryIds = useMemo(() => entries.map((e: any) => e.id), [entries]);
   const { data: activities = [] } = useDevDailyActivitiesByEntries(entryIds);
-  const { data: impediments = [] } = useDevDailyImpedimentsByEntries(entryIds);
+
+  // Histórico de impedimentos da squad (abertos até a data e sanados)
+  const { data: impHistory } = useQuery({
+    queryKey: ["resumo_email", "impediments", effectiveSquadId ?? "none", date],
+    enabled: !!effectiveSquadId,
+    queryFn: async () => {
+      const from = toISODate(new Date(new Date(`${date}T12:00:00`).getTime() - 90 * 86400000));
+      const { data: ents } = await (supabase.from("dev_daily_entries") as any)
+        .select("id,user_id,entry_date")
+        .eq("squad_id", effectiveSquadId)
+        .gte("entry_date", from)
+        .lte("entry_date", date);
+      const ids = (ents ?? []).map((e: any) => e.id);
+      if (ids.length === 0) return { byUser: new Map<string, any[]>() };
+      const { data: imps } = await (supabase.from("dev_daily_impediments") as any)
+        .select("*")
+        .in("entry_id", ids)
+        .order("created_at", { ascending: true });
+      const userByEntry = new Map<string, string>();
+      const dateByEntry = new Map<string, string>();
+      (ents ?? []).forEach((e: any) => {
+        userByEntry.set(e.id, e.user_id);
+        dateByEntry.set(e.id, e.entry_date);
+      });
+      const byUser = new Map<string, any[]>();
+      (imps ?? []).forEach((i: any) => {
+        const uid = userByEntry.get(i.entry_id);
+        if (!uid) return;
+        const resolvedDay = i.resolved_at ? String(i.resolved_at).slice(0, 10) : null;
+        // Ainda aberto na data consultada?
+        const openOnDate = !i.resolved || (resolvedDay ? resolvedDay > date : false);
+        const item = {
+          ...i,
+          entry_date: dateByEntry.get(i.entry_id) ?? null,
+          resolvedDay,
+          state: openOnDate ? "aberto" : "sanado",
+        };
+        const arr = byUser.get(uid) ?? [];
+        arr.push(item);
+        byUser.set(uid, arr);
+      });
+      return { byUser };
+    },
+  });
 
   // Encontros + presença na janela (para faltas / câmeras)
   const { data: windowData } = useQuery({
@@ -139,9 +182,9 @@ export default function ResumoEmailPage() {
         : [];
       const plannedList = planned.length ? planned : fallback;
 
-      const imps = entry
-        ? impediments.filter((i: any) => i.entry_id === entry.id && !i.resolved)
-        : [];
+      const all = (m.user_id ? impHistory?.byUser.get(m.user_id) : null) ?? [];
+      const abertos = all.filter((i: any) => i.state === "aberto");
+      const sanados = all.filter((i: any) => i.state === "sanado");
 
       const att = (windowData?.attendance ?? []).filter(
         (a: any) =>
@@ -156,13 +199,14 @@ export default function ResumoEmailPage() {
         member: m,
         entry,
         plannedList,
-        impediments: imps,
+        impediments: abertos,
+        impedimentsResolved: sanados,
         faltasPct: pct(absences, meetingsCount || att.length || 0),
         registrosPct: pct(registros, daysCount),
         cameraPct: pct(cameras, att.length),
       };
     });
-  }, [members, entries, activities, impediments, windowData, meetingsCount, daysCount]);
+  }, [members, entries, activities, impHistory, windowData, meetingsCount, daysCount]);
 
   const totals = useMemo(() => {
     const filled = rows.filter((r) => !!r.entry).length;
