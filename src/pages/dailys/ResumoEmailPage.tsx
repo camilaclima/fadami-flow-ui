@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSquads } from "@/hooks/useSquads";
 import { useDevDailyEntriesByDate } from "@/hooks/useDevDailyEntries";
 import { useDevDailyActivitiesByEntries } from "@/hooks/useDevDailyActivities";
-import { useDevDailyImpedimentsByEntries } from "@/hooks/useDevDailyImpediments";
+
 import { currentDailyReferenceDate, previousBusinessDay, toISODate } from "@/lib/dailyReferenceDate";
 import { splitFreeText } from "@/lib/dailyFreeText";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
