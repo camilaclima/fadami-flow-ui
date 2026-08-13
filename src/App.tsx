@@ -30,6 +30,7 @@ import DailysRegistroPage from "./pages/dailys/RegistroPage";
 import DailysPainelGPPage from "./pages/dailys/PainelGPPage";
 import DailysHistoricoPage from "./pages/dailys/HistoricoPage";
 import DailysSaudePage from "./pages/dailys/SaudePage";
+import DailysResumoEmailPage from "./pages/dailys/ResumoEmailPage";
 import DailysLayout from "./components/dailys/DailysLayout";
 
 const queryClient = new QueryClient();
@@ -152,6 +153,7 @@ const App = () => (
                     <Route path="painel" element={<DailysPainelGPPage />} />
                     <Route path="historico" element={<DailysHistoricoPage />} />
                     <Route path="saude" element={<DailysSaudePage />} />
+                    <Route path="resumo-email" element={<DailysResumoEmailPage />} />
                   </Route>
 
                   <Route path="/products" element={<ProductsPage />} />
