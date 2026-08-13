@@ -184,7 +184,7 @@ export default function ResumoEmailPage() {
 
       const all = (m.user_id ? impHistory?.byUser.get(m.user_id) : null) ?? [];
       const abertos = all.filter((i: any) => i.state === "aberto");
-      const sanados = all.filter((i: any) => i.state === "sanado");
+      const sanados = all.filter((i: any) => i.state === "sanado" && i.resolvedDay === date);
 
       const att = (windowData?.attendance ?? []).filter(
         (a: any) =>
