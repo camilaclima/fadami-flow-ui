@@ -263,31 +263,39 @@ export default function ResumoEmailPage() {
       </header>
 
       {/* Prévia do e-mail */}
-      <div className="rounded-3xl border border-border bg-card overflow-hidden">
-        <div className="px-6 md:px-10 py-8 border-b border-border/60 bg-surface-hover/40">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Fadami Flow · Resumo da Daily</p>
+      <div className="rounded-3xl border border-border bg-card overflow-hidden shadow-sm">
+        <div className="px-6 md:px-10 py-8 border-b border-border/60 bg-gradient-to-r from-primary/15 via-primary/5 to-transparent">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-primary font-semibold">Fadami Flow · Resumo da Daily</p>
           <h2 className="text-xl md:text-2xl font-bold mt-2">{squad?.name ?? "—"}</h2>
           <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1 capitalize">
             <CalendarDays className="w-3.5 h-3.5" /> {formatLongDate(date)}
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-border/60 border-b border-border/60">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 md:px-10 md:py-6 border-b border-border/60">
           {[
-            { label: "Registros da daily", value: `${totals.filled}/${totals.total}`, sub: `${totals.registros}% na janela`, icon: CheckCircle2 },
-            { label: "Impedimentos abertos", value: String(totals.imps), sub: "no dia", icon: AlertTriangle },
-            { label: "Faltas", value: `${totals.faltas}%`, sub: `últimos ${daysCount} dias úteis`, icon: Users2 },
-            { label: "Câmeras ativas", value: `${totals.cameras}%`, sub: `últimos ${daysCount} dias úteis`, icon: Camera },
-          ].map((k) => (
-            <div key={k.label} className="px-6 py-5">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <k.icon className="w-3.5 h-3.5" />
-                <span className="text-[11px] uppercase tracking-wider">{k.label}</span>
+            { label: "Registros da daily", value: `${totals.filled}/${totals.total}`, sub: `${totals.registros}% na janela`, icon: CheckCircle2, tone: "emerald" },
+            { label: "Impedimentos abertos", value: String(totals.imps), sub: "na data consultada", icon: AlertTriangle, tone: "amber" },
+            { label: "Faltas", value: `${totals.faltas}%`, sub: `últimos ${daysCount} dias úteis`, icon: Users2, tone: "rose" },
+            { label: "Câmeras ativas", value: `${totals.cameras}%`, sub: `últimos ${daysCount} dias úteis`, icon: Camera, tone: "sky" },
+          ].map((k) => {
+            const tones: Record<string, string> = {
+              emerald: "bg-emerald-500/10 border-emerald-500/25 text-emerald-600 dark:text-emerald-400",
+              amber: "bg-amber-500/10 border-amber-500/25 text-amber-600 dark:text-amber-400",
+              rose: "bg-rose-500/10 border-rose-500/25 text-rose-600 dark:text-rose-400",
+              sky: "bg-sky-500/10 border-sky-500/25 text-sky-600 dark:text-sky-400",
+            };
+            return (
+              <div key={k.label} className={`rounded-2xl border px-4 py-4 ${tones[k.tone]}`}>
+                <div className="flex items-center gap-2">
+                  <k.icon className="w-3.5 h-3.5" />
+                  <span className="text-[10px] uppercase tracking-wider font-semibold">{k.label}</span>
+                </div>
+                <p className="text-2xl font-bold mt-2 text-foreground">{k.value}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{k.sub}</p>
               </div>
-              <p className="text-2xl font-bold mt-2">{k.value}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">{k.sub}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="p-6 md:p-10 space-y-4">
@@ -296,58 +304,112 @@ export default function ResumoEmailPage() {
             <p className="text-sm text-muted-foreground">Nenhum colaborador vinculado a esta squad.</p>
           )}
           {rows.map((r) => (
-            <article key={r.member.name} className="rounded-2xl border border-border/70 p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h3 className="font-semibold">{r.member.name}</h3>
-                  <p className="text-xs text-muted-foreground">{r.member.email ?? "sem e-mail"}</p>
+            <article key={r.member.name} className="rounded-2xl border border-border/70 overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 bg-surface-hover/50 border-b border-border/60">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-bold">
+                    {r.member.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold leading-tight">{r.member.name}</h3>
+                    <p className="text-xs text-muted-foreground">{r.member.email ?? "sem e-mail"}</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4 text-xs">
-                  <span className="text-muted-foreground">Faltas <b className="text-foreground">{r.faltasPct}%</b></span>
-                  <span className="text-muted-foreground">Registros <b className="text-foreground">{r.registrosPct}%</b></span>
-                  <span className="text-muted-foreground">Câmera <b className="text-foreground">{r.cameraPct}%</b></span>
-                  {r.entry ? (
-                    <Badge variant="secondary" className="rounded-full">Registrou</Badge>
-                  ) : (
-                    <Badge variant="outline" className="rounded-full text-muted-foreground">Sem registro</Badge>
-                  )}
-                </div>
+                {r.entry ? (
+                  <Badge className="rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/15">
+                    Registrou
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="rounded-full text-muted-foreground">Sem registro</Badge>
+                )}
               </div>
 
-              <div className="grid md:grid-cols-2 gap-4 mt-4">
+              <div className="p-5 space-y-5">
                 <div>
-                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Planejado para hoje</p>
+                  <p className="text-[11px] uppercase tracking-wider text-primary font-semibold mb-2">
+                    Planejado para hoje · {r.plannedList.length}
+                  </p>
                   {r.plannedList.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">—</p>
+                    <p className="text-sm text-muted-foreground">Nada planejado registrado.</p>
                   ) : (
-                    <ul className="space-y-1.5">
+                    <div className="space-y-2">
                       {r.plannedList.map((a, i) => (
-                        <li key={i} className="text-sm flex gap-2">
-                          <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
-                          <span>
-                            {a.card && <span className="text-primary font-medium mr-1">#{a.card}</span>}
+                        <div
+                          key={i}
+                          className="rounded-xl border border-primary/20 bg-primary/[0.06] px-3.5 py-2.5 text-sm flex gap-3"
+                        >
+                          <span className="text-[11px] font-bold text-primary/70 mt-0.5 w-4 flex-shrink-0">
+                            {String(i + 1).padStart(2, "0")}
+                          </span>
+                          <span className="leading-snug">
+                            {a.card && (
+                              <span className="inline-block mr-1.5 rounded-md bg-primary/15 text-primary px-1.5 py-0.5 text-[11px] font-semibold align-middle">
+                                #{a.card}
+                              </span>
+                            )}
                             {a.text}
                           </span>
-                        </li>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   )}
                 </div>
+
                 <div>
-                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Impedimentos</p>
+                  <p className="text-[11px] uppercase tracking-wider text-amber-600 dark:text-amber-400 font-semibold mb-2">
+                    Impedimentos abertos · {r.impediments.length}
+                  </p>
                   {r.impediments.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Nenhum impedimento aberto</p>
+                    <p className="text-sm text-muted-foreground">Nenhum impedimento aberto nesta data.</p>
                   ) : (
-                    <ul className="space-y-1.5">
+                    <div className="space-y-2">
                       {r.impediments.map((i: any) => (
-                        <li key={i.id} className="text-sm flex gap-2 text-amber-700 dark:text-amber-400">
-                          <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                          <span>{i.description}</span>
-                        </li>
+                        <div
+                          key={i.id}
+                          className="rounded-xl border border-amber-500/25 bg-amber-500/[0.08] px-3.5 py-2.5 text-sm flex gap-2.5"
+                        >
+                          <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+                          <div>
+                            <p className="leading-snug">{i.description}</p>
+                            {i.entry_date && (
+                              <p className="text-[11px] text-muted-foreground mt-1">
+                                Aberto em {new Date(`${i.entry_date}T12:00:00`).toLocaleDateString("pt-BR")}
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   )}
                 </div>
+
+                {r.impedimentsResolved.length > 0 && (
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-semibold mb-2">
+                      Impedimentos sanados · {r.impedimentsResolved.length}
+                    </p>
+                    <div className="space-y-2">
+                      {r.impedimentsResolved.map((i: any) => (
+                        <div
+                          key={i.id}
+                          className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.07] px-3.5 py-2.5 text-sm flex gap-2.5"
+                        >
+                          <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+                          <div>
+                            <p className="leading-snug">{i.description}</p>
+                            <p className="text-[11px] text-muted-foreground mt-1">
+                              {i.entry_date && `Aberto em ${new Date(`${i.entry_date}T12:00:00`).toLocaleDateString("pt-BR")}`}
+                              {i.resolvedDay && ` · Sanado em ${new Date(`${i.resolvedDay}T12:00:00`).toLocaleDateString("pt-BR")}`}
+                            </p>
+                            {i.resolution_note && (
+                              <p className="text-[11px] text-muted-foreground mt-0.5 italic">{i.resolution_note}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </article>
           ))}
