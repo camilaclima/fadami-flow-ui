@@ -1,4 +1,4 @@
-import { LayoutDashboard, ListTodo, Package, Users, Settings, ChevronLeft, ChevronDown, Briefcase, Shield, UserCog, ClipboardList, ShieldCheck, UsersRound, Zap, CalendarCheck, Users2, KeyRound, SlidersHorizontal, FolderKanban, MessageSquare, ClipboardEdit, Sparkles, History, Activity } from "lucide-react";
+import { LayoutDashboard, ListTodo, Package, Users, Settings, ChevronLeft, ChevronDown, Briefcase, Shield, UserCog, ClipboardList, ShieldCheck, UsersRound, Zap, CalendarCheck, Users2, KeyRound, SlidersHorizontal, FolderKanban, MessageSquare, ClipboardEdit, Sparkles, History, Activity, Mail } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { FadamiFlowLogo } from "@/components/FadamiFlowLogo";
 import menuIcon from "@/assets/menu-icon.png";
@@ -53,6 +53,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { title: "Minha Daily", url: "/dailys/registro", icon: ClipboardEdit, permission: "minha_daily" },
       { title: "Painel do GP", url: "/dailys/painel", icon: Sparkles, permission: "painel_gp" },
+      { title: "Resumo por E-mail", url: "/dailys/resumo-email", icon: Mail, permission: "painel_gp" },
     ],
   },
   {
