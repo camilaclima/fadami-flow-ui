@@ -53,7 +53,7 @@ export default function ResumoEmailPage() {
 
   const effectiveSquadId = squadId ?? activeSquads[0]?.id ?? null;
   const squad = activeSquads.find((s: any) => s.id === effectiveSquadId);
-  const window = useMemo(() => lastBusinessDays(date, WINDOW_DAYS), [date]);
+  const dayWindow = useMemo(() => lastBusinessDays(date, WINDOW_DAYS), [date]);
 
   // Membros da squad
   const { data: members = [] } = useQuery({
@@ -98,11 +98,11 @@ export default function ResumoEmailPage() {
   const { data: impediments = [] } = useDevDailyImpedimentsByEntries(entryIds);
 
   // Encontros + presença na janela (para faltas / câmeras)
-  const { data: window­Data } = useQuery({
+  const { data: windowData } = useQuery({
     queryKey: ["resumo_email", "window", effectiveSquadId ?? "none", date],
     enabled: !!effectiveSquadId,
     queryFn: async () => {
-      const from = window[window.length - 1];
+      const from = dayWindow[dayWindow.length - 1];
       const { data: meetings } = await (supabase.from("daily_meetings") as any)
         .select("id,meeting_date").eq("squad_id", effectiveSquadId)
         .gte("meeting_date", from).lte("meeting_date", date);
@@ -122,8 +122,8 @@ export default function ResumoEmailPage() {
     },
   });
 
-  const meetingsCount = window­Data?.meetings.length ?? 0;
-  const daysCount = window.length;
+  const meetingsCount = windowData?.meetings.length ?? 0;
+  const daysCount = dayWindow.length;
 
   const rows = useMemo(() => {
     return members.map((m) => {
@@ -143,14 +143,14 @@ export default function ResumoEmailPage() {
         ? impediments.filter((i: any) => i.entry_id === entry.id && !i.resolved)
         : [];
 
-      const att = (window­Data?.attendance ?? []).filter(
+      const att = (windowData?.attendance ?? []).filter(
         (a: any) =>
           (m.user_id && a.member_user_id === m.user_id) ||
           (!a.member_user_id && String(a.member_name ?? "").trim().toLowerCase() === m.name.trim().toLowerCase())
       );
       const absences = att.filter((a: any) => a.absent_from_work).length;
       const cameras = att.filter((a: any) => a.camera_on).length;
-      const registros = (window­Data?.winEntries ?? []).filter((e: any) => e.user_id === m.user_id).length;
+      const registros = (windowData?.winEntries ?? []).filter((e: any) => e.user_id === m.user_id).length;
 
       return {
         member: m,
@@ -162,7 +162,7 @@ export default function ResumoEmailPage() {
         cameraPct: pct(cameras, att.length),
       };
     });
-  }, [members, entries, activities, impediments, window­Data, meetingsCount, daysCount]);
+  }, [members, entries, activities, impediments, windowData, meetingsCount, daysCount]);
 
   const totals = useMemo(() => {
     const filled = rows.filter((r) => !!r.entry).length;
