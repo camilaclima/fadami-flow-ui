@@ -12,8 +12,9 @@ import {
 import {
   activeIssuesCard, clientDistribution, collaborators, days, effortLegend,
   recurrentCard, reworkCard, sprintEffort, sprints, squads, strategicEvolution,
-  teamKpis, type EffortSlice, type Task, type TaskStatus,
+  teamKpis, type Collaborator, type EffortSlice, type Task, type TaskStatus,
 } from "@/data/dailyflowMock";
+import { ColaboradorDetalheModal } from "@/components/dailys/ColaboradorDetalheModal";
 
 /* ------------------------------------------------------------------ tokens */
 const C = {
@@ -165,6 +166,7 @@ function Donut({ data }: { data: typeof clientDistribution }) {
 export default function VisaoDiariaPage() {
   const [squadId, setSquadId] = useState(squads[0].id);
   const [sprintId, setSprintId] = useState(sprints[sprints.length - 1].id);
+  const [detail, setDetail] = useState<{ collaborator: Collaborator; dayId: string } | null>(null);
 
   const squad = squads.find((s) => s.id === squadId)!;
   const sprint = sprints.find((s) => s.id === sprintId)!;
@@ -329,7 +331,11 @@ export default function VisaoDiariaPage() {
               style={{ gridTemplateColumns: gridCols, borderTop: idx === 0 ? `1px solid ${C.border2}` : `1px solid ${C.border2}` }}
             >
               {/* coluna colaborador */}
-              <div className="flex flex-col gap-1.5 px-3 py-2" style={{ background: C.card2 }}>
+              <div
+                className="flex cursor-pointer flex-col gap-1.5 px-3 py-2 transition-colors hover:brightness-125"
+                style={{ background: C.card2 }}
+                onClick={() => setDetail({ collaborator: c, dayId: days[days.length - 1].id })}
+              >
                 <div className="flex items-center gap-2">
                   <span
                     className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10.5px] font-semibold"
@@ -362,7 +368,12 @@ export default function VisaoDiariaPage() {
               {days.map((d) => {
                 const cell = c.days.find((x) => x.dayId === d.id);
                 return (
-                  <div key={d.id} style={{ borderLeft: `1px solid ${C.border2}` }}>
+                  <div
+                    key={d.id}
+                    className="cursor-pointer transition-colors hover:bg-white/[0.03]"
+                    style={{ borderLeft: `1px solid ${C.border2}` }}
+                    onClick={() => setDetail({ collaborator: c, dayId: d.id })}
+                  >
                     <DayCellView tasks={cell?.tasks ?? []} />
                   </div>
                 );
@@ -463,6 +474,12 @@ export default function VisaoDiariaPage() {
           </div>
         </div>
       </div>
+      <ColaboradorDetalheModal
+        open={!!detail}
+        onOpenChange={(v) => !v && setDetail(null)}
+        collaborator={detail?.collaborator ?? null}
+        dayId={detail?.dayId ?? days[0].id}
+      />
     </div>
   );
 }
