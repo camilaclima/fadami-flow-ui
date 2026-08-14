@@ -124,6 +124,7 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/__preview-visao-diaria" element={<DailysVisaoDiariaPage />} />
 
             <Route element={<ProtectedRoute />}>
               <Route element={<AppLayout />}>
