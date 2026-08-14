@@ -471,3 +471,74 @@ export const collaborators: Collaborator[] = [
     ],
   },
 ];
+
+/* ------------------------------------------------- detalhe do colaborador */
+export interface DetailChip { label: string; value: string; color: string }
+export interface AtuacaoSlice { label: string; value: number; color: string }
+export interface DetailNote {
+  id: string;
+  title: string;
+  description: string;
+  owner: string;
+  when: string;
+  color: string;
+  status?: string;
+}
+
+export const detailQuality = {
+  assiduidade: { label: "Assiduidade", caption: "sempre presente", dots: ["#22C55E", "#22C55E", "#22C55E"] },
+  organizacao: { label: "Organização", caption: "preenchimento: ok", dots: ["#3B82F6", "#3B82F6", "#70839A"] },
+  performance: { label: "Performance", caption: "entrega alta", dots: ["#22C55E", "#22C55E", "#22C55E"] },
+};
+
+export const detailHours = { extra: "1h 40m", bank: "+3h 20m" };
+
+export const detailEffort: EffortSlice[] = [
+  { key: "bug", value: 17 },
+  { key: "implantacao", value: 18 },
+  { key: "melhoria", value: 14 },
+  { key: "suporte", value: 14 },
+  { key: "outros", value: 3 },
+];
+
+export const detailAtuacao: AtuacaoSlice[] = [
+  { label: "Back-end", value: 34, color: "#8B5CF6" },
+  { label: "Integrações / Mensageria", value: 18, color: "#3B82F6" },
+  { label: "Banco de Dados", value: 12, color: "#22C55E" },
+  { label: "Reunião Interna", value: 11, color: "#FBBF24" },
+  { label: "Reunião Externa", value: 9, color: "#F59E0B" },
+  { label: "QA / Testes", value: 8, color: "#EC4899" },
+  { label: "Documentação Técnica", value: 8, color: "#60A5FA" },
+];
+
+export const detailNotes: DetailNote[] = [
+  {
+    id: "n1",
+    title: "Dependência externa de infraestrutura",
+    description: "Atenção ao ambiente de homologação do frete na API está pendente.",
+    owner: "Time Infra",
+    when: "06/08 às 14:12",
+    color: "#F59E0B",
+  },
+  {
+    id: "n2",
+    title: "Documentação desatualizada pendente",
+    description: "Precisamos atualizar o diagrama de conta de consulta de CEP com o token ideal.",
+    owner: "Leandro Rangel",
+    when: "05/08 às 10:11",
+    color: "#3B82F6",
+  },
+];
+
+export const detailImpediments: DetailNote[] = [
+  {
+    id: "i1",
+    title: "Acesso ao ambiente de testes indisponível",
+    description:
+      "O ambiente de homologação está apresentando instabilidade desde 05/08 às 16:18, impactando ingestão e testes de integrações e homologações de entregas. Aguardamos a estabilização ou um ambiente alternativo.",
+    owner: "Time de infraestrutura",
+    when: "05/08 às 16:18",
+    color: "#EF4444",
+    status: "Em andamento",
+  },
+];
