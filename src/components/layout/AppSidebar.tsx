@@ -54,6 +54,7 @@ const NAV_GROUPS: NavGroup[] = [
       { title: "Minha Daily", url: "/dailys/registro", icon: ClipboardEdit, permission: "minha_daily" },
       { title: "Painel do GP", url: "/dailys/painel", icon: Sparkles, permission: "painel_gp" },
       { title: "Resumo por E-mail", url: "/dailys/resumo-email", icon: Mail, permission: "painel_gp" },
+      { title: "Visão Diária", url: "/dailys/visao-diaria", icon: Activity, permission: "painel_gp" },
     ],
   },
   {
