@@ -93,7 +93,7 @@ function MiniMetric({ icon: Icon, value, color }: { icon: typeof Users; value: s
 /* --------------------------------------------------------------- task row */
 function TaskRow({ task }: { task: Task }) {
   return (
-    <div className="group flex items-start gap-1.5 leading-[15px]" title={task.title}>
+    <div className="group flex items-start gap-1.5 leading-[14px]" title={task.title}>
       <span className="mt-[5px]"><Dot color={STATUS_COLOR[task.status]} size={5} /></span>
       <span className="truncate text-[11.5px]" style={{ color: C.text }}>{task.title}</span>
       <span className="ml-auto flex shrink-0 items-center gap-1 pt-[1px]">
@@ -112,7 +112,7 @@ function DayCellView({ tasks }: { tasks: Task[] }) {
   const impediments = tasks.filter((t) => t.hasImpediment).length;
 
   return (
-    <div className="flex h-full flex-col gap-[3px] px-3 py-2.5">
+    <div className="flex h-full flex-col gap-[2px] px-3 py-2">
       {visible.map((t) => <TaskRow key={t.id} task={t} />)}
       <div className="mt-auto flex items-center gap-2 pt-1">
         {rest > 0 && <span className="text-[10.5px]" style={{ color: C.dim }}>+{rest} mais</span>}
@@ -172,7 +172,7 @@ export default function VisaoDiariaPage() {
 
   return (
     <div className="w-full" style={{ background: C.bg, color: C.text, fontFamily: "Inter, system-ui, sans-serif" }}>
-      <div className="flex flex-col gap-2 p-3">
+      <div className="flex flex-col gap-2 p-3 pb-4">
         {/* HEADER */}
         <div className="flex items-center gap-4 px-1 py-1">
           <div className="flex items-baseline gap-1 text-[19px] font-semibold tracking-tight">
@@ -195,7 +195,7 @@ export default function VisaoDiariaPage() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
-                className="flex h-[52px] w-[280px] items-center justify-between rounded-lg px-3 text-left"
+                className="flex h-[46px] w-[280px] items-center justify-between rounded-lg px-3 text-left"
                 style={{ background: C.card, border: `1px solid ${C.border}` }}
               >
                 <span className="flex flex-col">
@@ -213,7 +213,7 @@ export default function VisaoDiariaPage() {
           </DropdownMenu>
 
           <button
-            className="flex h-[52px] w-[52px] items-center justify-center rounded-lg"
+            className="flex h-[46px] w-[46px] items-center justify-center rounded-lg"
             style={{ background: C.card, border: `1px solid ${C.border}` }}
           >
             <ArrowLeft size={16} style={{ color: C.sub }} />
@@ -222,7 +222,7 @@ export default function VisaoDiariaPage() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
-                className="flex h-[52px] items-center gap-3 rounded-lg px-4"
+                className="flex h-[46px] items-center gap-3 rounded-lg px-4"
                 style={{ background: C.card, border: `1px solid ${C.border}` }}
               >
                 <span className="text-[13px]" style={{ color: C.sub }}>Sprint</span>
@@ -238,7 +238,7 @@ export default function VisaoDiariaPage() {
           </DropdownMenu>
 
           <div
-            className="flex h-[52px] items-center gap-3 rounded-lg px-4"
+            className="flex h-[46px] items-center gap-3 rounded-lg px-4"
             style={{ background: C.card, border: `1px solid ${C.border}` }}
           >
             <CalendarDays size={15} style={{ color: C.sub }} strokeWidth={1.6} />
@@ -249,7 +249,7 @@ export default function VisaoDiariaPage() {
           <Popover>
             <PopoverTrigger asChild>
               <button
-                className="ml-auto flex h-[52px] items-center gap-2 rounded-lg px-4 text-[13.5px]"
+                className="ml-auto flex h-[46px] items-center gap-2 rounded-lg px-4 text-[13.5px]"
                 style={{ background: C.card, border: `1px solid ${C.border}`, color: C.text }}
               >
                 Legenda <Info size={15} style={{ color: C.sub }} strokeWidth={1.6} />
@@ -277,7 +277,7 @@ export default function VisaoDiariaPage() {
             return (
               <div
                 key={k.id}
-                className="flex items-center gap-3 px-5 py-3.5"
+                className="flex items-center gap-3 px-5 py-3"
                 style={{ borderLeft: i === 0 ? "none" : `1px solid ${C.border2}` }}
               >
                 <span
@@ -329,7 +329,7 @@ export default function VisaoDiariaPage() {
               style={{ gridTemplateColumns: gridCols, borderTop: idx === 0 ? `1px solid ${C.border2}` : `1px solid ${C.border2}` }}
             >
               {/* coluna colaborador */}
-              <div className="flex flex-col gap-1.5 px-3 py-2.5" style={{ background: C.card2 }}>
+              <div className="flex flex-col gap-1.5 px-3 py-2" style={{ background: C.card2 }}>
                 <div className="flex items-center gap-2">
                   <span
                     className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10.5px] font-semibold"
